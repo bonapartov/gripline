@@ -1,0 +1,141 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailimages_tags %}
+
+{% block content %}
+<style>
+    /* Единый стандарт ширины */
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    /* Стили таблицы из общей стилистики */
+    .table-hover tbody tr:hover {
+        background-color: rgba(13, 202, 240, 0.1) !important;
+        transition: 0.3s;
+    }
+    .badge { width: 45px; font-weight: 800; }
+    .track-photo {
+        object-fit: cover;
+        border-radius: 10px;
+        width: 100%;
+        max-height: 300px;
+    }
+</style>
+
+<div class="force-width-1500 my-5 text-white">
+    <!-- Таблица с тремя колонками -->
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 2rem;">
+        <tr>
+            <!-- Колонка 1: Фото -->
+            <td style="width: 40%; vertical-align: top; padding-right: 15px;">
+                {% if track.photo %}
+                    {% image track.photo fill-600x400 as track_photo %}
+                    <img src="{{ track_photo.url }}" class="img-fluid track-photo shadow-lg border border-secondary" alt="{{ track.name }}" style="width: 100%; height: 300px; object-fit: cover;">
+                {% else %}
+                    <div class="bg-dark rounded d-flex align-items-center justify-content-center border border-secondary" style="width: 100%; height: 300px;">
+                        <span class="text-muted">Нет фото</span>
+                    </div>
+                {% endif %}
+            </td>
+
+            <!-- Колонка 2: Название и описание -->
+            <td style="width: 60%; vertical-align: top; padding: 0 15px;">
+                <h1 class="display-4 fw-bold mb-1 text-uppercase">{{ track.name }}</h1>
+                <p class="text-info fs-5 mb-3">
+                    <i class="fas fa-map-marker-alt me-2"></i>
+                    {% if track.city %}{{ track.city }}{% endif %}
+                    {% if track.city and track.address %},{% endif %}
+                    {% if track.address %} {{ track.address }}{% endif %}
+                    {% if not track.city and not track.address %}Город не указан{% endif %}
+                </p>
+
+                <div class="card bg-dark border-secondary p-3">
+                    <h5 class="text-primary border-bottom border-secondary pb-2 mb-3 text-uppercase">О трассе</h5>
+                    <div class="text-light">
+                        {{ track.description|safe|default:"Информация о трассе скоро будет дополнена." }}
+                    </div>
+                </div>
+
+                <!-- Соцсети под описанием -->
+                <div class="mt-4">
+                    {% for social in track.social_links.all %}
+                        <a href="{{ social.link_url }}" target="_blank" class="btn btn-outline-light btn-sm me-2 mb-2">
+                            <i class="fas fa-link me-1"></i> {{ social.network_name }}
+                        </a>
+                    {% endfor %}
+                </div>
+            </td>
+
+
+        </tr>
+    </table>
+
+
+
+        <div class="row">
+        <!-- Прошедшие соревнования (левая колонка) -->
+        <div class="col-lg-6 mb-4">
+            <h3 class="border-bottom border-primary pb-2 mb-4 text-uppercase fw-bold">Прошедшие соревнования</h3>
+
+            {% if events %}
+                <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                    <table class="table table-dark table-hover border-secondary">
+                        <thead class="sticky-top" style="top: 0; background-color: #15151c; z-index: 10;">
+                            <tr class="text-muted small uppercase">
+                                <th>Дата</th>
+                                <th>Название этапа</th>
+                                <th>Чемпионат</th>
+                                <th class="text-end">Результаты</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for event in events %}
+                                <tr>
+                                    <td class="align-middle text-muted">
+                                        {% with occ=event.occurrences.all.first %}
+                                            {% if occ %}
+                                                {{ occ.start|date:"d.m.Y" }}
+                                            {% else %}
+                                                {{ event.first_published_at|date:"d.m.Y" }}
+                                            {% endif %}
+                                        {% endwith %}
+                                    </td>
+                                    <td class="align-middle">
+                                        <span class="fw-bold">{{ event.title }}</span>
+                                    </td>
+                                    <td class="align-middle">
+                                        {% if event.get_parent.specific %}
+                                            <span class="text-info">{{ event.get_parent.title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="align-middle text-end">
+                                        <a href="{{ event.url }}" class="btn btn-sm btn-outline-primary">
+                                            Результаты
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="card bg-dark border-secondary p-5 text-center">
+                    <p class="text-muted m-0">На этой трассе ещё не проводились соревнования</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Предстоящие соревнования (правая колонка) -->
+        <div class="col-lg-6 mb-4">
+            <h3 class="border-bottom border-primary pb-2 mb-4 text-uppercase fw-bold">Предстоящие соревнования</h3>
+
+            <div class="card bg-dark border-secondary p-5 text-center h-100 d-flex align-items-center justify-content-center">
+                <p class="text-muted m-0">Скоро здесь появятся предстоящие этапы</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

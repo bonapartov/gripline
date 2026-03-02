@@ -1,0 +1,355 @@
+{% extends "admin/base_site.html" %}
+{% load admin_extras %}
+
+{% block content %}
+<style>
+    .preview-table th { background:#f0f0f0; padding:8px; text-align:left; }
+    .preview-table td { padding:8px; border-bottom:1px solid #eee; }
+
+    .driver-search-container {
+        position: relative;
+    }
+
+    .driver-search-input {
+        width: 300px !important;
+        padding: 6px 12px !important;
+        border: 1px solid #ced4da !important;
+        border-radius: 4px !important;
+        font-size: 14px !important;
+        background-color: white !important;
+        color: #212529 !important;
+    }
+    .error-cell {
+        background-color: #f8d7da !important;
+        border: 2px solid #dc3545 !important;
+        color: #721c24 !important;
+    }
+    .error-message {
+        color: #dc3545;
+        font-size: 0.8rem;
+        margin-top: 4px;
+        display: block;
+    }
+    .warning-icon {
+        color: #dc3545;
+        margin-left: 4px;
+        cursor: help;
+    }
+
+    /* Найденные пилоты - светло-зеленый фон */
+    .driver-search-input.found {
+        background-color: #d4edda !important;
+        border-color: #28a745 !important;
+        color: #212529 !important;
+    }
+
+    /* Ненайденные пилоты - светло-красный фон */
+    .driver-search-input.not-found {
+        background-color: #fff3cd !important;
+        border-color: #ffc107 !important;
+        color: #212529 !important;
+    }
+
+    .search-results {
+        position: absolute !important;
+        top: 100% !important;
+        left: 0 !important;
+        width: 300px !important;
+        background: white !important;
+        border: 1px solid #ced4da !important;
+        border-radius: 4px !important;
+        max-height: 300px !important;
+        overflow-y: auto !important;
+        z-index: 10000 !important;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+        display: none;
+    }
+
+    .search-result-item {
+        padding: 8px 12px !important;
+        cursor: pointer !important;
+        border-bottom: 1px solid #eee !important;
+        background: white !important;
+        color: #212529 !important;
+    }
+
+    .search-result-item:hover {
+        background: #f0f0f0 !important;
+    }
+
+    .search-result-item strong {
+        color: #212529 !important;
+    }
+
+    .search-result-item small {
+        color: #666 !important;
+    }
+
+    /* Подсветка строки в целом (опционально) */
+    tr.found-row {
+        background-color: rgba(40, 167, 69, 0.05) !important;
+    }
+    tr.not-found-row {
+        background-color: rgba(255, 193, 7, 0.05) !important;
+    }
+</style>
+
+<div style="padding:20px;">
+    <h2>Предпросмотр импорта ({{ rows|length }} строк)</h2>
+    <p>Проверьте соответствие пилотов. Зелёным подсвечены найденные, жёлтым — требующие выбора.</p>
+
+    <form method="post" id="import-form">
+        {% csrf_token %}
+
+        <table style="width:100%; border-collapse:collapse;" class="preview-table">
+            <thead>
+                <tr>
+                    <th>№</th>
+                    <th>Имя</th>
+                    <th>Фамилия</th>
+                    <th>Город</th>
+                    <th>Команда</th>
+                    <th>Шасси</th>
+                    <th>№</th>
+                    <th>Место</th>
+                    <th>Очки</th>
+                    <th>Выбор пилота</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                {% with row_found=row.found_drivers|length %}
+                <tr data-row="{{ forloop.counter0 }}" class="{% if row_found > 0 %}found-row{% else %}not-found-row{% endif %}">
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ row.first_name }}</td>
+                    <td>{{ row.last_name }}</td>
+                    <td>{{ row.city|default:"—" }}</td>
+                    <td>
+                        <div class="driver-search-container">
+                            <input type="text"
+                                  class="driver-search-input {% if row.team_name and row.team_exists %}found{% elif row.team_name %}not-found{% endif %}"
+                                  placeholder="Начните вводить команду..."
+                                  autocomplete="off"
+                                  data-row="{{ forloop.counter0 }}"
+                                  data-type="team"
+                                  value="{{ row.team_name|default:'' }}">
+
+                            <input type="hidden"
+                                  name="team_{{ forloop.counter0 }}"
+                                  class="team-selected-id"
+                                  value="{% if row.team_exists %}{{ row.team_id }}{% endif %}">
+                        </div>
+                    </td>
+                    <td>
+                        <div class="driver-search-container">
+                            <input type="text"
+                                  class="driver-search-input {% if row.chassis and row.chassis_exists %}found{% elif row.chassis %}not-found{% endif %}"
+                                  placeholder="Начните вводить шасси..."
+                                  autocomplete="off"
+                                  data-row="{{ forloop.counter0 }}"
+                                  data-type="chassis"
+                                  value="{{ row.chassis|default:'' }}">
+
+                            <input type="hidden"
+                                  name="chassis_{{ forloop.counter0 }}"
+                                  class="chassis-selected-id"
+                                  value="{% if row.chassis_exists %}{{ row.chassis_id }}{% endif %}">
+                        </div>
+                    </td>
+                    <td>{{ row.race_number|default:"—" }}</td>
+                    <td>{{ row.position }}</td>
+                    <td>{{ row.points }}</td>
+                    <td>
+                        <div class="driver-search-container">
+                            <input type="text"
+                                   class="driver-search-input {% if row_found > 0 %}found{% else %}not-found{% endif %}"
+                                   placeholder="Начните вводить имя..."
+                                   autocomplete="off"
+                                   data-row="{{ forloop.counter0 }}"
+                                   data-type="driver"
+                                   value="{% if row.selected_driver_id and row.selected_driver_id != 'new' %}{% for d in row.found_drivers %}{% if d.id|stringformat:'s' == row.selected_driver_id|stringformat:'s' %}{{ d.full_name }}{% endif %}{% endfor %}{% endif %}">
+
+                            <input type="hidden"
+                                   name="driver_{{ forloop.counter0 }}"
+                                   class="driver-selected-id"
+                                   value="{% if row.selected_driver_id and row.selected_driver_id != 'new' %}{{ row.selected_driver_id }}{% endif %}">
+
+                            <input type="hidden" name="first_name_{{ forloop.counter0 }}" value="{{ row.first_name }}">
+                            <input type="hidden" name="last_name_{{ forloop.counter0 }}" value="{{ row.last_name }}">
+                            <input type="hidden" name="city_{{ forloop.counter0 }}" value="{{ row.city }}">
+                            <input type="hidden" name="team_name_{{ forloop.counter0 }}" value="{{ row.team_name }}">
+                            <input type="hidden" name="race_number_{{ forloop.counter0 }}" value="{{ row.race_number }}">
+                            <input type="hidden" name="chassis_{{ forloop.counter0 }}" value="{{ row.chassis }}">
+                            <input type="hidden" name="position_{{ forloop.counter0 }}" value="{{ row.position }}">
+                            <input type="hidden" name="points_{{ forloop.counter0 }}" value="{{ row.points }}">
+                        </div>
+                    </td>
+                </tr>
+                {% endwith %}
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div style="margin-top:20px;">
+            <button type="submit" class="button" style="padding:10px 20px;">Продолжить</button>
+            <a href="javascript:history.back()" style="margin-left:20px;">← Назад</a>
+        </div>
+    </form>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.6.2/fuse.min.js"></script>
+<script>
+// Единая функция для всех типов поиска
+function initSearch(type, fuse) {
+    document.querySelectorAll(`.driver-search-input[data-type="${type}"]`).forEach(input => {
+        const container = input.closest('.driver-search-container');
+        const hiddenInput = container.querySelector(`.${type}-selected-id`);
+        const row = container.closest('tr');
+
+        // Создаем контейнер для результатов
+        let resultsDiv = container.querySelector('.search-results');
+        if (!resultsDiv) {
+            resultsDiv = document.createElement('div');
+            resultsDiv.className = 'search-results';
+            container.appendChild(resultsDiv);
+        }
+
+        // Поиск при вводе
+        input.addEventListener('input', function(e) {
+            const query = this.value.trim();
+
+            if (query.length < 2) {
+                resultsDiv.style.display = 'none';
+                return;
+            }
+
+            const results = fuse.search(query);
+            resultsDiv.innerHTML = '';
+
+            if (results.length === 0) {
+                const div = document.createElement('div');
+                div.className = 'search-result-item';
+                div.textContent = 'Ничего не найдено';
+                div.style.color = '#999';
+                div.style.fontStyle = 'italic';
+                resultsDiv.appendChild(div);
+            } else {
+                results.slice(0, 10).forEach(result => {
+                    const item = result.item;
+                    const div = document.createElement('div');
+                    div.className = 'search-result-item';
+
+                    if (type === 'driver') {
+                        div.innerHTML = `<strong>${item.full_name}</strong><br><small>${item.city || 'город?'}</small>`;
+                    } else {
+                        div.innerHTML = `<strong>${item.name}</strong>`;
+                    }
+
+                    div.onclick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        input.value = type === 'driver' ? item.full_name : item.name;
+                        hiddenInput.value = item.id;
+
+                        input.classList.remove('not-found');
+                        input.classList.add('found');
+
+                        resultsDiv.style.display = 'none';
+                        console.log(`Выбран ${type}:`, item.name || item.full_name, 'ID:', item.id);
+                    };
+
+                    resultsDiv.appendChild(div);
+                });
+            }
+
+            resultsDiv.style.display = 'block';
+        });
+
+        // Закрываем при клике вне
+        document.addEventListener('click', function(e) {
+            if (!container.contains(e.target)) {
+                resultsDiv.style.display = 'none';
+            }
+        });
+
+        // Предотвращаем всплытие кликов по результатам
+        resultsDiv.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Скрипт загружен');
+
+    // Загружаем пилотов
+    fetch('/drivers-api/')
+        .then(response => response.json())
+        .then(data => {
+            const fuse = new Fuse(data.items || [], {
+                keys: ['full_name', 'first_name', 'last_name', 'city'],
+                threshold: 0.3,
+            });
+            initSearch('driver', fuse);
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки пилотов:', error);
+        });
+
+    // Загружаем команды
+    fetch('/teams-api/')
+        .then(response => response.json())
+        .then(data => {
+            const fuse = new Fuse(data.items || [], { keys: ['name'], threshold: 0.3 });
+            initSearch('team', fuse);
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки команд:', error);
+        });
+
+    // Загружаем шасси
+    fetch('/chassis-api/')
+        .then(response => response.json())
+        .then(data => {
+            const fuse = new Fuse(data.items || [], { keys: ['name'], threshold: 0.3 });
+            initSearch('chassis', fuse);
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки шасси:', error);
+        });
+
+    // Проверка перед отправкой
+    document.getElementById('import-form').addEventListener('submit', function(e) {
+        console.log('=== ОТПРАВКА ФОРМЫ ===');
+
+        let hasErrors = false;
+
+        // Проверяем пилотов (обязательно)
+        document.querySelectorAll('.driver-search-input[data-type="driver"]').forEach(input => {
+            const container = input.closest('.driver-search-container');
+            const hiddenInput = container.querySelector('.driver-selected-id');
+
+            if (input.value.trim() && !hiddenInput.value) {
+                hiddenInput.value = 'new';
+                console.log('Установлен new для:', input.value);
+            }
+
+            if (!hiddenInput.value) {
+                hasErrors = true;
+                input.style.border = '2px solid #dc3545';
+                console.log('ОШИБКА: нет пилота');
+            }
+        });
+
+        if (hasErrors) {
+            e.preventDefault();
+            alert('Для всех строк необходимо выбрать пилота!');
+            return;
+        }
+
+        console.log('Форма валидна, отправляем...');
+    });
+});
+</script>
+{% endblock %}

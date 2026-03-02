@@ -1,0 +1,44 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailcore_tags wagtailimages_tags website_tags %}
+
+{% block content %}
+<div class="container-fluid bg-dark text-white py-4">
+    <div class="d-flex justify-content-center mb-4 overflow-auto">
+        {% for champ in championships %}
+            <a href="?champ={{ champ.slug }}"
+               class="btn mx-2 py-3 px-5 font-weight-bold {% if champ.id == active_champ.id %}btn-warning text-dark{% else %}btn-secondary text-white{% endif %}"
+               style="min-width: 200px; font-size: 1.2rem;">
+                {{ champ.title|upper }}
+            </a>
+        {% endfor %}
+    </div>
+
+    <div class="container mb-5">
+        {% include "coderedcms/snippets/championship_results_table.html" %}
+    </div>
+
+    <div class="container pb-5">
+        <h3 class="mb-4">Протоколы этапов</h3>
+        <div class="accordion" id="eventsAccordion">
+            {% for event in events_list %}
+                <div class="card bg-secondary text-white mb-2">
+                    <div class="card-header d-flex justify-content-between align-items-center"
+                         id="heading{{ event.id }}"
+                         data-toggle="collapse"
+                         data-target="#collapse{{ event.id }}"
+                         style="cursor: pointer;">
+                        <span class="h5 mb-0">{{ event.title }}</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+
+                    <div id="collapse{{ event.id }}" class="collapse" data-parent="#eventsAccordion">
+                        <div class="card-body bg-light text-dark">
+                            {% include "website/includes/event_results_mini_table.html" with results=event.race_results.all %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

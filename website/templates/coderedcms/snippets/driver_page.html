@@ -1,0 +1,411 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailimages_tags %}
+
+{% block content %}
+<style>
+    /* Единый стандарт ширины */
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    /* Стили таблицы из общей стилистики */
+    .table-hover tbody tr:hover {
+        background-color: rgba(13, 202, 240, 0.1) !important;
+        transition: 0.3s;
+    }
+    .badge { width: 45px; font-weight: 800; }
+    .driver-photo {
+        object-fit: cover;
+        border-radius: 10px;
+    }
+    .bg-bronze {
+        background-color: #cd7f32 !important;
+        color: white !important;
+    }
+</style>
+
+<div class="force-width-1500 my-5 text-white">
+    <div class="row mb-5">
+        <div class="col-md-4 col-lg-3">
+            {% if driver.photo %}
+                {% image driver.photo fill-400x500 as pilot_photo %}
+                <img src="{{ pilot_photo.url }}" class="img-fluid driver-photo shadow-lg border border-secondary" alt="{{ driver.full_name }}">
+            {% else %}
+                <div class="bg-dark rounded d-flex align-items-center justify-content-center border border-secondary" style="aspect-ratio: 4/5;">
+                    <span class="text-muted">Нет фото</span>
+                </div>
+            {% endif %}
+
+             <div class="mb-4">
+                {% for social in driver.social_links.all %}
+                    <a href="{{ social.link_url }}" target="_blank" class="btn btn-outline-light btn-sm me-2 mb-2">
+                        <i class="fas fa-link me-1"></i> {{ social.network_name }}
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="col-md-8 col-lg-9">
+            <h1 class="display-4 fw-bold mb-1 text-uppercase">{{ driver.full_name }}</h1>
+            <p class="text-info fs-5 mb-3">
+                <i class="fas fa-map-marker-alt me-2"></i>{{ driver.city|default:"Город не указан" }}
+            </p>
+
+
+
+            <div class="card bg-dark border-secondary p-3 mb-3">
+                <h5 class="text-primary border-bottom border-secondary pb-2 mb-3 text-uppercase">Биография</h5>
+                <div class="text-light">
+                    {{ driver.bio|safe|default:"Информация о пилоте скоро будет дополнена." }}
+                </div>
+            </div>
+
+            {# График результатов пилота #}
+              <div class="row">
+                  <div class="col-12">
+                      <div class="card bg-dark border-secondary p-4">
+                          <h4 class="text-primary border-bottom border-secondary pb-2 mb-4 text-uppercase fw-bold">Прогресс по этапам</h4>
+
+                          <div style="height: 200px; position: relative;">
+                              <canvas id="driverChart"></canvas>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+              <script>
+                  document.addEventListener('DOMContentLoaded', function() {
+                      const ctx = document.getElementById('driverChart').getContext('2d');
+
+                      // Данные из Django
+                      const results = [
+                          {% for res in results reversed %}
+                              {
+                                              event: "{% with occurrence=res.group.page.occurrences.all.first %}{% if occurrence and occurrence.end %}{{ occurrence.end|date:'m.Y' }}{% else %}{{ res.group.page.first_published_at|date:'m.Y' }}{% endif %}{% endwith %}",
+                                  points: {{ res.points|floatformat:"0" }},
+                                  position: {{ res.position }}
+                              }{% if not forloop.last %},{% endif %}
+                          {% endfor %}
+                      ];
+
+                      new Chart(ctx, {
+                          type: 'line',
+                          data: {
+                              labels: results.map(r => r.event),
+                              datasets: [{
+                                  label: 'Очки',
+                                  data: results.map(r => r.points),
+                                  borderColor: '#0dcaf0',
+                                  backgroundColor: 'rgba(13, 202, 240, 0.1)',
+                                  tension: 0.3,
+                                  fill: true,
+                                  pointBackgroundColor: results.map(r =>
+                                      r.position === 1 ? '#ffc107' :
+                                      r.position === 2 ? '#6c757d' :
+                                      r.position === 3 ? '#cd7f32' : '#0dcaf0'
+                                  ),
+                                  pointBorderColor: '#fff',
+                                  pointRadius: 6,
+                                  pointHoverRadius: 8,
+                              }]
+                          },
+                          options: {
+                              responsive: true,
+                              maintainAspectRatio: false,
+                              plugins: {
+                                  legend: { display: false },
+                                  tooltip: {
+                                      callbacks: {
+                                          label: function(context) {
+                                              const result = results[context.dataIndex];
+                                              return [
+                                                  `Очки: ${result.points}`,
+                                                  `Место: ${result.position}`
+                                              ];
+                                          }
+                                      }
+                                  }
+                              },
+                              scales: {
+                                  y: {
+                                      beginAtZero: true,
+                                      grid: { color: 'rgba(255,255,255,0.1)' },
+                                      ticks: { color: '#adb5bd' }
+                                  },
+                                  x: {
+                                      grid: { display: false },
+                                      ticks: { color: '#adb5bd', maxRotation: 45, minRotation: 45 }
+                                  }
+                              }
+                          }
+                      });
+                  });
+              </script>
+
+        </div>
+    </div>
+
+
+     {# Блок статистики пилота - перед таблицей (одна строка) #}
+      <div class="row mb-5">
+          <!-- Статистика пилота -->
+          <div class="col-12 mb-4">
+              <div class="card bg-dark border-secondary p-4">
+                  <h4 class="text-primary border-bottom border-secondary pb-2 mb-4 text-uppercase fw-bold">Статистика пилота</h4>
+                  <div class="row text-center g-3">
+                      <div class="col">
+                          <div class="bg-black bg-opacity-25 rounded-3 py-3 px-2 h-100 border border-secondary">
+                              <div class="display-6 fw-bold text-white">{{ total_starts|default:"0" }}</div>
+                              <div class="text-info small text-uppercase">Старты</div>
+                          </div>
+                      </div>
+                      <div class="col">
+                          <div class="bg-black bg-opacity-25 rounded-3 py-3 px-2 h-100 border border-secondary">
+                              <div class="display-6 fw-bold text-white">{{ wins|default:"0" }}</div>
+                              <div class="text-info small text-uppercase">Победы</div>
+                          </div>
+                      </div>
+                      <div class="col">
+                          <div class="bg-black bg-opacity-25 rounded-3 py-3 px-2 h-100 border border-secondary">
+                              <div class="display-6 fw-bold text-white">{{ podiums|default:"0" }}</div>
+                              <div class="text-info small text-uppercase">Подиумы</div>
+                          </div>
+                      </div>
+                      <div class="col">
+                          <div class="bg-black bg-opacity-25 rounded-3 py-3 px-2 h-100 border border-secondary">
+                              <div class="display-6 fw-bold text-white">{{ win_percentage|default:"0" }}%</div>
+                              <div class="text-info small text-uppercase">% Побед</div>
+                          </div>
+                      </div>
+                      <div class="col">
+                          <div class="bg-black bg-opacity-25 rounded-3 py-3 px-2 h-100 border border-secondary">
+                              <div class="display-6 fw-bold text-white">{{ podium_percentage|default:"0" }}%</div>
+                              <div class="text-info small text-uppercase">% Подиумов</div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+
+          <!-- Математический рейтинг -->
+          <div class="col-12">
+              <div class="card bg-dark border-secondary p-4">
+                  <h4 class="text-primary border-bottom border-secondary pb-2 mb-4 text-uppercase fw-bold">Математический рейтинг</h4>
+
+                  <div class="row text-center g-3">
+                      <div class="col">
+                          <div class="bg-black bg-opacity-25 rounded-3 py-3 px-2 h-100 border border-secondary">
+                              <div class="display-6 fw-bold text-white">{{ driver.rating_score|floatformat:2 }}</div>
+                              <div class="text-info small text-uppercase">Брэдли-Терри</div>
+                          </div>
+                      </div>
+                      <div class="col">
+                          <div class="bg-black bg-opacity-25 rounded-3 py-3 px-2 h-100 border border-secondary">
+                              <div class="display-6 fw-bold text-white">{{ pagerank_score|floatformat:2 }}</div>
+                              <div class="text-info small text-uppercase">PageRank</div>
+                          </div>
+                      </div>
+                      <div class="col">
+                          <div class="bg-black bg-opacity-25 rounded-3 py-3 px-2 h-100 border border-secondary">
+                              <div class="display-6 fw-bold text-white">{{ ensemble_score|floatformat:2 }}</div>
+                              <div class="text-info small text-uppercase">Ансамбль</div>
+                          </div>
+                      </div>
+                      <div class="col">
+                          <div class="bg-black bg-opacity-25 rounded-3 py-3 px-2 h-100 border border-secondary">
+                              <div class="display-6 fw-bold text-white">{{ context_score|floatformat:2 }}</div>
+                              <div class="text-info small text-uppercase">Context-Aware</div>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div class="d-flex justify-content-end align-items-center mt-3">
+                      {% if last_update %}
+                      <div class="text-muted small me-3">
+                          <i class="fas fa-clock me-1"></i>Обновлено: {{ last_update|date:"d.m.Y H:i" }}
+                      </div>
+                      {% endif %}
+                      <a href="/rating-info/" class="btn btn-outline-info btn-sm text-uppercase">
+                          <i class="fas fa-calculator me-1"></i> как считаем
+                      </a>
+                  </div>
+              </div>
+          </div>
+      </div>
+
+    <div class="row">
+        <div class="col-12">
+
+            <h3 class="border-bottom border-primary pb-2 mb-4 text-uppercase fw-bold">История выступлений</h3>
+
+            <div class="table-responsive">
+                <table class="table table-dark table-hover border-secondary" style="table-layout: fixed; width: 100%;">
+                    <thead>
+                        <tr class="text-muted small uppercase border-bottom border-secondary">
+                            <th style="width: 70px;" class="text-center" style="width: 60px; vertical-align: middle;">
+                                        <svg version="1.0" xmlns="http://www.w3.org/2000/svg"
+                                        width="34.000000pt" viewBox="0 0 484.000000 248.000000"
+                                        preserveAspectRatio="xMidYMid meet">
+                                        <g transform="translate(0.000000,248.000000) scale(0.100000,-0.100000)"
+                                        fill="#ffffff" stroke="none">
+                                        <path d="M2085 2436 c-16 -7 -39 -23 -49 -35 -11 -11 -51 -114 -91 -229 l-71
+                                        -207 -260 -5 c-341 -7 -305 18 -409 -284 -36 -103 -65 -193 -65 -198 0 -6 101
+                                        -8 259 -6 256 3 258 3 246 -17 -7 -11 -40 -103 -74 -205 -34 -102 -65 -190
+                                        -69 -197 -5 -8 -80 -13 -265 -15 -141 -2 -257 -1 -257 3 0 3 5 10 10 15 9 9
+                                        140 389 140 406 0 4 -111 8 -246 8 -266 0 -297 -5 -331 -56 -12 -19 -153 -415
+                                        -153 -430 0 -3 117 -4 259 -2 171 2 257 0 253 -7 -4 -5 -38 -102 -77 -215
+                                        l-70 -205 -260 -5 c-246 -5 -262 -6 -290 -27 -17 -12 -36 -32 -43 -45 -12 -23
+                                        -142 -400 -142 -412 0 -3 110 -6 245 -6 224 0 249 2 284 19 21 11 45 30 53 43
+                                        8 13 45 114 82 226 l68 202 248 0 249 0 -20 -34 c-15 -25 -149 -406 -149 -423
+                                        0 -2 109 -3 243 -3 216 0 246 2 284 19 23 11 48 30 57 43 14 21 146 401 146
+                                        420 0 4 -113 8 -252 8 l-251 0 21 23 c12 12 48 102 82 202 34 99 66 192 72
+                                        208 l10 27 250 0 249 0 -20 -27 c-18 -25 -151 -400 -151 -425 0 -6 100 -8 259
+                                        -6 186 2 257 0 250 -8 -5 -6 -38 -96 -73 -200 -36 -104 -68 -197 -71 -207 -7
+                                        -16 9 -17 246 -17 234 0 257 2 286 20 18 10 39 30 48 43 14 22 145 400 145
+                                        419 0 11 -448 10 -488 -1 -35 -10 -39 -6 -17 23 8 10 44 108 80 217 l67 199
+                                        248 0 c137 0 256 3 265 7 16 6 16 4 1 -18 -18 -28 -149 -410 -142 -416 2 -2
+                                        114 -4 250 -4 258 0 278 3 318 48 10 11 42 91 72 179 30 87 62 180 71 206 l17
+                                        48 241 0 c216 0 247 2 284 19 23 11 48 30 57 43 8 13 47 115 85 226 l70 203
+                                        -263 -3 -263 -3 14 21 c13 20 143 399 143 416 0 12 -459 10 -499 -2 -68 -19
+                                        -85 -48 -162 -271 l-72 -209 -238 0 c-130 0 -246 -3 -256 -7 -15 -5 -15 -3 4
+                                        18 17 18 163 409 163 435 0 3 -119 4 -264 2 -243 -3 -263 -2 -250 13 8 9 43
+                                        101 78 205 35 104 67 197 71 207 7 16 -9 17 -241 17 -184 -1 -257 -4 -279 -14z
+                                        m300 -490 c-12 -18 -145 -398 -145 -413 0 -2 113 -3 252 -3 251 0 251 0 233
+                                        -20 -10 -11 -51 -114 -91 -228 l-72 -207 -251 -5 c-138 -3 -251 -3 -251 -1 0
+                                        3 8 14 18 25 18 20 152 396 152 424 0 15 -436 18 -488 3 -35 -10 -39 -6 -17
+                                        23 8 10 44 108 80 217 l67 199 256 3 c141 1 260 3 265 5 4 1 0 -9 -8 -22z
+                                        m1426 -400 c-7 -8 -42 -106 -80 -218 l-68 -203 -261 -5 c-144 -3 -262 -3 -262
+                                        1 0 3 5 10 10 15 6 6 41 102 79 215 l68 204 259 5 c142 3 261 4 263 3 2 -2 -2
+                                        -9 -8 -17z"/>
+                                        <path d="M3151 2324 c-11 -14 -34 -69 -52 -122 -17 -53 -34 -103 -37 -109 -3
+                                        -10 30 -13 145 -13 142 0 151 1 170 23 18 19 93 211 93 238 0 5 -67 9 -149 9
+                                        -148 0 -150 0 -170 -26z"/>
+                                        <path d="M4535 1848 c-11 -6 -23 -16 -27 -22 -10 -15 -68 -188 -68 -204 0 -17
+                                        225 -17 260 1 20 10 33 35 62 117 20 58 37 108 37 113 1 12 -242 8 -264 -5z"/>
+                                        <path d="M4251 1023 c-17 -15 -101 -225 -101 -254 0 -5 64 -9 145 -9 179 0
+                                        176 -2 229 156 20 60 36 112 36 117 0 4 -65 7 -144 7 -122 0 -147 -3 -165 -17z"/>
+                                        <path d="M3685 631 c-37 -16 -55 -47 -95 -167 -22 -65 -40 -122 -40 -126 0 -4
+                                        71 -8 159 -8 201 0 195 -4 250 163 23 67 41 128 41 135 0 9 -36 12 -147 11
+                                        -82 0 -157 -4 -168 -8z"/>
+                                        </g>
+                                        </svg>
+                                    </th>
+                            <th style="width: 50px;">Дата</th>
+                            <th style="width: 100px;" class="text-center" style="width: 60px; vertical-align: middle;">
+                                        <svg version="1.0" xmlns="http://www.w3.org/2000/svg"
+                                            width="18pt" height="18pt" viewBox="0 0 600.000000 627.000000"
+                                            preserveAspectRatio="xMidYMid meet">
+                                            <g transform="translate(0.000000,627.000000) scale(0.100000,-0.100000)"
+                                            fill="#ffffff" stroke="none">
+                                            <path d="M2741 6260 c-420 -35 -785 -136 -1126 -310 -821 -419 -1403 -1187
+                                            -1560 -2060 -14 -74 -29 -180 -35 -235 -16 -152 -24 -1064 -12 -1319 11 -215
+                                            12 -221 42 -282 37 -76 115 -151 228 -217 87 -51 462 -222 1092 -497 74 -32
+                                            295 -129 490 -216 195 -86 400 -176 455 -199 55 -23 200 -88 322 -144 122 -55
+                                            225 -101 228 -101 3 0 81 -34 173 -76 92 -43 262 -119 377 -171 898 -403 936
+                                            -418 1085 -430 109 -8 210 10 307 57 126 59 271 163 621 443 308 246 387 335
+                                            505 572 l54 110 7 920 c6 955 -1 1357 -29 1570 -107 808 -519 1509 -1176 2002
+                                            -401 301 -911 501 -1453 568 -150 19 -456 27 -595 15z m635 -404 c352 -47 755
+                                            -201 1079 -414 431 -282 785 -721 983 -1218 46 -115 100 -294 104 -344 l3 -35
+                                            -65 1 c-36 1 -135 18 -220 38 -85 21 -292 68 -460 107 -168 38 -370 85 -450
+                                            104 -186 44 -333 59 -528 53 -151 -5 -162 -6 -273 -44 -312 -107 -547 -326
+                                            -680 -633 -53 -125 -69 -212 -69 -389 0 -358 97 -599 324 -809 101 -92 189
+                                            -143 531 -304 160 -75 470 -223 690 -329 220 -105 445 -212 500 -236 158 -71
+                                            639 -318 643 -331 5 -18 -63 -79 -331 -296 -446 -362 -485 -387 -599 -387 -47
+                                            0 -88 8 -140 26 -102 37 -444 184 -693 299 -115 54 -262 120 -325 147 -63 27
+                                            -221 98 -350 158 -129 59 -365 164 -525 233 -261 112 -888 388 -1355 597 -96
+                                            43 -274 122 -395 175 -229 101 -353 164 -376 191 -34 41 -11 1198 32 1569 24
+                                            215 126 518 255 764 110 209 267 414 460 602 399 387 828 601 1419 709 98 18
+                                            141 19 405 15 178 -2 339 -10 406 -19z m729 -2102 c66 -13 363 -81 660 -153
+                                            297 -71 593 -141 658 -155 173 -39 189 -46 199 -81 10 -34 -10 -1757 -20
+                                            -1825 -12 -77 11 -86 -772 292 -245 119 -483 232 -530 253 -177 78 -695 336
+                                            -797 397 -177 105 -276 225 -303 369 -13 69 -13 331 1 405 35 189 251 411 478
+                                            490 140 49 215 50 426 8z"/>
+                                            <path d="M1615 4066 c-75 -19 -121 -41 -191 -91 -81 -58 -143 -134 -196 -243
+                                            l-43 -86 1 -110 c1 -129 20 -208 72 -310 114 -219 389 -340 641 -281 362 86
+                                            545 493 375 834 -59 118 -183 227 -312 273 -73 26 -272 34 -347 14z m230 -385
+                                            c47 -22 89 -64 104 -104 28 -73 0 -169 -65 -227 -31 -27 -41 -30 -102 -30 -79
+                                            0 -136 23 -175 69 -77 92 -46 235 65 290 53 26 119 27 173 2z"/>
+                                            </g>
+                                        </svg>
+                                    </th>
+                            <th style="width: 400px;">Соревнование / Класс</th>
+                            <th style="width: 150px;">Шасси</th>
+                            <th style="width: 250px;">Команда</th>
+                            <th style="width: 100px;" class="text-end">Очки</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for res in results %}
+                            <tr>
+                                <td class="align-middle text-center">
+                                    <span class="badge {% if res.position == 1 %}bg-warning text-dark{% elif res.position == 2 %}bg-light text-dark{% elif res.position == 3 %}bg-bronze{% else %}bg-secondary{% endif %} px-3">
+                                        {{ res.position }}
+                                    </span>
+                                </td>
+
+                                <td class="align-middle text-muted small">
+                                    {% with occ=res.group.page.occurrences.all.first %}
+                                        {% if occ.end %}
+                                            {{ occ.end|date:"d.m.Y" }}
+                                        {% else %}
+                                            {{ res.group.page.first_published_at|date:"d.m.Y" }}
+                                        {% endif %}
+                                    {% endwith %}
+                                </td>
+
+                                <td class="align-middle text-center fw-bold text-info">
+                                    {{ res.race_number|default:"—" }}
+                                </td>
+
+                                <td class="align-middle">
+                                    <a href="{{ res.group.page.url }}" class="text-white text-decoration-none d-flex align-items-center">
+                                        <span class="fw-bold text-nowrap">{{ res.group.page.title }}</span>
+
+                                        <span class="mx-2 text-secondary opacity-50">|</span>
+
+                                        <span class="small text-info text-uppercase text-nowrap">
+                                            {{ res.group.race_class.name }}
+                                        </span>
+                                    </a>
+                                </td>
+
+                                <td class="align-middle text-muted small text-truncate">
+                                    {% if res.chassis_new %}
+                                        <a href="{{ res.chassis_new.get_absolute_url }}" class="text-muted text-decoration-none">
+                                            {{ res.chassis_new.name }}
+                                        </a>
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+
+                                <td class="align-middle text-truncate">
+                                    {% if res.team %}
+                                        <a href="{{ res.team.get_absolute_url }}" class="text-warning text-decoration-none text-truncate d-block">
+                                            {{ res.team.name }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted italic small">Личный зачёт</span>
+                                    {% endif %}
+                                </td>
+
+                                <td class="align-middle text-end fw-bold text-primary fs-5">
+                                    {{ res.points|floatformat:"0" }}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center p-5 text-muted">Данные о заездах отсутствуют</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

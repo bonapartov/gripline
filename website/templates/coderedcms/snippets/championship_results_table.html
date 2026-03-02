@@ -1,0 +1,277 @@
+{# Загружаем пользовательские теги (например, filter 'get_item' для получения данных из словаря) #}
+{% load website_tags %}
+
+{% block content %}
+<style>
+    /* Сбрасываем паддинги родительского контейнера */
+    .content-container,
+    .container,
+    main,
+    article,
+    [class*="container"] {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        max-width: 100% !important;
+    }
+
+    /* Единый стандарт ширины 1500px (как в driver_page.html и team_page.html) */
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        width: 100%;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    /* Стили таблицы из общей стилистики (как у пилотов и команд) */
+    .table-hover tbody tr:hover {
+        background-color: rgba(13, 202, 240, 0.1) !important;
+        transition: 0.3s;
+    }
+
+    /* Стили для заголовков таблицы */
+    .table thead th {
+        border-bottom: 2px solid #ffc107; /* Желтая линия как в driver_page.html */
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+        color: #adb5bd; /* text-muted */
+        vertical-align: middle;
+    }
+
+    /* Стили для ячеек с очками этапов */
+    .event-points {
+        font-weight: 500;
+    }
+
+    /* Стили для бейджей мест */
+    .position-badge {
+        width: 45px;
+        font-weight: 800;
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+    }
+
+    /* Для мобильных устройств */
+    @media (max-width: 768px) {
+        .table th, .table td {
+            white-space: nowrap;
+        }
+    }
+    /* Бронзовый цвет для 3 места */
+    .bg-bronze {
+        background-color: #cd7f32 !important; /* Классический бронзовый */
+    }
+</style>
+
+<div class="force-width-1500 my-5 text-white">
+
+
+    {# Основной контейнер таблицы: темная карточка с тенью #}
+<div class="bg-dark text-white shadow-lg overflow-hidden border border-secondary" style="border-radius: 4px !important;">
+
+        {# table-responsive позволяет таблице прокручиваться горизонтально на узких экранах #}
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0">
+
+                {# Шапка таблицы (темная, как в driver_page.html) #}
+                <thead>
+                    <tr class="text-muted small text-uppercase border-bottom border-secondary">
+                        {# 1. Колонка Позиции - иконка шлема (как в driver_page.html, с белой заливкой) #}
+                        <th class="text-center" style="width: 60px; vertical-align: middle;">
+                            <svg version="1.0" xmlns="http://www.w3.org/2000/svg"
+                                width="34.000000pt" viewBox="0 0 484.000000 248.000000"
+                                preserveAspectRatio="xMidYMid meet">
+                                <g transform="translate(0.000000,248.000000) scale(0.100000,-0.100000)"
+                                    fill="#ffffff" stroke="none">
+                                    <path d="M2085 2436 c-16 -7 -39 -23 -49 -35 -11 -11 -51 -114 -91 -229 l-71
+                                    -207 -260 -5 c-341 -7 -305 18 -409 -284 -36 -103 -65 -193 -65 -198 0 -6 101
+                                    -8 259 -6 256 3 258 3 246 -17 -7 -11 -40 -103 -74 -205 -34 -102 -65 -190
+                                    -69 -197 -5 -8 -80 -13 -265 -15 -141 -2 -257 -1 -257 3 0 3 5 10 10 15 9 9
+                                    140 389 140 406 0 4 -111 8 -246 8 -266 0 -297 -5 -331 -56 -12 -19 -153 -415
+                                    -153 -430 0 -3 117 -4 259 -2 171 2 257 0 253 -7 -4 -5 -38 -102 -77 -215
+                                    l-70 -205 -260 -5 c-246 -5 -262 -6 -290 -27 -17 -12 -36 -32 -43 -45 -12 -23
+                                    -142 -400 -142 -412 0 -3 110 -6 245 -6 224 0 249 2 284 19 21 11 45 30 53 43
+                                    8 13 45 114 82 226 l68 202 248 0 249 0 -20 -34 c-15 -25 -149 -406 -149 -423
+                                    0 -2 109 -3 243 -3 216 0 246 2 284 19 23 11 48 30 57 43 14 21 146 401 146
+                                    420 0 4 -113 8 -252 8 l-251 0 21 23 c12 12 48 102 82 202 34 99 66 192 72
+                                    208 l10 27 250 0 249 0 -20 -27 c-18 -25 -151 -400 -151 -425 0 -6 100 -8 259
+                                    -6 186 2 257 0 250 -8 -5 -6 -38 -96 -73 -200 -36 -104 -68 -197 -71 -207 -7
+                                    -16 9 -17 246 -17 234 0 257 2 286 20 18 10 39 30 48 43 14 22 145 400 145
+                                    419 0 11 -448 10 -488 -1 -35 -10 -39 -6 -17 23 8 10 44 108 80 217 l67 199
+                                    248 0 c137 0 256 3 265 7 16 6 16 4 1 -18 -18 -28 -149 -410 -142 -416 2 -2
+                                    114 -4 250 -4 258 0 278 3 318 48 10 11 42 91 72 179 30 87 62 180 71 206 l17
+                                    48 241 0 c216 0 247 2 284 19 23 11 48 30 57 43 8 13 47 115 85 226 l70 203
+                                    -263 -3 -263 -3 14 21 c13 20 143 399 143 416 0 12 -459 10 -499 -2 -68 -19
+                                    -85 -48 -162 -271 l-72 -209 -238 0 c-130 0 -246 -3 -256 -7 -15 -5 -15 -3 4
+                                    18 17 18 163 409 163 435 0 3 -119 4 -264 2 -243 -3 -263 -2 -250 13 8 9 43
+                                    101 78 205 35 104 67 197 71 207 7 16 -9 17 -241 17 -184 -1 -257 -4 -279 -14z
+                                    m300 -490 c-12 -18 -145 -398 -145 -413 0 -2 113 -3 252 -3 251 0 251 0 233
+                                    -20 -10 -11 -51 -114 -91 -228 l-72 -207 -251 -5 c-138 -3 -251 -3 -251 -1 0
+                                    3 8 14 18 25 18 20 152 396 152 424 0 15 -436 18 -488 3 -35 -10 -39 -6 -17
+                                    23 8 10 44 108 80 217 l67 199 256 3 c141 1 260 3 265 5 4 1 0 -9 -8 -22z
+                                    m1426 -400 c-7 -8 -42 -106 -80 -218 l-68 -203 -261 -5 c-144 -3 -262 -3 -262
+                                    1 0 3 5 10 10 15 6 6 41 102 79 215 l68 204 259 5 c142 3 261 4 263 3 2 -2 -2
+                                    -9 -8 -17z"/>
+                                    <path d="M3151 2324 c-11 -14 -34 -69 -52 -122 -17 -53 -34 -103 -37 -109 -3
+                                    -10 30 -13 145 -13 142 0 151 1 170 23 18 19 93 211 93 238 0 5 -67 9 -149 9
+                                    -148 0 -150 0 -170 -26z"/>
+                                    <path d="M4535 1848 c-11 -6 -23 -16 -27 -22 -10 -15 -68 -188 -68 -204 0 -17
+                                    225 -17 260 1 20 10 33 35 62 117 20 58 37 108 37 113 1 12 -242 8 -264 -5z"/>
+                                    <path d="M4251 1023 c-17 -15 -101 -225 -101 -254 0 -5 64 -9 145 -9 179 0
+                                    176 -2 229 156 20 60 36 112 36 117 0 4 -65 7 -144 7 -122 0 -147 -3 -165 -17z"/>
+                                    <path d="M3685 631 c-37 -16 -55 -47 -95 -167 -22 -65 -40 -122 -40 -126 0 -4
+                                    71 -8 159 -8 201 0 195 -4 250 163 23 67 41 128 41 135 0 9 -36 12 -147 11
+                                    -82 0 -157 -4 -168 -8z"/>
+                                </g>
+                            </svg>
+                        </th>
+
+                        {# 2. Колонка Стартового номера - иконка номера (как в driver_page.html) #}
+                        <th class="text-center" style="width: 60px; vertical-align: middle;">
+                            <svg version="1.0" xmlns="http://www.w3.org/2000/svg"
+                                width="18pt" height="18pt" viewBox="0 0 600.000000 627.000000"
+                                preserveAspectRatio="xMidYMid meet">
+                                <g transform="translate(0.000000,627.000000) scale(0.100000,-0.100000)"
+                                    fill="#ffffff" stroke="none">
+                                    <path d="M2741 6260 c-420 -35 -785 -136 -1126 -310 -821 -419 -1403 -1187
+                                    -1560 -2060 -14 -74 -29 -180 -35 -235 -16 -152 -24 -1064 -12 -1319 11 -215
+                                    12 -221 42 -282 37 -76 115 -151 228 -217 87 -51 462 -222 1092 -497 74 -32
+                                    295 -129 490 -216 195 -86 400 -176 455 -199 55 -23 200 -88 322 -144 122 -55
+                                    225 -101 228 -101 3 0 81 -34 173 -76 92 -43 262 -119 377 -171 898 -403 936
+                                    -418 1085 -430 109 -8 210 10 307 57 126 59 271 163 621 443 308 246 387 335
+                                    505 572 l54 110 7 920 c6 955 -1 1357 -29 1570 -107 808 -519 1509 -1176 2002
+                                    -401 301 -911 501 -1453 568 -150 19 -456 27 -595 15z m635 -404 c352 -47 755
+                                    -201 1079 -414 431 -282 785 -721 983 -1218 46 -115 100 -294 104 -344 l3 -35
+                                    -65 1 c-36 1 -135 18 -220 38 -85 21 -292 68 -460 107 -168 38 -370 85 -450
+                                    104 -186 44 -333 59 -528 53 -151 -5 -162 -6 -273 -44 -312 -107 -547 -326
+                                    -680 -633 -53 -125 -69 -212 -69 -389 0 -358 97 -599 324 -809 101 -92 189
+                                    -143 531 -304 160 -75 470 -223 690 -329 220 -105 445 -212 500 -236 158 -71
+                                    639 -318 643 -331 5 -18 -63 -79 -331 -296 -446 -362 -485 -387 -599 -387 -47
+                                    0 -88 8 -140 26 -102 37 -444 184 -693 299 -115 54 -262 120 -325 147 -63 27
+                                    -221 98 -350 158 -129 59 -365 164 -525 233 -261 112 -888 388 -1355 597 -96
+                                    43 -274 122 -395 175 -229 101 -353 164 -376 191 -34 41 -11 1198 32 1569 24
+                                    215 126 518 255 764 110 209 267 414 460 602 399 387 828 601 1419 709 98 18
+                                    141 19 405 15 178 -2 339 -10 406 -19z m729 -2102 c66 -13 363 -81 660 -153
+                                    297 -71 593 -141 658 -155 173 -39 189 -46 199 -81 10 -34 -10 -1757 -20
+                                    -1825 -12 -77 11 -86 -772 292 -245 119 -483 232 -530 253 -177 78 -695 336
+                                    -797 397 -177 105 -276 225 -303 369 -13 69 -13 331 1 405 35 189 251 411 478
+                                    490 140 49 215 50 426 8z"/>
+                                    <path d="M1615 4066 c-75 -19 -121 -41 -191 -91 -81 -58 -143 -134 -196 -243
+                                    l-43 -86 1 -110 c1 -129 20 -208 72 -310 114 -219 389 -340 641 -281 362 86
+                                    545 493 375 834 -59 118 -183 227 -312 273 -73 26 -272 34 -347 14z m230 -385
+                                    c47 -22 89 -64 104 -104 28 -73 0 -169 -65 -227 -31 -27 -41 -30 -102 -30 -79
+                                    0 -136 23 -175 69 -77 92 -46 235 65 290 53 26 119 27 173 2z"/>
+                                </g>
+                            </svg>
+                        </th>
+
+                        {# 3. Колонка Пилота #}
+                        <th>ПИЛОТ</th>
+
+                        {# 4. Колонка Команды #}
+                        <th>КОМАНДА</th>
+
+                        {# 5. Колонка Шасси #}
+                        <th>ШАССИ</th>
+
+                        {# 6. Динамические колонки с этапами #}
+                        {% for event in events %}
+                            <th class="text-center small text-info" style="min-width: 80px;" title="{{ event.title }}">
+                                {{ event.title|upper|truncatechars:12 }}
+                            </th>
+                        {% endfor %}
+
+                        {# 7. Колонка штрафы #}
+                        <th>ШТРАФЫ</th>
+
+                        {# 8. Колонка Суммарных очков #}
+                        <th class="text-center bg-secondary bg-opacity-25" style="width: 100px;">ИТОГО</th>
+
+                    </tr>
+                </thead>
+
+                {# Тело таблицы: вывод данных по каждому гонщику #}
+                <tbody>
+                    {% for row in standings %}
+                    <tr>
+                        {# Место с цветным бейджем #}
+                        <td class="text-center">
+                            <span class="position-badge badge {% if forloop.counter == 1 %}bg-warning text-dark{% elif forloop.counter == 2 %}bg-light text-dark{% elif forloop.counter == 3 %}bg-bronze text-white{% else %}bg-secondary{% endif %}">
+                                {{ forloop.counter }}
+                            </span>
+                        </td>
+
+                        {# Стартовый номер #}
+                        <td class="text-center fw-bold text-info">{{ row.race_number|default:"—" }}</td>
+
+                        {# Пилот со ссылкой на профиль #}
+                        <td>
+                            <a href="{{ row.driver.get_absolute_url }}" target="_blank" class="text-white fw-bold text-decoration-none">
+                                {{ row.driver.full_name }}
+                                <i class="fas fa-external-link-alt ms-1 small text-info opacity-75"></i>
+                            </a>
+                        </td>
+
+                        {# Команда со ссылкой на профиль #}
+                        <td>
+                            {% if row.team %}
+                                <a href="{{ row.team.get_absolute_url }}" target="_blank" class="text-warning text-decoration-none">
+                                    {{ row.team.name }}
+                                </a>
+                            {% else %}
+                                <span class="text-muted fst-italic">Личный зачет</span>
+                            {% endif %}
+                        </td>
+
+                        {# Шасси #}
+                        <td class="text-muted">
+                            {% if row.chassis %}
+                                <a href="{{ row.chassis.get_absolute_url }}" class="text-muted text-decoration-none">
+                                    {{ row.chassis.name }}
+                                </a>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+
+                        {# Очки за этапы - ПРАВИЛЬНЫЙ ЦИКЛ #}
+                        {% for event in events %}
+                            <td class="text-center event-points">
+                                {% with points=row.scores|get_item:event.id %}
+                                    {% if points %}
+                                        <a href="{{ event.url }}" target="_blank" class="text-white fw-bold text-decoration-none" style="display: block; width: 100%; height: 100%;">
+                                            {{ points|floatformat:0 }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-white-50">—</span>
+                                    {% endif %}
+                                {% endwith %}
+                            </td>
+                        {% endfor %}
+
+                        {# ШТРАФЫ - ПОСЛЕ ВСЕХ ЭТАПОВ #}
+                        <td class="text-center text-danger fw-bold">
+                            {{ row.penalty_total|default:"0"|floatformat:0 }}
+                        </td>
+
+                        {# ИТОГО - ПОСЛЕДНЯЯ КОЛОНКА #}
+                        <td class="text-center fw-bold bg-secondary bg-opacity-25 fs-5 text-primary">
+                            {{ row.total|floatformat:0 }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{{ 7|add:events.count }}" class="text-center p-5 text-muted">
+                            Нет данных о результатах для отображения
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

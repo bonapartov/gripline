@@ -1,0 +1,263 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailimages_tags %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    /* Навигация по классам */
+    .class-nav {
+        background-color: #2a2a35;
+        border-radius: 4px;
+        padding: 0.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+        margin-bottom: 2rem;
+    }
+    .class-nav .nav-link {
+        color: #adb5bd;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        transition: all 0.2s;
+        text-decoration: none;
+        border: 2px solid #3a3a45;
+        background-color: transparent;
+    }
+    .class-nav .nav-link:hover {
+        border-color: #ffc107;
+        background-color: #3a3a45;
+        color: white;
+    }
+    .class-nav .nav-link.active {
+        border-color: #ffc107 !important;
+        background-color: transparent !important;
+        color: white !important;
+    }
+
+    /* Таблица */
+    .top-table {
+        background-color: #1a1a25;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .top-table thead tr {
+        border-bottom: 2px solid #ffc107;
+    }
+    .top-table th {
+        background-color: #2a2a35;
+        color: #adb5bd;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+        vertical-align: middle;
+        padding: 0.75rem 1rem;
+    }
+    .top-table td {
+        padding: 0.5rem 1rem;
+        border-bottom: 1px solid #2a2a35;
+        vertical-align: middle;
+    }
+    .top-table tbody tr:hover {
+        background-color: rgba(13, 202, 240, 0.1) !important;
+        transition: 0.3s;
+    }
+
+    /* Бейджи мест */
+    .rank-badge {
+        width: 45px;
+        font-weight: 800;
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.375rem;
+        text-align: center;
+    }
+    .bg-warning { background-color: #ffc107 !important; }
+    .bg-bronze { background-color: #cd7f32 !important; }
+    .bg-silver { background-color: #e0e0e0 !important; color: #212529 !important;}
+    .bg-secondary { background-color: #6c757d !important; }
+    .text-dark { color: #212529 !important; }
+    .text-white { color: #fff !important; }
+
+    /* Фото пилотов */
+    .driver-photo-rect {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 2px solid #2a2a35;
+    }
+    .driver-photo-placeholder {
+        width: 60px;
+        height: 60px;
+        background-color: #6c757d;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #2a2a35;
+    }
+
+    /* Рейтинговый бейдж */
+    .rating-badge {
+        background-color: #28a745;
+        color: #fff;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-weight: bold;
+        display: inline-block;
+    }
+    .rating-low-data {
+        opacity: 0.8;
+    }
+    .starts-badge {
+        background-color: #2a2a35;
+        color: #adb5bd;
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        margin-left: 0.25rem;
+    }
+
+    /* Кнопка */
+    .btn-filter {
+        background-color: #ffc107;
+        color: #000 !important;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        font-weight: bold;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        display: inline-block;
+        text-decoration: none;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .btn-filter:hover {
+        background-color: #e0a800;
+        transform: translateY(-2px);
+        color: #000 !important;
+        text-decoration: none;
+    }
+
+    /* Ссылка на методологию */
+    .methodology-link {
+        text-align: right;
+        margin-top: 1rem;
+    }
+</style>
+
+<div class="force-width-1500 my-5 text-white">
+    <!-- Заголовок -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <h1 class="display-4 fw-bold text-uppercase mb-0">
+            <i class="fas fa-crown me-3 text-warning"></i>Топ пилотов
+        </h1>
+        <a href="/rating-info/" class="btn-filter" style="text-decoration: none;">
+            <i class="fas fa-question-circle me-2"></i>Как считается?
+        </a>
+    </div>
+
+    <!-- Навигация по классам -->
+    <div class="class-nav">
+        {% for class in classes %}
+        <a href="?class={{ class.id }}" class="nav-link {% if selected_class_id == class.id %}active{% endif %}">
+            {{ class.name }}
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- Таблица рейтинга -->
+    <div class="top-table">
+        <table class="table table-dark table-hover mb-0">
+            <thead>
+                <tr>
+                    <th class="text-center" style="width: 80px;">Место</th>
+                    <th style="width: 80px;">Фото</th>
+                    <th>Пилот</th>
+                    <th>Город</th>
+                    <th class="text-center">Старты</th>
+                    <th class="text-center">Победы</th>
+                    <th class="text-center">Подиумы</th>
+                    <th class="text-center">Win%</th>
+                    <th class="text-center">Рейтинг</th>
+                    <th class="text-center" style="width: 40px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for driver in drivers %}
+                <tr>
+                    <td class="text-center">
+                        <span class="rank-badge
+                            {% if driver.rank == 1 %}bg-warning text-dark
+                            {% elif driver.rank == 2 %}bg-silver text-dark
+                            {% elif driver.rank == 3 %}bg-bronze text-white
+                            {% else %}bg-secondary text-white{% endif %}">
+                            {{ driver.rank }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if driver.photo %}
+                            {% image driver.photo fill-60x60 as driver_photo %}
+                            <img src="{{ driver_photo.url }}" class="driver-photo-rect" alt="{{ driver.full_name }}">
+                        {% else %}
+                            <div class="driver-photo-placeholder">
+                                <i class="fas fa-user text-dark"></i>
+                            </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ driver.get_absolute_url }}" class="text-white text-decoration-none fw-bold">
+                            {{ driver.full_name }}
+                        </a>
+                    </td>
+                    <td>{{ driver.city|default:"—" }}</td>
+                    <td class="text-center">
+                        {{ driver.race_count|default:"0" }}
+                    </td>
+                    <td class="text-center">{{ driver.win_count|default:"0" }}</td>
+                    <td class="text-center">{{ driver.podium_count|default:"0" }}</td>
+                    <td class="text-center">{{ driver.win_percentage }}%</td>
+                    <td class="text-center">
+                        <span class="rating-badge {% if driver.starts_in_class < 3 %}rating-low-data{% endif %}"
+                              style="min-width: 65px; display: inline-block; text-align: center;">
+                            {{ driver.normalized_rating }}
+                        </span>
+                    </td>
+
+                    <!-- Столбец только для иконки -->
+                    <td class="text-center" style="width: 40px;">
+                        {% if driver.starts_in_class < 3 %}
+                            <span class="warning-icon" title="Мало стартов в этом классе">⚠️</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="text-center p-5 text-muted">
+                        Нет данных для отображения
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Пояснение про рейтинг -->
+    <div class="methodology-link">
+        <small class="text-muted">
+            <i class="fas fa-info-circle me-1"></i>
+            Рейтинг рассчитан по модели <span class="badge bg-success">Ансамбль</span> —
+            <a href="/rating-info/" class="text-info">подробнее о методологии</a>
+        </small>
+    </div>
+</div>
+{% endblock %}

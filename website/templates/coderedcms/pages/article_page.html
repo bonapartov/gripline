@@ -1,0 +1,198 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% load wagtailadmin_tags wagtailcore_tags wagtailimages_tags coderedcms_tags %}
+
+{% block extra_css %}
+<style>
+  /* ОСНОВНОЙ КОНТЕЙНЕР ВСЕЙ СТРАНИЦЫ */
+  body main,
+  body .crx-article,
+  body .wagtail-page {
+    max-width: 1500px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 1rem !important;
+    box-sizing: border-box !important;
+  }
+
+  /* ШАПКА, ОБЛОЖКА, КОММЕНТАРИИ, НАВИГАЦИЯ - 1500px */
+  .crx-article > div:first-child, /* шапка */
+  .crx-article > div:nth-child(2), /* обложка */
+  .crx-article > div:has(#remark42), /* комментарии */
+  .crx-article > div:has([style*="box-shadow: 0 2px 8px"]), /* навигация */
+  .crx-article > div:last-child { /* похожие статьи */
+    max-width: 1500px !important;
+    width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding: 0 !important;
+  }
+
+  /* ТЕКСТ СТАТЬИ - 800px */
+  .crx-article .article-body,
+  .crx-article .streamfield,
+  .crx-article .w-block,
+  .crx-article .block-paragraph,
+  .crx-article .richtext {
+    max-width: 800px !important;
+    width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding: 0 !important;
+  }
+
+  /* Убираем все Bootstrap ограничения */
+  .crx-article .container,
+  .crx-article .container-fluid {
+    max-width: none !important;
+    width: 100% !important;
+  }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<article class="crx-article" style="max-width: 1500px !important; margin: 0 auto !important; padding: 0 1rem !important;">
+
+  {# ШАПКА СТАТЬИ #}
+  {% block article_header %}
+  <div style="margin: 2rem auto; text-align: center; max-width: 1500px !important; width: 100% !important;">
+    <h1>{{ self.title }}</h1>
+    {% if self.caption %}
+    <p class="lead">{{self.caption}}</p>
+    {% endif %}
+    <p>
+      {% if self.author %}
+      <img class="article-author-img rounded-circle me-2" src="{% avatar_url self.author %}">
+      {% endif %}
+      {% if self.seo_author %}
+      <span class="article-author">{{self.seo_author}}</span>
+      <span class="mx-2">&bull;</span>
+      {% endif %}
+      <span class="article-date">{{ self.seo_published_at|date }}</span>
+    </p>
+  </div>
+  {% endblock %}
+
+  {# ОБЛОЖКА СТАТЬИ #}
+  {% block article_cover_image %}
+  {% if self.cover_image %}
+  <div style="margin-bottom: 3rem; max-width: 1500px !important; width: 100% !important;">
+    {% image self.cover_image fill-1600x900 format-webp preserve-svg as cover_image %}
+    <img src="{{cover_image.url}}" style="width: 100%; height: auto;">
+  </div>
+  {% endif %}
+  {% endblock %}
+
+  {# ТЕЛО СТАТЬИ #}
+  {% block article_body %}
+  <div style="max-width: 800px !important; margin: 0 auto 3rem auto !important; padding: 0 !important;">
+    {% for block in self.body %}
+    <div style="max-width: 800px !important; margin: 0 auto !important;">
+      {% include_block block with settings=settings %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endblock %}
+
+  {# КОММЕНТАРИИ #}
+  {% comment %}
+  <div style="margin: 3rem auto; max-width: 1500px !important; width: 100% !important;">
+    <div id="remark42"></div>
+  </div>
+
+  <script>
+    var remark_config = {
+      host: "http://127.0.0.1:8080",
+      site_id: "gripline",
+      components: ["embed"],
+      locale: "ru",
+      theme: "dark"
+    };
+    (function (c) {
+      for (var i = 0; i < c.length; i++) {
+        var d = document, s = d.createElement('script');
+        s.src = remark_config.host + '/web/' + c[i] + '.js';
+        s.defer = true;
+        (d.head || d.body).appendChild(s);
+      }
+    })(remark_config.components || ['embed']);
+  </script>
+  {% endcomment %}
+
+  {# НАВИГАЦИЯ #}
+  {% with prev_page=page.get_prev_siblings.live.first next_page=page.get_next_siblings.live.first %}
+    {% if prev_page or next_page %}
+    <div style="margin: 3rem auto; padding: 2rem 0; max-width: 1500px !important; width: 100% !important;">
+      <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+        {% if prev_page %}
+        <div style="flex: 1; min-width: 300px;">
+          <a href="{% pageurl prev_page %}" style="text-decoration: none; color: inherit;">
+            <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.3s; height: 100%;">
+              {% if prev_page.specific.cover_image %}
+                {% image prev_page.specific.cover_image fill-600x400 as img %}
+                <img src="{{ img.url }}" style="width: 100%; height: 200px; object-fit: cover;" alt="{{ prev_page.title }}">
+              {% endif %}
+              <div style="padding: 1.5rem;">
+                <p style="color: #666; font-size: 0.875rem; margin-bottom: 0.5rem;">← Предыдущая статья</p>
+                <h5 style="margin: 0; font-size: 1.25rem;">{{ prev_page.title }}</h5>
+              </div>
+            </div>
+          </a>
+        </div>
+        {% endif %}
+
+        {% if next_page %}
+        <div style="flex: 1; min-width: 300px;">
+          <a href="{% pageurl next_page %}" style="text-decoration: none; color: inherit;">
+            <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.3s; height: 100%;">
+              {% if next_page.specific.cover_image %}
+                {% image next_page.specific.cover_image fill-600x400 as img %}
+                <img src="{{ img.url }}" style="width: 100%; height: 200px; object-fit: cover;" alt="{{ next_page.title }}">
+              {% endif %}
+              <div style="padding: 1.5rem;">
+                <p style="color: #666; font-size: 0.875rem; margin-bottom: 0.5rem;">Следующая статья →</p>
+                <h5 style="margin: 0; font-size: 1.25rem;">{{ next_page.title }}</h5>
+              </div>
+            </div>
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  {% endwith %}
+
+  {# ПОХОЖИЕ СТАТЬИ #}
+  {% block related_content %}
+  <div style="margin: 3rem auto; max-width: 1500px !important; width: 100% !important;">
+    <div class="coderedcms-related-wrapper">
+      {{ block.super }}
+    </div>
+  </div>
+  {% endblock %}
+
+</article>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Эффект карточек
+  document.querySelectorAll('div[style*="box-shadow: 0 2px 8px"]').forEach(card => {
+    card.addEventListener('mouseenter', () => card.style.transform = 'translateY(-5px)');
+    card.addEventListener('mouseleave', () => card.style.transform = 'translateY(0)');
+  });
+
+  // ГАРАНТИЯ: принудительно устанавливаем ширины
+  const style = document.createElement('style');
+  style.textContent = `
+    .crx-article { max-width: 1500px !important; margin: 0 auto !important; }
+    .crx-article > div:not(.article-body):not([style*="max-width: 800px"]) {
+      max-width: 1500px !important; width: 100% !important;
+    }
+  `;
+  document.head.appendChild(style);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,240 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailimages_tags %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    .compare-card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1.5rem;
+        height: 100%;
+    }
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #ffc107;
+    }
+    .stat-label {
+        color: #adb5bd;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+    }
+    .vs-divider {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        font-weight: bold;
+        color: #ffc107;
+        height: 100%;
+    }
+    .better {
+        background-color: rgba(255, 193, 7, 0.1);
+        border-left: 3px solid #ffc107;
+    }
+    .chassis-select {
+        background-color: #15151c;
+        border: 1px solid #2a2a35;
+        color: white;
+        border-radius: 4px;
+        padding: 0.75rem;
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+    .chassis-select:focus {
+        outline: none;
+        border-color: #ffc107;
+    }
+    .chassis-logo-small {
+        max-height: 60px;
+        object-fit: contain;
+        margin-bottom: 1rem;
+    }
+    .btn-filter {
+    background-color: #ffc107;
+    color: #000;
+    border: none;
+    padding: 0.75rem 2.5rem;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 1.1rem;
+    transition: all 0.2s;
+    display: inline-block;
+    text-decoration: none;
+    cursor: pointer;
+    }
+    .btn-filter:hover {
+        background-color: #e0a800;
+        transform: translateY(-2px);
+        color: #000;
+        text-decoration: none;
+    }
+</style>
+
+<div class="force-width-1500 my-5 text-white">
+    <h1 class="display-4 fw-bold mb-5 text-uppercase text-center">Сравнение шасси</h1>
+
+    <form method="get" class="row mb-5 g-4">
+        <div class="col-md-5">
+            <select name="chassis1" class="chassis-select">
+                <option value="">-- Выберите первое шасси --</option>
+                {% for chassis in all_chassis %}
+                    <option value="{{ chassis.slug }}" {% if chassis1 and chassis.id == chassis1.id %}selected{% endif %}>
+                        {{ chassis.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-2 d-flex align-items-center justify-content-center">
+            <span class="vs-divider">VS</span>
+        </div>
+
+        <div class="col-md-5">
+            <select name="chassis2" class="chassis-select">
+                <option value="">-- Выберите второе шасси --</option>
+                {% for chassis in all_chassis %}
+                    <option value="{{ chassis.slug }}" {% if chassis2 and chassis.id == chassis2.id %}selected{% endif %}>
+                        {{ chassis.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-12 text-center mt-4">
+            <button type="submit" class="btn-filter" style="border: none; cursor: pointer;">
+                <i class="fas fa-balance-scale me-2"></i>Сравнить
+            </button>
+        </div>
+    </form>
+
+    {% if chassis1 and chassis2 %}
+    <div class="row">
+        <!-- Первое шасси -->
+        <div class="col-md-5">
+            <div class="compare-card">
+                <div class="text-center">
+                    {% if chassis1.logo %}
+                        {% image chassis1.logo original as logo1 %}
+                        <img src="{{ logo1.url }}" class="chassis-logo-small" alt="{{ chassis1.name }}">
+                    {% endif %}
+                    <h2 class="h1 fw-bold text-uppercase mb-4">{{ chassis1.name }}</h2>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats1.total }}</div>
+                        <div class="stat-label">Старты</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats1.wins }}</div>
+                        <div class="stat-label">Победы</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats1.podiums }}</div>
+                        <div class="stat-label">Подиумы</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats1.win_rate }}%</div>
+                        <div class="stat-label">% Побед</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats1.podium_rate }}%</div>
+                        <div class="stat-label">% Подиумов</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats1.avg_position }}</div>
+                        <div class="stat-label">Ср. место</div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <h5 class="text-info border-bottom border-secondary pb-2">По погоде</h5>
+                    <div class="row mt-3">
+                        <div class="col-6">
+                            <div class="stat-label">Сухо</div>
+                            <div class="fw-bold text-white">{{ stats1.dry_wins }}/{{ stats1.dry_total }}</div>
+                            <small class="text-muted">{{ stats1.dry_wins|floatformat:1 }} побед</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-label">Дождь</div>
+                            <div class="fw-bold text-white">{{ stats1.wet_wins }}/{{ stats1.wet_total }}</div>
+                            <small class="text-muted">{{ stats1.wet_wins|floatformat:1 }} побед</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VS разделитель -->
+        <div class="col-md-2">
+            <div class="vs-divider">VS</div>
+        </div>
+
+        <!-- Второе шасси -->
+        <div class="col-md-5">
+            <div class="compare-card">
+                <div class="text-center">
+                    {% if chassis2.logo %}
+                        {% image chassis2.logo original as logo2 %}
+                        <img src="{{ logo2.url }}" class="chassis-logo-small" alt="{{ chassis2.name }}">
+                    {% endif %}
+                    <h2 class="h1 fw-bold text-uppercase mb-4">{{ chassis2.name }}</h2>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats2.total }}</div>
+                        <div class="stat-label">Старты</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats2.wins }}</div>
+                        <div class="stat-label">Победы</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats2.podiums }}</div>
+                        <div class="stat-label">Подиумы</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats2.win_rate }}%</div>
+                        <div class="stat-label">% Побед</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats2.podium_rate }}%</div>
+                        <div class="stat-label">% Подиумов</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats2.avg_position }}</div>
+                        <div class="stat-label">Ср. место</div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <h5 class="text-info border-bottom border-secondary pb-2">По погоде</h5>
+                    <div class="row mt-3">
+                        <div class="col-6">
+                            <div class="stat-label">Сухо</div>
+                            <div class="fw-bold text-white">{{ stats2.dry_wins }}/{{ stats2.dry_total }}</div>
+                            <small class="text-muted">{{ stats2.dry_wins|floatformat:1 }} побед</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-label">Дождь</div>
+                            <div class="fw-bold text-white">{{ stats2.wet_wins }}/{{ stats2.wet_total }}</div>
+                            <small class="text-muted">{{ stats2.wet_wins|floatformat:1 }} побед</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

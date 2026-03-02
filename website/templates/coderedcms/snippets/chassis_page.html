@@ -1,0 +1,474 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailimages_tags %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    .chassis-logo {
+        object-fit: contain;
+        border-radius: 10px;
+        max-height: 200px;
+        background-color: #1a1a1a;
+    }
+    /* Стили для фильтров */
+    .filter-card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 2rem;
+    }
+    .filter-label {
+        color: #adb5bd;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+    }
+    .filter-select, .filter-input {
+        background-color: #15151c;
+        border: 1px solid #2a2a35;
+        color: white;
+        border-radius: 4px;
+        padding: 0.5rem;
+        width: 100%;
+    }
+    .filter-select:focus, .filter-input:focus {
+        outline: none;
+        border-color: #ffc107;
+    }
+    .btn-filter {
+        background-color: #ffc107;
+        color: #000;
+        border: none;
+        padding: 0.5rem 1.5rem;
+        border-radius: 4px;
+        font-weight: bold;
+        transition: all 0.2s;
+    }
+    .btn-filter:hover {
+        background-color: #e0a800;
+        transform: translateY(-2px);
+    }
+    .btn-reset {
+        background-color: transparent;
+        color: #adb5bd;
+        border: 1px solid #2a2a35;
+        padding: 0.5rem 1.5rem;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+    .btn-reset:hover {
+        border-color: #ffc107;
+        color: white;
+    }
+    /* Стили для графиков */
+    .chart-container {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1.5rem;
+        height: 400px;
+        overflow: hidden;  /* Чтобы ничего не вылезало */
+    }
+    .chart-container canvas {
+        max-height: 100%;
+        width: 100% !important;
+    }
+    .stat-card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1rem;
+        transition: all 0.2s;
+    }
+    .stat-card:hover {
+        border-color: #ffc107;
+        transform: translateY(-2px);
+    }
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #ffc107;
+    }
+    .stat-label {
+        color: #adb5bd;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+    }
+    /* Таблица */
+    .table-hover tbody tr:hover {
+        background-color: rgba(13, 202, 240, 0.1) !important;
+        transition: 0.3s;
+    }
+    .badge { width: 45px; font-weight: 800; }
+</style>
+
+<div class="force-width-1500 my-5 text-white">
+    <div class="row mb-5">
+        <div class="col-md-4 col-lg-3">
+            {% if chassis.logo %}
+                {% image chassis.logo original as chassis_logo %}
+                <img src="{{ chassis_logo.url }}" class="img-fluid chassis-logo shadow-lg border border-secondary p-3" alt="{{ chassis.name }}">
+            {% else %}
+                <div class="bg-dark rounded d-flex align-items-center justify-content-center border border-secondary" style="aspect-ratio: 1/1;">
+                    <span class="text-muted">Нет логотипа</span>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-8 col-lg-9">
+          <div class="d-flex justify-content-between align-items-start">
+              <div>
+                  <h1 class="display-4 fw-bold mb-1 text-uppercase">{{ chassis.name }}</h1>
+                  {% if chassis.country %}
+                      <p class="text-info fs-5 mb-3">
+                          <i class="fas fa-map-marker-alt me-2"></i>{{ chassis.country }}
+                      </p>
+                  {% endif %}
+              </div>
+              <a href="{% url 'compare' %}?chassis={{ chassis.slug }}" class="btn btn-outline-warning">
+                  <i class="fas fa-balance-scale me-2"></i>Сравнить с другим
+              </a>
+          </div>
+
+          <div class="card bg-dark border-secondary p-3 mb-4">
+              <h5 class="text-primary border-bottom border-secondary pb-2 mb-3 text-uppercase">О шасси</h5>
+              <div class="text-light">
+                  {{ chassis.description|safe|default:"Информация о шасси скоро будет дополнена." }}
+              </div>
+          </div>
+
+            <!-- Быстрая статистика + рейтинг -->
+            <div class="row text-center g-3">
+                <div class="col">
+                    <div class="stat-card">
+                        <div class="stat-value">{{ total_starts|default:"0" }}</div>
+                        <div class="stat-label">Старты</div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="stat-card">
+                        <div class="stat-value">{{ wins|default:"0" }}</div>
+                        <div class="stat-label">Победы</div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="stat-card">
+                        <div class="stat-value">{{ podiums|default:"0" }}</div>
+                        <div class="stat-label">Подиумы</div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="stat-card">
+                        <div class="stat-value">{{ win_percentage }}%</div>
+                        <div class="stat-label">% Побед</div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="stat-card">
+                        <div class="stat-value">{{ podium_percentage }}%</div>
+                        <div class="stat-label">% Подиумов</div>
+                    </div>
+                </div>
+                <!-- Новая карточка с рейтингом -->
+                <div class="col">
+                    <div class="stat-card">
+                        <div class="stat-value">{{ chassis.rating_score|floatformat:2 }}</div>
+                        <div class="stat-label">Рейтинг</div>
+                        <small class="text-muted">Брэдли-Терри</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <!-- Фильтры -->
+    <div class="filter-card">
+        <form method="get" class="row g-4">
+            <div class="col-md-3">
+                <div class="filter-label">Класс</div>
+                <select name="class" class="filter-select">
+                    <option value="">Все классы</option>
+                    {% for class in available_classes %}
+                        <option value="{{ class.id }}" {% if request.GET.class == class.id|stringformat:"s" %}selected{% endif %}>
+                            {{ class.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <div class="filter-label">Трасса</div>
+                <select name="track" class="filter-select">
+                    <option value="">Все трассы</option>
+                    {% for track in available_tracks %}
+                        <option value="{{ track.id }}" {% if request.GET.track == track.id|stringformat:"s" %}selected{% endif %}>
+                            {{ track.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <div class="filter-label">Шины</div>
+                <select name="tyre" class="filter-select">
+                    <option value="">Все шины</option>
+                    {% for tyre in available_tyres %}
+                        <option value="{{ tyre.id }}" {% if request.GET.tyre == tyre.id|stringformat:"s" %}selected{% endif %}>
+                            {{ tyre.brand.name }} {{ tyre.type.get_name_display }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <div class="filter-label">Погода</div>
+                <select name="weather" class="filter-select">
+                    <option value="">Любая</option>
+                    <option value="dry" {% if request.GET.weather == 'dry' %}selected{% endif %}>Сухо</option>
+                    <option value="wet" {% if request.GET.weather == 'wet' %}selected{% endif %}>Дождь</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <div class="filter-label">Температура от</div>
+                <input type="number" name="temp_min" class="filter-input" placeholder="°C" value="{{ request.GET.temp_min }}">
+            </div>
+
+            <div class="col-md-3">
+                <div class="filter-label">Температура до</div>
+                <input type="number" name="temp_max" class="filter-input" placeholder="°C" value="{{ request.GET.temp_max }}">
+            </div>
+
+            <div class="col-md-6 d-flex align-items-end">
+                <button type="submit" class="btn-filter me-2">Применить</button>
+                <a href="." class="btn-reset">Сбросить</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Графики -->
+    <div class="row mb-5 g-4">
+        <!-- Зависимость от температуры -->
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h5 class="text-info border-bottom border-secondary pb-2 mb-3">Win Rate vs Температура</h5>
+                <canvas id="tempChart" width="400" height="300" style="width: 100%; height: auto;"></canvas>
+            </div>
+        </div>
+
+        <!-- Эффективность на разных шинах -->
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h5 class="text-info border-bottom border-secondary pb-2 mb-3">Win Rate по шинам</h5>
+                <canvas id="tyreChart" width="400" height="300" style="width: 100%; height: auto;"></canvas>
+            </div>
+        </div>
+    </div>
+
+        <!-- История выступлений -->
+    <div class="row">
+        <div class="col-12">
+            <h3 class="border-bottom border-primary pb-2 mb-4 text-uppercase fw-bold">История выступлений</h3>
+
+            <div class="table-responsive">
+                <table class="table table-dark table-hover border-secondary">
+                    <thead>
+                        <tr class="text-muted small uppercase">
+                            <th>Дата</th>
+                            <th>Этап</th>
+                            <th>Класс</th>
+                            <th>Трасса</th>
+                            <th>Шины</th>
+                            <th>Темп.</th>
+                            <th>Пилот</th>
+                            <th>Команда</th>
+                            <th class="text-center">Место</th>
+                            <th class="text-end">Очки</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for res in results %}
+                        <tr>
+                            <td class="align-middle text-muted">
+                                {% with occ=res.group.page.occurrences.all.first %}
+                                    {{ occ.end|date:"d.m.Y"|default:res.group.page.first_published_at|date:"d.m.Y" }}
+                                {% endwith %}
+                            </td>
+                            <td class="align-middle">
+                                <a href="{{ res.group.page.url }}" class="text-white text-decoration-none">
+                                    {{ res.group.page.title|truncatechars:30 }}
+                                </a>
+                            </td>
+                            <td class="align-middle text-info">{{ res.group.race_class.name }}</td>
+                            <td class="align-middle">
+                                {% if res.group.page.track %}
+                                    <a href="{{ res.group.page.track.get_absolute_url }}" class="text-muted text-decoration-none">
+                                        {{ res.group.page.track.name }}
+                                    </a>
+                                {% endif %}
+                            </td>
+                            <td class="align-middle">
+                                {% if res.group.tyre %}
+                                    <a href="{{ res.group.tyre.get_absolute_url }}" class="text-info text-decoration-none">
+                                        {{ res.group.tyre.brand.name }}
+                                    </a>
+                                {% endif %}
+                            </td>
+                            <td class="align-middle">
+                                {% if res.group.air_temperature %}
+                                    {{ res.group.air_temperature|floatformat:1 }}°C
+                                {% endif %}
+                            </td>
+                            <td class="align-middle">
+                                <a href="{{ res.driver.get_absolute_url }}" class="text-white text-decoration-none">
+                                    {{ res.driver.full_name|truncatechars:20 }}
+                                </a>
+                            </td>
+                            <td class="align-middle">
+                                {% if res.team %}
+                                    <a href="{{ res.team.get_absolute_url }}" class="text-warning text-decoration-none">
+                                        {{ res.team.name|truncatechars:20 }}
+                                    </a>
+                                {% endif %}
+                            </td>
+                            <td class="align-middle text-center">
+                                <span class="badge {% if res.position == 1 %}bg-warning{% elif res.position == 2 %}bg-light text-dark{% elif res.position == 3 %}bg-bronze{% else %}bg-secondary{% endif %}">
+                                    {{ res.position }}
+                                </span>
+                            </td>
+                            <td class="align-middle text-end text-primary fw-bold">{{ res.points|floatformat:0 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="10" class="text-center p-5 text-muted">Нет данных по выбранным фильтрам</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // График зависимости от температуры
+        const tempCtx = document.getElementById('tempChart').getContext('2d');
+        const tempData = {{ temp_stats|safe }};
+
+        if (tempData.length > 0) {
+            new Chart(tempCtx, {
+                type: 'line',
+                data: {
+                    labels: tempData.map(d => d.range),
+                    datasets: [{
+                        label: 'Win Rate %',
+                        data: tempData.map(d => d.win_rate),
+                        borderColor: '#ffc107',
+                        backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                        tension: 0.3,
+                        fill: true,
+                        pointBackgroundColor: '#ffc107',
+                        pointBorderColor: '#fff',
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    const data = tempData[ctx.dataIndex];
+                                    return [
+                                        `Win Rate: ${ctx.raw}%`,
+                                        `Стартов: ${data.starts}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#adb5bd' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#adb5bd', maxRotation: 45 }
+                        }
+                    }
+                }
+            });
+        } else {
+            tempCtx.canvas.parentNode.innerHTML = '<p class="text-muted text-center py-5">Недостаточно данных для графика</p>';
+        }
+
+        // График по шинам
+        const tyreCtx = document.getElementById('tyreChart').getContext('2d');
+        const tyreData = {{ tyre_stats|safe }};
+
+        if (tyreData.length > 0) {
+            new Chart(tyreCtx, {
+                type: 'bar',
+                data: {
+                    labels: tyreData.map(d => d.tyre.brand.name),
+                    datasets: [{
+                        label: 'Win Rate %',
+                        data: tyreData.map(d => d.win_rate),
+                        backgroundColor: '#ffc107',
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    const data = tyreData[ctx.dataIndex];
+                                    return [
+                                        `Win Rate: ${ctx.raw}%`,
+                                        `Стартов: ${data.starts}`,
+                                        `Побед: ${data.wins}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#adb5bd' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#adb5bd', maxRotation: 45 }
+                        }
+                    }
+                }
+            });
+        } else {
+            tyreCtx.canvas.parentNode.innerHTML = '<p class="text-muted text-center py-5">Недостаточно данных для графика</p>';
+        }
+    });
+</script>
+{% endblock %}

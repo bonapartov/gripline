@@ -1,0 +1,46 @@
+{% extends "wagtailadmin/base.html" %}
+{% load wagtailadmin_tags %}
+
+{% block titletag %}Импорт результатов: {{ page.title }}{% endblock %}
+
+{% block content %}
+    {% include "wagtailadmin/shared/header.html" with title="Импорт результатов" subtitle=page.title icon="download" %}
+
+    <div class="nice-padding">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <ul class="fields">
+                <li class="full">
+                    <label for="id_race_class_group">Класс заезда:</label>
+                    {{ form.race_class_group }}
+                    {% if form.race_class_group.errors %}
+                        <ul class="errorlist">
+                            {% for error in form.race_class_group.errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </li>
+
+                <li class="full">
+                    <label for="id_csv_file">CSV файл:</label>
+                    {{ form.csv_file }}
+                    <p class="help">Формат: first_name, last_name, city, team_name, race_number, chassis, position, points</p>
+                    {% if form.csv_file.errors %}
+                        <ul class="errorlist">
+                            {% for error in form.csv_file.errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </li>
+
+                <li>
+                    <button type="submit" name="upload" class="button">Загрузить и продолжить</button>
+                    <a href="{% url 'wagtailadmin_pages:edit' page.id %}" class="button button-secondary">Отмена</a>
+                </li>
+            </ul>
+        </form>
+    </div>
+{% endblock %}

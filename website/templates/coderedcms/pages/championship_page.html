@@ -1,0 +1,31 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailcore_tags %}
+{% load website_tags %}
+
+{% block content %}
+<div class="container-fluid text-white py-5" style="min-height: 100vh; background-color: #15151c !important;">
+    <div class="container">
+        <h1 class="text-center mb-5 display-4 font-weight-bold">{{ self.title }}</h1>
+
+        <div class="nav nav-pills justify-content-center mb-0 p-2" style="border-radius: 4px; background-color: #2a2a35 !important;">
+    {% for class in available_classes %}
+        <a class="nav-link"
+           href="?race_class={{ class.name }}"
+           style="border-radius: 4px;
+                  transition: all 0.2s;
+                  border: 2px solid {% if class.name == selected_class %}#ffc107{% else %}#3a3a45{% endif %};
+                  background-color: transparent !important;
+                  color: {% if class.name == selected_class %}white{% else %}#adb5bd{% endif %} !important;"
+           onmouseover="this.style.borderColor='#ffc107';
+                        this.style.backgroundColor='#3a3a45';"
+           onmouseout="this.style.borderColor='{% if class.name == selected_class %}#ffc107{% else %}#3a3a45{% endif %}';
+                       this.style.backgroundColor='transparent';">
+          {{ class.name }}
+        </a>
+    {% endfor %}
+</div>
+
+        {% include "coderedcms/snippets/championship_results_table.html" %}
+    </div>
+</div>
+{% endblock %}

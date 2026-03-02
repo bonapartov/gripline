@@ -1,0 +1,205 @@
+{% extends "coderedcms/pages/article_index_page.html" %}
+{% load wagtailcore_tags wagtailimages_tags %}
+
+{% block content %}
+
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+</style>
+
+<div class="force-width-1500 mt-8">
+
+    <h1 class="site-title-dynamic">{{ page.title }}</h1>
+</div>
+
+<style>
+    .site-title-dynamic {
+        font-size: clamp(2rem, 15cqi, 10rem);
+        font-weight: 900;
+        text-transform: uppercase;
+        text-align: center;
+        line-height: 0.8;
+        letter-spacing: -0.05em;
+        margin-bottom: 40px;
+    }
+    .bento-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-auto-rows: 350px;
+        grid-auto-flow: dense;
+        gap: 20px;
+        width: 100%;
+        margin-bottom: 50px;
+    }
+    .post-card {
+        position: relative;
+        overflow: hidden;
+        background: #111;
+        border-radius: 10px;
+    }
+    .post-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.8s cubic-bezier(0.2, 1, 0.3, 1);
+    }
+    .post-card:hover img {
+        transform: scale(1.05);
+    }
+    .post-overlay {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.4) 40%, transparent 100%);
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 25px;
+        color: white;
+    }
+    .post-overlay h2 {
+        font-weight: 900;
+        line-height: 0.9;
+        margin: 10px 0 0;
+        font-size: 1.6rem;
+    }
+    .post-meta {
+        font-size: 10px;
+        font-weight: 900;
+        text-transform: uppercase;
+        color: #ff0000;
+    }
+    .post-card:nth-child(6n+1) {
+        grid-column: 1 / span 2;
+        grid-row: span 2;
+    }
+    .post-card:nth-child(6n+1) h2 {
+        font-size: 3.5rem;
+    }
+    .post-card:nth-child(6n+4) {
+        grid-column: 2 / span 2;
+        grid-row: span 2;
+    }
+    .post-card:nth-child(6n+4) h2 {
+        font-size: 3.5rem;
+    }
+    @media (max-width: 1100px) {
+        .bento-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        .post-card:nth-child(n) {
+            grid-column: span 1 !important;
+            grid-row: span 1 !important;
+        }
+        .post-card:nth-child(n) h2 {
+            font-size: 1.5rem !important;
+        }
+    }
+    .pagination-container {
+        visibility: hidden;
+        height: 0;
+    }
+</style>
+
+<div class="force-width-1500">
+
+    <div class="bento-grid" id="post-wrapper">
+        {% for post in page.get_index_children %}
+
+            <article class="post-card">
+                <a href="{% pageurl post %}">
+                    {% if post.specific.cover_image %}
+                        {% image post.specific.cover_image fill-1200x900 %}
+                    {% elif post.specific.image %}
+                        {% image post.specific.image fill-1200x900 %}
+                    {% elif post.specific.featured_image %}
+                        {% image post.specific.featured_image fill-1200x900 %}
+                    {% elif post.specific.hero_image %}
+                        {% image post.specific.hero_image fill-1200x900 %}
+                    {% elif post.specific.og_image %}
+                        {% image post.specific.og_image fill-1200x900 %}
+                    {% else %}
+                        <div style="width:100%; height:100%; background:#222; display:flex; align-items:center; justify-content:center;">
+                            <span style="color:#666; font-size:14px;">Нет изображения, фотограф уже бежит</span>
+                        </div>
+                    {% endif %}
+
+                    <div class="post-overlay">
+                        <span class="post-meta">
+
+                            {% if post.specific.seo_published_at %}
+                                {{ post.specific.seo_published_at|date:"d.m.Y" }}
+                            {% else %}
+                                {# Fallback: дата первой публикации #}
+                                {{ post.first_published_at|date:"d.m.Y" }}
+                            {% endif %}
+                        </span>
+                        <h2>{{ post.title }}</h2>
+                    </div>
+                </a>
+            </article>
+        {% empty %}
+            <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #666;">
+                <p>Пока нет статей.</p>
+            </div>
+        {% endfor %}
+    </div>
+
+    {# Пагинация для бесконечного скролла #}
+    {% if page.paginator and page.paginator.num_pages > 1 %}
+        <div class="pagination-container">
+            <a href="?page={{ page.next_page_number }}" id="next-page-link">Следующая страница</a>
+        </div>
+    {% endif %}
+</div>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    let wrapper = document.querySelector('#post-wrapper');
+    let nextLink = document.querySelector('#next-page-link');
+    let loading = false;
+
+    if (!nextLink) return;
+
+    window.onscroll = function() {
+        if (loading) return;
+
+        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
+            loading = true;
+
+            fetch(nextLink.href)
+                .then(response => response.text())
+                .then(data => {
+                    let parser = new DOMParser();
+                    let doc = parser.parseFromString(data, 'text/html');
+                    let newPosts = doc.querySelectorAll('.bento-grid .post-card');
+                    let newNextLink = doc.querySelector('#next-page-link');
+
+                    newPosts.forEach(post => {
+                        wrapper.appendChild(post.cloneNode(true));
+                    });
+
+                    if (newNextLink) {
+                        nextLink.href = newNextLink.href;
+                    } else {
+                        nextLink = null;
+                    }
+
+                    loading = false;
+                })
+                .catch(error => {
+                    console.error('Error loading more posts:', error);
+                    loading = false;
+                });
+        }
+    };
+});
+</script>
+
+{% endblock %}

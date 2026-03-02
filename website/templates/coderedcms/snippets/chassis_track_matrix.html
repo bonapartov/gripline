@@ -1,0 +1,242 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailimages_tags %}
+{% load website_tags %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    .matrix-container {
+        background-color: #1a1a25;
+        border-radius: 10px;
+        padding: 2rem;
+        overflow-x: auto;
+    }
+
+    .matrix-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 800px;
+    }
+
+    .matrix-table th {
+        background-color: #2a2a35;
+        color: #ffc107;
+        padding: 1rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .matrix-table td {
+        padding: 0.75rem;
+        text-align: center;
+        border: 1px solid #2a2a35;
+    }
+
+    .matrix-table tr:hover td {
+        background-color: rgba(13, 202, 240, 0.1);
+    }
+
+    .chassis-name {
+        font-weight: bold;
+        color: #fff;
+        position: sticky;
+        left: 0;
+        background-color: #1a1a25;
+        z-index: 5;
+    }
+
+    .heat-cell {
+        cursor: help;
+    }
+
+    /* Классы для разных процентов побед */
+    .win-rate-0  { background-color: rgba(255, 193, 7, 0.1); }
+    .win-rate-10 { background-color: rgba(255, 193, 7, 0.2); }
+    .win-rate-20 { background-color: rgba(255, 193, 7, 0.3); }
+    .win-rate-30 { background-color: rgba(255, 193, 7, 0.4); }
+    .win-rate-40 { background-color: rgba(255, 193, 7, 0.5); }
+    .win-rate-50 { background-color: rgba(255, 193, 7, 0.6); }
+    .win-rate-60 { background-color: rgba(255, 193, 7, 0.7); }
+    .win-rate-70 { background-color: rgba(255, 193, 7, 0.8); }
+    .win-rate-80 { background-color: rgba(255, 193, 7, 0.9); }
+    .win-rate-90 { background-color: rgba(255, 193, 7, 1.0); }
+    .win-rate-100 { background-color: rgba(255, 193, 7, 1.0); }
+
+    .heat-cell:hover {
+        box-shadow: inset 0 0 0 2px #ffc107;
+    }
+
+    .tooltip-info {
+        background: #2a2a35;
+        color: #fff;
+        padding: 0.5rem;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+
+    .legend {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        margin-top: 2rem;
+        padding: 1rem;
+        background-color: #2a2a35;
+        border-radius: 8px;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .legend-color {
+        width: 30px;
+        height: 30px;
+        border-radius: 4px;
+    }
+
+    .stats-badge {
+        background-color: #2a2a35;
+        color: #adb5bd;
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        margin-left: 0.25rem;
+    }
+</style>
+
+<div class="force-width-1500 my-5 text-white">
+    <h1 class="display-4 fw-bold mb-4 text-uppercase">
+        <i class="fas fa-th me-3 text-warning"></i>Матрица "Шасси × Трасса"
+    </h1>
+
+    <p class="text-muted mb-4">
+        Тепловая карта эффективности шасси на разных трассах.
+        Чем насыщеннее цвет — тем выше процент побед.
+    </p>
+
+    <div class="matrix-container">
+        <table class="matrix-table">
+            <thead>
+                <tr>
+                    <th>Шасси</th>
+                    {% for track in tracks_list %}
+                        <th>{{ track.name|truncatechars:15 }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for chassis in chassis_list %}
+                <tr>
+                    <td class="chassis-name">
+                        <a href="{{ chassis.get_absolute_url }}" class="text-white text-decoration-none">
+                            {{ chassis.name }}
+                        </a>
+                    </td>
+
+                    {% for track in tracks_list %}
+                        {% with cell=matrix_data|get_item:chassis.id|get_item:track.id %}
+                            {% with win_rate=cell.win_rate|default:0 %}
+                                <td class="heat-cell win-rate-{{ win_rate|floatformat:0 }}"
+                                    title="
+                                        Трасса: {{ track.name }}
+                                        Шасси: {{ chassis.name }}
+                                        Старты: {{ cell.total|default:0 }}
+                                        Победы: {{ cell.wins|default:0 }}
+                                        Подиумы: {{ cell.podiums|default:0 }}
+                                        Win Rate: {{ win_rate }}%">
+                                    {{ win_rate|floatformat:0 }}%
+                                    <span class="stats-badge">{{ cell.total|default:0 }}</span>
+                                </td>
+                            {% endwith %}
+                        {% endwith %}
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Легенда -->
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-color win-rate-0" style="width:30px; height:30px;"></div>
+            <span>0-10% побед</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color win-rate-30" style="width:30px; height:30px;"></div>
+            <span>20-40% побед</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color win-rate-60" style="width:30px; height:30px;"></div>
+            <span>50-70% побед</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color win-rate-90" style="width:30px; height:30px;"></div>
+            <span>80-100% побед</span>
+        </div>
+        <div class="legend-item">
+            <span class="stats-badge">12</span>
+            <span>количество стартов</span>
+        </div>
+    </div>
+
+    <!-- Ссылка на методологию -->
+    <div class="mt-4 text-end">
+        <small class="text-muted">
+            <i class="fas fa-info-circle me-1"></i>
+            На основе данных из <a href="/top/drivers/" class="text-info">рейтингов пилотов</a>
+        </small>
+    </div>
+    <!-- Пояснение методологии -->
+  <div class="mt-5" style="background-color: #1a1a25; border-radius: 8px; padding: 1.5rem;">
+      <h5 class="text-info border-bottom border-secondary pb-2 mb-3">📊 Как считается матрица?</h5>
+
+      <div class="row">
+          <div class="col-md-8">
+              <p class="text-muted">
+                  Каждая ячейка показывает <strong class="text-white">процент побед</strong> конкретного шасси
+                  на конкретной трассе. Цвет зависит от успешности:
+              </p>
+              <ul class="text-muted">
+                  <li>🔸 <span class="text-white">Бледно-жёлтый</span> — 0-20% побед</li>
+                  <li>🔸 <span class="text-white">Насыщенно-жёлтый</span> — 80-100% побед</li>
+              </ul>
+              <p class="text-muted mt-2">
+                  В правом верхнем углу ячейки — <span class="stats-badge">число</span> — количество гонок,
+                  на которых основан расчёт. Чем больше гонок, тем достовернее статистика.
+              </p>
+          </div>
+          <div class="col-md-4">
+              <div style="background-color: #2a2a35; border-radius: 8px; padding: 1rem;">
+                  <p class="text-white mb-1"><i class="fas fa-calculator text-warning me-2"></i>Формула:</p>
+                  <p class="text-muted small">
+                      Win Rate = (Победы / Всего гонок) × 100%
+                  </p>
+                  <p class="text-muted small mb-0">
+                      * Учитываются только гонки, где пилот финишировал
+                  </p>
+              </div>
+          </div>
+      </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Можно добавить интерактивность позже
+});
+</script>
+{% endblock %}
