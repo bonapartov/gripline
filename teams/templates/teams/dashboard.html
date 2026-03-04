@@ -1,0 +1,918 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailimages_tags %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    .dashboard-card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .team-logo-wrapper {
+        width: 200px;
+        height: 200px;
+        margin: 0 auto 1rem auto;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 3px solid #2a2a35;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .team-logo-wrapper img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .team-logo-placeholder {
+        width: 100%;
+        height: 100%;
+        background-color: #2a2a35;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        color: #6c757d;
+    }
+
+    .team-name {
+        color: #ffc107;
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+        text-align: center;
+    }
+
+    .section-title {
+        color: #ffc107;
+        font-size: 1.3rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid #2a2a35;
+        padding-bottom: 0.5rem;
+    }
+
+    .form-label {
+        color: #0dcaf0;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-control {
+        background-color: #15151c !important;
+        border: 1px solid #2a2a35 !important;
+        color: white !important;
+        border-radius: 4px;
+        padding: 0.5rem;
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+
+    .form-control:focus {
+        border-color: #ffc107 !important;
+        outline: none;
+        box-shadow: none;
+    }
+
+    .btn-save {
+        background-color: #ffc107;
+        color: #000;
+        border: none;
+        padding: 0.75rem 2rem;
+        font-weight: bold;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-save:hover {
+        background-color: #e0a800;
+        transform: translateY(-2px);
+    }
+
+    .driver-row {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        background-color: #15151c;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+
+    .driver-info {
+        flex: 1;
+    }
+
+    .driver-name {
+        color: white;
+        font-weight: bold;
+    }
+
+    .driver-class {
+        color: #0dcaf0;
+        font-size: 0.9rem;
+    }
+
+    .btn-remove {
+        background-color: transparent;
+        color: #dc3545;
+        border: 1px solid #dc3545;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-remove:hover {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .btn-add {
+        background-color: transparent;
+        color: #28a745;
+        border: 1px solid #28a745;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+        width: 100%;
+    }
+
+    .btn-add:hover {
+        background-color: #28a745;
+        color: white;
+    }
+
+    .btn-edit {
+        background-color: transparent;
+        color: #0dcaf0;
+        border: 1px solid #0dcaf0;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 0.9rem;
+    }
+    .btn-edit:hover {
+        background-color: #0dcaf0;
+        color: #000;
+    }
+
+    .alert {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        color: white;
+        border-radius: 8px;
+    }
+    .alert-success {
+        border-left: 4px solid #28a745;
+    }
+    .alert-danger {
+        border-left: 4px solid #dc3545;
+    }
+    .alert-info {
+        border-left: 4px solid #0dcaf0;
+    }
+    .btn-close-white {
+        filter: invert(1) grayscale(100%) brightness(200%);
+    }
+
+    .driver-photo-square {
+        width: 90px;
+        height: 90px;
+        object-fit: cover;
+        border-radius: 8px;
+        margin-right: 1rem;
+        border: 2px solid #2a2a35;
+    }
+
+    .driver-photo-square.bg-secondary {
+        width: 90px;
+        height: 90px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        background-color: #2a2a35 !important;
+    }
+
+    .driver-photo-square i {
+        font-size: 2rem;
+        color: #6c757d;
+    }
+
+    .btn-outline-secondary {
+        background-color: transparent;
+        color: #6c757d;
+        border: 1px solid #6c757d;
+        padding: 0.6rem 1rem;
+        font-weight: bold;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+
+    .btn-outline-secondary:hover {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .class-group h4 {
+        font-size: 1.2rem;
+        color: #ffc107;
+        margin-top: 1.5rem;
+    }
+    .class-group:first-child h4 {
+        margin-top: 0;
+    }
+
+    .btn-view {
+        background-color: transparent;
+        color: #0dcaf0;
+        border: 1px solid #0dcaf0;
+        padding: 0.6rem 1rem;
+        font-weight: bold;
+        border-radius: 4px;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    .btn-view:hover {
+        background-color: #0dcaf0;
+        color: #000;
+    }
+
+    .btn-logout {
+        background-color: transparent;
+        color: #dc3545;
+        border: 1px solid #dc3545;
+        padding: 0.6rem 1rem;
+        font-weight: bold;
+        border-radius: 4px;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    .btn-logout:hover {
+        background-color: #dc3545;
+        color: white;
+    }
+</style>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="force-width-1500 my-3">
+            <div class="alert {% if message.tags == 'success' %}alert-success{% elif message.tags == 'error' %}alert-danger{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="force-width-1500 my-5">
+    <!-- Шапка с названием команды и информацией -->
+    <div class="dashboard-card">
+        <div class="row align-items-center">
+            <!-- Лого слева -->
+            <div class="col-md-4 text-center">
+                <div class="team-logo-wrapper mx-auto">
+                    {% if team.logo %}
+                        {% image team.logo fill-200x200 as team_logo %}
+                        <img src="{{ team_logo.url }}" alt="{{ team.name }}">
+                    {% else %}
+                        <div class="team-logo-placeholder">
+                            <i class="fas fa-flag"></i>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Информация справа -->
+            <div class="col-md-8">
+                <div class="team-name text-start mb-3">{{ team.name }}</div>
+
+                <!-- ЕДИНАЯ ФОРМА для всего -->
+                <form method="post" enctype="multipart/form-data" id="team-main-form">
+                    {% csrf_token %}
+
+                    <!-- Основные поля -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Логотип команды</label>
+                                {{ form.logo_upload }}
+                                <div class="text-muted small mt-1">Рекомендуемый размер: 300x300 пикселей</div>
+                                {% if team.logo %}
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="document.getElementById('delete_logo').value='true'; this.form.submit();">
+                                        <i class="fas fa-trash-alt me-1"></i>Удалить логотип
+                                    </button>
+                                    <input type="hidden" name="delete_logo" id="delete_logo" value="">
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Описание команды</label>
+                                {{ form.description }}
+                                <div class="text-muted small mt-1">Расскажите о команде, её истории, достижениях</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Руководитель команды -->
+                    <h3 class="section-title mt-4">Руководитель команды</h3>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">ФИО руководителя</label>
+                                {{ form.manager_name }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Фото руководителя</label>
+                                {{ form.manager_photo_upload }}
+                                <div class="text-muted small mt-1">Рекомендуемый размер: 300x300 пикселей</div>
+                                {% if team.manager_photo %}
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="document.getElementById('delete_manager_photo').value='true'; this.form.submit();">
+                                        <i class="fas fa-trash-alt me-1"></i>Удалить фото
+                                    </button>
+                                    <input type="hidden" name="delete_manager_photo" id="delete_manager_photo" value="">
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Email</label>
+                                {{ form.manager_email }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Телефон</label>
+                                {{ form.manager_phone }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Соцсети руководителя</label>
+                        {{ form.manager_social }}
+                    </div>
+
+                   <!-- Социальные сети команды -->
+                    <h4 class="text-warning mt-4 mb-3">Социальные сети команды</h4>
+                    {{ formset.management_form }}
+                    {% for social_form in formset %}
+                        <div class="row mb-2 align-items-center">
+                            {% if social_form.instance.pk %}
+                                {{ social_form.id }}
+                            {% endif %}
+                            <div class="col-5">
+                                {{ social_form.network_name }}
+                            </div>
+                            <div class="col-5">
+                                {{ social_form.link_url }}
+                            </div>
+                            <div class="col-2">
+                                {% if social_form.instance.pk %}
+                                    <label class="text-danger small" style="cursor: pointer;">
+                                        {{ social_form.DELETE }} Удалить
+                                    </label>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+
+                    <!-- Кнопки -->
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn-save" style="flex: 2;">Сохранить изменения</button>
+                        <a href="/teams/{{ team.slug }}/" target="_blank" class="btn-view" style="flex: 1;">
+                            <i class="fas fa-external-link-alt me-2"></i>Посмотреть страницу
+                        </a>
+                        <a href="{% url 'teams:logout' %}" class="btn-logout" style="flex: 1;">
+                            <i class="fas fa-sign-out-alt me-2"></i>Выйти
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Левая колонка - руководитель, соцсети и сотрудники -->
+        <div class="col-md-6">
+
+
+            <!-- Сотрудники команды -->
+            <div class="dashboard-card mt-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h3 class="section-title mb-0">Сотрудники команды</h3>
+                    <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#addStaffModal">
+                        <i class="fas fa-plus-circle me-1"></i>Добавить
+                    </button>
+                </div>
+
+                {% for item in staff_members %}
+                <div class="driver-row">
+                    {% if item.staff.photo %}
+                        {% image item.staff.photo fill-90x90 as staff_photo %}
+                        <img src="{{ staff_photo.url }}" class="driver-photo-square">
+                    {% else %}
+                        <div class="driver-photo-square bg-secondary d-flex align-items-center justify-content-center">
+                            <i class="fas fa-user-tie text-dark"></i>
+                        </div>
+                    {% endif %}
+                    <div class="driver-info">
+                        <a href="{{ item.staff.get_absolute_url }}" class="driver-name text-decoration-none">{{ item.staff.full_name }}</a>
+                        <div class="small text-info">{{ item.staff.position|default:"Сотрудник" }}</div>
+                    </div>
+                    <div class="d-flex gap-1">
+                        <button class="btn-edit btn-sm" onclick="editStaff({{ item.staff.id }})">✎</button>
+                        <form method="post" action="{% url 'teams:remove_staff' item.staff.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-remove btn-sm" onclick="return confirm('Убрать сотрудника из команды?')">✕</button>
+                        </form>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted text-center py-3">В команде пока нет сотрудников</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Правая колонка - состав и заявки -->
+        <div class="col-md-6">
+            <!-- Текущий состав -->
+            <div class="dashboard-card">
+                <h3 class="section-title">Состав команды</h3>
+                {% regroup driver_classes by class_name as classes_list %}
+                {% for class_group in classes_list %}
+                <div class="class-group mb-4">
+                    <h4 class="text-warning border-bottom border-secondary pb-2 mb-3">{{ class_group.grouper }}</h4>
+                    {% for item in class_group.list %}
+                    <div class="driver-row">
+                        {% if item.driver.photo %}
+                            {% image item.driver.photo fill-90x90 as driver_photo %}
+                            <img src="{{ driver_photo.url }}" class="driver-photo-square">
+                        {% else %}
+                            <div class="driver-photo-square bg-secondary d-flex align-items-center justify-content-center">
+                                <i class="fas fa-user text-dark"></i>
+                            </div>
+                        {% endif %}
+                        <div class="driver-info">
+                            <div class="driver-name">{{ item.driver.full_name }}</div>
+                            <div class="driver-class">{{ item.driver.city|default:"" }}</div>
+                        </div>
+                        <form method="post" action="{% url 'teams:remove_driver' item.driver.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-remove" onclick="return confirm('Убрать пилота из команды?')">Удалить</button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% empty %}
+                <p class="text-muted text-center">В команде пока нет пилотов</p>
+                {% endfor %}
+                <button class="btn-add mt-3" data-bs-toggle="modal" data-bs-target="#addDriverModal">
+                    + Добавить пилота
+                </button>
+            </div>
+
+            <!-- Заявки на вступление -->
+            {% if pending_requests %}
+            <div class="dashboard-card mt-4">
+                <h3 class="section-title">Заявки на вступление</h3>
+                {% for request in pending_requests %}
+                <div class="driver-row">
+                    {% if request.driver.photo %}
+                        {% image request.driver.photo fill-60x60 as driver_photo %}
+                        <img src="{{ driver_photo.url }}" class="driver-photo">
+                    {% endif %}
+                    <div class="driver-info">
+                        <div class="driver-name">{{ request.driver.full_name }}</div>
+                        <div class="driver-class">{{ request.driver.city|default:"Город не указан" }}</div>
+                        {% if request.comment %}
+                        <div class="small text-muted">"{{ request.comment }}"</div>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex gap-2">
+                        <form method="post" action="{% url 'teams:approve_request' request.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-success">✓</button>
+                        </form>
+                        <form method="post" action="{% url 'teams:reject_request' request.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-danger">✗</button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно добавления пилота (без изменений) -->
+<div class="modal fade" id="addDriverModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-warning"><i class="fas fa-user-plus me-2"></i>Добавить пилота</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">Выберите пилота из списка, чтобы добавить в команду</p>
+                <div class="form-group mb-3">
+                    <label class="form-label">Поиск пилота</label>
+                    <input type="text" id="driverSearch" class="form-control" placeholder="Введите имя или фамилию...">
+                </div>
+                <form method="post" action="{% url 'teams:add_driver' %}" id="add-driver-form">
+                    {% csrf_token %}
+                    <div class="form-group mb-3">
+                        <label class="form-label">Пилот</label>
+                        <select name="driver_id" id="driverSelect" class="form-control" required size="8">
+                            <option value="">-- Выберите пилота --</option>
+                            {% for driver in all_drivers %}
+                            <option value="{{ driver.id }}" data-search="{{ driver.full_name|lower }} {{ driver.city|lower }}">
+                                {{ driver.full_name }}{% if driver.city %} ({{ driver.city }}){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn-save flex-grow-1"><i class="fas fa-plus-circle me-2"></i>Добавить</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно добавления сотрудника -->
+<div class="modal fade" id="addStaffModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-warning">
+                    <i class="fas fa-user-tie me-2"></i>Добавить сотрудника
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Вкладки: Новый / Существующий -->
+                <ul class="nav nav-tabs border-secondary mb-3" id="staffTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active bg-dark text-white border-secondary" id="new-staff-tab" data-bs-toggle="tab" data-bs-target="#new-staff" type="button" role="tab">Новый сотрудник</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link bg-dark text-white border-secondary" id="existing-staff-tab" data-bs-toggle="tab" data-bs-target="#existing-staff" type="button" role="tab">Выбрать из существующих</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="staffTabContent">
+                    <!-- Вкладка: Новый сотрудник -->
+                    <div class="tab-pane fade show active" id="new-staff" role="tabpanel">
+                        <form method="post" action="{% url 'teams:add_staff' %}" enctype="multipart/form-data" id="new-staff-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="staff_id" value="new">
+
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Фамилия *</label>
+                                        <input type="text" name="last_name" class="form-control" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Имя *</label>
+                                        <input type="text" name="first_name" class="form-control" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Отчество</label>
+                                        <input type="text" name="middle_name" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Должность</label>
+                                        <input type="text" name="position" class="form-control" placeholder="Старший механик, тренер...">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                  <div class="form-group mb-3">
+                                      <label class="form-label">Фото</label>
+                                      <input type="file" name="photo_upload" class="form-control" accept="image/*">
+                                      <small class="text-muted">Рекомендуемый размер: 300x300 пикселей</small>
+                                  </div>
+                              </div>
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label class="form-label">Краткая информация</label>
+                                <textarea name="biography" class="form-control" rows="2"></textarea>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Телефон</label>
+                                        <input type="text" name="phone" class="form-control" placeholder="+7 999 123-45-67">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Email</label>
+                                        <input type="email" name="email" class="form-control" placeholder="email@example.com">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h6 class="text-warning mt-3 mb-2">Социальные сети</h6>
+                            <div class="staff-social-forms">
+                                <!-- Три пустых формы для соцсетей -->
+                                <div class="row mb-2">
+                                    <div class="col-5">
+                                        <input type="text" name="social_links-0-network_name" class="form-control" placeholder="Название">
+                                    </div>
+                                    <div class="col-7">
+                                        <input type="url" name="social_links-0-link_url" class="form-control" placeholder="https://...">
+                                    </div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-5">
+                                        <input type="text" name="social_links-1-network_name" class="form-control" placeholder="Название">
+                                    </div>
+                                    <div class="col-7">
+                                        <input type="url" name="social_links-1-link_url" class="form-control" placeholder="https://...">
+                                    </div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-5">
+                                        <input type="text" name="social_links-2-network_name" class="form-control" placeholder="Название">
+                                    </div>
+                                    <div class="col-7">
+                                        <input type="url" name="social_links-2-link_url" class="form-control" placeholder="https://...">
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="hidden" name="social_links-TOTAL_FORMS" value="3">
+                            <input type="hidden" name="social_links-INITIAL_FORMS" value="0">
+                            <input type="hidden" name="social_links-MIN_NUM_FORMS" value="0">
+                            <input type="hidden" name="social_links-MAX_NUM_FORMS" value="3">
+
+                            <div class="d-flex gap-2 mt-4">
+                                <button type="submit" class="btn-save flex-grow-1">Добавить сотрудника</button>
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Вкладка: Выбрать из существующих -->
+                    <div class="tab-pane fade" id="existing-staff" role="tabpanel">
+                        <div class="form-group mb-3">
+                            <label class="form-label">Поиск сотрудника</label>
+                            <input type="text" id="staffSearch" class="form-control" placeholder="Введите имя или фамилию...">
+                        </div>
+
+                        <form method="post" action="{% url 'teams:add_staff' %}" id="existing-staff-form">
+                            {% csrf_token %}
+                            <div class="form-group mb-3">
+                                <label class="form-label">Выберите сотрудника</label>
+                                <select name="staff_id" id="staffSelect" class="form-control" required size="8">
+                                    <option value="">-- Выберите сотрудника --</option>
+                                    {% for staff in all_staff %}
+                                    <option value="{{ staff.id }}" data-search="{{ staff.full_name|lower }}">
+                                        {{ staff.full_name }} {% if staff.position %} ({{ staff.position }}){% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="d-flex gap-2 mt-4">
+                                <button type="submit" class="btn-save flex-grow-1">Добавить в команду</button>
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно редактирования сотрудника -->
+<div class="modal fade" id="editStaffModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-warning"><i class="fas fa-user-edit me-2"></i>Редактировать сотрудника</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post" enctype="multipart/form-data" id="edit-staff-form" action="">
+                    {% csrf_token %}
+                    {{ formset.management_form }}
+                    <input type="hidden" name="staff_id" id="edit_staff_id" value="">
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Фамилия *</label>
+                                <input type="text" name="last_name" id="edit_last_name" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Имя *</label>
+                                <input type="text" name="first_name" id="edit_first_name" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Отчество</label>
+                                <input type="text" name="middle_name" id="edit_middle_name" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Должность</label>
+                                <input type="text" name="position" id="edit_position" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                          <div class="form-group mb-3">
+                              <label class="form-label">Новое фото</label>
+                              <input type="file" name="photo_upload" class="form-control" accept="image/*">
+                              <small class="text-muted">Оставьте пустым, чтобы не менять текущее фото</small>
+                          </div>
+                      </div>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label class="form-label">Краткая информация</label>
+                        <textarea name="biography" id="edit_biography" class="form-control" rows="2"></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Телефон</label>
+                                <input type="text" name="phone" id="edit_phone" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" name="email" id="edit_email" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Социальные сети -->
+                    <div class="form-group mb-3">
+                        <label class="form-label">Социальные сети</label>
+                        {{ formset.management_form }}
+                        <div class="staff-social-forms-edit">
+                            <div class="row mb-2">
+                                <div class="col-5">
+                                    <input type="text" name="social_links-0-network_name" class="form-control" placeholder="Название (ВК, Instagram)">
+                                </div>
+                                <div class="col-7">
+                                    <input type="url" name="social_links-0-link_url" class="form-control" placeholder="https://...">
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-5">
+                                    <input type="text" name="social_links-1-network_name" class="form-control" placeholder="Название">
+                                </div>
+                                <div class="col-7">
+                                    <input type="url" name="social_links-1-link_url" class="form-control" placeholder="https://...">
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-5">
+                                    <input type="text" name="social_links-2-network_name" class="form-control" placeholder="Название">
+                                </div>
+                                <div class="col-7">
+                                    <input type="url" name="social_links-2-link_url" class="form-control" placeholder="https://...">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Убираем дублирующие скрытые поля, так как они уже в management_form -->
+                    </div>
+                        <input type="hidden" name="social_links-TOTAL_FORMS" value="3">
+                        <input type="hidden" name="social_links-INITIAL_FORMS" value="0">
+                        <input type="hidden" name="social_links-MIN_NUM_FORMS" value="0">
+                        <input type="hidden" name="social_links-MAX_NUM_FORMS" value="3">
+
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn-save flex-grow-1">Сохранить изменения</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Поиск пилотов
+    const searchInput = document.getElementById('driverSearch');
+    const driverSelect = document.getElementById('driverSelect');
+    if (searchInput && driverSelect) {
+        searchInput.addEventListener('keyup', function() {
+            const searchText = this.value.toLowerCase().trim();
+            const options = driverSelect.options;
+            for (let i = 0; i < options.length; i++) {
+                const option = options[i];
+                if (i === 0) continue;
+                const searchData = option.getAttribute('data-search') || option.text.toLowerCase();
+                if (searchText === '' || searchData.includes(searchText)) {
+                    option.style.display = '';
+                } else {
+                    option.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    // Поиск сотрудников
+    const staffSearch = document.getElementById('staffSearch');
+    const staffSelect = document.getElementById('staffSelect');
+    if (staffSearch && staffSelect) {
+        staffSearch.addEventListener('keyup', function() {
+            const searchText = this.value.toLowerCase().trim();
+            const options = staffSelect.options;
+            for (let i = 0; i < options.length; i++) {
+                const option = options[i];
+                if (i === 0) continue;
+                const searchData = option.getAttribute('data-search') || option.text.toLowerCase();
+                if (searchText === '' || searchData.includes(searchText)) {
+                    option.style.display = '';
+                } else {
+                    option.style.display = 'none';
+                }
+            }
+        });
+    }
+});
+
+function editStaff(staffId) {
+    fetch(`/api/staff/${staffId}/`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('edit_staff_id').value = data.id;
+            document.getElementById('edit_last_name').value = data.last_name;
+            document.getElementById('edit_first_name').value = data.first_name;
+            document.getElementById('edit_middle_name').value = data.middle_name || '';
+            document.getElementById('edit_position').value = data.position || '';
+            document.getElementById('edit_biography').value = data.biography || '';
+            document.getElementById('edit_phone').value = data.phone || '';
+            document.getElementById('edit_email').value = data.email || '';
+
+            document.querySelector('#edit-staff-form input[type="file"]').value = '';
+            document.getElementById('edit-staff-form').action = `/teams/edit-staff/${staffId}/`;
+
+            new bootstrap.Modal(document.getElementById('editStaffModal')).show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Ошибка загрузки данных сотрудника');
+        });
+}
+</script>
+{% endblock %}

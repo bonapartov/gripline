@@ -494,6 +494,90 @@ class DriverResource(resources.ModelResource):
         report_skipped = True
 
 
+class TeamStaffSocialLink(Orderable):
+    page = ParentalKey("website.TeamStaff", related_name="social_links")
+    network_name = models.CharField("Название (например: ВК, Instagram)", max_length=100)
+    link_url = models.URLField("Ссылка")
+
+    panels = [
+        FieldPanel('network_name'),
+        FieldPanel('link_url'),
+    ]
+
+class TeamStaff(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, models.Model):
+    first_name = models.CharField("Имя", max_length=100)
+    last_name = models.CharField("Фамилия", max_length=100)
+    middle_name = models.CharField("Отчество", max_length=100, blank=True)
+    slug = models.SlugField("Slug", max_length=255, unique=True, blank=True)
+    photo = models.ForeignKey(
+        'wagtailimages.Image',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+'
+    )
+    position = models.CharField("Должность", max_length=255, blank=True,
+                               help_text="например: Старший механик, тренер")
+    biography = models.TextField("Биография", blank=True)
+    phone = models.CharField("Телефон", max_length=30, blank=True)
+    email = models.EmailField("Email", blank=True)
+
+    panels = [
+        FieldPanel('first_name'),
+        FieldPanel('last_name'),
+        FieldPanel('middle_name'),
+        FieldPanel('slug'),
+        FieldPanel('photo'),
+        FieldPanel('position'),
+        FieldPanel('biography'),
+        FieldPanel('phone'),
+        FieldPanel('email'),
+        InlinePanel('social_links', label="Социальные сети"),
+    ]
+
+    def __str__(self):
+        return self.full_name
+
+    @property
+    def full_name(self):
+        parts = [self.last_name, self.first_name, self.middle_name]
+        return ' '.join(p for p in parts if p)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(unidecode(f"{self.last_name} {self.first_name} {self.middle_name}"))
+            self.slug = base_slug
+            # Проверка на уникальность
+            counter = 1
+            while TeamStaff.objects.filter(slug=self.slug).exists():
+                self.slug = f"{base_slug}-{counter}"
+                counter += 1
+        super().save(*args, **kwargs)
+
+    def get_absolute_url(self):
+        return f"/staff/{self.slug}/"
+
+    class Meta:
+        verbose_name = "Сотрудник команды"
+        verbose_name_plural = "Сотрудники команд"
+
+class TeamStaffMembership(models.Model):
+    """Связь сотрудника с командой"""
+    staff = models.ForeignKey('TeamStaff', on_delete=models.CASCADE, related_name='team_memberships')
+    team = models.ForeignKey('Team', on_delete=models.CASCADE, related_name='staff_memberships')  # Строковая ссылка
+    joined_at = models.DateField("Дата присоединения", auto_now_add=True)
+    left_at = models.DateField("Дата ухода", null=True, blank=True)
+    is_active = models.BooleanField("Активен", default=True)
+
+    class Meta:
+        verbose_name = "Участие сотрудника в команде"
+        verbose_name_plural = "Участия сотрудников в командах"
+        # unique_together = ['staff', 'team',  'is_active']  # Закомментировать или удалить
+        unique_together = ['staff', 'team']  # Оставить только уникальность пары
+
+    def __str__(self):
+        return f"{self.staff.full_name} в {self.team.name}"
+
 # ---------- КОМАНДЫ (TEAM) ----------
 
 class TeamSocialLink(Orderable):
@@ -505,6 +589,7 @@ class TeamSocialLink(Orderable):
         FieldPanel('network_name'),
         FieldPanel('link_url'),
     ]
+
 
 class Team(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, models.Model):
     name = models.CharField("Название команды", max_length=255)
@@ -518,10 +603,26 @@ class Team(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, m
         verbose_name="Логотип"
     )
 
+    # Новые поля для руководителя
+    manager_name = models.CharField("ФИО руководителя", max_length=255, blank=True)
+    manager_photo = models.ForeignKey(
+        'wagtailimages.Image',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='+',
+        verbose_name="Фото руководителя"
+    )
+    manager_email = models.EmailField("Email руководителя", blank=True)
+    manager_phone = models.CharField("Телефон", max_length=30, blank=True)
+    manager_social = models.URLField("Соцсети руководителя", blank=True, help_text="Ссылка на VK, Telegram и т.д.")
+    description = models.TextField("Описание", blank=True, null=True)
+
     panels = [
         FieldPanel('name'),
         FieldPanel('slug'),
         FieldPanel('logo'),
+        FieldPanel('description'),
         InlinePanel('social_links', label="Социальные сети команды"),
     ]
 
@@ -534,12 +635,27 @@ class Team(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, m
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
-        return reverse('teams:details', args=[self.slug])
+        return f"/teams/{self.slug}/"
 
     class Meta:
         verbose_name = "Команда"
         verbose_name_plural = "Команды"
 
+class TeamMembership(models.Model):
+    """Связь пилота с командой с датами"""
+    driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name='team_memberships')
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='memberships')
+    joined_at = models.DateField("Дата присоединения", auto_now_add=True)
+    left_at = models.DateField("Дата ухода", null=True, blank=True)
+    is_active = models.BooleanField("Активен", default=True)
+
+    class Meta:
+        verbose_name = "Участие в команде"
+        verbose_name_plural = "Участия в командах"
+        unique_together = ['driver', 'team', 'joined_at']  # Защита от дублей
+
+    def __str__(self):
+        return f"{self.driver.full_name} в {self.team.name}"
 
 # ---------- ТРАССЫ (TRACK) ----------
 
@@ -611,7 +727,7 @@ class Track(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, 
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
-        return reverse('tracks:details', args=[self.slug])
+        return f"/tracks/{self.slug}/"
 
     class Meta:
         verbose_name = "Трасса"
@@ -716,7 +832,7 @@ class Chassis(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
-        return reverse('chassis:details', args=[self.slug])
+        return f"/chassis/{self.slug}/"
 
     class Meta:
         verbose_name = "Шасси"
@@ -761,7 +877,7 @@ class TyreBrand(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableMod
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
-        return reverse('tyrebrand:details', args=[self.slug])
+        return f"/tyrebrands/{self.slug}/"
 
     class Meta:
         verbose_name = "Производитель шин"
@@ -796,7 +912,7 @@ class TyreType(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableMode
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
-        return reverse('tyretype:details', args=[self.slug])
+        return f"/tyretypes/{self.slug}/"
 
     class Meta:
         verbose_name = "Тип шин"
@@ -837,7 +953,7 @@ class Tyre(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, m
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
-        return reverse('tyres:details', args=[self.slug])
+        return f"/tyres/{self.slug}/"
 
     class Meta:
         verbose_name = "Шина"
@@ -883,7 +999,7 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
-        return reverse('engines:details', args=[self.slug])
+        return f"/engines-list/{self.slug}/"
 
     class Meta:
         verbose_name = "Двигатель"
@@ -1038,7 +1154,10 @@ class RaceResult(Orderable):
     )
 
     panels = [
-        FieldPanel('driver'),
+        FieldPanel('driver', widget=forms.Select(attrs={
+            'class': 'driver-search-select',
+            'data-search': 'true'
+        })),
         FieldPanel('team'),
         FieldPanel('race_number'),
         FieldPanel('chassis_new'),
@@ -1108,6 +1227,25 @@ class AnalyticsMetadata(models.Model):
 
     def __str__(self):
         return f"{self.key}: {self.value}"
+
+class EngineIndexPage(CoderedWebPage):
+    """
+    Страница со списком всех двигателей
+    """
+    class Meta:
+        verbose_name = "Список двигателей"
+        verbose_name_plural = "Списки двигателей"
+
+    parent_page_types = ["website.WebPage", "website.SeasonArchivePage"]
+    subpage_types = []  # Нельзя создавать дочерние страницы
+    template = "coderedcms/pages/engine_index_page.html"
+
+    def get_context(self, request):
+        context = super().get_context(request)
+        # Получаем все двигатели из сниппета Engine
+        engines = Engine.objects.all().order_by('name')
+        context['engines'] = engines
+        return context
 
 
 # ---------- ЛОГ ОБНОВЛЕНИЙ ----------

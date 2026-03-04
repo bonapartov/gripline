@@ -1,0 +1,106 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailimages_tags %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    .engine-card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+
+    .engine-card:hover {
+        transform: translateY(-5px);
+        border-color: #ffc107;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+    }
+
+    .engine-logo-wrapper {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 1rem auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .engine-logo {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    .engine-name {
+        color: #ffc107;
+        font-size: 1.3rem;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .engine-country {
+        color: #0dcaf0;
+        text-align: center;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
+
+    .engine-link {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .page-title {
+        color: #ffc107;
+        text-align: center;
+        margin-bottom: 3rem;
+        text-transform: uppercase;
+        font-weight: bold;
+        font-size: 2.5rem;
+    }
+</style>
+
+<div class="force-width-1500 my-5">
+    <h1 class="page-title">{{ page.title }}</h1>
+
+    <div class="row g-4">
+        {% for engine in engines %}
+        <div class="col-md-6 col-lg-4">
+            <a href="{{ engine.get_absolute_url }}" class="engine-link">
+                <div class="engine-card">
+                    <div class="engine-logo-wrapper">
+                        {% if engine.logo %}
+                            {% image engine.logo fill-120x120 as engine_logo %}
+                            <img src="{{ engine_logo.url }}" class="engine-logo" alt="{{ engine.name }}">
+                        {% else %}
+                            <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center" style="width: 120px; height: 120px;">
+                                <i class="fas fa-cog fa-3x text-dark"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="engine-name">{{ engine.name }}</div>
+                    {% if engine.country %}
+                        <div class="engine-country">{{ engine.country }}</div>
+                    {% endif %}
+                </div>
+            </a>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <p class="text-center text-muted py-5">Нет доступных двигателей</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

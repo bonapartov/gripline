@@ -39,7 +39,8 @@ INSTALLED_APPS = [
     "wagtailseo",
     # Wagtail
     "wagtail.contrib.forms",
-
+    "accounts",
+    "teams",
     "wagtail.contrib.redirects",
     "wagtail_modeladmin",
     "wagtail.embeds",
@@ -86,6 +87,7 @@ ROOT_URLCONF = "mysite.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [

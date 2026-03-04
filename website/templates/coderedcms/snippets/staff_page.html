@@ -1,0 +1,121 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailimages_tags %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    .staff-photo {
+        object-fit: cover;
+        border-radius: 10px;
+        width: 100%;
+        max-width: 300px;
+    }
+    .team-badge {
+        display: inline-block;
+        padding: 0.25rem 1rem;
+        background-color: #2a2a35;
+        border: 1px solid #ffc107;
+        border-radius: 20px;
+        color: #ffc107;
+        font-size: 0.9rem;
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+    .team-badge.inactive {
+        border-color: #6c757d;
+        color: #6c757d;
+    }
+</style>
+
+<div class="force-width-1500 my-5 text-white">
+    <div class="row">
+        <!-- Левая колонка - фото и основная информация -->
+        <div class="col-md-4 col-lg-3">
+            {% if staff.photo %}
+                {% image staff.photo fill-400x500 as staff_photo %}
+                <img src="{{ staff_photo.url }}" class="img-fluid staff-photo shadow-lg border border-secondary" alt="{{ staff.full_name }}">
+            {% else %}
+                <div class="bg-dark rounded d-flex align-items-center justify-content-center border border-secondary" style="aspect-ratio: 4/5;">
+                    <span class="text-muted">Нет фото</span>
+                </div>
+            {% endif %}
+
+            <div class="mt-4">
+                <h3 class="text-warning">Контакты</h3>
+                {% if staff.phone %}
+                <p class="mb-2">
+                    <i class="fas fa-phone me-2 text-info"></i>{{ staff.phone }}
+                </p>
+                {% endif %}
+                {% if staff.email %}
+                <p class="mb-2">
+                    <i class="fas fa-envelope me-2 text-info"></i>{{ staff.email }}
+                </p>
+                {% endif %}
+            </div>
+
+            {% if staff.social_links.all %}
+            <div class="mt-4">
+                <h3 class="text-warning">Социальные сети</h3>
+                {% for social in staff.social_links.all %}
+                <a href="{{ social.link_url }}" target="_blank" class="btn btn-outline-light btn-sm me-2 mb-2">
+                    <i class="fas fa-link me-1"></i> {{ social.network_name }}
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Правая колонка - детальная информация -->
+        <div class="col-md-8 col-lg-9">
+            <h1 class="display-4 fw-bold mb-2">{{ staff.full_name }}</h1>
+
+            {% if staff.position %}
+            <p class="text-info fs-5 mb-4">
+                <i class="fas fa-briefcase me-2"></i>{{ staff.position }}
+            </p>
+            {% endif %}
+
+            <!-- Текущая команда -->
+            {% if current_team %}
+            <div class="card bg-dark border-secondary p-3 mb-4">
+                <h5 class="text-primary border-bottom border-secondary pb-2 mb-3">Текущая команда</h5>
+                <a href="{{ current_team.get_absolute_url }}" class="text-warning text-decoration-none fs-5">
+                    {{ current_team.name }}
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Биография -->
+            {% if staff.biography %}
+            <div class="card bg-dark border-secondary p-3 mb-4">
+                <h5 class="text-primary border-bottom border-secondary pb-2 mb-3">О себе</h5>
+                <div class="text-light">
+                    {{ staff.biography|safe|linebreaks }}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Предыдущие команды -->
+            {% if previous_teams %}
+            <div class="card bg-dark border-secondary p-3">
+                <h5 class="text-primary border-bottom border-secondary pb-2 mb-3">Ранее работал</h5>
+                <div class="d-flex flex-wrap">
+                    {% for membership in previous_teams %}
+                    <a href="{{ membership.team.get_absolute_url }}" class="team-badge inactive text-decoration-none">
+                        {{ membership.team.name }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

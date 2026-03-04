@@ -1,0 +1,306 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailimages_tags %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    .profile-card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 2rem;
+    }
+
+    .photo-section {
+        text-align: center;
+    }
+
+    .photo-wrapper {
+        width: 300px;
+        height: 300px;
+        margin: 0 auto 1rem auto;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 3px solid #2a2a35;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .photo-wrapper img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+    }
+
+    .photo-wrapper img:hover {
+        transform: scale(1.05);
+    }
+
+    .photo-placeholder {
+        width: 100%;
+        height: 100%;
+        background-color: #2a2a35;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+    }
+
+    .photo-placeholder i {
+        font-size: 5rem;
+        color: #6c757d;
+    }
+
+    .driver-name {
+        color: #ffc107;
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    .driver-city {
+        color: #0dcaf0;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-label {
+        color: #0dcaf0;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    /* ОБЩИЕ СТИЛИ ДЛЯ ВСЕХ ПОЛЕЙ ВВОДА */
+    .form-control,
+    textarea.form-control,
+    input.form-control,
+    input[type="file"].form-control {
+        background-color: #15151c !important;
+        border: 1px solid #2a2a35 !important;
+        color: white !important;
+        border-radius: 4px;
+        padding: 0.5rem;
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+
+    .form-control:focus,
+    textarea.form-control:focus,
+    input.form-control:focus,
+    input[type="file"].form-control:focus {
+        border-color: #ffc107 !important;
+        outline: none;
+        box-shadow: none;
+    }
+
+    /* СПЕЦИАЛЬНО ДЛЯ TEXTAREA */
+    textarea.form-control {
+        min-height: 120px;
+        resize: vertical;
+    }
+
+    /* СПЕЦИАЛЬНО ДЛЯ ПОЛЯ ВЫБОРА ФАЙЛА */
+    input[type="file"].form-control {
+        padding: 0.375rem 0.75rem;
+        color: #adb5bd !important;
+    }
+
+    /* Кнопка "Обзор" - Chrome/Safari/Edge */
+    input[type="file"].form-control::-webkit-file-upload-button {
+        background-color: #2a2a35;
+        border: 1px solid #3a3a45;
+        color: white;
+        padding: 0.5rem 1rem;
+        margin-right: 1rem;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    input[type="file"].form-control::-webkit-file-upload-button:hover {
+        background-color: #3a3a45;
+        border-color: #ffc107;
+        color: white !important;
+    }
+
+    /* Кнопка "Обзор" - Firefox */
+    input[type="file"].form-control::file-selector-button {
+        background-color: #2a2a35;
+        border: 1px solid #3a3a45;
+        color: white;
+        padding: 0.5rem 1rem;
+        margin-right: 1rem;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    input[type="file"].form-control::file-selector-button:hover {
+        background-color: #3a3a45;
+        border-color: #ffc107;
+        color: white !important;
+    }
+
+    /* Плейсхолдеры */
+    .form-control::placeholder,
+    input.form-control::placeholder,
+    textarea.form-control::placeholder {
+        color: #6c757d;
+        opacity: 0.7;
+    }
+
+    .social-form {
+        border-bottom: 1px solid #2a2a35;
+        padding-bottom: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .btn-save {
+        background-color: #ffc107;
+        color: #000;
+        border: none;
+        padding: 0.75rem 2rem;
+        font-weight: bold;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-save:hover {
+        background-color: #e0a800;
+        transform: translateY(-2px);
+    }
+
+    .btn-logout {
+        background-color: transparent;
+        color: #dc3545;
+        border: 1px solid #dc3545;
+        padding: 0.75rem 2rem;
+        font-weight: bold;
+        border-radius: 4px;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .btn-logout:hover {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .delete-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .delete-checkbox input {
+        width: auto;
+        margin: 0;
+    }
+
+    .delete-checkbox label {
+        color: #dc3545;
+        font-size: 0.8rem;
+        margin: 0;
+    }
+</style>
+
+<div class="force-width-1500 my-5">
+    <div class="row">
+        <!-- Левая колонка - фото и информация -->
+        <div class="col-md-4 col-lg-3">
+            <div class="profile-card photo-section">
+                <div class="photo-wrapper">
+                    {% if driver.photo %}
+                        {% image driver.photo fill-300x300 as driver_photo %}
+                        <img src="{{ driver_photo.url }}" alt="{{ driver.full_name }}">
+                    {% else %}
+                        <div class="photo-placeholder">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="driver-name">{{ driver.full_name }}</div>
+                <div class="driver-city">
+                    <i class="fas fa-map-marker-alt me-1"></i>
+                    {{ driver.city|default:"Город не указан" }}
+                </div>
+                <p class="text-muted small mt-3">Имя и город можно изменить только через администратора</p>
+            </div>
+        </div>
+
+        <!-- Правая колонка - формы -->
+        <div class="col-md-8 col-lg-9">
+            <div class="profile-card">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    <h4 class="text-warning border-bottom border-secondary pb-2 mb-4">Основная информация</h4>
+
+                    <div class="mb-4">
+                        <label class="form-label">Фото профиля</label>
+                        {{ form.photo_file }}
+                        {% if form.photo_file.errors %}
+                            <div class="text-danger small mt-1">{{ form.photo_file.errors }}</div>
+                        {% endif %}
+                        <div class="text-muted small mt-1">Рекомендуемый размер не менее: 300x300 пикселей<br>Загружайте пожалуйста реальные фото.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Биография</label>
+                        {{ form.biography }}
+                        {% if form.biography.errors %}
+                            <div class="text-danger small mt-1">{{ form.biography.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <h4 class="text-warning border-bottom border-secondary pb-2 mb-4 mt-5">Социальные сети</h4>
+                    <p class="text-muted small mb-4">Добавьте ссылки на свои соцсети. Пустые поля будут проигнорированы.</p>
+
+                    {{ formset.management_form }}
+                    {% for social_form in formset %}
+                        <div class="row social-form">
+                            <div class="col-md-5">
+                                {{ social_form.network_name }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ social_form.link_url }}
+                            </div>
+                            <div class="col-md-1">
+                                {% if social_form.instance.pk %}
+                                    <div class="delete-checkbox">
+                                        {{ social_form.DELETE }}
+                                        <label for="{{ social_form.DELETE.id_for_label }}">Удалить</label>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            {% if social_form.errors %}
+                                <div class="col-12">
+                                    <div class="text-danger small">{{ social_form.errors }}</div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="submit" class="btn-save">Сохранить изменения</button>
+                        <a href="{% url 'accounts:logout' %}" class="btn-logout">Выйти</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

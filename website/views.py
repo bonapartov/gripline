@@ -11,6 +11,11 @@ from django.db import models
 from django.utils import timezone
 import zoneinfo
 from .models import AnalyticsMetadata
+from datetime import timedelta
+from django.db.models import Max
+from .models import TeamStaff, TeamStaffMembership
+from django.http import JsonResponse
+
 
 # Классы для админки (Wagtail Snippets)
 class DriverViewSet(SnippetViewSet):
@@ -187,32 +192,56 @@ def driver_detail_view(request, slug):
 
 def team_detail_view(request, slug):
     team = get_object_or_404(Team, slug=slug)
-
-    # Пытаемся найти текущий сайт
     current_site = Site.find_for_request(request)
 
-    # Получаем уникальных пилотов, которые выступали за эту команду
+    # Получаем всех пилотов команды (только активных)
     team_drivers = Driver.objects.filter(
-        raceresult__team=team
-    ).distinct().order_by('last_name', 'first_name')
+        team_memberships__team=team,
+        team_memberships__is_active=True
+    ).distinct()
 
-    # Для каждого пилота получаем последний класс, в котором он выступал за эту команду
+    # Создаем список для отображения с классами
+    driver_classes = []
+    six_months_ago = timezone.now() - timedelta(days=180)
+
     for driver in team_drivers:
-        last_result = RaceResult.objects.filter(
+        classes_with_dates = RaceResult.objects.filter(
             team=team,
-            driver=driver
-        ).select_related('group__race_class').order_by('-group__page__last_published_at').first()
+            driver=driver,
+            group__page__last_published_at__gte=six_months_ago
+        ).values('group__race_class__name').annotate(
+            last_date=Max('group__page__last_published_at')
+        ).order_by('-last_date')
 
-        if last_result:
-            driver.last_class = last_result.group.race_class.name
-        else:
-            driver.last_class = None
+        for item in classes_with_dates:
+            driver_classes.append({
+                'driver': driver,
+                'class_name': item['group__race_class__name'],
+            })
+
+    # Получаем активных сотрудников команды
+        staff_members = TeamStaff.objects.filter(
+            team_memberships__team=team,
+            team_memberships__is_active=True
+        ).distinct().order_by('last_name', 'first_name')
+
+        # Для каждого сотрудника получаем его членство
+        staff_list = []
+        for staff in staff_members:
+            membership = TeamStaffMembership.objects.filter(
+                staff=staff,
+                team=team,
+                is_active=True
+            ).first()
+            staff_list.append({
+                'staff': staff,
+                'membership': membership,
+            })
 
     return render(request, "coderedcms/snippets/team_page.html", {
         "team": team,
-        "object": team,
-        "page": team,
-        "team_drivers": team_drivers,  # Передаем список уникальных пилотов
+        "driver_classes": driver_classes,
+        "staff_members": staff_list,
         "site": current_site,
     })
 
@@ -951,3 +980,42 @@ def chassis_api(request):
         ]
     }
     return JsonResponse(data)
+
+def staff_detail_view(request, slug):
+    staff = get_object_or_404(TeamStaff, slug=slug)
+    current_site = Site.find_for_request(request)
+
+    # Получаем все команды сотрудника (активные и прошлые)
+    memberships = TeamStaffMembership.objects.filter(
+        staff=staff
+    ).select_related('team').order_by('-joined_at')
+
+    current_team = memberships.filter(is_active=True).first()
+    previous_teams = memberships.filter(is_active=False)
+
+    return render(request, "coderedcms/snippets/staff_page.html", {
+        "staff": staff,
+        "object": staff,
+        "page": staff,
+        "current_team": current_team.team if current_team else None,
+        "previous_teams": previous_teams,
+        "site": current_site,
+    })
+
+def staff_api(request, staff_id):
+    """API для получения данных сотрудника"""
+    try:
+        staff = TeamStaff.objects.get(id=staff_id)
+        data = {
+            'id': staff.id,
+            'last_name': staff.last_name,
+            'first_name': staff.first_name,
+            'middle_name': staff.middle_name or '',
+            'position': staff.position or '',
+            'biography': staff.biography or '',
+            'phone': staff.phone or '',
+            'email': staff.email or '',
+        }
+        return JsonResponse(data)
+    except TeamStaff.DoesNotExist:
+        return JsonResponse({'error': 'Not found'}, status=404)

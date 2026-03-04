@@ -27,6 +27,54 @@
         object-fit: cover;
         border-radius: 50%;
     }
+    .class-group h4 {
+        font-size: 1.3rem;
+        margin-top: 2rem;
+    }
+    .class-group:first-child h4 {
+        margin-top: 0;
+    }
+    .alert-info {
+        background-color: #1a1a25 !important;
+        border: 1px solid #2a2a35 !important;
+        color: #adb5bd !important;
+        border-left: 4px solid #0dcaf0 !important;
+        border-radius: 4px;
+        padding: 1rem;
+    }
+    .alert-info i {
+        color: #0dcaf0;
+    }
+    .alert-info strong {
+        color: #ffc107;
+    }
+
+    .staff-photo {
+        width: 70px;
+        height: 70px;
+        object-fit: cover;
+        border-radius: 8px;  /* скругление углов */
+        border: 2px solid #2a2a35;
+        margin-right: 0.75rem;
+    }
+
+    .staff-photo-placeholder {
+        width: 70px;
+        height: 70px;
+        background-color: #2a2a35;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 0.75rem;
+        border: 2px solid #3a3a45;
+    }
+
+    .staff-photo-placeholder i {
+        font-size: 1.5rem;
+        color: #6c757d;
+    }
+
 </style>
 
 <div class="force-width-1500 my-5 text-white">
@@ -44,6 +92,8 @@
 
         <div class="col-md-8 col-lg-9">
             <h1 class="display-4 fw-bold mb-1 text-uppercase">{{ team.name }}</h1>
+
+
 
             <div class="mb-4">
                 {% for social in team.social_links.all %}
@@ -65,67 +115,159 @@
         </div>
     </div>
 
+        <!-- Руководитель и сотрудники команды в одном ряду -->
+    <div class="row mb-4">
+        <!-- Руководитель команды (30%) -->
+        <div class="col-md-4">
+            <div class="card bg-dark border-secondary p-3 h-100">
+                <h5 class="text-info border-bottom border-secondary pb-2 mb-3 text-uppercase small fw-bold">Руководитель команды</h5>
+
+                {% if team.manager_name %}
+                    <div class="text-center mb-3">
+                        {% if team.manager_photo %}
+                            {% image team.manager_photo fill-150x150 as manager_photo %}
+                            <img src="{{ manager_photo.url }}" class="rounded-circle border border-secondary mb-3" style="width: 120px; height: 120px; object-fit: cover;">
+                        {% else %}
+                            <div class="bg-secondary rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 120px; height: 120px;">
+                                <i class="fas fa-user-tie fa-3x text-dark"></i>
+                            </div>
+                        {% endif %}
+
+                        <h5 class="text-white">{{ team.manager_name }}</h5>
+
+                        {% if team.manager_email %}
+                            <div class="mt-2">
+                                <i class="fas fa-envelope me-2 text-info"></i>
+                                <a href="mailto:{{ team.manager_email }}" class="text-white-50 text-decoration-none small">{{ team.manager_email }}</a>
+                            </div>
+                        {% endif %}
+
+                        {% if team.manager_phone %}
+                            <div class="mt-1">
+                                <i class="fas fa-phone me-2 text-info"></i>
+                                <span class="text-white-50 small">{{ team.manager_phone }}</span>
+                            </div>
+                        {% endif %}
+
+                        {% if team.manager_social %}
+                            <div class="mt-2">
+                                <a href="{{ team.manager_social }}" target="_blank" class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-link me-1"></i> Соцсети
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center mb-0">Информация о руководителе отсутствует</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Сотрудники команды (70%) -->
+        <div class="col-md-8">
+            <div class="card bg-dark border-secondary p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="text-info border-bottom border-secondary pb-2 mb-0 text-uppercase small fw-bold">Сотрудники команды</h5>
+                    <span class="badge bg-info text-dark">{{ staff_members|length }} чел.</span>
+                </div>
+
+                {% if staff_members %}
+                    <div class="row">
+                        {% for item in staff_members %}
+                        <div class="col-md-6 mb-2">
+                            <div class="d-flex align-items-center">
+                                {% if item.staff.photo %}
+                                    {% image item.staff.photo fill-70x70 as staff_photo %}
+                                    <img src="{{ staff_photo.url }}" class="staff-photo" alt="{{ item.staff.full_name }}">
+                                {% else %}
+                                    <div class="staff-photo-placeholder">
+                                        <i class="fas fa-user-tie"></i>
+                                    </div>
+                                {% endif %}
+                                <div>
+                                    <a href="{{ item.staff.get_absolute_url }}" class="text-white text-decoration-none fw-bold">
+                                        {{ item.staff.full_name }}
+                                    </a>
+                                    <div class="small text-info">{{ item.staff.position|default:"Сотрудник" }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center mb-0">В команде пока нет сотрудников</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+
+
     <div class="row">
         <div class="col-12">
             <h3 class="border-bottom border-primary pb-2 mb-4 text-uppercase fw-bold">Пилоты команды</h3>
+            <div class="alert alert-info mb-4" style="background-color: #1a1a25; border: 1px solid #2a2a35; color: #adb5bd; border-left: 4px solid #0dcaf0;">
+                <i class="fas fa-info-circle me-2 text-info"></i>
+                Пилоты отображаются по классам, в которых они выступали <strong>за последние 6 месяцев</strong>.
+                Если пилот выступает в нескольких классах, он будет показан в каждом из них.
+            </div>
 
-            <div class="table-responsive">
-                <table class="table table-dark table-hover border-secondary">
-                    <thead>
-                        <tr class="text-muted small uppercase">
-                            <th style="width: 80px;" class="text-center">Фото</th>
-                            <th style="width: auto;">ФИО Пилота</th>
-                            <th style="width: 200px;">Класс</th> <th style="width: 250px;">Город</th>
-                            <th style="width: 150px;" class="text-end">Профиль</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for driver in team_drivers %}
-                      <tr>
-                          <td class="align-middle text-center">
-                              {% if driver.photo %}
-                                  {% image driver.photo fill-90x90 as thumb %}
-                                  <img src="{{ thumb.url }}" class="border border-secondary" style="width: 90px; height: 90px; object-fit: cover; border-radius: 6px;">
-                              {% else %}
-                                  <div class="bg-secondary d-inline-flex align-items-center justify-content-center" style="width: 90px; height: 90px; border-radius: 6px;">
-                                      <i class="fas fa-user text-dark"></i>
-                                  </div>
-                              {% endif %}
-                          </td>
+            <!-- НОВЫЙ КОД -->
+            {% regroup driver_classes by class_name as classes_list %}
 
-                          <td class="align-middle">
-                              <span class="fs-5 fw-bold text-white">{{ driver.full_name }}</span>
-                          </td>
+            {% for class_group in classes_list %}
+            <div class="class-group mb-5">
+                <h4 class="text-warning border-bottom border-secondary pb-2 mb-3">{{ class_group.grouper }}</h4>
 
-                          <td class="align-middle">
-                              {% if driver.last_class %}
-                                  <span class="small text-info text-uppercase fw-bold">
-                                      {{ driver.last_class }}
-                                  </span>
-                              {% else %}
-                                  <span class="text-muted small">—</span>
-                              {% endif %}
-                          </td>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover border-secondary">
+                        <thead>
+                            <tr class="text-muted small uppercase">
+                                <th style="width: 80px;" class="text-center">Фото</th>
+                                <th style="width: auto;">ФИО Пилота</th>
+                                <th style="width: 250px;">Город</th>
+                                <th style="width: 150px;" class="text-end">Профиль</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in class_group.list %}
+                            <tr>
+                                <td class="align-middle text-center">
+                                    {% if item.driver.photo %}
+                                        {% image item.driver.photo fill-90x90 as thumb %}
+                                        <img src="{{ thumb.url }}" class="border border-secondary" style="width: 90px; height: 90px; object-fit: cover; border-radius: 6px;">
+                                    {% else %}
+                                        <div class="bg-secondary d-inline-flex align-items-center justify-content-center" style="width: 90px; height: 90px; border-radius: 6px;">
+                                            <i class="fas fa-user text-dark"></i>
+                                        </div>
+                                    {% endif %}
+                                </td>
 
-                          <td class="align-middle text-info">
-                              {{ driver.city|default:"—" }}
-                          </td>
+                                <td class="align-middle">
+                                    <span class="fs-5 fw-bold text-white">{{ item.driver.full_name }}</span>
+                                </td>
 
-                          <td class="align-middle text-end">
-                              <a href="{{ driver.get_absolute_url }}" class="btn btn-sm btn-outline-primary text-uppercase fw-bold">
-                                  Профиль
-                              </a>
-                          </td>
-                      </tr>
-                  {% empty %}
-                      <tr>
-                          <td colspan="5" class="text-center p-5 text-muted">Пилоты не найдены</td>
-                      </tr>
-                  {% endfor %}
-                                      </tbody>
-                                  </table>
-                              </div>
-                          </div>
-                      </div>
+                                <td class="align-middle text-info">
+                                    {{ item.driver.city|default:"—" }}
+                                </td>
+
+                                <td class="align-middle text-end">
+                                    <a href="{{ item.driver.get_absolute_url }}" class="btn btn-sm btn-outline-primary text-uppercase fw-bold">
+                                        Профиль
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-muted text-center">В команде пока нет пилотов</p>
+            {% endfor %}
+
+
+        </div>
+    </div>
                   </div>
                   {% endblock %}

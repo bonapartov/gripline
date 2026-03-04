@@ -1,5 +1,5 @@
 from wagtail_modeladmin.options import (ModelAdmin, ModelAdminGroup, modeladmin_register)
-from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine
+from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership
 from wagtail import hooks
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -71,13 +71,54 @@ class EngineAdmin(ModelAdmin):
     list_display = ('name', 'country')
     search_fields = ('name', 'country')
 
-class RacingGroup(ModelAdminGroup):
-    menu_label = 'Пилот/Команда/Трасса/Шасси/Двигатели'
-    menu_icon = 'pick'
-    items = (DriverAdmin, TeamAdmin, TrackAdmin, ChassisAdmin,
-        TyreBrandAdmin, TyreTypeAdmin, TyreAdmin, EngineAdmin)
+class TeamStaffAdmin(ModelAdmin):
+    model = TeamStaff
+    menu_label = 'Сотрудники команд'
+    menu_icon = 'user'
+    list_display = ('last_name', 'first_name', 'position', 'phone')
+    list_filter = ('position',)
+    search_fields = ('last_name', 'first_name', 'position')
 
-modeladmin_register(RacingGroup)
+class TeamStaffMembershipAdmin(ModelAdmin):
+    model = TeamStaffMembership
+    menu_label = 'Участия сотрудников'
+    menu_icon = 'group'
+    list_display = ('staff', 'team', 'is_active')
+    list_filter = ('is_active', 'team')
+    search_fields = ('staff__last_name', 'staff__first_name', 'team__name')
+
+# Группы меню
+class PilotsGroup(ModelAdminGroup):
+    menu_label = 'Пилоты'
+    menu_icon = 'user'
+    items = (DriverAdmin,)
+
+class TeamsGroup(ModelAdminGroup):
+    menu_label = 'Команды'
+    menu_icon = 'group'
+    items = (TeamAdmin, TeamStaffAdmin, TeamStaffMembershipAdmin)
+
+class EquipmentGroup(ModelAdminGroup):
+    menu_label = 'Техника'
+    menu_icon = 'cog'
+    items = (ChassisAdmin, EngineAdmin)
+
+class TyresGroup(ModelAdminGroup):
+    menu_label = 'Шины'
+    menu_icon = 'fa-tyre'
+    items = (TyreBrandAdmin, TyreTypeAdmin, TyreAdmin)
+
+class TracksGroup(ModelAdminGroup):
+    menu_label = 'Трассы'
+    menu_icon = 'site'
+    items = (TrackAdmin,)
+
+# Регистрируем группы
+modeladmin_register(PilotsGroup)
+modeladmin_register(TeamsGroup)
+modeladmin_register(EquipmentGroup)
+modeladmin_register(TyresGroup)
+modeladmin_register(TracksGroup)
 
 @hooks.register('register_admin_urls')
 def register_import_urls():
@@ -100,7 +141,6 @@ def register_analytics_menu():
 @hooks.register('insert_global_admin_css')
 def global_admin_css():
     return mark_safe("""
-
         <style>
             .import-button { margin-left: 10px; }
             .listing .admin-badge {
@@ -199,14 +239,33 @@ def global_admin_css():
                 font-weight: bold;
                 margin-right: 10px;
             }
+
+            /* Стили для поиска пилотов в админке */
+            .driver-search-input {
+                background-color: #2a2a3a !important;
+                color: #ffffff !important;
+                border: 1px solid #3a3a4a !important;
+            }
+
+            .driver-search-input:focus {
+                outline: none;
+                border-color: #ffc107 !important;
+                box-shadow: 0 0 3px rgba(255, 193, 7, 0.3) !important;
+            }
+
+            .driver-search-input::placeholder {
+                color: #adb5bd !important;
+                opacity: 0.7;
+            }
         </style>
     """)
 
 @hooks.register('insert_global_admin_js')
-def insert_admin_title_js():
+def insert_admin_js():
     return mark_safe("""
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // === ИМПОРТ РЕЗУЛЬТАТОВ И БЕЙДЖИ ===
             setTimeout(function() {
                 const header = document.querySelector('header');
                 if (header && window.location.pathname.includes('/edit/')) {
@@ -258,6 +317,93 @@ def insert_admin_title_js():
                         }
                     });
                 }
+            }, 500);
+
+            // === ПОИСК ПИЛОТОВ ===
+            setTimeout(function() {
+                // Функция для добавления поиска к select полям
+                function enhanceSelectWithSearch(selectElement) {
+                    if (!selectElement) return;
+
+                    // Проверяем, не добавлен ли уже поиск
+                    if (selectElement.closest('.field') && selectElement.closest('.field').querySelector('.driver-search-input')) {
+                        return;
+                    }
+
+                    // Создаем контейнер
+                    const container = document.createElement('div');
+                    container.className = 'driver-search-container';
+                    container.style.marginBottom = '8px';
+                    container.style.marginTop = '4px';
+
+                    // Создаем поле поиска
+                    const searchInput = document.createElement('input');
+                    searchInput.type = 'text';
+                    searchInput.placeholder = '🔍 Поиск пилота по имени или городу...';
+                    searchInput.className = 'driver-search-input';
+                    searchInput.style.cssText = `
+                        width: 100%;
+                        padding: 8px 12px;
+                        border: 1px solid #3a3a4a;
+                        border-radius: 4px;
+                        font-size: 13px;
+                        box-sizing: border-box;
+                        background-color: #2a2a3a !important;
+                        color: #ffffff !important;
+                    `;
+
+                    // Вставляем перед select
+                    const field = selectElement.closest('.field');
+                    if (field) {
+                        field.insertBefore(container, selectElement);
+                        container.appendChild(searchInput);
+                    } else {
+                        selectElement.parentNode.insertBefore(container, selectElement);
+                        container.appendChild(searchInput);
+                    }
+
+                    // Сохраняем все опции
+                    const options = Array.from(selectElement.options);
+
+                    searchInput.addEventListener('keyup', function() {
+                        const searchText = this.value.toLowerCase().trim();
+
+                        options.forEach(option => {
+                            if (option.value === '') return; // пропускаем пустой
+
+                            const text = option.text.toLowerCase();
+                            if (searchText === '' || text.includes(searchText)) {
+                                option.style.display = '';
+                            } else {
+                                option.style.display = 'none';
+                            }
+                        });
+                    });
+                }
+
+                // Ищем все select поля на странице
+                document.querySelectorAll('select[name$="-driver"]').forEach(select => {
+                    if (!select.hasAttribute('data-search-enhanced')) {
+                        select.setAttribute('data-search-enhanced', 'true');
+                        enhanceSelectWithSearch(select);
+                    }
+                });
+
+                // Отслеживаем появление новых форм (для inlines)
+                const observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                        if (mutation.addedNodes.length) {
+                            setTimeout(function() {
+                                document.querySelectorAll('select[name$="-driver"]:not([data-search-enhanced])').forEach(select => {
+                                    select.setAttribute('data-search-enhanced', 'true');
+                                    enhanceSelectWithSearch(select);
+                                });
+                            }, 200);
+                        }
+                    });
+                });
+
+                observer.observe(document.body, { childList: true, subtree: true });
             }, 500);
         });
     </script>

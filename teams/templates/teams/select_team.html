@@ -1,0 +1,175 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    .select-container {
+        max-width: 600px;
+        margin: 3rem auto;
+        padding: 2rem;
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+    }
+
+    .select-title {
+        color: #ffc107;
+        text-align: center;
+        margin-bottom: 1.5rem;
+        text-transform: uppercase;
+        font-weight: bold;
+        font-size: 2rem;
+    }
+
+    .select-subtitle {
+        text-align: center;
+        color: #adb5bd;
+        margin-bottom: 2rem;
+        font-size: 1.1rem;
+    }
+
+    .select-subtitle strong {
+        color: #ffc107;
+    }
+
+    .team-option {
+        background-color: #15151c;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.2s;
+    }
+
+    .team-option:hover {
+        border-color: #ffc107;
+        transform: translateY(-2px);
+    }
+
+    .team-option input[type="radio"] {
+        margin-right: 1rem;
+        transform: scale(1.2);
+        accent-color: #ffc107;
+    }
+
+    .team-option label {
+        width: 100%;
+        cursor: pointer;
+    }
+
+    .team-name {
+        color: #ffc107;
+        font-size: 1.2rem;
+        font-weight: bold;
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+
+    .team-none {
+        background-color: #15151c;
+        border: 1px solid #dc3545;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.2s;
+    }
+
+    .team-none:hover {
+        border-color: #ffc107;
+        transform: translateY(-2px);
+    }
+
+    .team-none input[type="radio"] {
+        margin-right: 1rem;
+        transform: scale(1.2);
+        accent-color: #dc3545;
+    }
+
+    .team-none .team-name {
+        color: #dc3545;
+    }
+
+    .btn-select {
+        background-color: #ffc107;
+        color: #000;
+        border: none;
+        padding: 0.75rem 2rem;
+        font-weight: bold;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+        width: 100%;
+        margin-top: 1rem;
+    }
+
+    .btn-select:hover {
+        background-color: #e0a800;
+        transform: translateY(-2px);
+    }
+
+    .back-link {
+        text-align: center;
+        margin-top: 1.5rem;
+    }
+
+    .back-link a {
+        color: #ffc107;
+        text-decoration: none;
+    }
+
+    .back-link a:hover {
+        text-decoration: underline;
+    }
+
+    .text-muted-small {
+        color: #6c757d;
+        font-size: 0.85rem;
+        margin-top: 0.25rem;
+    }
+</style>
+
+<div class="force-width-1500 my-5">
+    <div class="select-container">
+        <h1 class="select-title">Мы нашли похожие команды</h1>
+
+        <div class="select-subtitle">
+            Вы зарегистрировали команду <strong>{{ requested_team_name }}</strong>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+
+            {% for team in teams %}
+            <div class="team-option">
+                <label>
+                    <input type="radio" name="team_id" value="{{ team.id }}" required>
+                    <span class="team-name">{{ team.name }}</span>
+                </label>
+            </div>
+            {% endfor %}
+
+            <div class="team-none">
+                <label>
+                    <input type="radio" name="team_id" value="none" required>
+                    <span class="team-name">Моей команды нет в списке</span>
+                    <div class="text-muted-small">Будет создана заявка на новую команду</div>
+                </label>
+            </div>
+
+            <button type="submit" class="btn-select">Продолжить</button>
+        </form>
+
+        <div class="back-link">
+            <a href="{% url 'teams:register' %}">← Вернуться к регистрации</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

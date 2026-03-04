@@ -210,3 +210,25 @@ def get_urls_with_analytics():
     return get_extra_urls() + urls
 
 admin.site.get_urls = get_urls_with_analytics
+
+from .models import TeamStaff, TeamStaffMembership
+
+@admin.register(TeamStaff)
+class TeamStaffAdmin(admin.ModelAdmin):
+    list_display = ('last_name', 'first_name', 'position', 'phone', 'email')
+    list_filter = ('position',)
+    search_fields = ('last_name', 'first_name', 'position', 'phone', 'email')
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('last_name', 'first_name', 'middle_name', 'slug', 'photo')
+        }),
+        ('Должность и контакты', {
+            'fields': ('position', 'biography', 'phone', 'email')
+        }),
+    )
+
+@admin.register(TeamStaffMembership)
+class TeamStaffMembershipAdmin(admin.ModelAdmin):
+    list_display = ('staff', 'team', 'is_active', 'joined_at', 'left_at')
+    list_filter = ('is_active', 'team')
+    search_fields = ('staff__last_name', 'staff__first_name', 'team__name')

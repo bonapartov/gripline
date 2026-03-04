@@ -1,0 +1,142 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    .login-container {
+        max-width: 600px;
+        margin: 3rem auto;
+        padding: 2rem;
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+    }
+
+    .login-title {
+        color: #ffc107;
+        text-align: center;
+        margin-bottom: 2rem;
+        text-transform: uppercase;
+        font-weight: bold;
+        font-size: 2rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        color: #0dcaf0;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-control {
+        background-color: #15151c !important;
+        border: 1px solid #2a2a35 !important;
+        color: white !important;
+        border-radius: 4px;
+        padding: 0.75rem;
+        width: 100%;
+    }
+
+    .form-control:focus {
+        border-color: #ffc107 !important;
+        outline: none;
+        box-shadow: none;
+    }
+
+    .btn-login {
+        background-color: #ffc107;
+        color: #000;
+        border: none;
+        padding: 0.75rem 2rem;
+        font-weight: bold;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+        width: 100%;
+    }
+
+    .btn-login:hover {
+        background-color: #e0a800;
+        transform: translateY(-2px);
+    }
+
+    .auth-links {
+        text-align: center;
+        margin-top: 1.5rem;
+        color: #adb5bd;
+    }
+
+    .auth-links a {
+        color: #ffc107;
+        text-decoration: none;
+    }
+
+    .auth-links a:hover {
+        text-decoration: underline;
+    }
+
+    .error-message {
+        background-color: #dc3545;
+        color: white;
+        padding: 1rem;
+        border-radius: 4px;
+        margin-bottom: 1.5rem;
+    }
+
+    .success-message {
+        background-color: #28a745;
+        color: white;
+        padding: 1rem;
+        border-radius: 4px;
+        margin-bottom: 1.5rem;
+    }
+</style>
+
+<div class="force-width-1500 my-5">
+    <div class="login-container">
+        <h1 class="login-title">Вход для команд</h1>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="{% if message.tags == 'error' %}error-message{% elif message.tags == 'success' %}success-message{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="email" class="form-label">Email</label>
+                <input type="email" name="email" id="email" required class="form-control" placeholder="your@email.com">
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">Пароль</label>
+                <input type="password" name="password" id="password" required class="form-control" placeholder="••••••••">
+            </div>
+
+            <button type="submit" class="btn-login">Войти</button>
+        </form>
+
+        <div class="auth-links">
+            Нет аккаунта команды? <a href="{% url 'teams:register' %}">Зарегистрировать команду</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

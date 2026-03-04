@@ -1,0 +1,120 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load static %}
+
+{% block custom_assets %}
+    {{ block.super }}
+    <style>
+        .teams-content {
+            min-height: 60vh;
+            padding: 2rem 0;
+        }
+
+        .teams-title {
+            color: #ffc107;
+            text-align: center;
+            margin-bottom: 2rem;
+            text-transform: uppercase;
+            font-weight: bold;
+            font-size: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            color: #0dcaf0;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .form-control {
+            background-color: #15151c !important;
+            border: 1px solid #2a2a35 !important;
+            color: white !important;
+            border-radius: 4px;
+            padding: 0.75rem;
+            width: 100%;
+        }
+
+        .form-control:focus {
+            border-color: #ffc107 !important;
+            outline: none;
+            box-shadow: none;
+        }
+
+        .btn-primary {
+            background-color: #ffc107;
+            color: #000;
+            border: none;
+            padding: 0.75rem 2rem;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            background-color: #e0a800;
+            transform: translateY(-2px);
+        }
+
+        .auth-links {
+            text-align: center;
+            margin-top: 1.5rem;
+            color: #adb5bd;
+        }
+
+        .auth-links a {
+            color: #ffc107;
+            text-decoration: none;
+        }
+
+        .auth-links a:hover {
+            text-decoration: underline;
+        }
+
+        .error-message {
+            background-color: #dc3545;
+            color: white;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1.5rem;
+        }
+
+        .success-message {
+            background-color: #28a745;
+            color: white;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1.5rem;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="teams-content">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <h1 class="teams-title">{% block teams_title %}{% endblock %}</h1>
+
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="{% if message.tags == 'error' %}error-message{% elif message.tags == 'success' %}success-message{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                {% block teams_content %}
+                {% endblock %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
