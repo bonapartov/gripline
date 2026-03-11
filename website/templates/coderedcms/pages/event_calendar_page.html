@@ -1,0 +1,412 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailimages_tags website_tags %}
+
+{% block content %}
+
+<!-- ОТЛАДКА
+<div style="background: #333; color: #ff0; padding: 20px; margin: 20px; border: 2px solid #f00;">
+    <h3>Отладка шаблона</h3>
+    <p>Фильтр get_item загружен:
+        {% filter force_escape %}
+            {% if get_item %}ДА{% else %}НЕТ{% endif %}
+        {% endfilter %}
+    </p>
+    <p>Контекст:</p>
+    <ul>
+        <li>view_mode: {{ view_mode }}</li>
+        <li>months.keys: {{ months.keys|join:", " }}</li>
+        <li>Тип months: {{ months|get_type }}</li>
+    </ul>
+</div>-->
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    /* ===== КНОПКИ ПЕРЕКЛЮЧЕНИЯ ВИДА ===== */
+    .view-toggle .btn {
+        border-radius: 0;
+    }
+    .view-toggle .btn:first-child {
+        border-top-left-radius: 6px;
+        border-bottom-left-radius: 6px;
+    }
+    .view-toggle .btn:last-child {
+        border-top-right-radius: 6px;
+        border-bottom-right-radius: 6px;
+    }
+
+    /* ===== ФИЛЬТРЫ ===== */
+    .filter-btn {
+        border: 1px solid #2a2a35;
+        background-color: #1a1a25;
+        color: #fff;
+        padding: 0.4rem 1rem;
+        font-size: 0.9rem;
+        border-radius: 20px;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-block;
+    }
+    .filter-btn:hover {
+        border-color: #ffc107;
+        color: #ffc107;
+    }
+    .filter-btn.active {
+        background-color: #ffc107;
+        color: #1a1a25;
+        border-color: #ffc107;
+    }
+
+    /* ===== КАРТОЧКИ МЕРОПРИЯТИЙ ===== */
+    .event-card {
+        transition: all 0.2s ease;
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 12px;
+        height: 100%;
+        overflow: hidden;
+    }
+    .event-card:hover {
+        box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        border-color: #ffc107;
+    }
+    .event-card img {
+        height: 200px;
+        object-fit: cover;
+        border-bottom: 1px solid #2a2a35;
+        width: 100%;
+    }
+    .event-card .card-body {
+        padding: 1.25rem;
+    }
+    .event-card .card-title {
+        color: #fff;
+        font-weight: bold;
+        font-size: 1.3rem;
+        margin-bottom: 0.75rem;
+    }
+    .event-card .card-title a {
+        color: #fff;
+        text-decoration: none;
+    }
+    .event-card .card-title a:hover {
+        color: #ffc107;
+    }
+    .event-stage {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #ffc107;
+        line-height: 1.2;
+    }
+    .event-card .card-text {
+        color: #adb5bd;
+        font-size: 0.95rem;
+        margin-bottom: 0.5rem;
+    }
+    .event-card .card-text i {
+        width: 20px;
+        color: #0dcaf0;
+    }
+    .event-card .card-text a {
+        color: #adb5bd;
+        text-decoration: none;
+    }
+    .event-card .card-text a:hover {
+        color: #ffc107;
+    }
+
+    /* ===== БЕЙДЖИ КЛАССОВ ===== */
+    .class-badge {
+        background-color: #2a2a35;
+        color: #fff;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        margin-right: 0.25rem;
+        margin-bottom: 0.25rem;
+        display: inline-block;
+        transition: all 0.2s;
+    }
+    .class-badge:hover {
+        background-color: #ffc107;
+        color: #1a1a25;
+    }
+
+    /* ===== КАЛЕНДАРЬ ===== */
+    .calendar-month-card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1rem;
+        height: 100%;
+    }
+    .calendar-month-title {
+        color: #ffc107;
+        font-size: 1.3rem;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #2a2a35;
+    }
+    .calendar-weekdays {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        text-align: center;
+        color: #0dcaf0;
+        font-size: 0.8rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    .calendar-days {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 2px;
+    }
+    .calendar-day {
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        background-color: #2a2a35;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .calendar-day:hover {
+        background-color: #3a3a45;
+    }
+    .calendar-day.has-event {
+        background-color: #ffc107;
+        color: #1a1a25;
+        font-weight: bold;
+    }
+    .calendar-day.has-event:hover {
+        background-color: #ffca2c;
+    }
+    .calendar-day.empty {
+        background-color: transparent;
+        cursor: default;
+    }
+</style>
+
+<div class="force-width-1500 my-5 text-white">
+    <!-- Заголовок -->
+    <h1 class="display-4 fw-bold mb-3 text-center text-uppercase">{{ page.hero_title }}</h1>
+    <p class="lead text-muted mb-4 text-center">{{ page.hero_subtitle }}</p>
+
+    <!-- Панель управления -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+        <!-- Кнопки переключения вида -->
+        <div class="view-toggle btn-group">
+            <a href="?view=grid{% if selected_type %}&type={{ selected_type }}{% endif %}"
+               class="btn {% if view_mode == 'grid' %}btn-warning{% else %}btn-outline-secondary{% endif %}">
+                <i class="fas fa-th-large me-2"></i>Сетка
+            </a>
+            <a href="?view=calendar{% if selected_type %}&type={{ selected_type }}{% endif %}"
+               class="btn {% if view_mode == 'calendar' %}btn-warning{% else %}btn-outline-secondary{% endif %}">
+                <i class="fas fa-calendar-alt me-2"></i>Календарь
+            </a>
+        </div>
+
+        <!-- Фильтры по типу соревнований -->
+        <div class="d-flex flex-wrap gap-2">
+            <a href="?{% if view_mode %}view={{ view_mode }}{% endif %}"
+               class="filter-btn {% if not selected_type %}active{% endif %}">
+                Все
+            </a>
+            {% for type in competition_types %}
+            <a href="?type={{ type.code }}{% if view_mode %}&view={{ view_mode }}{% endif %}"
+               class="filter-btn {% if selected_type == type.code %}active{% endif %}">
+                {{ type.name }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Режим сетки (карточки) -->
+{% if view_mode == 'grid' %}
+    <div class="row g-4">
+        {% for event_data in enriched_events %}
+        <div class="col-md-6 col-lg-4">
+            <div class="event-card">
+
+                <!-- Фото трассы с ссылкой на чемпионат -->
+                {% if event_data.track and event_data.track.photo %}
+                    {% image event_data.track.photo fill-600x400 as track_img %}
+                    <a href="{{ event_data.championship_url }}">
+                        <img src="{{ track_img.url }}" class="card-img-top" alt="{{ event_data.track.name }}">
+                    </a>
+                {% else %}
+                    <a href="{{ event_data.championship_url }}" class="text-decoration-none">
+                        <div class="bg-secondary d-flex align-items-center justify-content-center" style="height: 200px;">
+                            <i class="fas fa-flag fa-3x text-dark"></i>
+                        </div>
+                    </a>
+                {% endif %}
+
+                <div class="card-body">
+                    <!-- Заголовок - название чемпионата (Хаб) - КЛИКАБЕЛЬНЫЙ (над таблицей) -->
+                    <h5 class="card-title mb-3">
+                        <a href="{{ event_data.championship_url }}">
+                            {{ event_data.championship.title }}
+                        </a>
+                    </h5>
+
+                    <!-- Таблица с двумя колонками: слева даты и трасса, справа номер этапа -->
+                    <div class="row">
+                        <!-- Левая колонка (9 колонок) - даты и трасса -->
+                        <div class="col-9">
+                            <!-- Даты -->
+                            <p class="card-text mb-1">
+                                <i class="fas fa-calendar-alt"></i>
+                                {{ event_data.start_date|date:"d.m.Y" }} — {{ event_data.end_date|date:"d.m.Y" }}
+                            </p>
+
+                            <!-- Трасса -->
+                            {% if event_data.track %}
+                            <p class="card-text">
+                                <i class="fas fa-map-marker-alt"></i>
+                                {% if event_data.track_url %}
+                                    <a href="{{ event_data.track_url }}">
+                                        {{ event_data.track.name }}{% if event_data.track.city %}, {{ event_data.track.city }}{% endif %}
+                                    </a>
+                                {% else %}
+                                    {{ event_data.track.name }}{% if event_data.track.city %}, {{ event_data.track.city }}{% endif %}
+                                {% endif %}
+                            </p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Правая колонка (3 колонки) - номер этапа -->
+                        <div class="col-3 d-flex align-items-center justify-content-end">
+                            <div class="event-stage text-end">
+                                {{ event_data.event.title }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Список классов (на всю ширину) -->
+                    {% if event_data.classes %}
+                    <div class="mt-3">
+                        {% for class_name in event_data.classes %}
+                            <a href="{{ event_data.event.url }}" class="class-badge text-decoration-none">
+                                {{ class_name }}
+                            </a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="card bg-dark border-secondary p-5 text-center">
+                <p class="text-muted m-0">Нет предстоящих мероприятий</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<!-- Режим календаря -->
+{% if view_mode == 'calendar' %}
+    <!-- Сам календарь -->
+    <div class="row g-4">
+        {% for month_key, month_data in months.items %}
+        <div class="col-md-6 col-lg-4">
+            <div class="calendar-month-card d-flex flex-column" style="height: 100%;">
+                <!-- Заголовок месяца (вверху) -->
+                <div class="calendar-month-title">
+                    {{ month_data.month_name|month_name_ru }}
+                    <span class="badge bg-warning text-dark ms-2">{{ month_data.events|length }}</span>
+                </div>
+
+                <!-- Календарная сетка -->
+                <div>
+                    <!-- Заголовки дней недели -->
+                    <div class="calendar-weekdays">
+                        <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+                    </div>
+
+                    <!-- Сетка дней -->
+                    <div class="calendar-days">
+                        {% with first_weekday=month_data.first_weekday|default:0 %}
+                            {# Пустые ячейки до первого дня месяца #}
+                            {% for i in "1234567"|make_list %}
+                                {% if forloop.counter0 < first_weekday %}
+                                    <div class="calendar-day empty"></div>
+                                {% endif %}
+                            {% endfor %}
+                        {% endwith %}
+
+                        {% for day in month_data.days %}
+                            {# Проверяем есть ли события в этот день #}
+                            {% if month_data.events_by_day and day in month_data.events_by_day %}
+                                {% with day_events=month_data.events_by_day|get_item:day %}
+                                    <div class="calendar-day has-event"
+                                        title="{% for e in day_events %}{{ e.event.title }}{% if not forloop.last %}\n{% endif %}{% endfor %}"
+                                        onclick="location.href='{{ day_events.0.event.get_parent.url }}'">
+                                        {{ day }}
+                                    </div>
+                                {% endwith %}
+                            {% else %}
+                                <div class="calendar-day">{{ day }}</div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Небольшой отступ перед списком событий -->
+                <div class="mt-3"></div>
+
+                <!-- Список событий (прижат к низу) -->
+                <div class="mt-auto">
+                    {% for event_data in month_data.events %}
+                    <div class="mb-3 pb-2 border-bottom border-secondary">
+                        <!-- Название этапа и даты в одной строке -->
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong class="text-warning">{{ event_data.event.title }}</strong>
+                                <span class="text-muted mx-2">|</span>
+                                <span class="text-info small">
+                                    {{ event_data.start|date:"d.m" }}
+                                    {% if event_data.end and event_data.end != event_data.start %}
+                                        — {{ event_data.end|date:"d.m" }}
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Название кубка/чемпионата -->
+                        {% with championship=event_data.event.get_parent.specific %}
+                            {% if championship %}
+                                <div class="small mt-1">
+                                    <a href="{{ championship.url }}" class="text-info text-decoration-none">
+                                        {{ championship.title }}
+                                    </a>
+                                </div>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="card bg-dark border-secondary p-5 text-center">
+                <p class="text-muted m-0">Нет предстоящих мероприятий</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% endif %}
+</div>
+{% endblock %}

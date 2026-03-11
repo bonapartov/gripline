@@ -25,6 +25,19 @@ class UserProfile(models.Model):
         verbose_name = "Профиль пользователя"
         verbose_name_plural = "Профили пользователей"
 
+    telegram_id = models.BigIntegerField(
+        "Telegram ID",
+        null=True,
+        blank=True,
+        unique=True,
+        help_text="ID для отправки уведомлений в Telegram. Привязывается через бота."
+    )
+    telegram_notifications = models.BooleanField(
+        "Уведомления в Telegram",
+        default=False,
+        help_text="Отправлять уведомления о статусе заявок в Telegram"
+    )
+
 
 class DriverClaim(models.Model):
     """Заявка на привязку к пилоту"""

@@ -33,7 +33,8 @@ def pulse_data(request):
     if types:
         filtered_champs = []
         for champ in champs:
-            champ_types = list(champ.competition_types.all().values_list('code', flat=True))
+            # ИСПРАВЛЕНО: используем championship_competition_types
+            champ_types = list(champ.championship_competition_types.all().values_list('competition_type__code', flat=True))
             if set(types) & set(champ_types):
                 filtered_champs.append(champ)
         champs = filtered_champs
@@ -93,9 +94,10 @@ def pulse_data(request):
         if hasattr(champ, 'cover_image') and champ.cover_image:
             cover_url = champ.cover_image.get_rendition('fill-800x533').url
 
-        # Получаем типы через ManyToMany
-        raw_types = list(champ.competition_types.all().values_list('code', flat=True))
-        display_types = list(champ.competition_types.all().values_list('name', flat=True))
+        # Получаем типы соревнований через связанную модель ChampionshipCompetitionType
+        # ИСПРАВЛЕНО: обе строки используют championship_competition_types
+        raw_types = list(champ.championship_competition_types.all().values_list('competition_type__code', flat=True))
+        display_types = list(champ.championship_competition_types.all().values_list('competition_type__name', flat=True))
 
         champ_data = {
             'id': champ.id,
@@ -151,20 +153,7 @@ def pulse_data(request):
         'url': t.get_absolute_url(),
     } for t in tracks if t.latitude and t.longitude]
 
-    # Получаем все уникальные типы из всех чемпионатов
-    all_types = set()
-    for champ in ChampionshipPage.objects.live().public():
-        champ_types = list(champ.competition_types.all().values_list('code', flat=True))
-        all_types.update(champ_types)
-
-    available_types = list(all_types)
-
-    # Получаем все объекты CompetitionType для преобразования в названия
-    competition_types = CompetitionType.objects.filter(code__in=available_types)
-    type_map = {ct.code: ct.name for ct in competition_types}
-    available_types_display = [type_map.get(t, t) for t in available_types]
-
-        # Получаем все уникальные годы из всех чемпионатов
+    # Получаем все уникальные годы из всех чемпионатов
     all_years = set()
     for champ in ChampionshipPage.objects.live().public().specific():
         all_years.update(champ.get_years())
@@ -172,7 +161,8 @@ def pulse_data(request):
     # Получаем все уникальные типы из всех чемпионатов
     all_types = set()
     for champ in ChampionshipPage.objects.live().public():
-        champ_types = list(champ.competition_types.all().values_list('code', flat=True))
+        # ИСПРАВЛЕНО: используем championship_competition_types
+        champ_types = list(champ.championship_competition_types.all().values_list('competition_type__code', flat=True))
         all_types.update(champ_types)
 
     available_types = list(all_types)

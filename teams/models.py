@@ -26,6 +26,19 @@ class TeamManager(models.Model):
         verbose_name_plural = "Управляющие командами"
         unique_together = ['user', 'team']  # Один пользователь может управлять командой один раз
 
+    telegram_id = models.BigIntegerField(
+        "Telegram ID",
+        null=True,
+        blank=True,
+        unique=True,
+        help_text="ID для отправки уведомлений в Telegram. Привязывается через бота."
+    )
+    telegram_notifications = models.BooleanField(
+        "Уведомления в Telegram",
+        default=False,
+        help_text="Отправлять уведомления о статусе заявок в Telegram"
+    )
+
 
 class TeamClaim(models.Model):
     """Заявка на управление командой"""

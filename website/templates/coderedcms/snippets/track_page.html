@@ -23,6 +23,87 @@
         width: 100%;
         max-height: 300px;
     }
+    .event-list {
+        max-height: 500px;
+        overflow-y: auto;
+        padding-right: 10px;
+    }
+    .event-list::-webkit-scrollbar {
+        width: 5px;
+    }
+    .event-list::-webkit-scrollbar-track {
+        background: #2a2a35;
+    }
+    .event-list::-webkit-scrollbar-thumb {
+        background: #ffc107;
+        border-radius: 5px;
+    }
+    .event-item {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.2s;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    .event-item:hover {
+        border-color: #ffc107;
+        background-color: #2a2a35;
+    }
+    .event-content {
+        flex: 1;
+        min-width: 0; /* предотвращает переполнение */
+    }
+    .event-date {
+        color: #0dcaf0;
+        font-size: 0.95rem;
+        font-weight: bold;
+        margin-bottom: 0.25rem;
+    }
+    .event-title {
+        color: #fff;
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin: 0.25rem 0;
+        line-height: 1.3;
+    }
+    .event-championship {
+        color: #ffc107;
+        font-size: 1rem;
+    }
+    .event-championship a {
+        color: #ffc107;
+        text-decoration: none;
+    }
+    .event-championship a:hover {
+        text-decoration: underline;
+    }
+    .event-actions {
+        flex-shrink: 0;
+        padding-top: 0.25rem;
+    }
+    .btn-sm-custom {
+        padding: 0.25rem 0.75rem;
+        font-size: 0.85rem;
+        line-height: 1.4;
+        border-radius: 4px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+    .empty-state {
+        background-color: #1a1a25;
+        border: 1px dashed #2a2a35;
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+        color: #6c757d;
+    }
 </style>
 
 <div class="force-width-1500 my-5 text-white">
@@ -68,74 +149,120 @@
                     {% endfor %}
                 </div>
             </td>
-
-
         </tr>
     </table>
 
+    <div class="row">
 
+<!-- Прошедшие соревнования (левая колонка) -->
+<div class="col-lg-6 mb-4">
+    <h3 class="border-bottom border-primary pb-2 mb-4 text-uppercase fw-bold">
+        <i class="fas fa-history me-2 text-info"></i>Прошедшие
+    </h3>
 
-        <div class="row">
-        <!-- Прошедшие соревнования (левая колонка) -->
-        <div class="col-lg-6 mb-4">
-            <h3 class="border-bottom border-primary pb-2 mb-4 text-uppercase fw-bold">Прошедшие соревнования</h3>
+    {% if past_events %}
+        <div class="event-list">
+            {% for event in past_events %}
+                <div class="event-item">
+                    <!-- Левая часть с текстом -->
+                    <div class="event-content">
+                        <div class="event-date">
+                            <i class="fas fa-calendar-check me-2"></i>
+                            {% with occ=event.occurrences.all.first %}
+                                {% if occ %}
+                                    {{ occ.start|date:"d.m.Y" }}
+                                    {% if occ.end and occ.end != occ.start %}
+                                        — {{ occ.end|date:"d.m.Y" }}
+                                    {% endif %}
+                                {% endif %}
+                            {% endwith %}
+                        </div>
 
-            {% if events %}
-                <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
-                    <table class="table table-dark table-hover border-secondary">
-                        <thead class="sticky-top" style="top: 0; background-color: #15151c; z-index: 10;">
-                            <tr class="text-muted small uppercase">
-                                <th>Дата</th>
-                                <th>Название этапа</th>
-                                <th>Чемпионат</th>
-                                <th class="text-end">Результаты</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for event in events %}
-                                <tr>
-                                    <td class="align-middle text-muted">
-                                        {% with occ=event.occurrences.all.first %}
-                                            {% if occ %}
-                                                {{ occ.start|date:"d.m.Y" }}
-                                            {% else %}
-                                                {{ event.first_published_at|date:"d.m.Y" }}
-                                            {% endif %}
-                                        {% endwith %}
-                                    </td>
-                                    <td class="align-middle">
-                                        <span class="fw-bold">{{ event.title }}</span>
-                                    </td>
-                                    <td class="align-middle">
-                                        {% if event.get_parent.specific %}
-                                            <span class="text-info">{{ event.get_parent.title }}</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="align-middle text-end">
-                                        <a href="{{ event.url }}" class="btn btn-sm btn-outline-primary">
-                                            Результаты
-                                        </a>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                        <div class="event-title">{{ event.title }}</div>
+
+                        {% with championship=event.get_parent.specific %}
+                            {% if championship %}
+                                <div class="event-championship">
+                                    <i class="fas fa-trophy me-2"></i>
+                                    <a href="{{ championship.url }}">{{ championship.title }}</a>
+                                </div>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+
+                    <!-- Правая часть с кнопкой -->
+                    {% with championship=event.get_parent.specific %}
+                        {% if championship %}
+                            <div class="event-actions">
+                                <a href="{{ championship.url }}" class="btn btn-sm-custom btn-outline-info">Результаты</a>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
                 </div>
-            {% else %}
-                <div class="card bg-dark border-secondary p-5 text-center">
-                    <p class="text-muted m-0">На этой трассе ещё не проводились соревнования</p>
-                </div>
-            {% endif %}
+            {% endfor %}
         </div>
+    {% else %}
+        <div class="empty-state">
+            <i class="fas fa-history fa-3x mb-3"></i>
+            <p class="mb-0">На этой трассе ещё не проводились соревнования</p>
+        </div>
+    {% endif %}
+</div>
 
         <!-- Предстоящие соревнования (правая колонка) -->
-        <div class="col-lg-6 mb-4">
-            <h3 class="border-bottom border-primary pb-2 mb-4 text-uppercase fw-bold">Предстоящие соревнования</h3>
+<div class="col-lg-6 mb-4">
+    <h3 class="border-bottom border-primary pb-2 mb-4 text-uppercase fw-bold">
+        <i class="fas fa-calendar-alt me-2 text-info"></i>Предстоящие
+    </h3>
 
-            <div class="card bg-dark border-secondary p-5 text-center h-100 d-flex align-items-center justify-content-center">
-                <p class="text-muted m-0">Скоро здесь появятся предстоящие этапы</p>
-            </div>
+    {% if upcoming_events %}
+        <div class="event-list">
+            {% for event in upcoming_events %}
+                <div class="event-item">
+                    <!-- Левая часть с текстом -->
+                    <div class="event-content">
+                        <div class="event-date">
+                            <i class="fas fa-calendar-day me-2"></i>
+                            {% with occ=event.occurrences.all.first %}
+                                {% if occ %}
+                                    {{ occ.start|date:"d.m.Y" }}
+                                    {% if occ.end and occ.end != occ.start %}
+                                        — {{ occ.end|date:"d.m.Y" }}
+                                    {% endif %}
+                                {% endif %}
+                            {% endwith %}
+                        </div>
+
+                        <div class="event-title">{{ event.title }}</div>
+
+                        {% with championship=event.get_parent.specific %}
+                            {% if championship %}
+                                <div class="event-championship">
+                                    <i class="fas fa-trophy me-2"></i>
+                                    <a href="{{ championship.url }}">{{ championship.title }}</a>
+                                </div>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+
+                    <!-- Правая часть с кнопкой -->
+                    {% with championship=event.get_parent.specific %}
+                        {% if championship %}
+                            <div class="event-actions">
+                                <a href="{{ championship.url }}" class="btn btn-sm-custom btn-outline-warning">Подробнее</a>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+                </div>
+            {% endfor %}
         </div>
+    {% else %}
+        <div class="empty-state">
+            <i class="fas fa-calendar-times fa-3x mb-3"></i>
+            <p class="mb-0">Нет предстоящих мероприятий на этой трассе</p>
+        </div>
+    {% endif %}
+</div>
     </div>
 </div>
 {% endblock %}

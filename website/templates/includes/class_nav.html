@@ -1,0 +1,44 @@
+{% load wagtailimages_tags %}
+
+<style>
+    .class-nav {
+        background-color: #2a2a35;
+        border-radius: 4px;
+        padding: 0.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+        margin-bottom: 2rem;
+    }
+    .class-nav .nav-link {
+        color: #adb5bd;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        transition: all 0.2s;
+        text-decoration: none;
+        border: 2px solid #3a3a45;
+        background-color: transparent;
+    }
+    .class-nav .nav-link:hover {
+        border-color: #ffc107;
+        background-color: #3a3a45;
+        color: white;
+    }
+    .class-nav .nav-link.active {
+        border-color: #ffc107 !important;
+        background-color: transparent !important;
+        color: white !important;
+    }
+</style>
+
+<div class="class-nav">
+    <a href="{{ base_url }}&class=" class="nav-link {% if not selected_class %}active{% endif %}">
+        Все
+    </a>
+    {% for class in classes %}
+    <a href="{{ base_url }}&class={{ class.id }}" class="nav-link {% if selected_class == class.id %}active{% endif %}">
+        {{ class.name }}
+    </a>
+    {% endfor %}
+</div>

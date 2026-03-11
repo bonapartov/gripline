@@ -32,6 +32,8 @@ INSTALLED_APPS = [
     # Wagtail CRX (CodeRed Extensions)
     "coderedcms",
     "django_bootstrap5",
+    "tg_bot",        # админ-бот
+    "tg_user_bot",   # пользовательский бот
     "import_export",
     "modelcluster",
     "taggit",
@@ -187,3 +189,16 @@ TAGGIT_CASE_INSENSITIVE = True
 # Sets default for primary key IDs
 # See https://docs.djangoproject.com/en/5.2/ref/models/fields/#bigautofield
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# Email settings
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.yandex.ru'  # или ваш SMTP
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'gripline.ru@yandex.ru'  # ваш email
+EMAIL_HOST_PASSWORD = 'pcpdnxyjatnwuhud'  # пароль
+DEFAULT_FROM_EMAIL = 'gripline.ru@yandex.ru'
+
+# Базовый URL сайта для ссылок в письмах
+BASE_URL = 'http://127.0.0.1:8000'  # для продакшена заменить на реальный домен

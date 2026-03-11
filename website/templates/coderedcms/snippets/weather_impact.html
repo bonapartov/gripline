@@ -71,7 +71,7 @@
         margin-bottom: 2rem;
     }
 
-    /* Таблица */
+    /* Таблицы */
     .impact-table {
         background-color: #1a1a25;
         border: 1px solid #2a2a35;
@@ -96,25 +96,108 @@
     }
     .badge-dry { background-color: #ffc107; color: #000; padding: 0.25rem 0.5rem; border-radius: 4px; }
     .badge-wet { background-color: #0dcaf0; color: #000; padding: 0.25rem 0.5rem; border-radius: 4px; }
+    .badge-neutral { background-color: #6c757d; color: #fff; padding: 0.25rem 0.5rem; border-radius: 4px; }
     .diff-positive { color: #28a745; font-weight: bold; }
     .diff-negative { color: #dc3545; font-weight: bold; }
+
+    /* Информационные блоки в едином стиле сайта */
+    .info-box {
+        background-color: #1a1a25 !important;  /* Тот же фон, что у карточек */
+        border: 1px solid #2a2a35 !important;
+        border-left: 4px solid #0dcaf0 !important;  /* Яркая полоска слева как в других блоках */
+        border-radius: 4px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        color: #adb5bd !important;  /* Стандартный цвет текста */
+    }
+    .info-box strong {
+        color: #ffc107;  /* Желтый для акцентов */
+    }
+    .info-box i {
+        color: #0dcaf0;  /* Голубой для иконок */
+    }
+    .info-box ul,
+    .info-box p {
+        color: #adb5bd;
+        margin-bottom: 0.25rem;
+    }
+    .info-box li {
+        color: #adb5bd;
+    }
+    .info-tip {
+        background-color: #2a2a35;
+        border: 1px solid #ffc107;
+        border-radius: 20px;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.8rem;
+        color: #ffc107;
+        display: inline-block;
+        margin-left: 0.5rem;
+    }
+
+    .chassis-selector {
+        background-color: #2a2a35;
+        border: 1px solid #3a3a45;
+        color: white;
+        padding: 0.5rem;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+        width: 300px;
+    }
+    .chassis-selector:focus {
+        outline: none;
+        border-color: #ffc107;
+    }
+    .month-bar {
+        display: inline-block;
+        height: 20px;
+        background-color: #0dcaf0;
+        border-radius: 4px;
+    }
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin: 2rem 0 1rem 0;
+    }
+    .section-title h3 {
+        margin: 0;
+        color: #ffc107;
+    }
 </style>
 
 <div class="force-width-1500 my-5 text-white">
     <h1 class="display-4 fw-bold mb-4 text-uppercase text-center">
-        <i class="fas fa-cloud-rain me-3 text-warning"></i>Влияние погоды
+        <i class="fas fa-cloud-rain me-3 text-warning"></i>Погодный анализ
     </h1>
 
     <!-- Навигация по классам -->
-    <div class="class-nav">
-        {% for class in classes %}
-        <a href="?class={{ class.id }}" class="nav-link {% if selected_class_id == class.id %}active{% endif %}">
-            {{ class.name }}
-        </a>
-        {% endfor %}
+    {% include "includes/class_nav.html" with classes=classes selected_class=selected_class_id base_url="?" %}
+
+    <!-- ИНФО: Общее пояснение -->
+    <div class="info-box mb-5">
+        <div class="d-flex">
+            <i class="fas fa-info-circle fa-2x me-3"></i>
+            <div>
+                <h5 class="text-warning mb-2">📊 О чем эта страница?</h5>
+                <p class="mb-1">Здесь собрана статистика влияния погодных условий на результаты гонок. Все данные основаны на исторических замерах температуры и осадков в местах проведения соревнований.</p>
+                <p class="mb-0 small">🔄 Данные обновляются автоматически при импорте новых результатов. Для достоверной статистики требуется минимум 3 заезда в категории.</p>
+            </div>
+        </div>
     </div>
 
-    <!-- Сравнение сухо/дождь -->
+    <!-- Сравнение сухо/дождь (глобальное) -->
+    <div class="section-title">
+        <h3>🌍 Общая статистика</h3>
+        <span class="info-tip">по всем классам</span>
+    </div>
+
+    <!-- ИНФО: О глобальной статистике -->
+    <div class="info-box mb-4">
+        <i class="fas fa-chart-pie me-2"></i>
+        <strong>Как читать:</strong> Показывает общий процент побед в сухих и дождливых условиях по всем гонкам выбранного класса. Сравнение помогает понять, насколько дождь в целом влияет на результаты.
+    </div>
+
     <div class="row mb-5 g-4">
         <div class="col-md-6">
             <div class="stats-card text-center">
@@ -160,14 +243,209 @@
         </div>
     </div>
 
-    <!-- График зависимости от температуры -->
+    <!-- Улучшенный температурный график с выбором шасси -->
+    <div class="section-title">
+        <h3>🌡️ Температурный профиль</h3>
+        <span class="info-tip">выберите шасси</span>
+    </div>
+
+    <!-- ИНФО: О температурном графике -->
+    <div class="info-box mb-4">
+        <i class="fas fa-thermometer-half me-2"></i>
+        <strong>Как читать:</strong> График показывает процент побед в зависимости от температуры воздуха. Можно выбрать конкретное шасси, чтобы увидеть его "любимую" температуру. Точки на графике — это диапазоны по 5°C.
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center gap-3">
+                <h5 class="text-info mb-0">Выберите шасси:</h5>
+                <select class="chassis-selector" onchange="window.location.href='?class={{ selected_class_id }}&chassis='+this.value">
+                    <option value="">Все шасси (общая статистика)</option>
+                    {% for chassis in all_chassis %}
+                        <option value="{{ chassis.id }}" {% if selected_chassis_id == chassis.id %}selected{% endif %}>
+                            {{ chassis.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <span class="text-muted small">Сейчас: <strong>{{ chassis_name }}</strong></span>
+            </div>
+        </div>
+    </div>
+
     <div class="chart-container">
-        <h5 class="text-info border-bottom border-secondary pb-2 mb-3">Win Rate vs Температура</h5>
         <canvas id="tempChart" width="400" height="300" style="width: 100%; height: 300px;"></canvas>
     </div>
 
+    <!-- Анализ по пилотам -->
+    <div class="section-title">
+        <h3>🏁 Пилоты в дождь</h3>
+        <span class="info-tip">топ-20 по эффективности</span>
+    </div>
+
+    <!-- ИНФО: О пилотах -->
+    <div class="info-box mb-4">
+        <i class="fas fa-user me-2"></i>
+        <strong>Как читать:</strong> Сравнение эффективности пилотов в сухих и дождливых условиях.
+        <span class="text-warning">Отрицательная разница</span> — пилот лучше едет в дождь,
+        <span class="text-success">положительная</span> — лучше на сухой трассе. Учитываются пилоты с минимум 5 стартами в сухо и 3 в дождь.
+    </div>
+
+    <div class="impact-table">
+        <table class="table table-dark">
+            <thead>
+                <tr>
+                    <th>Пилот</th>
+                    <th class="text-center">☀️ Сухо</th>
+                    <th class="text-center">🌧️ Дождь</th>
+                    <th class="text-center">Разница</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in driver_weather_stats %}
+                <tr>
+                    <td>
+                        <a href="{{ item.driver.get_absolute_url }}" class="text-white text-decoration-none">
+                            {{ item.driver.full_name }}
+                        </a>
+                    </td>
+                    <td class="text-center">
+                        <span class="badge-dry">{{ item.dry_win_rate }}%</span>
+                        <small class="text-muted d-block">{{ item.dry_wins }}/{{ item.dry_total }}</small>
+                    </td>
+                    <td class="text-center">
+                        <span class="badge-wet">{{ item.wet_win_rate }}%</span>
+                        <small class="text-muted d-block">{{ item.wet_wins }}/{{ item.wet_total }}</small>
+                    </td>
+                    <td class="text-center">
+                        {% if item.diff > 0 %}
+                            <span class="diff-positive">+{{ item.diff }}%</span>
+                            <small class="text-muted d-block">лучше в сухо</small>
+                        {% elif item.diff < 0 %}
+                            <span class="diff-negative">{{ item.diff }}%</span>
+                            <small class="text-muted d-block">лучше в дождь</small>
+                        {% else %}
+                            <span class="badge-neutral">0%</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center p-4 text-muted">Нет данных для отображения</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Анализ по трассам -->
+    <div class="section-title">
+        <h3>🏎️ Трассы и дождь</h3>
+        <span class="info-tip">рейтинг "мокрости"</span>
+    </div>
+
+    <!-- ИНФО: О трассах -->
+    <div class="info-box mb-4">
+        <i class="fas fa-map-marker-alt me-2"></i>
+        <strong>Как читать:</strong>
+        <ul class="mb-0 mt-1">
+            <li>📊 <strong>% дождей</strong> — как часто на этой трассе идут дожди во время гонок</li>
+            <li>📈 <strong>Влияние дождя</strong> — насколько меняется процент побед в дождь по сравнению с сухой трассой</li>
+            <li>🔹 Положительное влияние — дождь помогает показывать лучшие результаты</li>
+            <li>🔹 Отрицательное — дождь мешает, трасса становится сложнее</li>
+        </ul>
+    </div>
+
+    <div class="impact-table">
+        <table class="table table-dark">
+            <thead>
+                <tr>
+                    <th>Трасса</th>
+                    <th class="text-center">Всего гонок</th>
+                    <th class="text-center">🌧️ Дождь</th>
+                    <th class="text-center">% дождей</th>
+                    <th class="text-center">Влияние дождя</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in track_weather_stats %}
+                <tr>
+                    <td>
+                        <a href="{{ item.track.get_absolute_url }}" class="text-white text-decoration-none">
+                            {{ item.track.name }}
+                        </a>
+                    </td>
+                    <td class="text-center">{{ item.total_races }}</td>
+                    <td class="text-center">{{ item.wet_races }}</td>
+                    <td class="text-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <span>{{ item.wet_percentage }}%</span>
+                            <div class="progress" style="width: 100px; height: 8px; background-color: #2a2a35;">
+                                <div class="progress-bar bg-info" style="width: {{ item.wet_percentage }}%;"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="text-center">
+                        {% if item.impact > 5 %}
+                            <span class="diff-positive">+{{ item.impact }}%</span>
+                            <small class="text-muted d-block">дождь помогает</small>
+                        {% elif item.impact < -5 %}
+                            <span class="diff-negative">{{ item.impact }}%</span>
+                            <small class="text-muted d-block">дождь мешает</small>
+                        {% else %}
+                            <span class="badge-neutral">нейтрально</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center p-4 text-muted">Нет данных для отображения</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Сезонный анализ -->
+    <div class="section-title">
+        <h3>📅 Сезонность дождей</h3>
+        <span class="info-tip">по месяцам</span>
+    </div>
+
+    <!-- ИНФО: О сезонности -->
+    <div class="info-box mb-4">
+        <i class="fas fa-calendar-alt me-2"></i>
+        <strong>Как читать:</strong> Распределение дождевых гонок по месяцам за последние 2 года. Высота столбца показывает процент дождевых гонок в этом месяце. Цифры внизу — количество дождевых / всего гонок.
+    </div>
+
+    <div class="stats-card">
+        <div class="row">
+            {% for month in monthly_stats %}
+            <div class="col-3 col-md-1 text-center mb-3">
+                <div class="small text-info">{{ month.month_name }}</div>
+                <div class="h4 text-warning">{{ month.wet_percentage }}%</div>
+                <div class="progress" style="height: 60px; width: 20px; margin: 0 auto; background-color: #2a2a35; transform: rotate(180deg);">
+                    <div class="progress-bar bg-info" style="height: {{ month.wet_percentage }}%; width: 100%;"></div>
+                </div>
+                <small class="text-muted">{{ month.wet }}/{{ month.total }}</small>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
     <!-- Какое шасси лучше в дождь -->
-    <h3 class="mt-5 mb-3">🏎️ Шасси в дождь vs сухо</h3>
+    <div class="section-title">
+        <h3>🏎️ Шасси в дождь</h3>
+        <span class="info-tip">сравнение</span>
+    </div>
+
+    <!-- ИНФО: О шасси -->
+    <div class="info-box mb-4">
+        <i class="fas fa-cog me-2"></i>
+        <strong>Как читать:</strong> Анализ эффективности шасси в разных погодных условиях.
+        <span class="text-warning">Отрицательная разница</span> — шасси лучше работает в дождь (дождевое шасси),
+        <span class="text-success">положительная</span> — лучше на сухой трассе (сухое шасси).
+    </div>
+
     <div class="impact-table">
         <table class="table table-dark">
             <thead>
@@ -217,7 +495,23 @@
 
     <!-- Веса контекстной модели -->
     {% if context_weights %}
-    <h3 class="mt-5 mb-3">⚖️ Веса контекстной модели</h3>
+    <div class="section-title">
+        <h3>⚖️ Математическая модель</h3>
+        <span class="info-tip">веса факторов</span>
+    </div>
+
+    <!-- ИНФО: О весах -->
+    <div class="info-box mb-4">
+        <i class="fas fa-brain me-2"></i>
+        <strong>Как читать:</strong> Это веса контекстной модели Брэдли-Терри. Чем выше вес, тем сильнее фактор влияет на результат.
+        <ul class="mb-0 mt-2">
+            <li>🌡️ <strong>Температура</strong> — влияние жары/холода на результаты</li>
+            <li>☔ <strong>Осадки</strong> — насколько важен дождь</li>
+            <li>🛞 <strong>Шины</strong> — влияние выбора шин (в рамках одного класса обычно одинаковые)</li>
+            <li>🏁 <strong>Трасса</strong> — насколько специфика трассы меняет расстановку сил</li>
+        </ul>
+    </div>
+
     <div class="stats-card">
         <div class="row text-center">
             <div class="col-3">
@@ -237,19 +531,22 @@
                 <div class="label">🏁 Трасса</div>
             </div>
         </div>
-        <p class="text-muted small text-center mt-3">
-            * Чем выше вес, тем сильнее фактор влияет на результат
-        </p>
     </div>
     {% endif %}
 
-    <!-- Пояснение -->
-    <div class="mt-5 text-muted small">
-        <p>
-            <i class="fas fa-info-circle text-info me-1"></i>
-            Данные основаны на {{ dry_stats.total|add:wet_stats.total }} гонках.
-            Для достоверной статистики нужно минимум 5 заездов в каждой категории.
-        </p>
+    <!-- Финальное пояснение -->
+    <div class="info-box mt-5">
+        <div class="d-flex">
+            <i class="fas fa-lightbulb fa-2x text-warning me-3"></i>
+            <div>
+                <h5 class="text-warning mb-2">💡 Как использовать эти данные?</h5>
+                <ul class="mb-0">
+                    <li><strong>Перед гонкой:</strong> Посмотрите прогноз погоды и выберите шасси, которое лучше работает в этих условиях</li>
+                    <li><strong>При выборе пилота:</strong> Если ожидается дождь, обратите внимание на пилотов с отрицательной разницей</li>
+                    <li><strong>Для стратегии:</strong> Учитывайте сезонность — в какие месяцы чаще всего идут дожди на конкретных трассах</li>
+                </ul>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -297,8 +594,13 @@
                         y: {
                             beginAtZero: true,
                             max: 100,
+                            title: {
+                                display: true,
+                                text: 'Процент побед',
+                                color: '#adb5bd'
+                            },
                             grid: { color: 'rgba(255,255,255,0.1)' },
-                            ticks: { color: '#adb5bd' }
+                            ticks: { color: '#adb5bd', stepSize: 20 }
                         },
                         x: {
                             grid: { display: false },

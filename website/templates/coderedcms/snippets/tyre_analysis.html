@@ -1,0 +1,600 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailimages_tags website_tags %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    /* Навигация по классам */
+    .class-nav {
+        background-color: #2a2a35;
+        border-radius: 4px;
+        padding: 0.5rem;
+        margin-bottom: 2rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+    }
+    .class-nav .nav-link {
+        color: #adb5bd;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        transition: all 0.2s;
+        text-decoration: none;
+        border: 2px solid #3a3a45;
+        background-color: transparent;
+    }
+    .class-nav .nav-link:hover {
+        border-color: #ffc107;
+        background-color: #3a3a45;
+        color: white;
+    }
+    .class-nav .nav-link.active {
+        border-color: #ffc107 !important;
+        background-color: transparent !important;
+        color: white !important;
+    }
+
+    /* Информационные блоки */
+    .info-box {
+        background-color: #1a1a25 !important;
+        border: 1px solid #2a2a35 !important;
+        border-left: 4px solid #0dcaf0 !important;
+        border-radius: 4px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        color: #adb5bd !important;
+    }
+    .info-box strong {
+        color: #ffc107;
+    }
+    .info-box i {
+        color: #0dcaf0;
+    }
+    .info-tip {
+        background-color: #2a2a35;
+        border: 1px solid #ffc107;
+        border-radius: 20px;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.8rem;
+        color: #ffc107;
+        display: inline-block;
+        margin-left: 0.5rem;
+    }
+
+    /* Матрица */
+    .matrix-container {
+        background-color: #1a1a25;
+        border-radius: 10px;
+        padding: 2rem;
+        overflow-x: auto;
+        margin: 0 auto 2rem auto;
+    }
+    .matrix-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 800px;
+    }
+    .matrix-table th {
+        background-color: #2a2a35;
+        color: #ffc107;
+        padding: 1rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    .matrix-table td {
+        padding: 0.75rem;
+        text-align: center;
+        border: 1px solid #2a2a35;
+    }
+    .matrix-table tr:hover td {
+        background-color: transparent;
+    }
+    .chassis-name {
+        font-weight: bold;
+        color: #fff;
+        position: sticky;
+        left: 0;
+        background-color: #1a1a25;
+        z-index: 5;
+    }
+    .heat-cell {
+        cursor: help;
+    }
+    .heat-cell:hover {
+        box-shadow: inset 0 0 0 2px #ffc107;
+    }
+
+    /* Тепловая карта для шин - непрерывная шкала как в матрице трасс */
+    .win-rate-no-data,
+    .win-rate-0 {
+        background-color: transparent;
+        color: #6c757d;
+    }
+    .win-rate-1 { background-color: rgba(255, 193, 7, 0.02); }
+    .win-rate-2 { background-color: rgba(255, 193, 7, 0.04); }
+    .win-rate-3 { background-color: rgba(255, 193, 7, 0.06); }
+    .win-rate-4 { background-color: rgba(255, 193, 7, 0.08); }
+    .win-rate-5 { background-color: rgba(255, 193, 7, 0.10); }
+    .win-rate-6 { background-color: rgba(255, 193, 7, 0.12); }
+    .win-rate-7 { background-color: rgba(255, 193, 7, 0.14); }
+    .win-rate-8 { background-color: rgba(255, 193, 7, 0.16); }
+    .win-rate-9 { background-color: rgba(255, 193, 7, 0.18); }
+    .win-rate-10 { background-color: rgba(255, 193, 7, 0.20); }
+    .win-rate-11 { background-color: rgba(255, 193, 7, 0.22); }
+    .win-rate-12 { background-color: rgba(255, 193, 7, 0.24); }
+    .win-rate-13 { background-color: rgba(255, 193, 7, 0.26); }
+    .win-rate-14 { background-color: rgba(255, 193, 7, 0.28); }
+    .win-rate-15 { background-color: rgba(255, 193, 7, 0.30); }
+    .win-rate-16 { background-color: rgba(255, 193, 7, 0.32); }
+    .win-rate-17 { background-color: rgba(255, 193, 7, 0.34); }
+    .win-rate-18 { background-color: rgba(255, 193, 7, 0.36); }
+    .win-rate-19 { background-color: rgba(255, 193, 7, 0.38); }
+    .win-rate-20 { background-color: rgba(255, 193, 7, 0.40); }
+    .win-rate-21 { background-color: rgba(255, 193, 7, 0.42); }
+    .win-rate-22 { background-color: rgba(255, 193, 7, 0.44); }
+    .win-rate-23 { background-color: rgba(255, 193, 7, 0.46); }
+    .win-rate-24 { background-color: rgba(255, 193, 7, 0.48); }
+    .win-rate-25 { background-color: rgba(255, 193, 7, 0.50); }
+    .win-rate-26 { background-color: rgba(255, 193, 7, 0.52); }
+    .win-rate-27 { background-color: rgba(255, 193, 7, 0.54); }
+    .win-rate-28 { background-color: rgba(255, 193, 7, 0.56); }
+    .win-rate-29 { background-color: rgba(255, 193, 7, 0.58); }
+    .win-rate-30 { background-color: rgba(255, 193, 7, 0.60); }
+    .win-rate-31 { background-color: rgba(255, 193, 7, 0.62); }
+    .win-rate-32 { background-color: rgba(255, 193, 7, 0.64); }
+    .win-rate-33 { background-color: rgba(255, 193, 7, 0.66); }
+    .win-rate-34 { background-color: rgba(255, 193, 7, 0.68); }
+    .win-rate-35 { background-color: rgba(255, 193, 7, 0.70); }
+    .win-rate-36 { background-color: rgba(255, 193, 7, 0.72); }
+    .win-rate-37 { background-color: rgba(255, 193, 7, 0.74); }
+    .win-rate-38 { background-color: rgba(255, 193, 7, 0.76); }
+    .win-rate-39 { background-color: rgba(255, 193, 7, 0.78); }
+    .win-rate-40 { background-color: rgba(255, 193, 7, 0.80); }
+    .win-rate-41 { background-color: rgba(255, 193, 7, 0.82); }
+    .win-rate-42 { background-color: rgba(255, 193, 7, 0.84); }
+    .win-rate-43 { background-color: rgba(255, 193, 7, 0.86); }
+    .win-rate-44 { background-color: rgba(255, 193, 7, 0.88); }
+    .win-rate-45 { background-color: rgba(255, 193, 7, 0.90); }
+    .win-rate-46 { background-color: rgba(255, 193, 7, 0.92); }
+    .win-rate-47 { background-color: rgba(255, 193, 7, 0.94); }
+    .win-rate-48 { background-color: rgba(255, 193, 7, 0.96); }
+    .win-rate-49 { background-color: rgba(255, 193, 7, 0.98); }
+    .win-rate-50 { background-color: rgba(255, 193, 7, 1.0); }
+
+    /* Таблицы */
+    .impact-table {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        overflow: hidden;
+        width: 100%;
+        margin-bottom: 2rem;
+    }
+    .impact-table th {
+        background-color: #2a2a35;
+        color: #ffc107;
+        padding: 0.75rem;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+    }
+    .impact-table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #2a2a35;
+        color: #fff;
+    }
+    .impact-table tr:hover {
+        background-color: rgba(13, 202, 240, 0.1);
+    }
+    .badge-gold { background-color: #ffc107; color: #000; padding: 0.25rem 0.5rem; border-radius: 4px; }
+    .badge-silver { background-color: #e0e0e0; color: #000; padding: 0.25rem 0.5rem; border-radius: 4px; }
+    .badge-bronze { background-color: #cd7f32; color: #fff; padding: 0.25rem 0.5rem; border-radius: 4px; }
+    .stats-badge {
+        background-color: #2a2a35;
+        color: #adb5bd;
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        margin-left: 0.25rem;
+    }
+
+    /* Легенда */
+    .legend-continuous {
+        margin-top: 1rem;
+        padding: 1rem;
+        background-color: #2a2a35;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+    }
+    .legend-title {
+        color: #ffc107;
+        font-weight: bold;
+        margin-bottom: 1rem;
+        text-align: center;
+    }
+    .gradient-bar {
+        height: 30px;
+        width: 100%;
+        background: linear-gradient(90deg,
+            rgba(255,193,7,0.02) 0%,
+            rgba(255,193,7,0.1) 10%,
+            rgba(255,193,7,0.2) 20%,
+            rgba(255,193,7,0.3) 30%,
+            rgba(255,193,7,0.4) 40%,
+            rgba(255,193,7,0.5) 50%,
+            rgba(255,193,7,0.6) 60%,
+            rgba(255,193,7,0.7) 70%,
+            rgba(255,193,7,0.8) 80%,
+            rgba(255,193,7,0.9) 90%,
+            rgba(255,193,7,1.0) 100%);
+        border-radius: 4px;
+        margin-bottom: 0.5rem;
+    }
+    .legend-labels {
+        display: flex;
+        justify-content: space-between;
+        color: #adb5bd;
+        font-size: 0.85rem;
+    }
+
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin: 2rem 0 1rem 0;
+    }
+    .section-title h3 {
+        margin: 0;
+        color: #ffc107;
+    }
+    /* Карточки рекомендаций */
+    .stats-card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1.25rem;
+        height: 100%;
+        transition: all 0.2s;
+        margin-bottom: 0; /* убираем лишний отступ */
+    }
+    .stats-card:hover {
+        border-color: #ffc107;
+        transform: translateY(-2px);
+    }
+
+    /* Отступы между карточками */
+    .row.g-4 {
+        gap: 1.5rem !important; /* увеличиваем отступ между колонками */
+    }
+    .row.g-4 > [class*="col-"] {
+        padding: 0 0.75rem; /* горизонтальные отступы */
+        margin-bottom: 1.5rem; /* вертикальные отступы */
+    }
+
+    /* Заголовок шасси */
+    .stats-card h5 {
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #2a2a35;
+        font-size: 1.2rem;
+    }
+
+    /* Блок с лучшими шинами */
+    .stats-card .d-flex.align-items-center.mb-3 {
+        margin-bottom: 1rem !important;
+        padding: 0.5rem;
+        background-color: rgba(0, 0, 0, 0.2);
+        border-radius: 6px;
+    }
+
+    /* Текст "Также хорошо" */
+    .stats-card .small.text-muted {
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;
+        color: #adb5bd;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Ссылки на другие шины */
+    .stats-card .d-flex.flex-wrap.gap-2.mt-1 {
+        margin-top: 0.5rem !important;
+        gap: 0.75rem !important;
+    }
+
+    .stats-card .d-flex.flex-wrap.gap-2.mt-1 a {
+        background-color: #2a2a35;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        transition: all 0.2s;
+    }
+    .stats-card .d-flex.flex-wrap.gap-2.mt-1 a:hover {
+        background-color: #ffc107;
+        color: #000 !important;
+    }
+</style>
+
+<div class="force-width-1500 my-5 text-white">
+    <h1 class="display-4 fw-bold mb-4 text-uppercase text-center">
+        <i class="fas fa-circle me-3 text-warning"></i>Шинный анализ
+    </h1>
+
+    <!-- Навигация по классам -->
+    {% include "includes/class_nav.html" with classes=classes selected_class=selected_class_id base_url="?" %}
+
+    <!-- Общее пояснение -->
+    <div class="info-box mb-5">
+        <div class="d-flex">
+            <i class="fas fa-info-circle fa-2x me-3"></i>
+            <div>
+                <h5 class="text-warning mb-2">📊 О чем эта страница?</h5>
+                <p class="mb-1">Анализ совместимости шасси и шин. Матрица показывает, какие сочетания дают максимальный процент побед. Данные основаны на исторических результатах гонок.</p>
+                <p class="mb-0 small">🔄 Для достоверной статистики требуется минимум 5 стартов в сочетании. Число в ячейке — процент побед, <span class="stats-badge">число</span> — количество стартов.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Матрица "Шасси × Шины" -->
+    <div class="section-title">
+        <h3>📊 Матрица "Шасси × Шины"</h3>
+        <span class="info-tip">тепловая карта</span>
+    </div>
+
+    <div class="info-box mb-4">
+        <i class="fas fa-th me-2"></i>
+        <strong>Как читать:</strong> На пересечении шасси и шин — процент побед этого сочетания. Чем насыщеннее цвет, тем выше эффективность. Серые ячейки — недостаточно данных (менее 5 стартов).
+    </div>
+
+    <div class="matrix-container">
+        <table class="matrix-table">
+            <thead>
+                <tr>
+                    <th>Шасси</th>
+                    {% for tyre in tyres_list %}
+                        <th>{{ tyre.brand.name }}<br><small class="text-muted">{{ tyre.type.get_name_display }}</small></th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for chassis in chassis_list %}
+                <tr>
+                    <td class="chassis-name">
+                        <a href="{{ chassis.get_absolute_url }}" class="text-white text-decoration-none">
+                            {{ chassis.name }}
+                        </a>
+                    </td>
+                    {% for tyre in tyres_list %}
+                        {% with cell=matrix_data|get_item:chassis.id|get_item:tyre.id %}
+                            {% if cell.total >= 5 %}
+                                <td class="heat-cell win-rate-{{ cell.win_rate|floatformat:0 }}"
+                                    title="Шасси: {{ chassis.name }}
+                                           Шины: {{ tyre.brand.name }} {{ tyre.type.get_name_display }}
+                                           Старты: {{ cell.total }}
+                                           Победы: {{ cell.wins }}
+                                           Win Rate: {{ cell.win_rate }}%">
+                                    {{ cell.win_rate|floatformat:0 }}%
+                                    <span class="stats-badge">{{ cell.total }}</span>
+                                </td>
+                            {% else %}
+                                <td class="heat-cell win-rate-no-data"
+                                    title="Недостаточно данных (менее 5 стартов)">
+                                    —
+                                    <span class="stats-badge">{{ cell.total|default:"0" }}</span>
+                                </td>
+                            {% endif %}
+                        {% endwith %}
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Легенда -->
+    <div class="legend-continuous">
+        <div class="legend-title">Шкала процента побед</div>
+        <div class="gradient-bar"></div>
+        <div class="legend-labels">
+            <span>0%</span>
+            <span>10%</span>
+            <span>20%</span>
+            <span>30%</span>
+            <span>40%</span>
+            <span>50%</span>
+        </div>
+    </div>
+
+    <!-- Лучшие сочетания -->
+    <div class="section-title">
+        <h3>🏆 Лучшие сочетания</h3>
+        <span class="info-tip">топ-20 по Win Rate</span>
+    </div>
+
+    <div class="info-box mb-4">
+        <i class="fas fa-trophy me-2"></i>
+        <strong>Как читать:</strong> Самые эффективные связки шасси и шин. Учитываются только сочетания с минимум 5 стартами.
+    </div>
+
+    <div class="impact-table">
+        <table class="table table-dark">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Шасси</th>
+                    <th>Шины</th>
+                    <th class="text-center">Старты</th>
+                    <th class="text-center">Победы</th>
+                    <th class="text-center">Win Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in best_combinations %}
+                <tr>
+                    <td class="text-center">
+                        {% if forloop.counter == 1 %}
+                            <span class="badge-gold">1</span>
+                        {% elif forloop.counter == 2 %}
+                            <span class="badge-silver">2</span>
+                        {% elif forloop.counter == 3 %}
+                            <span class="badge-bronze">3</span>
+                        {% else %}
+                            <span>{{ forloop.counter }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ item.chassis.get_absolute_url }}" class="text-white text-decoration-none">
+                            {{ item.chassis.name }}
+                        </a>
+                    </td>
+                    <td>
+                        <a href="{{ item.tyre.get_absolute_url }}" class="text-info text-decoration-none">
+                            {{ item.tyre.brand.name }} {{ item.tyre.type.get_name_display }}
+                        </a>
+                    </td>
+                    <td class="text-center">{{ item.total }}</td>
+                    <td class="text-center">{{ item.wins }}</td>
+                    <td class="text-center">
+                        <span class="badge-gold">{{ item.win_rate }}%</span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center p-4 text-muted">Нет данных для отображения</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Статистика по производителям шин -->
+    <div class="section-title">
+        <h3>🏭 Производители шин</h3>
+        <span class="info-tip">рейтинг</span>
+    </div>
+
+    <div class="info-box mb-4">
+        <i class="fas fa-chart-bar me-2"></i>
+        <strong>Как читать:</strong> Общая статистика по каждому производителю шин. В скобках — разбивка по типам (слик/дождь).
+    </div>
+
+    <div class="impact-table">
+        <table class="table table-dark">
+            <thead>
+                <tr>
+                    <th>Производитель</th>
+                    <th class="text-center">Старты</th>
+                    <th class="text-center">Победы</th>
+                    <th class="text-center">Подиумы</th>
+                    <th class="text-center">Win Rate</th>
+                    <th class="text-center">Pod%</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for brand in brand_stats %}
+                <tr>
+                    <td>
+                        <a href="{{ brand.brand.get_absolute_url }}" class="text-white text-decoration-none">
+                            <strong>{{ brand.brand.name }}</strong>
+                        </a>
+                        {% for type in brand.type_stats %}
+                            <div class="small text-muted">
+                                {{ type.type.get_name_display }}: {{ type.win_rate }}% ({{ type.wins }}/{{ type.total }})
+                            </div>
+                        {% endfor %}
+                    </td>
+                    <td class="text-center">{{ brand.total }}</td>
+                    <td class="text-center">{{ brand.wins }}</td>
+                    <td class="text-center">{{ brand.podiums }}</td>
+                    <td class="text-center">
+                        <span class="badge-gold">{{ brand.win_rate }}%</span>
+                    </td>
+                    <td class="text-center">{{ brand.podium_rate }}%</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center p-4 text-muted">Нет данных для отображения</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Для какого шасси какие шины лучше -->
+    <div class="section-title">
+        <h3>🔍 Рекомендации по шасси</h3>
+        <span class="info-tip">лучшие шины</span>
+    </div>
+
+    <div class="info-box mb-4">
+        <i class="fas fa-lightbulb me-2"></i>
+        <strong>Как читать:</strong> Для каждого шасси показаны шины, с которыми оно показывает лучшие результаты. Учитываются только сочетания с минимум 3 стартами.
+    </div>
+
+    <div class="row g-3">
+        {% for item in chassis_tyre_preference %}
+        <div class="col-md-6 col-lg-4">
+            <div class="stats-card" style="padding: 1rem;">
+                <h5 class="text-warning mb-3">
+                    <a href="{{ item.chassis.get_absolute_url }}" class="text-warning text-decoration-none">
+                        {{ item.chassis.name }}
+                    </a>
+                </h5>
+                <div class="d-flex align-items-center mb-3">
+                    <span class="me-2">⭐</span>
+                    <span class="badge-gold me-2">Лучшие:</span>
+                    <a href="{{ item.best_tyre.tyre.get_absolute_url }}" class="text-info text-decoration-none">
+                        {{ item.best_tyre.tyre.brand.name }} {{ item.best_tyre.tyre.type.get_name_display }}
+                    </a>
+                    <span class="badge-gold ms-2">{{ item.best_tyre.win_rate }}%</span>
+                    <span class="stats-badge">{{ item.best_tyre.total }}</span>
+                </div>
+
+                {% if item.all_preferences|length > 1 %}
+                <div class="small text-muted">Также хорошо:</div>
+                <div class="d-flex flex-wrap gap-2 mt-1">
+                    {% for pref in item.all_preferences|slice:"1:" %}
+                        <a href="{{ pref.tyre.get_absolute_url }}" class="text-info text-decoration-none small">
+                            {{ pref.tyre.brand.name }} {{ pref.tyre.type.get_name_display }} ({{ pref.win_rate }}%)
+                        </a>
+                        {% if not forloop.last %}<span class="text-muted">•</span>{% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <p class="text-muted text-center">Нет данных для отображения</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Финальное пояснение -->
+    <div class="info-box mt-5">
+        <div class="d-flex">
+            <i class="fas fa-lightbulb fa-2x text-warning me-3"></i>
+            <div>
+                <h5 class="text-warning mb-2">💡 Как использовать эти данные?</h5>
+                <ul class="mb-0">
+                    <li><strong>Перед покупкой шин:</strong> Посмотрите, какие шасси показывают лучшие результаты на интересующих вас шинах</li>
+                    <li><strong>При выборе стратегии:</strong> Учитывайте, что некоторые шасси критичны к выбору резины</li>
+                    <li><strong>Для пилотов:</strong> Если вы пересели на другое шасси, проверьте, нужны ли другие шины для сохранения результатов</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

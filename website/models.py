@@ -24,6 +24,7 @@ import datetime
 from wagtail.models import Page
 from django.db.models import Count
 from django import forms
+from datetime import timedelta
 
 # ---------- СТРАНИЦЫ (PAGES) ----------
 
@@ -91,21 +92,6 @@ class ChampionshipPage(CoderedWebPage):
     subpage_types = ["website.EventPage"]
     template = "coderedcms/pages/championship_page.html"
 
-    # Только competition_type (year и champion_driver УДАЛЕНЫ)
-     # для PostgreSQL
-
-    TYPE_CHOICES = [
-        ('cup', 'Кубок'),
-        ('championship', 'Чемпионат'),
-        ('competition', 'Первенство'),
-    ]
-    competition_types = models.ManyToManyField(
-        'CompetitionType',
-        verbose_name="Типы соревнований",
-        blank=True,
-        related_name='championships',
-        help_text="Выберите один или несколько типов"
-    )
     # Поле для отметки завершённости чемпионата
     is_completed = models.BooleanField(
         "Чемпионат завершён",
@@ -113,11 +99,16 @@ class ChampionshipPage(CoderedWebPage):
         help_text="Отметьте, если все этапы проведены"
     )
 
-    # Обновляем content_panels - УБИРАЕМ year и champion_driver
+    # Убираем competition_types как ManyToMany поле
+    # Будем использовать отдельную модель через InlinePanel
+
+    # Основные поля
     content_panels = CoderedWebPage.content_panels + [
-        FieldPanel('competition_types', widget=forms.CheckboxSelectMultiple),
         FieldPanel('is_completed'),
+        InlinePanel('championship_competition_types', label="Типы соревнований"),
     ]
+
+    promote_panels = CoderedWebPage.promote_panels  # Без изменений
 
     def get_years(self):
         """
@@ -267,7 +258,6 @@ class ChampionshipPage(CoderedWebPage):
             race_class__name=selected_class_name
         ).values_list('id', flat=True)
 
-
         # Функция для получения даты события
         def get_event_date(event):
             if event.occurrences.exists():
@@ -322,6 +312,23 @@ class ChampionshipPage(CoderedWebPage):
         context['selected_class'] = selected_class_name
 
         return context
+
+# Добавьте эту модель ПОСЛЕ ChampionshipPage
+class ChampionshipCompetitionType(models.Model):
+    page = ParentalKey('ChampionshipPage', related_name='championship_competition_types')
+    competition_type = models.ForeignKey('CompetitionType', on_delete=models.CASCADE)
+
+    panels = [
+        FieldPanel('competition_type'),
+    ]
+
+    class Meta:
+        unique_together = ('page', 'competition_type')
+        verbose_name = "Тип соревнования"
+        verbose_name_plural = "Типы соревнований"
+
+    def __str__(self):
+        return self.competition_type.name
 
 class EventIndexPage(CoderedEventIndexPage):
     class Meta:
@@ -1310,16 +1317,14 @@ class PulseIndexPage(CoderedWebPage):
 
     def get_context(self, request):
         context = super().get_context(request)
+        from django.utils import timezone
+        from .models import RaceResult
 
         # Получаем все чемпионаты
         championships = ChampionshipPage.objects.live().public().specific()
 
-        # Получаем все доступные типы соревнований через ManyToMany
-        types = set()
-        for champ in championships:
-            for comp_type in champ.competition_types.all():
-                types.add(comp_type.name)
-        types = list(types)
+        # Получаем все доступные типы соревнований
+        types = CompetitionType.objects.values_list('name', flat=True).distinct()
 
         # Получаем все доступные классы
         race_classes = RaceClass.objects.filter(
@@ -1330,10 +1335,33 @@ class PulseIndexPage(CoderedWebPage):
         all_years = set()
         for champ in championships:
             all_years.update(champ.get_years())
-        all_years = sorted(list(all_years), reverse=True)
+
+        # Текущий год
+        current_year = timezone.now().year
+
+        # Фильтруем годы: только текущий и прошедшие
+        filtered_years = []
+        for year in all_years:
+            if year <= current_year:  # Только текущий и прошедшие
+                # Для прошедших годов проверяем наличие результатов
+                if year == current_year:
+                    filtered_years.append(year)  # Текущий год добавляем всегда
+                else:
+                    # Проверяем, есть ли результаты за этот год
+                    has_results = RaceResult.objects.filter(
+                        group__page__in=EventPage.objects.live().filter(
+                            occurrences__start__year=year
+                        )
+                    ).exists()
+                    if has_results:
+                        filtered_years.append(year)
+
+        # Сортируем от большего к меньшему
+        filtered_years = sorted(filtered_years, reverse=True)
 
         context['championships'] = championships
         context['available_types'] = list(types)
+
         # Сортируем классы в нужном порядке
         class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
                     'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 Masters']
@@ -1344,8 +1372,8 @@ class PulseIndexPage(CoderedWebPage):
         )
 
         context['available_classes'] = sorted_classes
-        context['available_years'] = all_years
-        context['current_year'] = all_years[0] if all_years else None
+        context['available_years'] = filtered_years
+        context['current_year'] = filtered_years[0] if filtered_years else current_year
 
         return context
 
@@ -1379,5 +1407,195 @@ class RatingInfoPage(CoderedWebPage):
         from .models import Driver
         driver_with_weights = Driver.objects.exclude(context_weights={}).first()
         context['weights'] = driver_with_weights.context_weights if driver_with_weights else None
+
+        return context
+
+class EventCalendarPage(CoderedWebPage):
+    """
+    Страница календаря мероприятий с двумя режимами: сетка и календарь
+    """
+    class Meta:
+        verbose_name = "Календарь мероприятий"
+        verbose_name_plural = "Календари мероприятий"
+
+    parent_page_types = ["website.WebPage"]  # Можно создать как дочернюю страницу
+    subpage_types = []  # Нельзя создавать дочерние страницы
+    template = "coderedcms/pages/event_calendar_page.html"
+
+    # Поля для настройки внешнего вида
+    hero_title = models.CharField(
+        "Заголовок",
+        max_length=255,
+        default="Календарь мероприятий",
+        blank=True,
+    )
+
+    hero_subtitle = models.TextField(
+        "Подзаголовок",
+        max_length=500,
+        default="Все предстоящие этапы и соревнования",
+        blank=True,
+    )
+
+    content_panels = CoderedWebPage.content_panels + [
+        FieldPanel('hero_title'),
+        FieldPanel('hero_subtitle'),
+    ]
+    def get_context(self, request):
+        context = super().get_context(request)
+        from .models import EventPage, CompetitionType, ChampionshipPage
+        from django.utils import timezone
+        from django.db.models import Q
+        from datetime import timedelta
+
+        # Получаем все типы соревнований для фильтров
+        context['competition_types'] = CompetitionType.objects.all()
+
+        # Получаем выбранный тип из GET-параметров
+        selected_type = request.GET.get('type', '')
+        context['selected_type'] = selected_type
+
+        # Получаем режим отображения (grid/calendar)
+        view_mode = request.GET.get('view', 'grid')
+        context['view_mode'] = view_mode
+
+        # Получаем текущую дату
+        today = timezone.now().date()
+
+        # Получаем ВСЕ будущие события
+        all_events = EventPage.objects.live().filter(
+            occurrences__end__date__gte=today
+        ).distinct().select_related('track')
+
+        # Фильтр по типу соревнований
+        if selected_type:
+            filtered_events = []
+            for event in all_events:
+                parent = event.get_parent().specific
+                if hasattr(parent, 'championship_competition_types'):
+                    if parent.championship_competition_types.filter(competition_type__code=selected_type).exists():
+                        filtered_events.append(event)
+            all_events = filtered_events
+        else:
+            all_events = list(all_events)
+
+        # СОЗДАЕМ СПИСОК УНИКАЛЬНЫХ ЭТАПОВ
+        unique_events = {}
+        for event in all_events:
+            parent = event.get_parent().specific
+            occurrence = event.occurrences.first()
+
+            track_id = event.track.id if event.track else 'none'
+            start_date_str = str(occurrence.start.date()) if occurrence and occurrence.start else 'no-date'
+
+            stage_key = f"{event.title}_{start_date_str}_{track_id}"
+
+            if stage_key not in unique_events:
+                unique_events[stage_key] = {
+                    'event': event,
+                    'championship': parent,
+                    'start_date': occurrence.start if occurrence else None,
+                    'end_date': occurrence.end if occurrence else None,
+                    'track': event.track,
+                    'event_url': event.url,
+                    'championship_url': parent.url,
+                    'track_url': event.track.get_absolute_url() if event.track else None,
+                    'classes': []
+                }
+
+            for group in event.race_class_groups.all():
+                class_name = group.race_class.name
+                if class_name not in unique_events[stage_key]['classes']:
+                    unique_events[stage_key]['classes'].append(class_name)
+
+        enriched_events = list(unique_events.values())
+        enriched_events.sort(key=lambda x: x['start_date'] or x['event'].first_published_at)
+
+        context['enriched_events'] = enriched_events
+
+        # ИНИЦИАЛИЗИРУЕМ months ПУСТЫМ СЛОВАРЕМ ПО УМОЛЧАНИЮ
+        months = {}
+
+        # Для календаря: группируем события по месяцам
+        if view_mode == 'calendar':
+            # Используем ТОТ ЖЕ unique_events, что и для карточек!
+            for event_id, event_data in unique_events.items():
+                event = event_data['event']
+
+                for occ in event.occurrences.all():
+                    if occ.end and occ.end.date() >= today:
+                        current_date = occ.start.date()
+                        end_date = occ.end.date()
+
+                        while current_date <= end_date:
+                            if current_date >= today:
+                                month_key = current_date.strftime('%Y-%m')
+
+                                if month_key not in months:
+                                    first_day = current_date.replace(day=1)
+                                    first_weekday = first_day.weekday()
+
+                                    if current_date.month == 12:
+                                        next_month = current_date.replace(year=current_date.year + 1, month=1, day=1)
+                                    else:
+                                        next_month = current_date.replace(month=current_date.month + 1, day=1)
+                                    last_day = (next_month - timedelta(days=1)).day
+
+                                    months[month_key] = {
+                                        'year': current_date.year,
+                                        'month': current_date.month,
+                                        'month_name': current_date,  # передаем всю дату, а не строку
+                                        'first_weekday': first_weekday,
+                                        'days': range(1, last_day + 1),
+                                        'events': [],
+                                        'events_by_day': {}
+                                    }
+
+                                day = current_date.day
+
+                                # Добавляем событие в список событий месяца
+                                event_already_added = False
+                                for e in months[month_key]['events']:
+                                    if e['event'].id == event.id:
+                                        event_already_added = True
+                                        break
+
+                                if not event_already_added:
+                                    months[month_key]['events'].append({
+                                        'event': event,
+                                        'start': occ.start,
+                                        'end': occ.end,
+                                    })
+
+                                # Добавляем событие в конкретный день
+                                if day not in months[month_key]['events_by_day']:
+                                    months[month_key]['events_by_day'][day] = []
+
+                                day_event_already_added = False
+                                for e in months[month_key]['events_by_day'][day]:
+                                    if e['event'].id == event.id:
+                                        day_event_already_added = True
+                                        break
+
+                                if not day_event_already_added:
+                                    months[month_key]['events_by_day'][day].append({
+                                        'event': event,
+                                        'start': occ.start,
+                                        'end': occ.end,
+                                    })
+
+                            current_date += timedelta(days=1)
+
+            # Сортируем месяцы по дате
+            import operator
+            months = dict(sorted(months.items(), key=operator.itemgetter(0)))
+
+            # Отладка
+            print(f"Календарь: {len(months)} месяцев")
+            for month_key in months.keys():
+                print(f"  {month_key}: {len(months[month_key]['events'])} событий")
+
+        # ВАЖНО: ВСЕГДА передаем months в контекст, даже если это пустой словарь
+        context['months'] = months
 
         return context

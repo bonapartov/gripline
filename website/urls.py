@@ -11,8 +11,9 @@ from .views import (
     tyretype_detail_view, tyre_detail_view, engine_detail_view,
     drivers_api, teams_api, chassis_api,
     compare_view, top_drivers_view, compare_models_view,
-    weights_table_view, chassis_track_matrix_view, weather_impact_view
+    weights_table_view, tyre_analysis_view, chassis_track_matrix_view, weather_impact_view
 )
+from .models import EventCalendarPage
 
 driver_viewset = DriverViewSet()
 team_viewset = TeamViewSet()
@@ -46,6 +47,7 @@ urlpatterns = [
     path("import/preview/", import_preview, name="event_import_preview"),
     path("import/confirm/", import_confirm, name="event_import_confirm"),
     path("compare/", compare_view, name="compare"),
+    path("compare-drivers/", views.compare_drivers_view, name="compare_drivers"),
     path("top/drivers/", top_drivers_view, name="top_drivers"),
     path("compare-models/", compare_models_view, name="compare_models"),
     path("weights-table/", weights_table_view, name="weights_table"),
@@ -53,11 +55,13 @@ urlpatterns = [
     path("weather-impact/", weather_impact_view, name="weather_impact"),
     path("drivers-api/", drivers_api, name="drivers_api"),
     path('api/v2/', include([
-    path('pages/', api_router.urls),  # Стандартный API Wagtail
-    path('pulse/', pulse_data, name='pulse_api'),  # Наш кастомный эндпоинт
-    path('teams-api/', views.teams_api, name='teams_api'),
-    path('chassis-api/', views.chassis_api, name='chassis_api'),
-    path("staff/<slug:slug>/", views.staff_detail_view, name="staff_detail"),
-    path("api/staff/<int:staff_id>/", views.staff_api, name="staff_api"),
+        path('pages/', api_router.urls),  # Стандартный API Wagtail
+        path('pulse/', pulse_data, name='pulse_api'),  # Наш кастомный эндпоинт
+        path('teams-api/', views.teams_api, name='teams_api'),
+        path('chassis-api/', views.chassis_api, name='chassis_api'),
+        path("staff/<slug:slug>/", views.staff_detail_view, name="staff_detail"),
+        path("api/staff/<int:staff_id>/", views.staff_api, name="staff_api"),
+        path('api/matrix-cell/', views.matrix_cell_detail_api, name='matrix_cell_api'),
     ])),
+    path("tyre-analysis/", views.tyre_analysis_view, name="tyre_analysis"),
 ]

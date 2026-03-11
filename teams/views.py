@@ -19,6 +19,7 @@ from django.contrib.auth import logout
 from website.models import TeamStaff, TeamStaffMembership, TeamStaffSocialLink
 from django.db import IntegrityError
 from wagtail.images.models import Image
+from tg_bot.qr_code import generate_telegram_qr
 
 def register(request):
     """Регистрация представителя команды"""
@@ -26,8 +27,33 @@ def register(request):
         form = TeamRegistrationForm(request.POST)
         if form.is_valid():
             user = form.save()
-            print(f"Создан пользователь: {user.username}, {user.email}")  # отладка
+            print(f"Создан пользователь: {user.username}, {user.email}")
             team_name = form.cleaned_data['team_name']
+
+            # === НОВАЯ ПРОВЕРКА 1: Уже менеджер? ===
+            from .models import TeamManager
+            if TeamManager.objects.filter(user=user, is_active=True).exists():
+                messages.warning(request, 'Вы уже являетесь менеджером команды')
+                return redirect('teams:dashboard')
+
+            # === НОВАЯ ПРОВЕРКА 2: Уже есть pending заявка? ===
+            existing_claim = TeamClaim.objects.filter(
+                user=user,
+                status='pending'
+            ).first()
+
+            if existing_claim:
+                # Показываем статус существующей заявки
+                from tg_bot.qr_code import generate_telegram_qr
+                qr_code = generate_telegram_qr('gripline_bot', user.email)
+
+                return render(request, 'teams/register.html', {
+                    'form': form,
+                    'show_qr': True,
+                    'qr_code': qr_code,
+                    'existing_claim': existing_claim,
+                    'registration_success': True
+                })
 
             # Ищем похожие команды
             teams = Team.objects.filter(name__icontains=team_name)
@@ -43,14 +69,28 @@ def register(request):
 
                 return redirect('teams:select_team')
             else:
-                # Если команда не найдена, создаем заявку
+                # Создаем заявку
                 TeamClaim.objects.create(
                     user=user,
                     requested_team_name=team_name,
                     status='pending'
                 )
-                messages.success(request, 'Заявка отправлена администратору')
-                return redirect('teams:login')
+
+                # Генерируем QR-код
+                from tg_bot.qr_code import generate_telegram_qr
+                qr_code = generate_telegram_qr('gripline_bot', user.email)
+
+                print(f"🔍 QR-код для email: {user.email}")
+                print(f"🔍 Ссылка: https://t.me/gripline_moderation_bot?start={user.email}")
+
+                return render(request, 'teams/register.html', {
+                    'form': form,
+                    'show_qr': True,
+                    'qr_code': qr_code,
+                    'registration_success': True
+                })
+
+
     else:
         form = TeamRegistrationForm()
 
@@ -108,7 +148,15 @@ def login_view(request):
     if request.method == 'POST':
         email = request.POST.get('email')
         password = request.POST.get('password')
-        user = authenticate(request, username=email, password=password)
+
+        # СПОСОБ 1: Ищем пользователя по email
+        from django.contrib.auth.models import User
+        try:
+            user_obj = User.objects.get(email=email)
+            # Аутентифицируем по username (который нашли по email)
+            user = authenticate(request, username=user_obj.username, password=password)
+        except User.DoesNotExist:
+            user = None
 
         if user is not None:
             auth_login(request, user)

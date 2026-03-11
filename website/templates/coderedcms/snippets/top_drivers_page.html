@@ -167,13 +167,8 @@
     </div>
 
     <!-- Навигация по классам -->
-    <div class="class-nav">
-        {% for class in classes %}
-        <a href="?class={{ class.id }}" class="nav-link {% if selected_class_id == class.id %}active{% endif %}">
-            {{ class.name }}
-        </a>
-        {% endfor %}
-    </div>
+    <!-- Навигация по классам -->
+    {% include "includes/class_nav.html" with classes=classes selected_class=selected_class_id base_url="?" %}
 
     <!-- Таблица рейтинга -->
     <div class="top-table">

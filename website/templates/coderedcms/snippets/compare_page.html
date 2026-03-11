@@ -36,10 +36,6 @@
         color: #ffc107;
         height: 100%;
     }
-    .better {
-        background-color: rgba(255, 193, 7, 0.1);
-        border-left: 3px solid #ffc107;
-    }
     .chassis-select {
         background-color: #15151c;
         border: 1px solid #2a2a35;
@@ -47,7 +43,6 @@
         border-radius: 4px;
         padding: 0.75rem;
         width: 100%;
-        margin-bottom: 1rem;
     }
     .chassis-select:focus {
         outline: none;
@@ -58,33 +53,71 @@
         object-fit: contain;
         margin-bottom: 1rem;
     }
-    .btn-filter {
-    background-color: #ffc107;
-    color: #000;
-    border: none;
-    padding: 0.75rem 2.5rem;
-    border-radius: 4px;
-    font-weight: bold;
-    font-size: 1.1rem;
-    transition: all 0.2s;
-    display: inline-block;
-    text-decoration: none;
-    cursor: pointer;
+    .class-filter {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+        margin: 2rem 0;
     }
-    .btn-filter:hover {
+    .class-filter .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        border-radius: 20px;
+    }
+    .btn-outline-class {
+        background-color: transparent;
+        color: #adb5bd;
+        border: 1px solid #2a2a35;
+    }
+    .btn-outline-class:hover {
+        border-color: #ffc107;
+        color: #ffc107;
+    }
+    .btn-class.active {
+        background-color: #ffc107;
+        color: #000;
+        border-color: #ffc107;
+    }
+    .btn-compare-between {
+        background-color: #ffc107;
+        color: #000;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: bold;
+        font-size: 1rem;
+        transition: all 0.2s;
+        cursor: pointer;
+        width: 100%;
+        white-space: nowrap;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    .btn-compare-between:hover {
         background-color: #e0a800;
         transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
         color: #000;
-        text-decoration: none;
+    }
+    .form-label {
+        color: #0dcaf0;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+        display: block;
     }
 </style>
 
 <div class="force-width-1500 my-5 text-white">
-    <h1 class="display-4 fw-bold mb-5 text-uppercase text-center">Сравнение шасси</h1>
+    <h1 class="display-4 fw-bold mb-1 text-uppercase text-center">Сравнение шасси</h1>
 
-    <form method="get" class="row mb-5 g-4">
+    <!-- ЕДИНСТВЕННАЯ ФОРМА -->
+    <form method="get" class="row align-items-end mb-5" id="compareForm">
+        <!-- Первое шасси -->
         <div class="col-md-5">
-            <select name="chassis1" class="chassis-select">
+            <label class="form-label">Шасси 1</label>
+            <select name="chassis1" class="chassis-select" id="chassis1">
                 <option value="">-- Выберите первое шасси --</option>
                 {% for chassis in all_chassis %}
                     <option value="{{ chassis.slug }}" {% if chassis1 and chassis.id == chassis1.id %}selected{% endif %}>
@@ -94,12 +127,17 @@
             </select>
         </div>
 
-        <div class="col-md-2 d-flex align-items-center justify-content-center">
-            <span class="vs-divider">VS</span>
+        <!-- Кнопка Сравнить между списками -->
+        <div class="col-md-2">
+            <button type="submit" form="compareForm" class="btn-compare-between">
+                <i class="fas fa-balance-scale me-2"></i>Сравнить
+            </button>
         </div>
 
+        <!-- Второе шасси -->
         <div class="col-md-5">
-            <select name="chassis2" class="chassis-select">
+            <label class="form-label">Шасси 2</label>
+            <select name="chassis2" class="chassis-select" id="chassis2">
                 <option value="">-- Выберите второе шасси --</option>
                 {% for chassis in all_chassis %}
                     <option value="{{ chassis.slug }}" {% if chassis2 and chassis.id == chassis2.id %}selected{% endif %}>
@@ -109,14 +147,17 @@
             </select>
         </div>
 
-        <div class="col-12 text-center mt-4">
-            <button type="submit" class="btn-filter" style="border: none; cursor: pointer;">
-                <i class="fas fa-balance-scale me-2"></i>Сравнить
-            </button>
-        </div>
+        <!-- Сохраняем выбранный класс -->
+        {% if selected_class %}
+        <input type="hidden" name="class" value="{{ selected_class }}">
+        {% endif %}
     </form>
 
     {% if chassis1 and chassis2 %}
+    <!-- Вкладки классов -->
+    {% include "includes/class_nav.html" with classes=classes selected_class=selected_class base_url="?chassis1="|add:chassis1.slug|add:"&chassis2="|add:chassis2.slug %}
+
+    <!-- Результаты сравнения -->
     <div class="row">
         <!-- Первое шасси -->
         <div class="col-md-5">
@@ -162,12 +203,12 @@
                         <div class="col-6">
                             <div class="stat-label">Сухо</div>
                             <div class="fw-bold text-white">{{ stats1.dry_wins }}/{{ stats1.dry_total }}</div>
-                            <small class="text-muted">{{ stats1.dry_wins|floatformat:1 }} побед</small>
+                            <small class="text-muted">{{ stats1.dry_wins }} побед</small>
                         </div>
                         <div class="col-6">
                             <div class="stat-label">Дождь</div>
                             <div class="fw-bold text-white">{{ stats1.wet_wins }}/{{ stats1.wet_total }}</div>
-                            <small class="text-muted">{{ stats1.wet_wins|floatformat:1 }} побед</small>
+                            <small class="text-muted">{{ stats1.wet_wins }} побед</small>
                         </div>
                     </div>
                 </div>
@@ -223,12 +264,12 @@
                         <div class="col-6">
                             <div class="stat-label">Сухо</div>
                             <div class="fw-bold text-white">{{ stats2.dry_wins }}/{{ stats2.dry_total }}</div>
-                            <small class="text-muted">{{ stats2.dry_wins|floatformat:1 }} побед</small>
+                            <small class="text-muted">{{ stats2.dry_wins }} побед</small>
                         </div>
                         <div class="col-6">
                             <div class="stat-label">Дождь</div>
                             <div class="fw-bold text-white">{{ stats2.wet_wins }}/{{ stats2.wet_total }}</div>
-                            <small class="text-muted">{{ stats2.wet_wins|floatformat:1 }} побед</small>
+                            <small class="text-muted">{{ stats2.wet_wins }} побед</small>
                         </div>
                     </div>
                 </div>

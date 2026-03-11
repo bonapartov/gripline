@@ -17,6 +17,7 @@
         border-radius: 10px;
         padding: 2rem;
         overflow-x: auto;
+        margin: 0 auto;
     }
 
     .matrix-table {
@@ -44,7 +45,12 @@
     }
 
     .matrix-table tr:hover td {
-        background-color: rgba(13, 202, 240, 0.1);
+        /* Убираем синий фон */
+        background-color: transparent;
+    }
+
+    .heat-cell:hover {
+        box-shadow: inset 0 0 0 2px #ffc107;  /* Жёлтая обводка */
     }
 
     .chassis-name {
@@ -60,18 +66,62 @@
         cursor: help;
     }
 
-    /* Классы для разных процентов побед */
-    .win-rate-0  { background-color: rgba(255, 193, 7, 0.1); }
-    .win-rate-10 { background-color: rgba(255, 193, 7, 0.2); }
-    .win-rate-20 { background-color: rgba(255, 193, 7, 0.3); }
-    .win-rate-30 { background-color: rgba(255, 193, 7, 0.4); }
-    .win-rate-40 { background-color: rgba(255, 193, 7, 0.5); }
-    .win-rate-50 { background-color: rgba(255, 193, 7, 0.6); }
-    .win-rate-60 { background-color: rgba(255, 193, 7, 0.7); }
-    .win-rate-70 { background-color: rgba(255, 193, 7, 0.8); }
-    .win-rate-80 { background-color: rgba(255, 193, 7, 0.9); }
-    .win-rate-90 { background-color: rgba(255, 193, 7, 1.0); }
-    .win-rate-100 { background-color: rgba(255, 193, 7, 1.0); }
+    /* Тепловая карта - градиент от 1% до 100% */
+    .win-rate-no-data,
+    .win-rate-0 {
+        background-color: transparent;  /* Полностью прозрачный фон */
+        color: #6c757d;
+    }
+    .win-rate-1 { background-color: rgba(255, 193, 7, 0.02); }
+    .win-rate-2 { background-color: rgba(255, 193, 7, 0.04); }
+    .win-rate-3 { background-color: rgba(255, 193, 7, 0.06); }
+    .win-rate-4 { background-color: rgba(255, 193, 7, 0.08); }
+    .win-rate-5 { background-color: rgba(255, 193, 7, 0.10); }
+    .win-rate-6 { background-color: rgba(255, 193, 7, 0.12); }
+    .win-rate-7 { background-color: rgba(255, 193, 7, 0.14); }
+    .win-rate-8 { background-color: rgba(255, 193, 7, 0.16); }
+    .win-rate-9 { background-color: rgba(255, 193, 7, 0.18); }
+    .win-rate-10 { background-color: rgba(255, 193, 7, 0.20); }
+    .win-rate-11 { background-color: rgba(255, 193, 7, 0.22); }
+    .win-rate-12 { background-color: rgba(255, 193, 7, 0.24); }
+    .win-rate-13 { background-color: rgba(255, 193, 7, 0.26); }
+    .win-rate-14 { background-color: rgba(255, 193, 7, 0.28); }
+    .win-rate-15 { background-color: rgba(255, 193, 7, 0.30); }
+    .win-rate-16 { background-color: rgba(255, 193, 7, 0.32); }
+    .win-rate-17 { background-color: rgba(255, 193, 7, 0.34); }
+    .win-rate-18 { background-color: rgba(255, 193, 7, 0.36); }
+    .win-rate-19 { background-color: rgba(255, 193, 7, 0.38); }
+    .win-rate-20 { background-color: rgba(255, 193, 7, 0.40); }
+    .win-rate-21 { background-color: rgba(255, 193, 7, 0.42); }
+    .win-rate-22 { background-color: rgba(255, 193, 7, 0.44); }
+    .win-rate-23 { background-color: rgba(255, 193, 7, 0.46); }
+    .win-rate-24 { background-color: rgba(255, 193, 7, 0.48); }
+    .win-rate-25 { background-color: rgba(255, 193, 7, 0.50); }
+    .win-rate-26 { background-color: rgba(255, 193, 7, 0.52); }
+    .win-rate-27 { background-color: rgba(255, 193, 7, 0.54); }
+    .win-rate-28 { background-color: rgba(255, 193, 7, 0.56); }
+    .win-rate-29 { background-color: rgba(255, 193, 7, 0.58); }
+    .win-rate-30 { background-color: rgba(255, 193, 7, 0.60); }
+    .win-rate-31 { background-color: rgba(255, 193, 7, 0.62); }
+    .win-rate-32 { background-color: rgba(255, 193, 7, 0.64); }
+    .win-rate-33 { background-color: rgba(255, 193, 7, 0.66); }
+    .win-rate-34 { background-color: rgba(255, 193, 7, 0.68); }
+    .win-rate-35 { background-color: rgba(255, 193, 7, 0.70); }
+    .win-rate-36 { background-color: rgba(255, 193, 7, 0.72); }
+    .win-rate-37 { background-color: rgba(255, 193, 7, 0.74); }
+    .win-rate-38 { background-color: rgba(255, 193, 7, 0.76); }
+    .win-rate-39 { background-color: rgba(255, 193, 7, 0.78); }
+    .win-rate-40 { background-color: rgba(255, 193, 7, 0.80); }
+    .win-rate-41 { background-color: rgba(255, 193, 7, 0.82); }
+    .win-rate-42 { background-color: rgba(255, 193, 7, 0.84); }
+    .win-rate-43 { background-color: rgba(255, 193, 7, 0.86); }
+    .win-rate-44 { background-color: rgba(255, 193, 7, 0.88); }
+    .win-rate-45 { background-color: rgba(255, 193, 7, 0.90); }
+    .win-rate-46 { background-color: rgba(255, 193, 7, 0.92); }
+    .win-rate-47 { background-color: rgba(255, 193, 7, 0.94); }
+    .win-rate-48 { background-color: rgba(255, 193, 7, 0.96); }
+    .win-rate-49 { background-color: rgba(255, 193, 7, 0.98); }
+    .win-rate-50 { background-color: rgba(255, 193, 7, 1.0); }
 
     .heat-cell:hover {
         box-shadow: inset 0 0 0 2px #ffc107;
@@ -85,25 +135,61 @@
         font-size: 0.9rem;
     }
 
-    .legend {
-        display: flex;
-        align-items: center;
-        gap: 2rem;
+    /* Непрерывная легенда */
+    .legend-continuous {
         margin-top: 2rem;
         padding: 1rem;
         background-color: #2a2a35;
         border-radius: 8px;
     }
 
-    .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
+    .legend-title {
+        color: #ffc107;
+        font-weight: bold;
+        margin-bottom: 1rem;
+        text-align: center;
     }
 
-    .legend-color {
+    .gradient-bar {
+        height: 30px;
+        width: 100%;
+        background: linear-gradient(90deg,
+            rgba(255,193,7,0.1) 0%,
+            rgba(255,193,7,0.2) 10%,
+            rgba(255,193,7,0.3) 20%,
+            rgba(255,193,7,0.4) 30%,
+            rgba(255,193,7,0.5) 40%,
+            rgba(255,193,7,0.6) 50%,
+            rgba(255,193,7,0.7) 60%,
+            rgba(255,193,7,0.8) 70%,
+            rgba(255,193,7,0.9) 80%,
+            rgba(255,193,7,1.0) 90%);
+        border-radius: 4px;
+        margin-bottom: 0.5rem;
+    }
+
+    .legend-labels {
+        display: flex;
+        justify-content: space-between;
+        color: #adb5bd;
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+    }
+
+    .legend-no-data {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.5rem;
+        background-color: #1a1a25;
+        border-radius: 4px;
+        margin-top: 1rem;
+    }
+
+    .no-data-sample {
         width: 30px;
         height: 30px;
+        background-color: rgba(42, 42, 53, 0.5);
         border-radius: 4px;
     }
 
@@ -115,17 +201,39 @@
         font-size: 0.7rem;
         margin-left: 0.25rem;
     }
+
+    .info-footer {
+        margin-top: 2rem;
+        padding: 1rem;
+        background-color: #1a1a25;
+        border-radius: 8px;
+        border-left: 4px solid #0dcaf0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .info-footer .text-muted {
+        color: #adb5bd !important;
+        margin: 0;
+    }
 </style>
 
 <div class="force-width-1500 my-5 text-white">
-    <h1 class="display-4 fw-bold mb-4 text-uppercase">
+    <h1 class="display-4 fw-bold mb-4 text-uppercase text-center">
         <i class="fas fa-th me-3 text-warning"></i>Матрица "Шасси × Трасса"
     </h1>
 
-    <p class="text-muted mb-4">
-        Тепловая карта эффективности шасси на разных трассах.
-        Чем насыщеннее цвет — тем выше процент побед.
-    </p>
+    <!-- Навигация по классам -->
+    {% include "includes/class_nav.html" with classes=classes selected_class=selected_class base_url="?" %}
+
+    <!-- Подсказка о кликабельности -->
+    <div class="alert alert-info bg-opacity-10 border-info mb-4" style="background-color: #1a3a4a; color: #9ec5fe;">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Кликните на любую ячейку</strong> — откроется подробная статистика по шасси на этой трассе: топ-пилоты и последние гонки.
+    </div>
 
     <div class="matrix-container">
         <table class="matrix-table">
@@ -148,18 +256,41 @@
 
                     {% for track in tracks_list %}
                         {% with cell=matrix_data|get_item:chassis.id|get_item:track.id %}
-                            {% with win_rate=cell.win_rate|default:0 %}
-                                <td class="heat-cell win-rate-{{ win_rate|floatformat:0 }}"
-                                    title="
-                                        Трасса: {{ track.name }}
-                                        Шасси: {{ chassis.name }}
-                                        Старты: {{ cell.total|default:0 }}
-                                        Победы: {{ cell.wins|default:0 }}
-                                        Подиумы: {{ cell.podiums|default:0 }}
-                                        Win Rate: {{ win_rate }}%">
-                                    {{ win_rate|floatformat:0 }}%
-                                    <span class="stats-badge">{{ cell.total|default:0 }}</span>
-                                </td>
+                            {% with win_rate=cell.win_rate|default:0 total=cell.total|default:0 %}
+                                {% if total < 5 %}
+                                    <td class="heat-cell win-rate-no-data"
+                                        data-track-id="{{ track.id }}"
+                                        title="Трасса: {{ track.name }}
+                                              Шасси: {{ chassis.name }}
+                                              Старты: {{ total }}
+                                              Недостаточно данных для расчёта (менее 5 стартов)">
+                                        —
+                                        <span class="stats-badge">{{ total }}</span>
+                                    </td>
+                                                                    {% elif win_rate == 0 %}
+                                    <td class="heat-cell win-rate-0"
+                                        data-track-id="{{ track.id }}"
+                                        title="Трасса: {{ track.name }}
+                                              Шасси: {{ chassis.name }}
+                                              Старты: {{ total }}
+                                              Победы: 0
+                                              Win Rate: 0%">
+                                        0%
+                                        <span class="stats-badge">{{ total }}</span>
+                                    </td>
+                                {% else %}
+                                    <td class="heat-cell win-rate-{{ win_rate|floatformat:0 }}"
+                                        data-track-id="{{ track.id }}"
+                                        title="Трасса: {{ track.name }}
+                                              Шасси: {{ chassis.name }}
+                                              Старты: {{ total }}
+                                              Победы: {{ cell.wins|default:0 }}
+                                              Подиумы: {{ cell.podiums|default:0 }}
+                                              Win Rate: {{ win_rate|floatformat:1 }}%">
+                                        {{ win_rate|floatformat:0 }}%
+                                        <span class="stats-badge">{{ total }}</span>
+                                    </td>
+                                {% endif %}
                             {% endwith %}
                         {% endwith %}
                     {% endfor %}
@@ -169,74 +300,298 @@
         </table>
     </div>
 
-    <!-- Легенда -->
-    <div class="legend">
-        <div class="legend-item">
-            <div class="legend-color win-rate-0" style="width:30px; height:30px;"></div>
-            <span>0-10% побед</span>
+    <!-- Непрерывная легенда -->
+    <div class="legend-continuous">
+        <div class="legend-title">Шкала процента побед</div>
+        <div class="gradient-bar"></div>
+        <div class="legend-labels">
+            <span>0%</span>
+            <span>10%</span>
+            <span>20%</span>
+            <span>30%</span>
+            <span>40%</span>
+            <span>50%</span>
+            <span>60%</span>
+            <span>70%</span>
+            <span>80%</span>
+            <span>90%</span>
+            <span>100%</span>
         </div>
-        <div class="legend-item">
-            <div class="legend-color win-rate-30" style="width:30px; height:30px;"></div>
-            <span>20-40% побед</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color win-rate-60" style="width:30px; height:30px;"></div>
-            <span>50-70% побед</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color win-rate-90" style="width:30px; height:30px;"></div>
-            <span>80-100% побед</span>
-        </div>
-        <div class="legend-item">
-            <span class="stats-badge">12</span>
-            <span>количество стартов</span>
+
+        <div class="legend-no-data">
+            <div class="no-data-sample"></div>
+            <div>
+                <span class="text-white">Серые ячейки</span> — менее 5 стартов (недостаточно данных)
+            </div>
+            <div style="margin-left: auto;">
+                <span class="stats-badge">12</span> — количество стартов
+            </div>
         </div>
     </div>
 
-    <!-- Ссылка на методологию -->
-    <div class="mt-4 text-end">
-        <small class="text-muted">
-            <i class="fas fa-info-circle me-1"></i>
+    <!-- Футер с информацией -->
+    <div class="info-footer">
+        <div class="text-muted">
+            <i class="fas fa-info-circle text-info me-1"></i>
+            Тепловая карта эффективности шасси на разных трассах. Чем насыщеннее цвет — тем выше процент побед.
+        </div>
+        <div class="text-muted">
+            <i class="fas fa-database me-1"></i>
             На основе данных из <a href="/top/drivers/" class="text-info">рейтингов пилотов</a>
-        </small>
+        </div>
     </div>
-    <!-- Пояснение методологии -->
-  <div class="mt-5" style="background-color: #1a1a25; border-radius: 8px; padding: 1.5rem;">
-      <h5 class="text-info border-bottom border-secondary pb-2 mb-3">📊 Как считается матрица?</h5>
 
-      <div class="row">
-          <div class="col-md-8">
-              <p class="text-muted">
-                  Каждая ячейка показывает <strong class="text-white">процент побед</strong> конкретного шасси
-                  на конкретной трассе. Цвет зависит от успешности:
-              </p>
-              <ul class="text-muted">
-                  <li>🔸 <span class="text-white">Бледно-жёлтый</span> — 0-20% побед</li>
-                  <li>🔸 <span class="text-white">Насыщенно-жёлтый</span> — 80-100% побед</li>
-              </ul>
-              <p class="text-muted mt-2">
-                  В правом верхнем углу ячейки — <span class="stats-badge">число</span> — количество гонок,
-                  на которых основан расчёт. Чем больше гонок, тем достовернее статистика.
-              </p>
-          </div>
-          <div class="col-md-4">
-              <div style="background-color: #2a2a35; border-radius: 8px; padding: 1rem;">
-                  <p class="text-white mb-1"><i class="fas fa-calculator text-warning me-2"></i>Формула:</p>
-                  <p class="text-muted small">
-                      Win Rate = (Победы / Всего гонок) × 100%
-                  </p>
-                  <p class="text-muted small mb-0">
-                      * Учитываются только гонки, где пилот финишировал
-                  </p>
-              </div>
-          </div>
-      </div>
-  </div>
+    <!-- Пояснение методологии -->
+    <div class="mt-5" style="background-color: #1a1a25; border-radius: 8px; padding: 1.5rem;">
+        <h5 class="text-info border-bottom border-secondary pb-2 mb-3">📊 Как работает матрица?</h5>
+
+        <div class="row">
+            <div class="col-md-8">
+                <p class="text-muted">
+                    <strong class="text-white">Кликните на любую ячейку</strong> — откроется подробная статистика по этому шасси на этой трассе:
+                </p>
+                <ul class="text-muted">
+                    <li>🔸 <span class="text-white">🏆 Топ-5 пилотов</span> — кто чаще всего побеждал на этом сочетании</li>
+                    <li>🔸 <span class="text-white">📅 Последние гонки</span> — детальные результаты с датами и очками</li>
+                    <li>🔸 <span class="text-white">📊 Общая статистика</span> — количество стартов, побед и процент побед</li>
+                </ul>
+                <p class="text-muted mt-3">
+                    <strong class="text-white">Цвет ячейки</strong> показывает процент побед:
+                </p>
+                <ul class="text-muted">
+                    <li>🔸 <span class="text-white">Серые ячейки</span> — менее 5 стартов (недостаточно данных для статистики)</li>
+                    <li>🔸 <span class="text-white">От бледно-жёлтого до насыщенного</span> — от 1% до 100% побед</li>
+                </ul>
+                <p class="text-muted mt-2">
+                    В правом верхнем углу ячейки — <span class="stats-badge">число</span> — количество гонок,
+                    на которых основан расчёт. Чем больше гонок, тем достовернее статистика.
+                </p>
+            </div>
+            <div class="col-md-4">
+                <div style="background-color: #2a2a35; border-radius: 8px; padding: 1rem;">
+                    <p class="text-white mb-2"><i class="fas fa-calculator text-warning me-2"></i>Формула:</p>
+                    <p class="text-muted small mb-2">
+                        Win Rate = (Победы / Всего гонок) × 100%
+                    </p>
+                    <p class="text-white mb-2 mt-3"><i class="fas fa-mouse-pointer text-warning me-2"></i>Интерактивность:</p>
+                    <p class="text-muted small mb-0">
+                        Клик по ячейке → детальная информация с топ-пилотами и историей гонок
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Можно добавить интерактивность позже
+    // Обработчик клика по ячейке
+    document.querySelectorAll('.heat-cell').forEach(cell => {
+        cell.addEventListener('click', function(e) {
+            e.preventDefault();
+
+            // Получаем ID шасси из ссылки в первом столбце этой строки
+            const chassisLink = this.closest('tr').querySelector('.chassis-name a');
+            if (!chassisLink) {
+                console.error('Не найдена ссылка на шасси');
+                return;
+            }
+            const chassisHref = chassisLink.getAttribute('href');
+            const chassisId = chassisHref.split('/').filter(Boolean).pop();
+
+            // Получаем ID трассы из data-атрибута
+            let trackId = this.dataset.trackId;
+
+            // Если data-track-id нет, пытаемся получить по индексу колонки
+            if (!trackId) {
+                const trackIds = [
+                    {% for track in tracks_list %}{{ track.id }}{% if not forloop.last %},{% endif %}{% endfor %}
+                ];
+                // Индекс колонки минус 1 (первая колонка - название шасси)
+                const colIndex = this.cellIndex - 1;
+                if (colIndex >= 0 && colIndex < trackIds.length) {
+                    trackId = trackIds[colIndex];
+                }
+            }
+
+            if (!trackId) {
+                console.error('Не удалось определить ID трассы');
+                return;
+            }
+
+            const classId = new URLSearchParams(window.location.search).get('class') || '';
+
+            console.log('Клик по ячейке:', {chassisId, trackId, classId});
+
+            // Показываем модалку
+            const modal = new bootstrap.Modal(document.getElementById('cellDetailModal'));
+            modal.show();
+
+            // Сбрасываем содержимое на загрузку
+            document.getElementById('cellModalContent').innerHTML = `
+                <div class="text-center py-5">
+                    <div class="spinner-border text-warning" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                </div>
+            `;
+
+            // Формируем URL с параметрами - ИСПРАВЛЕННЫЙ URL
+            let url = `/api/v2/api/matrix-cell/?chassis=${chassisId}&track=${trackId}`;
+            if (classId) {
+                url += `&class=${classId}`;
+            }
+
+            console.log('Fetching URL:', url);
+
+            // Загружаем данные
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => {
+                            throw new Error(err.error || 'Ошибка сервера');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Received data:', data);
+
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+
+                    // Формируем HTML для топ-пилотов
+                    let topDriversHtml = '';
+                    if (data.top_drivers && data.top_drivers.length > 0) {
+                        topDriversHtml = data.top_drivers.map(d => `
+                            <tr>
+                                <td>${d.name}</td>
+                                <td class="text-center">${d.starts}</td>
+                                <td class="text-center">${d.wins}</td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        topDriversHtml = '<tr><td colspan="3" class="text-center text-muted">Нет данных</td></tr>';
+                    }
+
+                    // Формируем HTML для последних гонок
+                    let recentRacesHtml = '';
+                    if (data.recent_races && data.recent_races.length > 0) {
+                        recentRacesHtml = data.recent_races.map(r => `
+                            <tr>
+                                <td>${r.date || '—'}</td>
+                                <td>${r.event || '—'}</td>
+                                <td>${r.driver || '—'}</td>
+                                <td class="text-center">${r.position || '—'}</td>
+                                <td class="text-end">${r.points || '—'}</td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        recentRacesHtml = '<tr><td colspan="5" class="text-center text-muted">Нет данных</td></tr>';
+                    }
+
+                    document.getElementById('cellModalContent').innerHTML = `
+                        <div class="mb-4">
+                            <h6 class="text-info">Шасси: <span class="text-white">${data.chassis || '—'}</span></h6>
+                            <h6 class="text-info">Трасса: <span class="text-white">${data.track || '—'}</span></h6>
+                            <h6 class="text-info">Класс: <span class="text-white">${data.class || 'Все классы'}</span></h6>
+                        </div>
+
+                        <div class="row text-center mb-4">
+                            <div class="col-4">
+                                <div class="bg-black bg-opacity-25 rounded-3 p-2">
+                                    <div class="fs-2 fw-bold text-warning">${data.total || 0}</div>
+                                    <div class="text-info small">Старты</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="bg-black bg-opacity-25 rounded-3 p-2">
+                                    <div class="fs-2 fw-bold text-warning">${data.wins || 0}</div>
+                                    <div class="text-info small">Победы</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="bg-black bg-opacity-25 rounded-3 p-2">
+                                    <div class="fs-2 fw-bold text-warning">${data.win_rate || 0}%</div>
+                                    <div class="text-info small">Win Rate</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h6 class="text-info mt-3 mb-2">🏆 Топ-5 пилотов</h6>
+                        <div class="table-responsive">
+                            <table class="table table-dark table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Пилот</th>
+                                        <th class="text-center">Старты</th>
+                                        <th class="text-center">Победы</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${topDriversHtml}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <h6 class="text-info mt-4 mb-2">📅 Последние гонки</h6>
+                        <div class="table-responsive">
+                            <table class="table table-dark table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Дата</th>
+                                        <th>Этап</th>
+                                        <th>Пилот</th>
+                                        <th class="text-center">Место</th>
+                                        <th class="text-end">Очки</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${recentRacesHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    console.error('Ошибка:', error);
+                    document.getElementById('cellModalContent').innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            ${error.message || 'Ошибка загрузки данных'}
+                        </div>
+                    `;
+                });
+        });
+    });
 });
 </script>
+
+<!-- Модальное окно для деталей ячейки -->
+<div class="modal fade" id="cellDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-warning" id="cellModalTitle">
+                    <i class="fas fa-th me-2"></i>Детали ячейки
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="cellModalContent">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-warning" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
