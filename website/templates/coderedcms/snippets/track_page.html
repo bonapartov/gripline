@@ -104,6 +104,18 @@
         text-align: center;
         color: #6c757d;
     }
+    /* Бейджи классов */
+    .class-badge {
+        background-color: #2a2a35;
+        color: #fff;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        margin-right: 0.25rem;
+        margin-bottom: 0.25rem;
+        display: inline-block;
+        transition: all 0.2s;
+    }
 </style>
 
 <div class="force-width-1500 my-5 text-white">
@@ -168,36 +180,36 @@
                     <div class="event-content">
                         <div class="event-date">
                             <i class="fas fa-calendar-check me-2"></i>
-                            {% with occ=event.occurrences.all.first %}
-                                {% if occ %}
-                                    {{ occ.start|date:"d.m.Y" }}
-                                    {% if occ.end and occ.end != occ.start %}
-                                        — {{ occ.end|date:"d.m.Y" }}
-                                    {% endif %}
-                                {% endif %}
-                            {% endwith %}
+                            {{ event.start|date:"d.m.Y" }}
+                            {% if event.end and event.end != event.start %}
+                                — {{ event.end|date:"d.m.Y" }}
+                            {% endif %}
                         </div>
 
                         <div class="event-title">{{ event.title }}</div>
 
-                        {% with championship=event.get_parent.specific %}
-                            {% if championship %}
-                                <div class="event-championship">
-                                    <i class="fas fa-trophy me-2"></i>
-                                    <a href="{{ championship.url }}">{{ championship.title }}</a>
-                                </div>
-                            {% endif %}
-                        {% endwith %}
+                        {% if event.championship %}
+                            <div class="event-championship">
+                                <i class="fas fa-trophy me-2"></i>
+                                <a href="{{ event.championship.url }}">{{ event.championship.title }}</a>
+                            </div>
+                        {% endif %}
+
+                        {% if event.classes %}
+                            <div class="mt-2">
+                                {% for class_name in event.classes %}
+                                    <span class="class-badge">{{ class_name }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
 
                     <!-- Правая часть с кнопкой -->
-                    {% with championship=event.get_parent.specific %}
-                        {% if championship %}
-                            <div class="event-actions">
-                                <a href="{{ championship.url }}" class="btn btn-sm-custom btn-outline-info">Результаты</a>
-                            </div>
-                        {% endif %}
-                    {% endwith %}
+                    {% if event.championship %}
+                        <div class="event-actions">
+                            <a href="{{ event.championship.url }}" class="btn btn-sm-custom btn-outline-info">Результаты</a>
+                        </div>
+                    {% endif %}
                 </div>
             {% endfor %}
         </div>
@@ -223,36 +235,36 @@
                     <div class="event-content">
                         <div class="event-date">
                             <i class="fas fa-calendar-day me-2"></i>
-                            {% with occ=event.occurrences.all.first %}
-                                {% if occ %}
-                                    {{ occ.start|date:"d.m.Y" }}
-                                    {% if occ.end and occ.end != occ.start %}
-                                        — {{ occ.end|date:"d.m.Y" }}
-                                    {% endif %}
-                                {% endif %}
-                            {% endwith %}
+                            {{ event.start|date:"d.m.Y" }}
+                            {% if event.end and event.end != event.start %}
+                                — {{ event.end|date:"d.m.Y" }}
+                            {% endif %}
                         </div>
 
                         <div class="event-title">{{ event.title }}</div>
 
-                        {% with championship=event.get_parent.specific %}
-                            {% if championship %}
-                                <div class="event-championship">
-                                    <i class="fas fa-trophy me-2"></i>
-                                    <a href="{{ championship.url }}">{{ championship.title }}</a>
-                                </div>
-                            {% endif %}
-                        {% endwith %}
+                        {% if event.championship %}
+                            <div class="event-championship">
+                                <i class="fas fa-trophy me-2"></i>
+                                <a href="{{ event.championship.url }}">{{ event.championship.title }}</a>
+                            </div>
+                        {% endif %}
+
+                        {% if event.classes %}
+                            <div class="mt-2">
+                                {% for class_name in event.classes %}
+                                    <span class="class-badge">{{ class_name }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
 
                     <!-- Правая часть с кнопкой -->
-                    {% with championship=event.get_parent.specific %}
-                        {% if championship %}
-                            <div class="event-actions">
-                                <a href="{{ championship.url }}" class="btn btn-sm-custom btn-outline-warning">Подробнее</a>
-                            </div>
-                        {% endif %}
-                    {% endwith %}
+                    {% if event.championship %}
+                        <div class="event-actions">
+                            <a href="{{ event.championship.url }}" class="btn btn-sm-custom btn-outline-warning">Подробнее</a>
+                        </div>
+                    {% endif %}
                 </div>
             {% endfor %}
         </div>

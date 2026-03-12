@@ -250,63 +250,56 @@ def track_detail_view(request, slug):
     current_site = Site.find_for_request(request)
 
     from .models import EventPage, EventOccurrence
-    from django.db.models import OuterRef, Subquery
-    from django.utils import timezone
-    import sys  # для вывода в консоль
 
-    # Получаем все события на этой трассе с аннотацией даты
-    all_events = EventPage.objects.live().filter(track=track).distinct().annotate(
-        event_date=Subquery(
-            EventOccurrence.objects.filter(
-                event_id=OuterRef('id')
-            ).order_by('-start').values('start')[:1]
-        )
-    )
-
-    # ОТЛАДКА
-    print(f"\n=== ТРАССА: {track.name} ===", file=sys.stderr)
-    print(f"Всего событий на трассе: {all_events.count()}", file=sys.stderr)
-
-    # Текущая дата и время
     now = timezone.now()
-    print(f"Текущее время: {now}", file=sys.stderr)
 
-    # Разделяем на прошедшие и предстоящие
-    past_events = []
-    upcoming_events = []
+    # Получаем все события на этой трассе
+    all_events = EventPage.objects.live().filter(track=track).distinct()
+
+    # Группируем по мероприятию: ключ = (title, дата начала)
+    # Одно мероприятие может иметь несколько EventPage (по одному на каждый класс)
+    grouped = {}
 
     for event in all_events:
         occurrence = event.occurrences.first()
 
-        # Определяем дату события
-        if occurrence and occurrence.end:
-            event_datetime = occurrence.end
-            date_source = "end"
-        elif occurrence and occurrence.start:
-            event_datetime = occurrence.start
-            date_source = "start"
+        if occurrence and occurrence.start:
+            start_dt = occurrence.start
+            end_dt = occurrence.end
         else:
-            event_datetime = event.first_published_at
-            date_source = "first_published_at"
+            start_dt = event.first_published_at
+            end_dt = event.first_published_at
 
-        # Сравниваем с текущим моментом
-        is_past = event_datetime < now
+        # Ключ группировки: название + дата начала (без времени)
+        group_key = f"{event.title}_{start_dt.date()}"
 
-        print(f"  Событие: {event.title}", file=sys.stderr)
-        print(f"    Дата ({date_source}): {event_datetime}", file=sys.stderr)
-        print(f"    Прошедшее: {is_past}", file=sys.stderr)
+        if group_key not in grouped:
+            championship = event.get_parent().specific
+            grouped[group_key] = {
+                'title': event.title,
+                'url': event.url,
+                'start': start_dt,
+                'end': end_dt,
+                'championship': championship,
+                'classes': [],
+                'is_past': end_dt < now if end_dt else start_dt < now,
+            }
 
-        if is_past:
-            past_events.append(event)
-        else:
-            upcoming_events.append(event)
+        # Добавляем классы из групп результатов этого EventPage
+        for group in event.race_class_groups.all():
+            class_name = group.race_class.name
+            if class_name not in grouped[group_key]['classes']:
+                grouped[group_key]['classes'].append(class_name)
 
-    print(f"Прошедших: {len(past_events)}", file=sys.stderr)
-    print(f"Предстоящих: {len(upcoming_events)}", file=sys.stderr)
-
-    # Сортируем
-    past_events.sort(key=lambda x: x.event_date or x.first_published_at, reverse=True)
-    upcoming_events.sort(key=lambda x: x.event_date or x.first_published_at)
+    past_events = sorted(
+        [v for v in grouped.values() if v['is_past']],
+        key=lambda x: x['start'],
+        reverse=True
+    )
+    upcoming_events = sorted(
+        [v for v in grouped.values() if not v['is_past']],
+        key=lambda x: x['start']
+    )
 
     return render(request, "coderedcms/snippets/track_page.html", {
         "track": track,

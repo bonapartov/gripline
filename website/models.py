@@ -1599,3 +1599,149 @@ class EventCalendarPage(CoderedWebPage):
         context['months'] = months
 
         return context
+
+
+class HomePage(CoderedWebPage):
+    """
+    Главная страница Gripline с 4 блоками:
+    - Hero: ближайшее событие + счётчик
+    - Новости: 4 последние статьи
+    - Топ пилотов: 5 строк рейтинга
+    - Календарь: ближайшие 5 событий
+    """
+    class Meta:
+        verbose_name = "Главная страница"
+
+    parent_page_types = ["wagtailcore.Page"]
+    subpage_types = []
+    template = "coderedcms/pages/home_page.html"
+
+    def get_context(self, request):
+        context = super().get_context(request)
+        from django.utils import timezone
+
+        now = timezone.now()
+
+       # --- БЛОК 1: Ближайшее событие (объединяем все классы одного этапа) ---
+        now = timezone.now()
+
+        # Находим все ближайшие события
+        upcoming_events = EventPage.objects.live().filter(
+            occurrences__start__gte=now
+        ).order_by('occurrences__start').distinct().select_related('track')
+
+        # Группируем по названию и дате
+        grouped_events = {}
+        for event in upcoming_events:
+            occ = event.occurrences.filter(start__gte=now).order_by('start').first()
+            if not occ:
+                continue
+
+            # Создаём ключ: название + дата начала (без времени)
+            event_key = f"{event.title}_{occ.start.date()}"
+
+            if event_key not in grouped_events:
+                grouped_events[event_key] = {
+                    'event': event,  # Добавляем self.event для шаблона
+                    'title': event.title,
+                    'start': occ.start,
+                    'end': occ.end,
+                    'track': event.track,
+                    'championship': event.get_parent().specific,
+                    'classes': [],
+                    'url': event.url,
+                }
+
+            # Добавляем класс из этой страницы
+            for group in event.race_class_groups.all():
+                if group.race_class and group.race_class.name not in grouped_events[event_key]['classes']:
+                    grouped_events[event_key]['classes'].append(group.race_class.name)
+
+        # Берём первое (самое ближайшее) сгруппированное событие
+        next_event = None
+        if grouped_events:
+            first_key = sorted(grouped_events.keys())[0]
+            next_event = grouped_events[first_key]
+
+        context['next_event'] = next_event
+
+        # --- БЛОК 2: Последние новости ---
+        context['latest_articles'] = ArticlePage.objects.live().order_by(
+            '-first_published_at'
+        )[:4]
+
+        # --- БЛОК 3: Топ пилотов ---
+        class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
+                       'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 Masters']
+        all_classes = list(RaceClass.objects.all())
+        classes = sorted(all_classes,
+                         key=lambda x: class_order.index(x.name) if x.name in class_order else 999)
+
+        selected_class_id = request.GET.get('class')
+        if selected_class_id and selected_class_id.isdigit():
+            selected_class_id = int(selected_class_id)
+        else:
+            selected_class_id = classes[0].id if classes else None
+
+        top_drivers = []
+        if selected_class_id:
+            drivers = Driver.objects.exclude(ensemble_by_class={})
+            for driver in drivers:
+                ensemble_data = driver.ensemble_by_class.get(str(selected_class_id), {})
+                if not ensemble_data:
+                    continue
+                results = RaceResult.objects.filter(
+                    driver=driver, group__race_class_id=selected_class_id
+                )
+                race_count = results.count()
+                win_count = results.filter(position=1).count()
+                driver.rating_score = ensemble_data.get('score', 0)
+                driver.race_count = race_count
+                driver.win_count = win_count
+                driver.win_percentage = round(win_count / race_count * 100, 1) if race_count > 0 else 0
+                top_drivers.append(driver)
+
+            top_drivers.sort(key=lambda x: x.rating_score, reverse=True)
+            top_drivers = top_drivers[:5]
+
+            if top_drivers:
+                max_r = top_drivers[0].rating_score
+                min_r = top_drivers[-1].rating_score
+                rng = max_r - min_r if max_r > min_r else 1
+                for i, d in enumerate(top_drivers, 1):
+                    d.rank = i
+                    d.normalized_rating = round((d.rating_score - min_r) / rng * 100, 1)
+
+        context['top_drivers'] = top_drivers
+        context['classes'] = classes
+        context['selected_class_id'] = selected_class_id
+
+        # --- БЛОК 4: Ближайшие события (календарь) ---
+        upcoming_events_raw = EventPage.objects.live().filter(
+            occurrences__end__gte=now
+        ).distinct()
+
+        grouped = {}
+        for event in upcoming_events_raw:
+            occ = event.occurrences.filter(end__gte=now).order_by('start').first()
+            if not occ:
+                continue
+            key = f"{event.title}_{occ.start.date()}"
+            if key not in grouped:
+                grouped[key] = {
+                    'title': event.title,
+                    'url': event.url,
+                    'start': occ.start,
+                    'end': occ.end,
+                    'track': event.track,
+                    'championship': event.get_parent().specific,
+                    'classes': [],
+                }
+            for g in event.race_class_groups.all():
+                if g.race_class.name not in grouped[key]['classes']:
+                    grouped[key]['classes'].append(g.race_class.name)
+
+        calendar_events = sorted(grouped.values(), key=lambda x: x['start'])[:5]
+        context['calendar_events'] = calendar_events
+
+        return context

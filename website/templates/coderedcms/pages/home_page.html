@@ -1,0 +1,563 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailimages_tags wagtailcore_tags %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    /* ===== HERO ===== */
+    .hero-section {
+        background: linear-gradient(135deg, #0d0d15 0%, #1a1a25 50%, #0d0d15 100%);
+        border: 1px solid #2a2a35;
+        border-radius: 12px;
+        padding: 3rem 2rem;
+        margin-bottom: 3rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #ffc107, #0dcaf0, #ffc107);
+    }
+    .hero-label {
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 3px;
+        color: #ffc107;
+        margin-bottom: 0.75rem;
+    }
+    .hero-title {
+        font-size: clamp(1.5rem, 3vw, 2.5rem);
+        font-weight: 900;
+        text-transform: uppercase;
+        color: #fff;
+        line-height: 1.1;
+        margin-bottom: 0.5rem;
+    }
+    .hero-championship {
+        color: #ffc107;
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .hero-championship a {
+        color: #ffc107;
+        text-decoration: none;
+    }
+    .hero-championship a:hover { text-decoration: underline; }
+
+    /* Счётчик */
+    .countdown-wrapper {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    .countdown-unit {
+        background-color: #0d0d15;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        text-align: center;
+        min-width: 80px;
+    }
+    .countdown-value {
+        font-size: 2.5rem;
+        font-weight: 900;
+        color: #ffc107;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+    }
+    .countdown-label {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+    .countdown-started {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #28a745;
+        padding: 1rem 0;
+    }
+
+    /* Класс-бейджи в hero */
+    .hero-class-badge {
+        background-color: #2a2a35;
+        color: #fff;
+        padding: 0.25rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        margin-right: 0.25rem;
+        margin-bottom: 0.25rem;
+        display: inline-block;
+    }
+
+    /* ===== СЕКЦИИ ===== */
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #2a2a35;
+        padding-bottom: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #fff;
+        margin: 0;
+    }
+    .section-link {
+        font-size: 0.8rem;
+        color: #0dcaf0;
+        text-decoration: none;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+    }
+    .section-link:hover { color: #ffc107; }
+
+    /* ===== НОВОСТИ ===== */
+    .news-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        margin-bottom: 3rem;
+    }
+    @media (max-width: 1200px) { .news-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .news-grid { grid-template-columns: 1fr; } }
+
+    .news-card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: block;
+    }
+    .news-card:hover {
+        border-color: #ffc107;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+    .news-card-img {
+        width: 100%;
+        height: 160px;
+        object-fit: cover;
+    }
+    .news-card-img-placeholder {
+        width: 100%;
+        height: 160px;
+        background-color: #2a2a35;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .news-card-body {
+        padding: 1rem;
+    }
+    .news-card-date {
+        font-size: 0.75rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        margin-bottom: 0.4rem;
+    }
+    .news-card-title {
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.95rem;
+        line-height: 1.3;
+        margin: 0;
+    }
+
+    /* ===== НИЖНИЕ БЛОКИ (топ + календарь) ===== */
+    .bottom-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+    @media (max-width: 900px) { .bottom-grid { grid-template-columns: 1fr; } }
+
+    /* Топ пилотов */
+    .class-nav-home {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-bottom: 1rem;
+    }
+    .class-nav-home a {
+        font-size: 0.75rem;
+        padding: 0.3rem 0.7rem;
+        border-radius: 4px;
+        border: 1px solid #3a3a45;
+        color: #adb5bd;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    .class-nav-home a:hover,
+    .class-nav-home a.active {
+        border-color: #ffc107;
+        color: #fff;
+    }
+
+    .driver-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.6rem 0;
+        border-bottom: 1px solid #2a2a35;
+    }
+    .driver-row:last-child { border-bottom: none; }
+    .driver-rank {
+        font-size: 1rem;
+        font-weight: 900;
+        color: #6c757d;
+        width: 24px;
+        text-align: center;
+        flex-shrink: 0;
+    }
+    .driver-rank.gold { color: #ffc107; }
+    .driver-rank.silver { color: #e0e0e0; }
+    .driver-rank.bronze { color: #cd7f32; }
+    .driver-photo-small {
+        width: 40px;
+        height: 40px;
+        border-radius: 6px;
+        object-fit: cover;
+        flex-shrink: 0;
+        border: 1px solid #2a2a35;
+    }
+    .driver-photo-placeholder-small {
+        width: 40px;
+        height: 40px;
+        border-radius: 6px;
+        background-color: #2a2a35;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .driver-info { flex: 1; min-width: 0; }
+    .driver-name {
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.9rem;
+        text-decoration: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+    }
+    .driver-name:hover { color: #ffc107; }
+    .driver-meta {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+    .driver-rating {
+        background-color: #28a745;
+        color: #fff;
+        padding: 0.2rem 0.5rem;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+    }
+
+    /* Календарь */
+    .cal-event {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #2a2a35;
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    .cal-event:last-child { border-bottom: none; }
+    .cal-date-block {
+        background-color: #0d0d15;
+        border: 1px solid #2a2a35;
+        border-radius: 6px;
+        padding: 0.4rem 0.7rem;
+        text-align: center;
+        flex-shrink: 0;
+        min-width: 52px;
+    }
+    .cal-date-day {
+        font-size: 1.4rem;
+        font-weight: 900;
+        color: #ffc107;
+        line-height: 1;
+    }
+    .cal-date-month {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        color: #6c757d;
+    }
+    .cal-info { flex: 1; min-width: 0; }
+    .cal-title {
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.9rem;
+        text-decoration: none;
+        display: block;
+        margin-bottom: 0.2rem;
+    }
+    .cal-title:hover { color: #ffc107; }
+    .cal-track {
+        font-size: 0.78rem;
+        color: #0dcaf0;
+        margin-bottom: 0.3rem;
+    }
+    .cal-class-badge {
+        background-color: #2a2a35;
+        color: #adb5bd;
+        padding: 0.15rem 0.4rem;
+        border-radius: 3px;
+        font-size: 0.7rem;
+        margin-right: 0.2rem;
+        display: inline-block;
+        margin-bottom: 0.2rem;
+    }
+</style>
+
+<div class="force-width-1500 my-4 text-white">
+
+    <!-- ===== БЛОК 1: HERO ===== -->
+    {% if next_event %}
+    <div class="hero-section">
+        <div class="row align-items-center">
+            <div class="col-lg-7 mb-4 mb-lg-0">
+                <div class="hero-label">
+                    <i class="fas fa-flag-checkered me-2"></i>Ближайшее мероприятие
+                </div>
+                <h2 class="hero-title">{{ next_event.event.title }}</h2>
+
+                {% if next_event.championship %}
+                <div class="hero-championship">
+                    <i class="fas fa-trophy me-2"></i>
+                    <a href="{{ next_event.championship.url }}">{{ next_event.championship.title }}</a>
+                </div>
+                {% endif %}
+
+                {% if next_event.track %}
+                <div class="mb-3">
+                    <i class="fas fa-map-marker-alt me-2 text-info"></i>
+                    <a href="{{ next_event.track.get_absolute_url }}" class="text-info text-decoration-none">
+                        {{ next_event.track.name }}
+                        {% if next_event.track.city %} · {{ next_event.track.city }}{% endif %}
+                    </a>
+                </div>
+                {% endif %}
+
+                {% if next_event.start %}
+                <div class="mb-3 text-secondary">
+                    <i class="fas fa-calendar me-2"></i>
+                    {{ next_event.start|date:"d.m.Y" }}
+                    {% if next_event.end and next_event.end.date != next_event.start.date %}
+                        — {{ next_event.end|date:"d.m.Y" }}
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if next_event.classes %}
+                <div>
+                    {% for class_name in next_event.classes %}
+                        <span class="hero-class-badge">{{ class_name }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="col-lg-5 text-center">
+                <div class="mb-2 text-secondary small text-uppercase" style="letter-spacing: 2px;">До старта</div>
+                <div class="countdown-wrapper justify-content-center" id="countdown"
+                     data-target="{{ next_event.start|date:'c' }}">
+                    <div class="countdown-unit">
+                        <div class="countdown-value" id="cd-days">--</div>
+                        <div class="countdown-label">дней</div>
+                    </div>
+                    <div class="countdown-unit">
+                        <div class="countdown-value" id="cd-hours">--</div>
+                        <div class="countdown-label">часов</div>
+                    </div>
+                    <div class="countdown-unit">
+                        <div class="countdown-value" id="cd-minutes">--</div>
+                        <div class="countdown-label">минут</div>
+                    </div>
+                    <div class="countdown-unit">
+                        <div class="countdown-value" id="cd-seconds">--</div>
+                        <div class="countdown-label">секунд</div>
+                    </div>
+                </div>
+                {% if next_event.championship %}
+                <div class="mt-3">
+                    <a href="{{ next_event.championship.url }}" class="btn btn-warning fw-bold text-dark px-4">
+                        Подробнее
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ===== БЛОК 2: НОВОСТИ ===== -->
+    {% if latest_articles %}
+    <div class="mb-4">
+        <div class="section-header">
+            <h2 class="section-title"><i class="fas fa-newspaper me-2 text-warning"></i>Новости</h2>
+            <a href="/news/" class="section-link">Все новости →</a>
+        </div>
+        <div class="news-grid">
+            {% for article in latest_articles %}
+            <a href="{{ article.url }}" class="news-card">
+                {% if article.cover_image %}
+                    {% image article.cover_image fill-400x220 as img %}
+                    <img src="{{ img.url }}" class="news-card-img" alt="{{ article.title }}">
+                {% else %}
+                    <div class="news-card-img-placeholder">
+                        <i class="fas fa-newspaper fa-2x text-secondary"></i>
+                    </div>
+                {% endif %}
+                <div class="news-card-body">
+                    <div class="news-card-date">
+                        {{ article.first_published_at|date:"d.m.Y" }}
+                    </div>
+                    <p class="news-card-title">{{ article.title }}</p>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ===== БЛОК 3 + 4: ТОП ПИЛОТОВ + КАЛЕНДАРЬ ===== -->
+    <div class="bottom-grid">
+
+        <!-- Топ пилотов -->
+        <div>
+            <div class="section-header">
+                <h2 class="section-title"><i class="fas fa-crown me-2 text-warning"></i>Топ пилотов</h2>
+                <a href="/top/drivers/" class="section-link">Полный рейтинг →</a>
+            </div>
+
+            <!-- Фильтр по классу -->
+            <div class="class-nav-home">
+                {% for class in classes %}
+                <a href="?class={{ class.id }}"
+                   class="{% if selected_class_id == class.id %}active{% endif %}">
+                    {{ class.name }}
+                </a>
+                {% endfor %}
+            </div>
+
+            {% if top_drivers %}
+                {% for driver in top_drivers %}
+                <div class="driver-row">
+                    <div class="driver-rank {% if driver.rank == 1 %}gold{% elif driver.rank == 2 %}silver{% elif driver.rank == 3 %}bronze{% endif %}">
+                        {{ driver.rank }}
+                    </div>
+                    {% if driver.photo %}
+                        {% image driver.photo fill-40x40 as dp %}
+                        <img src="{{ dp.url }}" class="driver-photo-small" alt="{{ driver.full_name }}">
+                    {% else %}
+                        <div class="driver-photo-placeholder-small">
+                            <i class="fas fa-user text-secondary" style="font-size: 0.8rem;"></i>
+                        </div>
+                    {% endif %}
+                    <div class="driver-info">
+                        <a href="{{ driver.get_absolute_url }}" class="driver-name">{{ driver.full_name }}</a>
+                        <div class="driver-meta">{{ driver.win_count }} побед · {{ driver.race_count }} стартов</div>
+                    </div>
+                    <div class="driver-rating">{{ driver.normalized_rating }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted text-center py-3">Нет данных для выбранного класса</p>
+            {% endif %}
+        </div>
+
+        <!-- Календарь -->
+        <div>
+            <div class="section-header">
+                <h2 class="section-title"><i class="fas fa-calendar-alt me-2 text-warning"></i>Предстоящие события</h2>
+                <a href="/calendar/" class="section-link">Весь календарь →</a>
+            </div>
+
+            {% if calendar_events %}
+                {% for event in calendar_events %}
+                <div class="cal-event">
+                    <div class="cal-date-block">
+                        <div class="cal-date-day">{{ event.start|date:"d" }}</div>
+                        <div class="cal-date-month">{{ event.start|date:"M" }}</div>
+                    </div>
+                    <div class="cal-info">
+                        <a href="{{ event.championship.url }}" class="cal-title">{{ event.title }}</a>
+                        {% if event.track %}
+                        <div class="cal-track">
+                            <i class="fas fa-map-marker-alt me-1"></i>{{ event.track.name }}
+                        </div>
+                        {% endif %}
+                        <div>
+                            {% for class_name in event.classes %}
+                                <span class="cal-class-badge">{{ class_name }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted text-center py-3">Нет предстоящих мероприятий</p>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+<!-- Счётчик обратного отсчёта -->
+<script>
+(function() {
+    const el = document.getElementById('countdown');
+    if (!el) return;
+
+    const target = new Date(el.dataset.target);
+
+    function update() {
+        const now = new Date();
+        const diff = target - now;
+
+        if (diff <= 0) {
+            el.innerHTML = '<div class="countdown-started">🏁 Мероприятие уже идёт!</div>';
+            return;
+        }
+
+        const days    = Math.floor(diff / 86400000);
+        const hours   = Math.floor((diff % 86400000) / 3600000);
+        const minutes = Math.floor((diff % 3600000) / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+
+        document.getElementById('cd-days').textContent    = String(days).padStart(2, '0');
+        document.getElementById('cd-hours').textContent   = String(hours).padStart(2, '0');
+        document.getElementById('cd-minutes').textContent = String(minutes).padStart(2, '0');
+        document.getElementById('cd-seconds').textContent = String(seconds).padStart(2, '0');
+    }
+
+    update();
+    setInterval(update, 1000);
+})();
+</script>
+
+{% endblock %}

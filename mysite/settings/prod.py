@@ -1,32 +1,30 @@
 from .base import *  # noqa
+import os
 
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "qdq2i*4v@%lq!qovq^jg!ovp!)*0)k*p=v178jv8w^m$njpb=)"
+SECRET_KEY = os.getenv('@j607osv=gm8))*_9jx%tou(-ocwls13gr_ih8)a*@lhrl@5gb')
 
-# Add your site's domain name(s) here.
-ALLOWED_HOSTS = ["localhost"]
+ALLOWED_HOSTS = ["gripline.ru", "www.gripline.ru"]
 
-# To send email from the server, we recommend django_sendmail_backend
-# Or specify your own email backend such as an SMTP server.
-# https://docs.djangoproject.com/en/5.2/ref/settings/#email-backend
-# EMAIL_BACKEND = "django_sendmail_backend.backends.EmailBackend"
+# База данных MySQL/MariaDB
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.getenv('DB_NAME', 'gripline'),
+        'USER': os.getenv('DB_USER', 'gripline'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '3306'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+        },
+    }
+}
 
-# Default email address used to send messages from the website.
-DEFAULT_FROM_EMAIL = "mysite <info@localhost>"
-
-# A list of people who get error notifications.
-ADMINS = [
-    ("Administrator", "admin@localhost"),
-]
-
-# A list in the same format as ADMINS that specifies who should get broken link
-# (404) notifications when BrokenLinkEmailsMiddleware is enabled.
+DEFAULT_FROM_EMAIL = "Gripline <info@gripline.ru>"
+ADMINS = [("Administrator", "admin@gripline.ru")]
 MANAGERS = ADMINS
-
-# Email address used to send error messages to ADMINS.
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 CACHES = {
@@ -34,6 +32,9 @@ CACHES = {
         "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
         "LOCATION": BASE_DIR / "cache",  # noqa
         "KEY_PREFIX": "coderedcms",
-        "TIMEOUT": 14400,  # in seconds
+        "TIMEOUT": 14400,
     }
 }
+
+STATIC_ROOT = BASE_DIR / "static"
+MEDIA_ROOT = BASE_DIR / "media"
