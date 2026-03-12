@@ -3,7 +3,7 @@ import os
 
 DEBUG = False
 
-SECRET_KEY = os.getenv('@j607osv=gm8))*_9jx%tou(-ocwls13gr_ih8)a*@lhrl@5gb')
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 ALLOWED_HOSTS = ["gripline.ru", "www.gripline.ru"]
 
