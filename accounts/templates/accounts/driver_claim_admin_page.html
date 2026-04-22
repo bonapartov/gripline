@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% load wagtailadmin_tags wagtailcore_tags wagtailimages_tags %}
+
+{% block content %}
+<div style="padding: 30px; max-width: 1400px; margin: 0 auto;">
+    <h1 style="color: #ffc107; margin-bottom: 30px;">{{ page.title }}</h1>
+
+    {% if page.intro %}
+        <div style="background: #2a2a35; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+            {{ page.intro|richtext }}
+        </div>
+    {% endif %}
+
+    <!-- Ожидающие заявки -->
+    <h2 style="color: #ffc107; border-bottom: 2px solid #ffc107; padding-bottom: 10px; margin-top: 30px;">
+        ⏳ Ожидают подтверждения ({{ pending_claims|length }})
+    </h2>
+
+    {% if pending_claims %}
+    <table style="width: 100%; border-collapse: collapse; margin-top: 20px; background: #1a1a25;">
+        <thead>
+            <tr style="background: #2a2a35; color: #adb5bd;">
+                <th style="padding: 12px; text-align: left;">Пользователь</th>
+                <th style="padding: 12px; text-align: left;">Запрошенные данные</th>
+                <th style="padding: 12px; text-align: left;">Найденные пилоты</th>
+                <th style="padding: 12px; text-align: left;">Дата</th>
+                <th style="padding: 12px; text-align: center;">Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for claim in pending_claims %}
+            <tr style="border-bottom: 1px solid #2a2a35;">
+                <td style="padding: 15px;">
+                    <strong style="color: white;">{{ claim.user.email }}</strong><br>
+                    <small class="text-muted">ID: {{ claim.user.id }}</small>
+                </td>
+                <td style="padding: 15px;">
+                    <span style="color: #ffc107;">{{ claim.requested_first_name }} {{ claim.requested_last_name }}</span><br>
+                    <small class="text-muted">Город: {{ claim.requested_city|default:"не указан" }}</small>
+                </td>
+                <td style="padding: 15px;">
+                    {% with drivers=claim.get_matching_drivers %}
+                        {% if drivers %}
+                            <select class="driver-select" data-claim-id="{{ claim.id }}" style="width: 100%; padding: 5px; background: #15151c; color: white; border: 1px solid #2a2a35;">
+                                <option value="">-- Выберите пилота --</option>
+                                {% for driver in drivers %}
+                                    <option value="{{ driver.id }}">{{ driver.full_name }} ({{ driver.city|default:"город?" }})</option>
+                                {% endfor %}
+                            </select>
+                        {% else %}
+                            <span class="text-muted">Нет совпадений</span>
+                        {% endif %}
+                    {% endwith %}
+                </td>
+                <td style="padding: 15px; color: #6c757d;">
+                    {{ claim.created_at|date:"d.m.Y H:i" }}
+                </td>
+                <td style="padding: 15px; text-align: center;">
+                    <button class="approve-btn" data-claim-id="{{ claim.id }}" style="background: #28a745; color: white; border: none; padding: 5px 15px; border-radius: 4px; margin-right: 5px; cursor: pointer;">
+                        ✓ Подтвердить
+                    </button>
+                    <button class="reject-btn" data-claim-id="{{ claim.id }}" style="background: #dc3545; color: white; border: none; padding: 5px 15px; border-radius: 4px; cursor: pointer;">
+                        ✗ Отклонить
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p style="color: #6c757d; text-align: center; padding: 40px;">Нет ожидающих заявок</p>
+    {% endif %}
+
+    <!-- Подтверждённые заявки -->
+    <h2 style="color: #28a745; border-bottom: 2px solid #28a745; padding-bottom: 10px; margin-top: 40px;">
+        ✓ Подтверждённые ({{ approved_claims|length }})
+    </h2>
+
+    {% if approved_claims %}
+    <table style="width: 100%; border-collapse: collapse; margin-top: 20px; background: #1a1a25;">
+        <thead>
+            <tr style="background: #2a2a35; color: #adb5bd;">
+                <th style="padding: 12px; text-align: left;">Пользователь</th>
+                <th style="padding: 12px; text-align: left;">Пилот</th>
+                <th style="padding: 12px; text-align: left;">Дата</th>
+                <th style="padding: 12px; text-align: left;">Подтвердил</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for claim in approved_claims %}
+            <tr style="border-bottom: 1px solid #2a2a35;">
+                <td style="padding: 15px;">{{ claim.user.email }}</td>
+                <td style="padding: 15px;">{{ claim.driver.full_name }}</td>
+                <td style="padding: 15px;">{{ claim.reviewed_at|date:"d.m.Y H:i" }}</td>
+                <td style="padding: 15px;">{{ claim.reviewed_by|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Обработка подтверждения
+    document.querySelectorAll('.approve-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const claimId = this.dataset.claimId;
+            const row = this.closest('tr');
+            const driverSelect = row.querySelector('.driver-select');
+            const driverId = driverSelect ? driverSelect.value : null;
+
+            if (driverSelect && !driverId) {
+                alert('Выберите пилота из списка');
+                return;
+            }
+
+            if (confirm('Подтвердить заявку?')) {
+                fetch('/accounts/api/process-claim/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        claim_id: claimId,
+                        action: 'approve',
+                        driver_id: driverId
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Ошибка: ' + data.error);
+                    }
+                });
+            }
+        });
+    });
+
+    // Обработка отклонения
+    document.querySelectorAll('.reject-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const claimId = this.dataset.claimId;
+            const comment = prompt('Причина отклонения (необязательно):');
+
+            if (confirm('Отклонить заявку?')) {
+                fetch('/accounts/api/process-claim/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        claim_id: claimId,
+                        action: 'reject',
+                        comment: comment
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Ошибка: ' + data.error);
+                    }
+                });
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

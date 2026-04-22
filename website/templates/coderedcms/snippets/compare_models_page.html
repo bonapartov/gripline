@@ -1,0 +1,257 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailimages_tags %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    /* Навигация по классам */
+    .class-nav {
+        background-color: #2a2a35;
+        border-radius: 4px;
+        padding: 0.5rem;
+        margin-bottom: 2rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+    }
+    .class-nav .nav-link {
+        color: #adb5bd;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        transition: all 0.2s;
+        text-decoration: none;
+        border: 2px solid #3a3a45;
+        background-color: transparent;
+    }
+    .class-nav .nav-link:hover {
+        border-color: #ffc107;
+        background-color: #3a3a45;
+        color: white;
+    }
+    .class-nav .nav-link.active {
+        border-color: #ffc107 !important;
+        background-color: transparent !important;
+        color: white !important;
+    }
+
+    /* Таблица */
+    .compare-table {
+        background-color: #1a1a25;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .compare-table thead tr {
+        border-bottom: 2px solid #ffc107;
+    }
+    .compare-table th {
+        background-color: #2a2a35;
+        color: #adb5bd;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+        vertical-align: middle;
+        padding: 0.75rem 1rem;
+    }
+    .compare-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #2a2a35;
+        vertical-align: middle;
+    }
+    .compare-table tbody tr:hover {
+        background-color: rgba(13, 202, 240, 0.1) !important;
+        transition: 0.3s;
+    }
+
+    /* Фото пилотов */
+    .driver-photo-rect {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 2px solid #2a2a35;
+    }
+    .driver-photo-placeholder {
+        width: 60px;
+        height: 60px;
+        background-color: #6c757d;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #2a2a35;
+    }
+
+    /* Рейтинговые бейджи */
+    .rating-badge {
+        background-color: #ffc107;
+        color: #000;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-weight: bold;
+        display: inline-block;
+    }
+    .rating-badge.bt {
+        background-color: #0dcaf0;
+    }
+    .rating-badge.pr {
+        background-color: #ffc107;
+    }
+    .diff-positive {
+        color: #28a745;
+        font-weight: bold;
+    }
+    .diff-negative {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    .starts-badge {
+        background-color: #2a2a35;
+        color: #adb5bd;
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        margin-left: 0.25rem;
+    }
+
+    /* Кнопка */
+    .btn-filter {
+        background-color: #ffc107;
+        color: #000 !important;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        font-weight: bold;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        display: inline-block;
+        text-decoration: none;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .btn-filter:hover {
+        background-color: #e0a800;
+        transform: translateY(-2px);
+        color: #000 !important;
+        text-decoration: none;
+    }
+</style>
+
+<div class="force-width-1500 my-5 text-white">
+    <!-- Заголовок -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <h1 class="display-4 fw-bold text-uppercase mb-0">
+            <i class="fas fa-chart-line me-3 text-warning"></i>Сравнение моделей
+        </h1>
+        <a href="/rating-info/" class="btn-filter" style="text-decoration: none;">
+            <i class="fas fa-question-circle me-2"></i>Как считаются?
+        </a>
+    </div>
+
+    <!-- Навигация по классам -->
+    <div class="class-nav">
+        {% for class in classes %}
+        <a href="?class={{ class.id }}" class="nav-link {% if selected_class_id == class.id %}active{% endif %}">
+            {{ class.name }}
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- Таблица сравнения -->
+    <div class="compare-table">
+        <table class="table table-dark table-hover mb-0">
+            <thead>
+                <tr>
+                    <th style="width: 80px;">Фото</th>
+                    <th>Пилот</th>
+                    <th class="text-center">Старты</th>
+                    <th class="text-center">Победы</th>
+                    <th class="text-center">Win%</th>
+                    <th class="text-center">Брэдли-Терри</th>
+                    <th class="text-center">PageRank</th>
+                    <th class="text-center">Разница</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for driver in drivers %}
+                <tr>
+                    <td>
+                        {% if driver.photo %}
+                            {% image driver.photo fill-60x60 as driver_photo %}
+                            <img src="{{ driver_photo.url }}" class="driver-photo-rect" alt="{{ driver.full_name }}">
+                        {% else %}
+                            <div class="driver-photo-placeholder">
+                                <i class="fas fa-user text-dark"></i>
+                            </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ driver.get_absolute_url }}" class="text-white text-decoration-none fw-bold">
+                            {{ driver.full_name }}
+                        </a>
+                        <br>
+                        <span class="small text-muted">{{ driver.city|default:"—" }}</span>
+                    </td>
+                    <td class="text-center">
+                        {{ driver.race_count|default:"0" }}
+                        <span class="starts-badge">{{ driver.starts }}</span>
+                    </td>
+                    <td class="text-center">{{ driver.win_count|default:"0" }}</td>
+                    <td class="text-center">{{ driver.win_percentage }}%</td>
+                    <td class="text-center">
+                        <span class="rating-badge bt">{{ driver.bt_normalized }}</span>
+                    </td>
+                    <td class="text-center">
+                        <span class="rating-badge pr">{{ driver.pr_normalized }}</span>
+                    </td>
+                    <td class="text-center">
+                        {% if driver.diff > 0 %}
+                            <span class="diff-positive">+{{ driver.diff }}</span>
+                        {% elif driver.diff < 0 %}
+                            <span class="diff-negative">{{ driver.diff }}</span>
+                        {% else %}
+                            <span>0</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center p-5 text-muted">
+                        Нет данных для сравнения
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Пояснения -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card bg-dark border-secondary p-3">
+                <h5 class="text-info border-bottom border-secondary pb-2 mb-3">📊 Что означают модели?</h5>
+                <p class="text-muted small">
+                    <strong class="text-white">Брэдли-Терри</strong> — учитывает только кто кого победил.<br>
+                    <strong class="text-white">PageRank</strong> — учитывает силу соперников (победа над сильным ценнее).
+                </p>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-dark border-secondary p-3">
+                <h5 class="text-info border-bottom border-secondary pb-2 mb-3">📈 Как читать разницу?</h5>
+                <p class="text-muted small">
+                    <span class="diff-positive">+5</span> — Брэдли-Терри оценивает выше (пилот побеждал, но соперники были слабыми)<br>
+                    <span class="diff-negative">-5</span> — PageRank оценивает выше (пилот побеждал сильных соперников)
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

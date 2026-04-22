@@ -1,0 +1,88 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailimages_tags %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    .track-card {
+        transition: transform 0.3s, box-shadow 0.3s;
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        height: 100%;
+    }
+    .track-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        border-color: #ffc107;
+    }
+    .track-card img {
+        height: 200px;
+        object-fit: cover;
+        border-bottom: 1px solid #2a2a35;
+    }
+    .track-card .card-body {
+        padding: 1.25rem;
+    }
+    .track-card .card-title {
+        color: #fff;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    .track-card .card-text {
+        color: #adb5bd;
+        font-size: 0.9rem;
+    }
+    .track-card .city-icon {
+        color: #0dcaf0;
+        margin-right: 0.5rem;
+    }
+</style>
+
+<div class="force-width-1500 my-5 text-white">
+    <h1 class="display-4 fw-bold mb-5 text-uppercase text-center">{{ self.title }}</h1>
+
+    <div class="row g-4">
+        {% for track in tracks %}
+            <div class="col-md-6 col-lg-4">
+                <a href="{{ track.get_absolute_url }}" class="text-decoration-none">
+                    <div class="card track-card h-100">
+                        {% if track.photo %}
+                            {% image track.photo fill-600x400 as track_img %}
+                            <img src="{{ track_img.url }}" class="card-img-top" alt="{{ track.name }}">
+                        {% else %}
+                            <div class="bg-secondary d-flex align-items-center justify-content-center" style="height: 200px;">
+                                <span class="text-muted">Нет фото</span>
+                            </div>
+                        {% endif %}
+                        <div class="card-body">
+                            <h5 class="card-title text-uppercase">{{ track.name }}</h5>
+                            <p class="card-text">
+                                {% if track.city or track.address %}
+                                    <i class="fas fa-map-marker-alt city-icon"></i>
+                                    {% if track.city %}{{ track.city }}{% endif %}
+                                    {% if track.city and track.address %}, {% endif %}
+                                    {% if track.address %}{{ track.address }}{% endif %}
+                                {% else %}
+                                    <span class="text-muted">Город не указан</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        {% empty %}
+            <div class="col-12">
+                <div class="card bg-dark border-secondary p-5 text-center">
+                    <p class="text-muted m-0">Трассы пока не добавлены</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

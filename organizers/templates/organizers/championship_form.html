@@ -1,0 +1,131 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block content %}
+<style>
+    .form-control-dark {
+        background-color: #15151c !important;
+        border: 1px solid #2a2a35 !important;
+        color: white !important;
+        border-radius: 4px;
+        padding: 0.75rem;
+        width: 100%;
+    }
+    .form-control-dark:focus {
+        border-color: #ffc107 !important;
+        outline: none;
+    }
+    select.form-control-dark {
+        background-color: #15151c !important;
+    }
+    .form-check-input {
+        background-color: #15151c;
+        border-color: #2a2a35;
+    }
+    .form-check-input:checked {
+        background-color: #ffc107;
+        border-color: #ffc107;
+    }
+    .form-check-label {
+        color: white;
+    }
+    .checkbox-container {
+        background-color: #15151c;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1rem;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    .checkbox-container .form-check {
+        margin-bottom: 0.5rem;
+    }
+    .checkbox-container .form-check:last-child {
+        margin-bottom: 0;
+    }
+    .checkbox-container::-webkit-scrollbar {
+        width: 8px;
+    }
+    .checkbox-container::-webkit-scrollbar-track {
+        background: #1a1a25;
+        border-radius: 4px;
+    }
+    .checkbox-container::-webkit-scrollbar-thumb {
+        background: #ffc107;
+        border-radius: 4px;
+    }
+</style>
+
+<div class="container my-5">
+    <div class="card bg-dark border-secondary">
+        <div class="card-header bg-dark border-secondary">
+            <h1 class="text-warning mb-0">{% if is_edit %}Редактирование чемпионата{% else %}Создание чемпионата{% endif %}</h1>
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label class="form-label text-info">Название чемпионата</label>
+                    {{ form.title }}
+                </div>
+                
+                
+                
+                <div class="mb-3">
+                    <label class="form-label text-info">Обложка чемпионата (фото)</label>
+                    <input type="file" name="cover_image" class="form-control form-control-dark" accept="image/*">
+                    {% if form.instance.cover_image %}
+                        <small class="text-muted">Текущее фото: {{ form.instance.cover_image.title }}</small>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label text-info">Краткое описание мероприятия</label>
+                    {{ form.budget }}
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label text-info">Тип соревнований</label>
+                    <div class="checkbox-container">
+                        {{ form.competition_types }}
+                    </div>
+                    <small class="text-muted">Выберите один или несколько типов</small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-info">Классы гонок</label>
+                    <div class="checkbox-container">
+                        {{ form.race_classes }}
+                    </div>
+                    <small class="text-muted">Выберите классы, которые участвуют в чемпионате</small>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label text-info">Шины по умолчанию</label>
+                    {{ form.default_tyre }}
+                    <small class="text-muted">Будут использоваться для всех классов, если не указано иное</small>
+                </div>
+                
+                <button type="submit" class="btn btn-warning w-100 py-2">Сохранить чемпионат</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Добавляем классы ко всем полям формы
+    document.querySelectorAll('input[type="text"], input[type="file"], select, textarea').forEach(field => {
+        if (!field.classList.contains('form-control-dark')) {
+            field.classList.add('form-control-dark');
+        }
+    });
+    // Добавляем классы к чекбоксам
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.classList.add('form-check-input');
+    });
+    document.querySelectorAll('label').forEach(label => {
+        if (label.htmlFor && label.htmlFor.includes('competition_types')) {
+            label.classList.add('form-check-label');
+        }
+    });
+</script>
+{% endblock %}

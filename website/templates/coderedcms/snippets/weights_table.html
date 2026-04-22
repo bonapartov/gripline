@@ -1,0 +1,119 @@
+{% load static %}
+{% load wagtailcore_tags %}
+
+<style>
+    .weights-table {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        overflow: hidden;
+        margin: 1.5rem 0;
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .weights-table th {
+        background-color: #2a2a35;
+        color: #ffc107 !important;
+        padding: 0.75rem;
+        font-size: 0.9rem;
+        font-weight: bold;
+        text-align: left;
+        border-bottom: 2px solid #ffc107;
+    }
+    .weights-table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #2a2a35;
+        color: #fff !important;
+    }
+    .text-info { color: #0dcaf0 !important; }
+    .small-note {
+        color: #6c757d;
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+        text-align: right;
+    }
+</style>
+
+{% if weights %}
+<table class="weights-table">
+    <thead>
+        <tr>
+            <th>Фактор</th>
+            <th>Вес (β)</th>
+            <th>Интерпретация</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>🌡️ Температура</td>
+            <td><span class="text-info">{{ weights.temperature|floatformat:2 }}</span></td>
+            <td>
+                {% if weights.temperature == 0 %}
+                    ⏳ Собираем данные — нужно больше гонок при разной температуре
+                {% elif weights.temperature < 0.3 %}
+                    🍃 Слабое влияние — пилоты стабильны в любую погоду
+                {% elif weights.temperature < 1 %}
+                    🌡️ Заметное влияние — жара или холод меняют расстановку сил
+                {% else %}
+                    🔥 Критическое влияние — температура определяет исход гонки
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td>☔ Осадки</td>
+            <td><span class="text-info">{{ weights.precipitation|floatformat:2 }}</span></td>
+            <td>
+                {% if weights.precipitation == 0 %}
+                    ⏳ Ждём дождевых гонок — пока все данные только по сухой трассе
+                {% elif weights.precipitation < 0.3 %}
+                    💧 Слабое влияние — пилоты уверенно едут и в дождь
+                {% elif weights.precipitation < 1 %}
+                    🌧️ Заметное влияние — дождь меняет тактику
+                {% else %}
+                    ⛈️ Критическое влияние — дождь решает всё
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td>🛞 Шины</td>
+            <td><span class="text-info">{{ weights.tyre|floatformat:2 }}</span></td>
+            <td>
+                {% if weights.tyre == 0 %}
+                    ⚙️ В рамках одного класса все едут на одинаковых шинах
+                {% elif weights.tyre < 0.3 %}
+                    🔄 Тип шин влияет слабо — пилоты адаптируются
+                {% elif weights.tyre < 1 %}
+                    🏎️ Выбор шин даёт преимущество
+                {% else %}
+                    ⭐ Критическое влияние — правильные шины = победа
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td>🏁 Трасса</td>
+            <td><span class="text-info">{{ weights.track|floatformat:2 }}</span></td>
+            <td>
+                {% if weights.track == 0 %}
+                    📊 Недостаточно данных
+                {% elif weights.track < 0.5 %}
+                    🏁 Трасса влияет слабо — пилоты универсальны
+                {% elif weights.track < 2 %}
+                    🎢 У каждой трассы свои особенности
+                {% elif weights.track < 5 %}
+                    ⭐ Есть любимые и нелюбимые трассы
+                {% else %}
+                    👑 Трасса — король! На одних пилоты летают, на других едут в хвосте
+                {% endif %}
+            </td>
+        </tr>
+    </tbody>
+</table>
+<div class="small-note">
+    <i class="fas fa-sync-alt me-1"></i>
+    Данные обновлены: {% if last_update %}{{ last_update|date:"d.m.Y H:i" }}{% else %}—{% endif %}
+</div>
+{% else %}
+<div class="note-box" style="border-left-color: #ffc107;">
+    <p class="text-muted">⏳ Данные о весах пока не рассчитаны. Запустите обновление рейтингов.</p>
+</div>
+{% endif %}

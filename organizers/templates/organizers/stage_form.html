@@ -1,0 +1,99 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block content %}
+<style>
+    .form-control-dark {
+        background-color: #15151c !important;
+        border: 1px solid #2a2a35 !important;
+        color: white !important;
+        border-radius: 4px;
+        padding: 0.75rem;
+        width: 100%;
+    }
+    .form-control-dark:focus {
+        border-color: #ffc107 !important;
+        outline: none;
+    }
+    select.form-control-dark {
+        background-color: #15151c !important;
+    }
+    textarea.form-control-dark {
+        background-color: #15151c !important;
+    }
+    .form-label {
+        color: #0dcaf0;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    .card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+    }
+    .card-header {
+        background-color: #1a1a25;
+        border-bottom: 1px solid #2a2a35;
+    }
+</style>
+
+<div class="container my-5">
+    <div class="card">
+        <div class="card-header">
+            <h1 class="text-warning mb-0">Создание этапа для "{{ championship.title }}"</h1>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label class="form-label">{{ form.title.label }}</label>
+                    {{ form.title }}
+                    {% if form.title.help_text %}
+                        <small class="text-muted d-block mt-1">{{ form.title.help_text }}</small>
+                    {% endif %}
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.start_date.label }}</label>
+                        {{ form.start_date }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.end_date.label }}</label>
+                        {{ form.end_date }}
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">{{ form.track.label }}</label>
+                    {{ form.track }}
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">{{ form.entry_fee.label }}</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark text-warning border-secondary">₽</span>
+                        {{ form.entry_fee }}
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">{{ form.schedule.label }}</label>
+                    {{ form.schedule }}
+                </div>
+                
+                <button type="submit" class="btn btn-warning w-100 py-2">Сохранить этап</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('input, select, textarea').forEach(field => {
+        field.classList.add('form-control-dark');
+    });
+</script>
+{% endblock %}

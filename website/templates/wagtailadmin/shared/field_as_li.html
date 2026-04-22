@@ -1,0 +1,23 @@
+{% load i18n wagtailadmin_tags %}
+<li {% if field.field.required %}class="required"{% endif %}>
+    <div class="field">
+        <label {% if field.id_for_label %}for="{{ field.id_for_label }}"{% endif %}>
+            {{ field.label }}
+        </label>
+        <div class="field-content">
+            <div class="input">
+                {{ field }}
+                {% if field.help_text %}
+                    <p class="help">{{ field.help_text }}</p>
+                {% endif %}
+                {% if field.errors %}
+                    <p class="error-message">
+                        {% for error in field.errors %}
+                            <span>{{ error|escape }}</span>
+                        {% endfor %}
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</li>

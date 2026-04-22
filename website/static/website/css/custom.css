@@ -1,0 +1,207 @@
+/* Add your custom styles here */
+
+
+/* Adds a bit of spacing to "Responsive Grid Row" blocks. */
+.crx-grid {
+  padding-top: 40px;
+  padding-bottom: 40px;
+}
+.crx-grid .crx-grid {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+
+/* Основной фон меню — глубокий темный */
+.navbar {
+  background-color: #0e131a !important;
+  padding: 0 1rem !important;
+  border-bottom: 2px solid #222;
+}
+
+/* Настройка логотипа */
+.navbar-brand {
+  font-weight: 900;
+  color: #ffd400 !important; /* Тот самый желтый цвет */
+  text-transform: uppercase;
+  font-size: 1.5rem;
+  letter-spacing: -1px;
+}
+
+/* Ссылки меню */
+.nav-link {
+  color: #ffffff !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  padding: 1.2rem 0.8rem !important;
+  transition: background-color 0.2s;
+}
+
+/* Эффект при наведении — как на оригинале */
+.nav-link:hover {
+  background-color: #222222;
+  color: #ffd400 !important;
+}
+
+/* Активный пункт меню  */
+.nav-item.active .nav-link,
+.nav-link.active {
+  color: #ffd400 !important;
+}
+
+/* Убираем стандартную иконку выпадающего списка и заменяем на маленькую стрелочку */
+.dropdown-toggle::after {
+  vertical-align: middle;
+  border-top: 0.3em solid;
+  border-right: 0.3em solid transparent;
+  border-left: 0.3em solid transparent;
+}
+/* Открытие подменю при наведении на десктопах */
+@media (min-width: 992px) {
+  .navbar .nav-item.dropdown:hover > .dropdown-menu {
+    display: block;
+    margin-top: 0; /* Убирает зазор, чтобы меню не закрывалось при переносе курсора */
+    opacity: 1;
+    visibility: visible;
+    animation: fadeIn 0.2s ease-in;
+  }
+
+  /* Плавное появление (опционально) */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Чтобы само меню не исчезало, когда мы ведем курсор вниз */
+  /* Стили для выпадающего меню (фон и границы) */
+  .dropdown-menu {
+    background-color: #0e131a !important; /* Цвет как у navbar */
+    border: 1px solid #222 !important;
+    border-top: 3px solid #ffd400 !important; /* Желтая полоска сверху */
+    border-radius: 0;
+  }
+
+  /* Цвет текста в пунктах выпадающего меню */
+  .dropdown-item {
+    color: #eceff1 !important;
+    font-weight: 600;
+    padding: 0.7rem 1.5rem;
+  }
+
+  /* Фон при наведении на пункт в меню */
+  .dropdown-item:hover {
+    background-color: #1c2633 !important; /* Чуть светлее при наведении */
+    color: #ffd400 !important;
+  }
+}
+
+/* 1. Фон всего сайта и цвет текста */
+body {
+  background-color: #15151c !important; /* Очень темный, почти черный */
+  color: #eceff1 !important; /* Светло-серый текст, чтобы не резало глаза */
+}
+
+/* 2. Настройка всех карточек (новостей) */
+.card {
+  background-color: #171f26 !important; /* Чуть светлее фона, чтобы выделить карточку */
+  border: 1px solid #222 !important;
+  color: #ffffff !important;
+}
+
+.card-text, .text-muted {
+  color: #b0bec5 !important; /* Более мягкий серо-голубой, подходит к #eceff1 */
+}
+
+.card-title a {
+  color: #eceff1 !important; /* Чтобы заголовки в карточках были основного цвета */
+}
+
+
+
+/* 3. Футер (подвал сайта) */
+footer {
+  background-color: #000000 !important;
+  border-top: 1px solid #333;
+}
+
+/* 4. Ссылки по всему сайту */
+a {
+  color: #ffd400; /* Желтый акцентный цвет */
+}
+
+a:hover {
+  color: #ffffff;
+  text-decoration: none;
+}
+
+/* Главная новость */
+.main-article-card h2 {
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #eceff1; /* Ваш новый основной цвет текста */
+}
+
+.main-article-card .badge {
+  border-radius: 0;
+  font-weight: 700;
+  padding: 5px 10px;
+}
+
+/* Ссылки в статьях */
+.main-article-card a, .side-article-item a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.main-article-card a:hover h2, .side-article-item a:hover h6 {
+  color: #ffd400; /* Желтый акцент при наведении */
+}
+
+/* Боковая колонка */
+.side-article-item h6 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* Общие правки для карточек на темном фоне */
+.side-article-item {
+  border-color: #333 !important;
+}
+
+/* Cover image в начале статьи */
+.w-100 {
+  border-radius: 5px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+  margin-bottom: 30px !important;
+}
+
+/* Картинки внутри текста */
+.img-fluid {
+  border-radius: 5px !important;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2) !important;
+  margin: 25px 0 !important;
+}
+
+/* Для больших картинок в тексте */
+.body-content .img-fluid {
+  max-height: 500px;
+  object-fit: cover;
+}
+
+/* Центрирование картинок */
+.w-100,
+.img-fluid {
+  display: block !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* Подписи к картинкам */
+.figure-caption {
+  color: #b0bec5 !important;
+  font-style: italic;
+  margin-top: 10px;
+  text-align: center;
+}

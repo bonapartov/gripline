@@ -1,0 +1,38 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    .respond-card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 2rem;
+    }
+</style>
+
+<div class="force-width-1500 my-5">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="respond-card">
+                <h1 class="text-warning mb-3">Отклик на объявление</h1>
+                <p class="text-muted mb-4">{{ ad.title }}</p>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label text-info">Ваше сообщение</label>
+                        <textarea name="message" rows="5" class="form-control bg-dark text-white border-secondary" required placeholder="Расскажите о себе, почему вас заинтересовало это объявление..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100">Отправить отклик</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

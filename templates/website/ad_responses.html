@@ -1,0 +1,37 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block content %}
+<div class="container my-5">
+    <h1 class="text-warning mb-2">Отклики на "{{ ad.title }}"</h1>
+    <a href="{% url 'ads_detail' ad.id %}" class="btn btn-sm btn-outline-secondary mb-4">← Назад к объявлению</a>
+    
+    <div class="row">
+        <div class="col-12">
+            {% for resp in responses %}
+            <div class="card bg-dark border-secondary mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong class="text-info">{{ resp.author.email }}</strong>
+                            <span class="text-muted small ms-2">{{ resp.created_at|date:"d.m.Y H:i" }}</span>
+                        </div>
+                        <span class="badge {% if resp.status == 'accepted' %}bg-success{% elif resp.status == 'rejected' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                            {{ resp.get_status_display }}
+                        </span>
+                    </div>
+                    <p class="text-white mt-2">{{ resp.message|linebreaks }}</p>
+                    {% if resp.status == 'pending' %}
+                    <div class="mt-2">
+                        <a href="{% url 'response_action' resp.id 'accept' %}" class="btn btn-sm btn-success">✓ Принять</a>
+                        <a href="{% url 'response_action' resp.id 'reject' %}" class="btn btn-sm btn-danger">✗ Отклонить</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-muted text-center py-5">Нет откликов</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

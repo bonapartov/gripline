@@ -1,0 +1,291 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailcore_tags wagtailimages_tags %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    /* ===== HERO для StagePage ===== */
+    .stage-hero {
+        background: linear-gradient(135deg, #0d0d15 0%, #1a1a25 50%, #0d0d15 100%);
+        border: 1px solid #2a2a35;
+        border-radius: 12px;
+        padding: 3rem 2rem;
+        margin-bottom: 3rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .stage-hero::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #ffc107, #0dcaf0, #ffc107);
+    }
+    .hero-label {
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 3px;
+        color: #ffc107;
+        margin-bottom: 0.75rem;
+    }
+    .hero-title {
+        font-size: clamp(1.5rem, 3vw, 2.5rem);
+        font-weight: 900;
+        text-transform: uppercase;
+        color: #fff;
+        line-height: 1.1;
+        margin-bottom: 0.5rem;
+    }
+    .hero-championship {
+        color: #ffc107;
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .countdown-wrapper {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .countdown-unit {
+        background-color: #0d0d15;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        text-align: center;
+        min-width: 80px;
+    }
+    .countdown-value {
+        font-size: 2.5rem;
+        font-weight: 900;
+        color: #ffc107;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+    }
+    .countdown-label {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+    .countdown-started {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #28a745;
+        padding: 1rem 0;
+    }
+    .stage-class-badge {
+        background-color: #2a2a35;
+        color: #fff;
+        padding: 0.25rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        margin-right: 0.25rem;
+        margin-bottom: 0.25rem;
+        display: inline-block;
+    }
+    .info-message {
+        background-color: #2a2a35;
+        border-left: 4px solid #ffc107;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+    }
+    .class-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin: 1.5rem 0;
+    }
+    .class-card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1rem;
+        flex: 1;
+        min-width: 200px;
+        transition: all 0.2s;
+    }
+    .class-card:hover {
+        border-color: #ffc107;
+        transform: translateY(-2px);
+    }
+    .class-card h4 {
+        color: #ffc107;
+        margin-bottom: 0.5rem;
+    }
+    .class-card .btn-link {
+        color: #0dcaf0;
+        text-decoration: none;
+    }
+    .class-card .btn-link:hover {
+        color: #ffc107;
+    }
+</style>
+
+<div class="force-width-1500 my-5 text-white">
+    {% with status=page.get_status %}
+    
+    <!-- БЛОК HERO (зависит от статуса) -->
+    <div class="stage-hero">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <div class="hero-label">
+                    {% if status.status == 'future' %}
+                        <i class="fas fa-flag-checkered me-2"></i>Скоро старт
+                    {% elif status.status == 'current' %}
+                        <i class="fas fa-play me-2"></i>Событие началось
+                    {% else %}
+                        <i class="fas fa-check-circle me-2"></i>Этап завершён
+                    {% endif %}
+                </div>
+                <h1 class="hero-title">{{ page.title }}</h1>
+                
+                {% with championship=page.get_parent.specific %}
+                    {% if championship %}
+                    <div class="hero-championship">
+                        <i class="fas fa-trophy me-2"></i>
+                        <a href="{{ championship.url }}" class="text-warning text-decoration-none">
+                            {{ championship.title }}
+                        </a>
+                    </div>
+                    {% endif %}
+                {% endwith %}
+                
+                {% if page.track %}
+                <div class="mb-3">
+                    <i class="fas fa-map-marker-alt me-2 text-info"></i>
+                    <a href="{{ page.track.get_absolute_url }}" class="text-info text-decoration-none">
+                        {{ page.track.name }}
+                        {% if page.track.city %} · {{ page.track.city }}{% endif %}
+                    </a>
+                </div>
+                {% endif %}
+                
+                <div class="mb-3">
+                    <i class="fas fa-calendar me-2"></i>
+                    {{ page.start_date|date:"d.m.Y H:i" }} — {{ page.end_date|date:"d.m.Y H:i" }}
+                </div>
+                
+                <!-- СООБЩЕНИЕ В ЗАВИСИМОСТИ ОТ СТАТУСА -->
+                {% if status.status == 'future' %}
+                    <div class="info-message">
+                        <i class="fas fa-bell me-2 text-warning"></i>
+                        Следите за обновлениями — результаты появятся после завершения этапа.
+                    </div>
+                {% elif status.status == 'current' %}
+                    <div class="info-message">
+                        <i class="fas fa-play me-2 text-success"></i>
+                        Гонка в самом разгаре! Результаты будут опубликованы после финиша.
+                    </div>
+                {% elif status.status == 'past' and not page.has_results %}
+                    <div class="info-message">
+                        <i class="fas fa-hourglass-half me-2 text-info"></i>
+                        Этап завершён. Результаты скоро появятся. Загляните позже!
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="col-lg-4 text-center">
+                {% if status.status == 'future' %}
+                    <div class="mb-2 text-secondary small text-uppercase">До старта</div>
+                    <div class="countdown-wrapper justify-content-center" id="stage-countdown" data-target="{{ page.start_date|date:'c' }}">
+                        <div class="countdown-unit">
+                            <div class="countdown-value" id="stage-days">--</div>
+                            <div class="countdown-label">дней</div>
+                        </div>
+                        <div class="countdown-unit">
+                            <div class="countdown-value" id="stage-hours">--</div>
+                            <div class="countdown-label">часов</div>
+                        </div>
+                        <div class="countdown-unit">
+                            <div class="countdown-value" id="stage-minutes">--</div>
+                            <div class="countdown-label">минут</div>
+                        </div>
+                        <div class="countdown-unit">
+                            <div class="countdown-value" id="stage-seconds">--</div>
+                            <div class="countdown-label">секунд</div>
+                        </div>
+                    </div>
+                {% elif status.status == 'current' %}
+                    <div class="countdown-started">🏁 Событие уже идёт!</div>
+                {% elif status.status == 'past' and not page.has_results %}
+                    <div class="countdown-started">🏁 Этап завершён</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- КЛАССЫ ЭТАПА -->
+    <div class="class-list">
+        {% for event in page.get_child_classes %}
+            <div class="class-card">
+                <h4>{{ event.title }}</h4>
+                <div class="text-muted small mb-2">
+                    {% for group in event.race_class_groups.all %}
+                        <span class="stage-class-badge">{{ group.race_class.name }}</span>
+                    {% endfor %}
+                </div>
+                {% if event.race_class_groups.exists %}
+                    <a href="{{ event.url }}" class="btn-link">
+                        Посмотреть результаты <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                {% else %}
+                    <span class="text-muted small">Результатов пока нет</span>
+                {% endif %}
+            </div>
+        {% empty %}
+            <p class="text-muted">Нет добавленных классов</p>
+        {% endfor %}
+    </div>
+    
+    {% endwith %}
+</div>
+
+<!-- Счётчик обратного отсчёта -->
+<script>
+(function() {
+    const el = document.getElementById('stage-countdown');
+    if (!el) return;
+
+    const target = new Date(el.dataset.target);
+
+    function update() {
+        const now = new Date();
+        const diff = target - now;
+
+        if (diff <= 0) {
+            el.innerHTML = '<div class="countdown-started">🏁 Мероприятие уже идёт!</div>';
+            return;
+        }
+
+        const days    = Math.floor(diff / 86400000);
+        const hours   = Math.floor((diff % 86400000) / 3600000);
+        const minutes = Math.floor((diff % 3600000) / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+
+        const daysEl = document.getElementById('stage-days');
+        const hoursEl = document.getElementById('stage-hours');
+        const minutesEl = document.getElementById('stage-minutes');
+        const secondsEl = document.getElementById('stage-seconds');
+
+        if (daysEl) daysEl.textContent = String(days).padStart(2, '0');
+        if (hoursEl) hoursEl.textContent = String(hours).padStart(2, '0');
+        if (minutesEl) minutesEl.textContent = String(minutes).padStart(2, '0');
+        if (secondsEl) secondsEl.textContent = String(seconds).padStart(2, '0');
+    }
+
+    update();
+    setInterval(update, 1000);
+})();
+</script>
+{% endblock %}

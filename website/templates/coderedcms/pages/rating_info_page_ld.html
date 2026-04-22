@@ -1,0 +1,433 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailcore_tags wagtailimages_tags %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    /* Основной контейнер страницы */
+    .rating-info-page {
+        background-color: #15151c;
+        color: #fff;
+        padding: 2rem;
+        border-radius: 10px;
+        margin: 2rem 0;
+    }
+
+    /* Заголовки */
+    .rating-info-page h2 {
+        color: #ffc107 !important;
+        font-size: 2rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        margin-bottom: 2rem;
+        border-bottom: 2px solid #ffc107;
+        padding-bottom: 1rem;
+    }
+
+    .rating-info-page h3 {
+        color: #0dcaf0 !important;
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin: 2rem 0 1rem 0;
+    }
+
+    .rating-info-page h4 {
+        color: #ffc107 !important;
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin: 1.5rem 0 1rem 0;
+    }
+
+    /* Текст */
+    .rating-info-page p {
+        color: #adb5bd !important;
+        line-height: 1.6;
+        margin-bottom: 1rem;
+    }
+
+    .rating-info-page strong {
+        color: #fff !important;
+    }
+
+    /* Блок с формулой */
+    .formula-block {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+        font-family: monospace;
+        font-size: 1.2rem;
+        color: #ffc107 !important;
+        text-align: center;
+    }
+
+    /* Простая таблица */
+    .simple-table {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        overflow: hidden;
+        margin: 1.5rem 0;
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .simple-table th {
+        background-color: #2a2a35;
+        color: #ffc107 !important;
+        padding: 0.75rem;
+        font-size: 0.9rem;
+        font-weight: bold;
+        text-align: left;
+        border-bottom: 2px solid #ffc107;
+    }
+
+    .simple-table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #2a2a35;
+        color: #fff !important;
+    }
+
+    .simple-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* Бейджи для мест */
+    .place-badge {
+        display: inline-block;
+        width: 30px;
+        height: 30px;
+        line-height: 30px;
+        text-align: center;
+        border-radius: 4px;
+        font-weight: bold;
+    }
+
+    .place-badge.gold {
+        background-color: #ffc107;
+        color: #000;
+    }
+
+    .place-badge.silver {
+        background-color: #f8f9fa;
+        color: #000;
+    }
+
+    .place-badge.bronze {
+        background-color: #cd7f32;
+        color: #fff;
+    }
+
+    /* Рейтинговый бейдж */
+    .rating-badge-example {
+        background-color: #ffc107;
+        color: #000;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-weight: bold;
+        display: inline-block;
+    }
+
+    .rating-badge-example.rating-low-data {
+        opacity: 0.8;
+    }
+
+    /* Блок с примером */
+    .note-box {
+        background-color: rgba(255, 193, 7, 0.1);
+        border-left: 4px solid #ffc107;
+        padding: 1rem;
+        margin: 1rem 0;
+    }
+
+    /* Список шагов */
+    .step-list {
+        list-style: none;
+        padding: 0;
+    }
+
+    .step-list li {
+        margin-bottom: 1rem;
+        padding-left: 2rem;
+        position: relative;
+        color: #adb5bd;
+    }
+
+    .step-list li:before {
+        content: "→";
+        color: #ffc107;
+        position: absolute;
+        left: 0;
+        font-weight: bold;
+    }
+
+    /* Карточки для сравнения */
+    .comparison-card {
+        background-color: rgba(0, 0, 0, 0.25);
+        padding: 1rem;
+        border-radius: 8px;
+        height: 100%;
+    }
+
+    /* Кнопка */
+    .btn-filter {
+        background-color: #ffc107;
+        color: #000 !important;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 4px;
+        font-weight: bold;
+        font-size: 1rem;
+        transition: all 0.2s;
+        display: inline-block;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .btn-filter:hover {
+        background-color: #e0a800;
+        transform: translateY(-2px);
+        color: #000 !important;
+        text-decoration: none;
+    }
+</style>
+
+<div class="force-width-1500 my-5">
+    <div class="rating-info-page">
+        <h2>Как считается рейтинг пилотов?</h2>
+
+        <!-- Основная формула -->
+        <h3>1. Математическая основа</h3>
+        <p>
+            Мы используем <strong>модель Брэдли-Терри с Lasso-регуляризацией</strong> —
+            это стандарт спортивной аналитики, который применяется в футболе, теннисе и киберспорте.
+        </p>
+
+        <div class="formula-block">
+            P(i > j) = exp(θᵢ) / (exp(θᵢ) + exp(θⱼ))
+        </div>
+
+        <p>
+            Где <strong>P(i > j)</strong> — вероятность того, что пилот i финиширует выше пилота j,
+            а <strong>θᵢ</strong> и <strong>θⱼ</strong> — их рейтинги.
+        </p>
+
+        <!-- Как это работает на практике -->
+        <h3>2. Как это работает на практике</h3>
+
+        <h4>Шаг 1. Парные сравнения</h4>
+        <p>
+            Каждая гонка разбивается на множество парных сравнений. Например, если в гонке 10 пилотов,
+            мы получаем 45 сравнений (каждый с каждым). Пилот, финишировавший выше, считается победителем в паре.
+        </p>
+
+        <!-- Простая таблица -->
+        <table class="simple-table">
+            <thead>
+                <tr>
+                    <th>Место</th>
+                    <th>Пилот</th>
+                    <th>Победы в парах</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="place-badge gold">1</span></td>
+                    <td>Пилот 1</td>
+                    <td>9 побед (выше всех 9 соперников)</td>
+                </tr>
+                <tr>
+                    <td><span class="place-badge silver">2</span></td>
+                    <td>Пилот 2</td>
+                    <td>8 побед (выше всех, кроме 1-го места)</td>
+                </tr>
+                <tr>
+                    <td><span class="place-badge bronze">3</span></td>
+                    <td>Пилот 3</td>
+                    <td>7 побед (выше всех, кроме 1-го и 2-го)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h4>Шаг 2. Учет силы соперников</h4>
+        <p>
+            Победа над сильным соперником добавляет больше рейтинга, чем победа над слабым.
+            Это главное отличие от простого подсчета процента побед.
+        </p>
+
+        <div class="note-box">
+            <i class="fas fa-lightbulb text-warning me-2"></i>
+            <strong>Пример:</strong>
+            <span>Победа над пилотом с рейтингом 2000 даст +20 очков, а над пилотом с рейтингом 1000 — только +5.</span>
+        </div>
+        <!-- Таблица с весами контекстной модели -->
+        <h4 class="mt-5">Шаг 3. Расчёт влияния погоды и трасс</h4>
+        <p>
+            Модель анализирует тысячи гонок и определяет, насколько каждый фактор важен.
+            Например, может оказаться, что на трассе "Пластушка" пилоты едут на 10% быстрее,
+            а в дождь шансы на победу падают на 30%.
+        </p>
+
+        <!-- Динамическая таблица с весами -->
+        {% include "coderedcms/snippets/weights_table.html" %}
+
+        <!-- Дополнительное разъяснение -->
+        <h3>5.1. Почему веса могут быть нулевыми?</h3>
+        <p>
+            Контекстная модель учитывает не просто наличие данных, а их статистическую значимость.
+            Вес фактора становится заметным только тогда, когда он реально влияет на результаты.
+        </p>
+
+        <div class="note-box">
+            <i class="fas fa-cloud-rain text-warning me-2"></i>
+            <strong>Осадки = 0.00</strong>
+            <span><br>
+                Это означает, что в наше базе пока нет дождевых гонок, либо их слишком мало
+                для статистически значимого вывода. Как только появятся гонки под дождём,
+                модель начнёт рассчитывать влияние осадков.
+            </span>
+        </div>
+
+        <div class="note-box">
+            <i class="fas fa-temperature-high text-warning me-2"></i>
+            <strong>Температура = 0.00</strong>
+            <span><br>
+                Данные по температуре есть, но они не показывают устойчивой зависимости
+                результатов от температуры. Если в жару побеждают те же пилоты, что и в холод,
+                вес останется нулевым.
+            </span>
+        </div>
+
+        <div class="note-box">
+            <i class="fas fa-circle text-warning me-2"></i>
+            <strong>Шины = 0.00</strong>
+            <span><br>
+                В рамках одного класса все пилоты используют одинаковые шины, поэтому
+                этот фактор не может влиять на результат. Ноль здесь — это норма. Но мы его всё равно учитываем.
+            </span>
+        </div>
+
+        <!-- Lasso-регуляризация -->
+        <h3>3. Lasso-регуляризация (решение проблемы "мало стартов")</h3>
+
+        <p>
+            Что делать, если у пилота всего 1-2 старта? Его рейтинг может быть случайно высоким или низким.
+            Lasso-регуляризация автоматически "подтягивает" таких пилотов к среднему значению,
+            пока не накопится достаточно данных.
+        </p>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="comparison-card">
+                    <h4 style="color: #0dcaf0 !important;">Без регуляризации</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li style="margin-bottom: 0.5rem; color: #fff;">⚠️ 1 старт, 1 победа → рейтинг 100</li>
+                        <li style="margin-bottom: 0.5rem; color: #fff;">⚠️ 1 старт, 10-е место → рейтинг 0</li>
+                        <li style="color: #6c757d; font-size: 0.9rem;">Слишком резкие скачки</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="comparison-card">
+                    <h4 style="color: #0dcaf0 !important;">С Lasso</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li style="margin-bottom: 0.5rem; color: #fff;">✅ 1 старт, 1 победа → рейтинг 85</li>
+                        <li style="margin-bottom: 0.5rem; color: #fff;">✅ 1 старт, 10-е место → рейтинг 15</li>
+                        <li style="color: #6c757d; font-size: 0.9rem;">Плавные, реалистичные значения</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Нормировка 0-100 -->
+        <h3>4. Нормировка (шкала 0–100)</h3>
+
+        <p>
+            Исходные рейтинги могут быть любыми числами (от -5 до +15). Чтобы сделать их понятными,
+            мы нормируем значения:
+        </p>
+
+        <div class="formula-block">
+            Рейтинг<sub>норм</sub> = (θ - θ<sub>мин</sub>) / (θ<sub>макс</sub> - θ<sub>мин</sub>) × 100
+        </div>
+
+        <p>
+            Где <strong>θ<sub>мин</sub></strong> — минимальный рейтинг среди всех пилотов,
+            а <strong>θ<sub>макс</sub></strong> — максимальный.
+        </p>
+
+        <!-- Доверительный интервал -->
+        <h3>5. Доверительный интервал (иконка ⚠️)</h3>
+
+        <p>
+            Чем меньше стартов у пилота, тем менее надёжен его рейтинг. Мы показываем это иконкой ⚠️
+            и полупрозрачным фоном для пилотов с менее чем 3 стартами.
+        </p>
+
+        <table class="simple-table">
+            <thead>
+                <tr>
+                    <th>Пилот</th>
+                    <th>Старты</th>
+                    <th>Рейтинг</th>
+                    <th>Доверительный интервал</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Пилот А</td>
+                    <td>1</td>
+                    <td><span class="rating-badge-example rating-low-data">98</span>⚠️</td>
+                    <td>от 45 до 151 (очень широкий)</td>
+                </tr>
+                <tr>
+                    <td>Пилот Б</td>
+                    <td>12</td>
+                    <td><span class="rating-badge-example">76</span></td>
+                    <td>от 72 до 80 (узкий)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>5.1. Смена класса и рейтинг</h3>
+        <p>
+            При переходе в новый класс рейтинг пилота <strong>начинается с нуля</strong>.
+            Это связано с тем, что каждый класс имеет свою специфику (разные шасси, двигатели,
+            возрастные группы), и результаты в одном классе не переносятся в другой.
+            В профиле пилота вы можете видеть рейтинги отдельно по каждому классу.
+        </p>
+        <!-- Итоговый алгоритм -->
+        <h3>6. Итоговый алгоритм</h3>
+
+        <ul class="step-list">
+            <li>Собираем все результаты гонок</li>
+            <li>Разбиваем на попарные сравнения (каждый с каждым внутри одной гонки)</li>
+            <li>Обучаем модель Брэдли-Терри с Lasso-регуляризацией</li>
+            <li>Получаем "сырые" рейтинги для каждого пилота</li>
+            <li>Нормируем в шкалу 0–100</li>
+            <li>Помечаем ⚠️ пилотов с малым числом стартов</li>
+        </ul>
+
+        <div class="note-box">
+            <i class="fas fa-sync-alt text-warning me-2"></i>
+            <strong>Обновление:</strong>
+            <span>Рейтинг пересчитывается автоматически после каждого импорта новых результатов.</span>
+        </div>
+
+        <!-- Ссылка назад -->
+        <div class="text-center mt-5">
+            <a href="/top/drivers/" class="btn-filter">
+            <i class="fas fa-arrow-left me-2"></i>Вернуться к рейтингу
+        </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

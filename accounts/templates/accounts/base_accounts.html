@@ -1,0 +1,94 @@
+{% extends "coderedcms/pages/base.html" %}
+{% load static %}
+
+{% block custom_assets %}
+    {{ block.super }}
+    <style>
+        /* Убрали .auth-container с фиксированной шириной */
+        .auth-title {
+            color: #ffc107;
+            text-align: center;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .auth-form input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            background-color: #15151c;
+            border: 1px solid #2a2a35;
+            color: white;
+            border-radius: 4px;
+        }
+        .auth-form input:focus {
+            outline: none;
+            border-color: #ffc107;
+        }
+        .auth-form label {
+            color: #adb5bd;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            display: block;
+        }
+        .auth-button {
+            background-color: #ffc107;
+            color: #000;
+            border: none;
+            padding: 12px;
+            width: 100%;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .auth-button:hover {
+            background-color: #e0a800;
+            transform: translateY(-2px);
+        }
+        .auth-links {
+            text-align: center;
+            margin-top: 20px;
+            color: #adb5bd;
+        }
+        .auth-links a {
+            color: #ffc107;
+            text-decoration: none;
+        }
+        .auth-links a:hover {
+            text-decoration: underline;
+        }
+        .error-message {
+            background-color: #dc3545;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .success-message {
+            background-color: #28a745;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="accounts-content">
+    <h1 class="auth-title">{% block auth_title %}{% endblock %}</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="{% if message.tags == 'error' %}error-message{% elif message.tags == 'success' %}success-message{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% block auth_content %}
+    {% endblock %}
+</div>
+{% endblock %}

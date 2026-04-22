@@ -1,0 +1,281 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailimages_tags %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    .compare-card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1.5rem;
+        height: 100%;
+    }
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #ffc107;
+    }
+    .stat-label {
+        color: #adb5bd;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+    }
+    .vs-divider {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        font-weight: bold;
+        color: #ffc107;
+        height: 100%;
+    }
+    .chassis-select {
+        background-color: #15151c;
+        border: 1px solid #2a2a35;
+        color: white;
+        border-radius: 4px;
+        padding: 0.75rem;
+        width: 100%;
+    }
+    .chassis-select:focus {
+        outline: none;
+        border-color: #ffc107;
+    }
+    .chassis-logo-small {
+        max-height: 60px;
+        object-fit: contain;
+        margin-bottom: 1rem;
+    }
+    .class-filter {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+        margin: 2rem 0;
+    }
+    .class-filter .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        border-radius: 20px;
+    }
+    .btn-outline-class {
+        background-color: transparent;
+        color: #adb5bd;
+        border: 1px solid #2a2a35;
+    }
+    .btn-outline-class:hover {
+        border-color: #ffc107;
+        color: #ffc107;
+    }
+    .btn-class.active {
+        background-color: #ffc107;
+        color: #000;
+        border-color: #ffc107;
+    }
+    .btn-compare-between {
+        background-color: #ffc107;
+        color: #000;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: bold;
+        font-size: 1rem;
+        transition: all 0.2s;
+        cursor: pointer;
+        width: 100%;
+        white-space: nowrap;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    .btn-compare-between:hover {
+        background-color: #e0a800;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        color: #000;
+    }
+    .form-label {
+        color: #0dcaf0;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+</style>
+
+<div class="force-width-1500 my-5 text-white">
+    <h1 class="display-4 fw-bold mb-1 text-uppercase text-center">Сравнение шасси</h1>
+
+    <!-- ЕДИНСТВЕННАЯ ФОРМА -->
+    <form method="get" class="row align-items-end mb-5" id="compareForm">
+        <!-- Первое шасси -->
+        <div class="col-md-5">
+            <label class="form-label">Шасси 1</label>
+            <select name="chassis1" class="chassis-select" id="chassis1">
+                <option value="">-- Выберите первое шасси --</option>
+                {% for chassis in all_chassis %}
+                    <option value="{{ chassis.slug }}" {% if chassis1 and chassis.id == chassis1.id %}selected{% endif %}>
+                        {{ chassis.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Кнопка Сравнить между списками -->
+        <div class="col-md-2">
+            <button type="submit" form="compareForm" class="btn-compare-between">
+                <i class="fas fa-balance-scale me-2"></i>Сравнить
+            </button>
+        </div>
+
+        <!-- Второе шасси -->
+        <div class="col-md-5">
+            <label class="form-label">Шасси 2</label>
+            <select name="chassis2" class="chassis-select" id="chassis2">
+                <option value="">-- Выберите второе шасси --</option>
+                {% for chassis in all_chassis %}
+                    <option value="{{ chassis.slug }}" {% if chassis2 and chassis.id == chassis2.id %}selected{% endif %}>
+                        {{ chassis.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Сохраняем выбранный класс -->
+        {% if selected_class %}
+        <input type="hidden" name="class" value="{{ selected_class }}">
+        {% endif %}
+    </form>
+
+    {% if chassis1 and chassis2 %}
+    <!-- Вкладки классов -->
+    {% include "includes/class_nav.html" with classes=classes selected_class=selected_class base_url="?chassis1="|add:chassis1.slug|add:"&chassis2="|add:chassis2.slug %}
+
+    <!-- Результаты сравнения -->
+    <div class="row">
+        <!-- Первое шасси -->
+        <div class="col-md-5">
+            <div class="compare-card">
+                <div class="text-center">
+                    {% if chassis1.logo %}
+                        {% image chassis1.logo original as logo1 %}
+                        <img src="{{ logo1.url }}" class="chassis-logo-small" alt="{{ chassis1.name }}">
+                    {% endif %}
+                    <h2 class="h1 fw-bold text-uppercase mb-4">{{ chassis1.name }}</h2>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats1.total }}</div>
+                        <div class="stat-label">Старты</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats1.wins }}</div>
+                        <div class="stat-label">Победы</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats1.podiums }}</div>
+                        <div class="stat-label">Подиумы</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats1.win_rate }}%</div>
+                        <div class="stat-label">% Побед</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats1.podium_rate }}%</div>
+                        <div class="stat-label">% Подиумов</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats1.avg_position }}</div>
+                        <div class="stat-label">Ср. место</div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <h5 class="text-info border-bottom border-secondary pb-2">По погоде</h5>
+                    <div class="row mt-3">
+                        <div class="col-6">
+                            <div class="stat-label">Сухо</div>
+                            <div class="fw-bold text-white">{{ stats1.dry_wins }}/{{ stats1.dry_total }}</div>
+                            <small class="text-muted">{{ stats1.dry_wins }} побед</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-label">Дождь</div>
+                            <div class="fw-bold text-white">{{ stats1.wet_wins }}/{{ stats1.wet_total }}</div>
+                            <small class="text-muted">{{ stats1.wet_wins }} побед</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VS разделитель -->
+        <div class="col-md-2">
+            <div class="vs-divider">VS</div>
+        </div>
+
+        <!-- Второе шасси -->
+        <div class="col-md-5">
+            <div class="compare-card">
+                <div class="text-center">
+                    {% if chassis2.logo %}
+                        {% image chassis2.logo original as logo2 %}
+                        <img src="{{ logo2.url }}" class="chassis-logo-small" alt="{{ chassis2.name }}">
+                    {% endif %}
+                    <h2 class="h1 fw-bold text-uppercase mb-4">{{ chassis2.name }}</h2>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats2.total }}</div>
+                        <div class="stat-label">Старты</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats2.wins }}</div>
+                        <div class="stat-label">Победы</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats2.podiums }}</div>
+                        <div class="stat-label">Подиумы</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats2.win_rate }}%</div>
+                        <div class="stat-label">% Побед</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats2.podium_rate }}%</div>
+                        <div class="stat-label">% Подиумов</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">{{ stats2.avg_position }}</div>
+                        <div class="stat-label">Ср. место</div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <h5 class="text-info border-bottom border-secondary pb-2">По погоде</h5>
+                    <div class="row mt-3">
+                        <div class="col-6">
+                            <div class="stat-label">Сухо</div>
+                            <div class="fw-bold text-white">{{ stats2.dry_wins }}/{{ stats2.dry_total }}</div>
+                            <small class="text-muted">{{ stats2.dry_wins }} побед</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-label">Дождь</div>
+                            <div class="fw-bold text-white">{{ stats2.wet_wins }}/{{ stats2.wet_total }}</div>
+                            <small class="text-muted">{{ stats2.wet_wins }} побед</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

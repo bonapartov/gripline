@@ -1,0 +1,64 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    .ad-card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        transition: all 0.2s;
+    }
+    .ad-card:hover {
+        border-color: #ffc107;
+    }
+</style>
+
+<div class="force-width-1500 my-5">
+    <h1 class="display-4 fw-bold mb-4 text-uppercase text-center">
+        <i class="fas fa-star me-3 text-warning"></i>Избранные объявления
+    </h1>
+
+    <div class="row">
+        <div class="col-12">
+            {% for fav in favorites %}
+            <div class="ad-card">
+                <div class="d-flex justify-content-between align-items-start flex-wrap">
+                    <div>
+                        <h4 class="text-warning mb-1">{{ fav.ad.title }}</h4>
+                        <div class="text-muted small mb-2">
+                            {{ fav.ad.get_ad_type_display }} • {{ fav.ad.category.name }}
+                        </div>
+                        <p class="text-white-50">{{ fav.ad.description|truncatewords:30 }}</p>
+                        {% if fav.ad.price %}
+                        <div class="text-info fw-bold mb-2">{{ fav.ad.price }} ₽</div>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'ads_detail' fav.ad.id %}" class="btn btn-sm btn-outline-info">
+                            <i class="fas fa-eye me-1"></i>Смотреть
+                        </a>
+                        <a href="{% url 'ads_favorite' fav.ad.id %}" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-trash me-1"></i>Убрать
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-5">
+                <p class="text-muted">У вас нет избранных объявлений</p>
+                <a href="{% url 'ads_list' %}" class="btn btn-warning mt-3">Перейти к объявлениям</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

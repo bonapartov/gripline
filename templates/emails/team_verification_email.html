@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="background:#15151c;color:#fff;padding:20px;">
+<div style="max-width:500px;margin:0 auto;background:#1a1a25;padding:30px;border-radius:8px;">
+    <h2 style="color:#ffc107;">Подтверждение регистрации команды</h2>
+    <p>Здравствуйте, {{ user.first_name }} {{ user.last_name }}!</p>
+    <p>Вы зарегистрировали команду на Gripline. Для завершения регистрации нажмите на кнопку:</p>
+    <a href="{{ verification_url }}" style="display:inline-block;background:#ffc107;color:#000;padding:10px 20px;margin:20px 0;text-decoration:none;border-radius:4px;">Подтвердить email</a>
+    <p>Ссылка действительна {{ expiry_minutes }} минут.</p>
+    <hr>
+    <p style="font-size:12px;color:#6c757d;">Gripline.ru</p>
+</div>
+</body>
+</html>

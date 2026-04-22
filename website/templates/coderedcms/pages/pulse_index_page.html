@@ -1,0 +1,355 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailcore_tags wagtailimages_tags static %}
+
+{% block content %}
+<style>
+    /* Единый стандарт ширины 1500px */
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    /* Стили для карточек как в track_index_page.html */
+    .championship-card {
+        transition: transform 0.3s, box-shadow 0.3s;
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        height: 100%;
+    }
+    .championship-card:hover {
+
+        box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        border-color: #ffc107;
+    }
+    .championship-card img {
+        height: 357px;
+        object-fit: cover;
+        border-bottom: 1px solid #2a2a35;
+    }
+    .championship-card .card-body {
+        padding: 1.25rem;
+    }
+    .championship-card .card-title {
+        color: #fff;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    .championship-card .card-text {
+        color: #adb5bd;
+        font-size: 0.9rem;
+    }
+
+    /* Стили для таблицы как в team_page.html */
+    .table-hover tbody tr:hover {
+        background-color: rgba(13, 202, 240, 0.1) !important;
+        transition: 0.3s;
+    }
+
+    /* Стили для фильтров */
+    .filter-card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+    }
+
+    .filter-card .card-header {
+        background-color: #0d6efd;
+        border-bottom: 1px solid #2a2a35;
+    }
+
+    .form-check-input {
+        background-color: #2a2a35;
+        border-color: #3a3a45;
+    }
+
+    .form-check-input:checked {
+        background-color: #0dcaf0;
+        border-color: #0dcaf0;
+    }
+
+    .class-filter-list {
+        max-height: 200px;
+        overflow-y: auto;
+        padding-right: 5px;
+    }
+
+    .class-filter-list::-webkit-scrollbar {
+        width: 5px;
+    }
+
+    .class-filter-list::-webkit-scrollbar-track {
+        background: #2a2a35;
+    }
+
+    .class-filter-list::-webkit-scrollbar-thumb {
+        background: #ffc107;
+        border-radius: 5px;
+    }
+
+    /* Стили для карты */
+    #map {
+        height: 400px;
+        width: 100%;
+        border-radius: 0 0 6px 6px;
+    }
+
+    /* Стили для бейджей */
+    .badge-year {
+        background-color: #0d6efd;
+        color: white;
+    }
+
+    .badge-type {
+        background-color: #0dcaf0;
+        color: #1a1a25;
+    }
+
+    /* НОВЫЕ СТИЛИ ДЛЯ БЛОКА ЧЕМПИОНОВ */
+    .champion-spotlight {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        width: 100%;
+    }
+
+    .champion-title {
+        font-size: 30px;
+        font-weight: bold;
+        color: #ffc107;
+        margin-bottom: 20px;
+        text-align: center;
+        width: 100%;
+    }
+
+    .champions-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        text-align: center;
+    }
+
+    .champion-photos {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .champion-card {
+        width: 150px;
+        text-align: center;
+    }
+
+    /* Контейнер для фото с надписью */
+    .champion-photo-wrapper {
+        position: relative;
+        width: 150px;
+        height: 150px;
+        margin-bottom: 0;
+        border-radius: 8px;  /* добавить скругление */
+        overflow: hidden;    /* чтобы внутренности не вылезали */
+    }
+
+    /* Фото и заглушка */
+    .champion-photo-img,
+    .champion-photo-placeholder {
+        width: 150px;
+        height: 150px;
+        border: 2px solid #ffc107;
+        border-radius: 8px;
+        display: block;
+        object-fit: cover;
+        box-sizing: border-box;  /* чтобы border не увеличивал размер */
+    }
+
+    .champion-photo-placeholder {
+        background-color: #2a2a35;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .champion-photo-placeholder i {
+        font-size: 2rem;
+        color: rgba(255,255,255,0.5);
+    }
+
+    /* Название класса на фото (внизу) */
+    .champion-class-on-photo {
+        position: absolute;
+        bottom: 2px;
+        left: 2px;
+        right: 2px;
+        background: rgba(0,0,0,0.7);
+        color: #ffc107;
+        font-size: 12px;
+        font-weight: bold;
+        padding: 4px 0;
+        text-align: center;
+        border-radius: 4px;
+        backdrop-filter: blur(2px);
+        width: calc(100% - 4px);
+        margin: 0 auto;
+        box-sizing: border-box;
+        z-index: 2;  /* поверх фото */
+    }
+
+    /* Имя пилота под фото */
+    .champion-name {
+        font-size: 14px;
+        font-weight: 500;
+        color: #fff;
+        margin-top: 8px;
+        text-align: center;
+        word-wrap: break-word;
+        line-height: 1.3;
+        max-width: 150px;
+    }
+
+    .champion-subtitle {
+        font-size: 18px;
+        font-weight: bold;
+        color: #ffc107;
+        margin-top: 5px;
+        margin-bottom: 15px;
+        text-align: center;
+        width: 100%;
+    }
+
+    .champion-subtitle:first-of-type {
+        margin-top: 0;
+    }
+
+    @media (min-width: 768px) {
+        .champion-photos {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            justify-content: flex-start;
+        }
+    }
+    .bg-bronze {
+        background-color: #cd7f32 !important;
+        color: white !important;
+    }
+    .badge.bg-bronze {
+        background-color: #cd7f32 !important;
+        color: white !important;
+    }
+</style>
+
+<div class="force-width-1500 my-5 text-white" id="pulse-app">
+    <!-- ШАПКА: Заголовок и подзаголовок по центру -->
+    <div class="time-machine mb-5">
+        <h1 class="display-4 fw-bold mb-3 text-center text-uppercase">{{ page.hero_title }}</h1>
+        <p class="lead text-muted mb-4 text-center">{{ page.hero_subtitle }}</p>
+
+        <!-- Чемпионы года -->
+        <div class="champion-spotlight">
+            <div class="champion-title" id="championName">Загрузка...</div>
+            <div class="champion-photos" id="championPhoto"></div>
+        </div>
+    </div>
+
+    <!-- ОСНОВНАЯ ЧАСТЬ: Фильтры и карточки -->
+    <div class="row">
+        <!-- Панель фильтров -->
+        <div class="col-md-3">
+            <div class="card filter-card mb-4">
+                <div class="card-header bg-primary text-white py-3">
+                    <h5 class="mb-0 text-uppercase fw-bold small">Фильтры</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Фильтр по году (кнопки) -->
+                    <div class="mb-4">
+                        <label class="form-label text-info small fw-bold text-uppercase">Год</label>
+                        <div class="row g-2" id="yearButtons">
+                            {% for year in available_years %}
+                            <div class="col-4">
+                                <button class="btn w-100 year-filter {% if year == current_year %}btn-warning{% else %}btn-outline-secondary{% endif %}"
+                                        data-year="{{ year }}">
+                                    {{ year }}
+                                </button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Фильтр по типу -->
+                    <div class="mb-4">
+                        <label class="form-label text-info small fw-bold text-uppercase">Тип соревнований</label>
+                        {% for type in available_types %}
+                        <div class="form-check">
+                            <input class="form-check-input type-filter" type="checkbox" value="{{ type }}" id="type{{ forloop.counter }}">
+                            <label class="form-check-label text-light small" for="type{{ forloop.counter }}">
+                                {{ type }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Фильтр по классу -->
+                    <div class="mb-4">
+                        <label class="form-label text-info small fw-bold text-uppercase">Класс</label>
+                        <div class="class-filter-list">
+                            {% for class in available_classes %}
+                            <div class="form-check">
+                                <input class="form-check-input class-filter" type="checkbox" value="{{ class.name }}" id="class{{ class.id }}">
+                                <label class="form-check-label text-light small" for="class{{ class.id }}">
+                                    {{ class.name }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <button class="btn btn-warning w-100 text-uppercase fw-bold" id="applyFilters">
+                        Применить
+                    </button>
+                    <button class="btn btn-outline-secondary w-100 mt-2" id="resetFilters">Сбросить</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Карточки турниров -->
+        <div class="col-md-9">
+            <h3 class="border-bottom border-primary pb-2 mb-4 text-uppercase fw-bold">Турниры сезона</h3>
+            <div class="row g-4" id="tournamentCards">
+                <!-- Карточки будут загружены через JS -->
+                <div class="col-12 text-center">
+                    <div class="spinner-border text-warning" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ПОДВАЛ: Карта трасс -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card filter-card">
+                <div class="card-header bg-success text-white py-3">
+                    <h5 class="mb-0 text-uppercase fw-bold">
+                        <i class="fas fa-map-marked-alt me-2"></i>
+                        Трассы сезона
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="map" style="height: 400px; width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- API ключ для Яндекс.Карт -->
+<script src="https://api-maps.yandex.ru/2.1/?apikey=fe4bbab7-bb35-4949-bce5-676cbc2df5e6&lang=ru_RU" type="text/javascript"></script>
+
+<!-- Подключаем JavaScript для интерактивности -->
+<script src="{% static 'js/pulse.js' %}"></script>
+{% endblock %}

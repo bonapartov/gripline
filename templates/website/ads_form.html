@@ -1,0 +1,92 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    .form-card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 2rem;
+    }
+    .form-label {
+        color: #0dcaf0;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        font-weight: bold;
+    }
+    .form-control {
+        background-color: #15151c !important;
+        border: 1px solid #2a2a35 !important;
+        color: white !important;
+    }
+    .form-control:focus {
+        border-color: #ffc107 !important;
+    }
+</style>
+
+<div class="force-width-1500 my-5">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="form-card">
+                <h1 class="text-warning mb-4">{% if is_edit %}Редактирование{% else %}Создание{% endif %} объявления</h1>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Тип объявления</label>
+                        <select name="ad_type" class="form-control" required>
+                            <option value="looking" {% if ad.ad_type == 'looking' %}selected{% endif %}>📢 Ищу</option>
+                            <option value="offering" {% if ad.ad_type == 'offering' %}selected{% endif %}>🤝 Предлагаю</option>
+                            <option value="buy" {% if ad.ad_type == 'buy' %}selected{% endif %}>💰 Куплю</option>
+                            <option value="sell" {% if ad.ad_type == 'sell' %}selected{% endif %}>💸 Продам</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Категория</label>
+                        <select name="category" class="form-control" required>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if ad.category.id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Заголовок</label>
+                        <input type="text" name="title" class="form-control" value="{{ ad.title }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Описание</label>
+                        <textarea name="description" rows="5" class="form-control" required>{{ ad.description }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Цена (если применимо)</label>
+                        <input type="number" name="price" class="form-control" step="0.01" value="{{ ad.price }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Местоположение</label>
+                        <input type="text" name="location" class="form-control" value="{{ ad.location }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Телефон</label>
+                        <input type="text" name="contact_phone" class="form-control" value="{{ ad.contact_phone }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="contact_email" class="form-control" value="{{ ad.contact_email }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Telegram</label>
+                        <input type="text" name="contact_telegram" class="form-control" value="{{ ad.contact_telegram }}">
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100">{% if is_edit %}Сохранить{% else %}Опубликовать{% endif %}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

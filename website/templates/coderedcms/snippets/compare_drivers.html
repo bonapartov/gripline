@@ -1,0 +1,836 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailimages_tags static %}
+{% load wagtailimages_tags static website_tags %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    .compare-card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .driver-photo-small {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 3px solid #ffc107;
+        margin-bottom: 1rem;
+    }
+
+    .driver-photo-placeholder {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background-color: #2a2a35;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem auto;
+        border: 3px solid #ffc107;
+    }
+
+    .driver-photo-placeholder i {
+        font-size: 3rem;
+        color: #6c757d;
+    }
+
+    .stat-box {
+        background-color: #15151c;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: center;
+        height: 100%;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #ffc107;
+    }
+
+    .stat-label {
+        color: #0dcaf0;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+    }
+
+    .advantage-badge {
+        background-color: #15151c;
+        border-radius: 50px;
+        padding: 0.5rem 1rem;
+        display: inline-block;
+        margin: 0.25rem;
+    }
+
+    .advantage-badge.winner {
+        background-color: #28a745;
+        color: white;
+    }
+
+    .search-form {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* Стили для кастомного поиска */
+    .driver-search-wrapper {
+        position: relative;
+        width: 100%;
+    }
+
+    .driver-search-input {
+        background-color: #15151c !important;
+        border: 1px solid #2a2a35 !important;
+        color: white !important;
+        border-radius: 4px;
+        padding: 0.75rem;
+        width: 100%;
+    }
+
+    .driver-search-input:focus {
+        border-color: #ffc107 !important;
+        outline: none;
+        box-shadow: none;
+    }
+
+    .driver-results-dropdown {
+        width: 100%;
+        max-height: 300px;
+        overflow-y: auto;
+        display: none;
+        position: absolute;
+        z-index: 1000;
+        background: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 4px;
+        margin-top: 2px;
+    }
+
+    .driver-result-item {
+        color: white;
+        padding: 8px 12px;
+        display: block;
+        text-decoration: none;
+        border-bottom: 1px solid #2a2a35;
+        cursor: pointer;
+    }
+
+    .driver-result-item:hover {
+        background-color: #2a2a35;
+    }
+
+    .comparison-table th {
+        color: #0dcaf0;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        padding: 1rem 0.5rem;
+        border-bottom: 2px solid #2a2a35;
+    }
+
+    .comparison-table td {
+        padding: 1rem 0.5rem;
+        border-bottom: 1px solid #2a2a35;
+    }
+
+    .rating-bar {
+        height: 8px;
+        background-color: #2a2a35;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 0.5rem 0;
+    }
+
+    .rating-fill {
+        height: 100%;
+        background-color: #ffc107;
+        border-radius: 4px;
+    }
+
+    .btn-compare {
+        background-color: #ffc107;
+        color: #000;
+        border: none;
+        padding: 0.75rem 2rem;
+        font-weight: bold;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-compare:hover {
+        background-color: #e0a800;
+        transform: translateY(-2px);
+    }
+
+    .chart-container {
+        min-height: 300px;
+        height: 50vh;  /* 50% от высоты окна браузера */
+        max-height: 600px;
+        margin-top: 1rem;
+    }
+
+    .class-filter {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+        margin-top: 1rem;
+    }
+
+    .class-filter .btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    .class-nav {
+        background-color: #2a2a35;
+        border-radius: 4px;
+        padding: 0.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+        margin-bottom: 2rem;
+        margin-top: 1rem;  /* ← ДОБАВЬТЕ ЭТУ СТРОКУ */
+    }
+</style>
+
+<div class="force-width-1500 my-5">
+    <h1 class="display-4 fw-bold mb-2 text-uppercase text-center" style="color: #fff;">Сравнение пилотов</h1>
+
+    <!-- Форма выбора пилотов -->
+    <div class="search-form">
+        <form method="get" class="row g-3 align-items-end" id="compareForm">
+            <div class="col-md-5">
+                <label class="form-label text-info mb-2">Пилот 1</label>
+                <div class="driver-search-wrapper">
+                    <input type="text"
+                           class="form-control driver-search-input"
+                           id="driver1_search"
+                           placeholder="🔍 Начните вводить имя или фамилию..."
+                           autocomplete="off"
+                           value="{% if driver1 %}{{ driver1.full_name }}{% endif %}">
+                    <input type="hidden" name="driver1" id="driver1" value="{{ driver1.id|default:'' }}">
+                    <div class="driver-results-dropdown" id="driver1_results"></div>
+                </div>
+            </div>
+
+            <div class="col-md-5">
+                <label class="form-label text-info mb-2">Пилот 2</label>
+                <div class="driver-search-wrapper">
+                    <input type="text"
+                           class="form-control driver-search-input"
+                           id="driver2_search"
+                           placeholder="🔍 Начните вводить имя или фамилию..."
+                           autocomplete="off"
+                           value="{% if driver2 %}{{ driver2.full_name }}{% endif %}">
+                    <input type="hidden" name="driver2" id="driver2" value="{{ driver2.id|default:'' }}">
+                    <div class="driver-results-dropdown" id="driver2_results"></div>
+                </div>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label text-info mb-2">&nbsp;</label>
+                <button type="submit" class="btn-compare w-100">Сравнить</button>
+            </div>
+        </form>
+
+        {% if classes %}
+            {% include "includes/class_nav.html" with classes=classes selected_class=selected_class base_url="?" %}
+        {% endif %}
+    </div>
+
+    {% if driver1 and driver2 %}
+    <!-- Блок сравнения -->
+    <div class="row g-4 mb-4">
+        <!-- Пилот 1 -->
+          <div class="col-md-5">
+              <div class="compare-card text-center h-100 py-3">
+                  {% if driver1.photo %}
+                      {% image driver1.photo fill-100x100 as driver1_photo %}
+                      <img src="{{ driver1_photo.url }}" class="driver-photo-small" style="width: 80px; height: 80px;" alt="{{ driver1.full_name }}">
+                  {% else %}
+                      <div class="driver-photo-placeholder" style="width: 80px; height: 80px;">
+                          <i class="fas fa-user" style="font-size: 2rem;"></i>
+                      </div>
+                  {% endif %}
+
+                  <h4 class="text-warning mb-1" style="font-size: 1.3rem;">{{ driver1.full_name|truncatechars:20 }}</h4>
+                  <p class="text-info small">{{ driver1.city|default:"Город не указан"|truncatechars:15 }}</p>
+
+                  <!-- Рейтинг в стиле удаленного блока -->
+                  <div class="mt-3">
+                      <div class="display-5 fw-bold text-warning">
+                          {% if stats1.normalized_rating %}
+                              {{ stats1.normalized_rating|floatformat:1 }}
+                          {% else %}
+                              0.0
+                          {% endif %}
+                      </div>
+                      <div class="rating-bar mx-auto" style="width: 80%; height: 6px; margin-top: 5px;">
+                          <div class="rating-fill" style="width: {% if stats1.normalized_rating %}{{ stats1.normalized_rating|floatformat:0 }}{% else %}0{% endif %}%;"></div>
+                      </div>
+                      <div class="text-info small text-uppercase mt-1">Рейтинг</div>
+                  </div>
+              </div>
+          </div>
+
+        <!-- VS посередине -->
+        <div class="col-md-2 d-flex align-items-center justify-content-center">
+            <span class="display-4 text-warning">VS</span>
+        </div>
+
+        <!-- Пилот 2 -->
+        <div class="col-md-5">
+            <div class="compare-card text-center h-100 py-3">
+                {% if driver2.photo %}
+                    {% image driver2.photo fill-100x100 as driver2_photo %}
+                    <img src="{{ driver2_photo.url }}" class="driver-photo-small" style="width: 80px; height: 80px;" alt="{{ driver2.full_name }}">
+                {% else %}
+                    <div class="driver-photo-placeholder" style="width: 80px; height: 80px;">
+                        <i class="fas fa-user" style="font-size: 2rem;"></i>
+                    </div>
+                {% endif %}
+
+                <h4 class="text-warning mb-1" style="font-size: 1.3rem;">{{ driver2.full_name|truncatechars:20 }}</h4>
+                <p class="text-info small">{{ driver2.city|default:"Город не указан"|truncatechars:15 }}</p>
+
+                <!-- Рейтинг в стиле удаленного блока -->
+                <div class="mt-3">
+                    <div class="display-5 fw-bold text-warning">
+                        {% if stats2.normalized_rating %}
+                            {{ stats2.normalized_rating|floatformat:1 }}
+                        {% else %}
+                            0.0
+                        {% endif %}
+                    </div>
+                    <div class="rating-bar mx-auto" style="width: 80%; height: 6px; margin-top: 5px;">
+                        <div class="rating-fill" style="width: {% if stats2.normalized_rating %}{{ stats2.normalized_rating|floatformat:0 }}{% else %}0{% endif %}%;"></div>
+                    </div>
+                    <div class="text-info small text-uppercase mt-1">Рейтинг</div>
+                </div>
+            </div>
+        </div>
+
+
+    <!-- Общая статистика -->
+    <div class="compare-card">
+        <h3 class="text-warning mb-4 text-center">Общая статистика</h3>
+
+
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="stat-box">
+                    <div class="stat-value">{{ stats1.total_starts|default:"0" }}</div>
+                    <div class="stat-label">Гонок</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="stat-box">
+                    <div class="stat-value">{{ stats2.total_starts|default:"0" }}</div>
+                    <div class="stat-label">Гонок</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="stat-box">
+                    <div class="stat-value">{{ stats1.wins|default:"0" }} <small class="text-muted">({{ stats1.win_rate|default:"0" }}%)</small></div>
+                    <div class="stat-label">Побед</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="stat-box">
+                    <div class="stat-value">{{ stats2.wins|default:"0" }} <small class="text-muted">({{ stats2.win_rate|default:"0" }}%)</small></div>
+                    <div class="stat-label">Побед</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="stat-box">
+                    <div class="stat-value">{{ stats1.podiums|default:"0" }} <small class="text-muted">({{ stats1.podium_rate|default:"0" }}%)</small></div>
+                    <div class="stat-label">Подиумов</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="stat-box">
+                    <div class="stat-value">{{ stats2.podiums|default:"0" }} <small class="text-muted">({{ stats2.podium_rate|default:"0" }}%)</small></div>
+                    <div class="stat-label">Подиумов</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="stat-box">
+                    <div class="stat-value">{{ stats1.avg_position|default:"0" }}</div>
+                    <div class="stat-label">Среднее место</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="stat-box">
+                    <div class="stat-value">{{ stats2.avg_position|default:"0" }}</div>
+                    <div class="stat-label">Среднее место</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Преимущества -->
+    <div class="compare-card">
+        <h3 class="text-warning mb-4">Преимущества</h3>
+
+        <div class="row text-center">
+            <div class="col-md-4">
+                <h5 class="text-info mb-3">Пилот 1</h5>
+                <div>
+                    {% if stats1.win_rate > stats2.win_rate %}
+                    <span class="advantage-badge winner mb-2">✅ Процент побед</span><br>
+                    {% endif %}
+
+                    {% if stats1.dry_wins and stats1.dry_total %}
+                        {% if stats1.dry_wins > stats2.dry_wins %}
+                        <span class="advantage-badge winner mb-2">✅ Сухой асфальт</span><br>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if stats1.wet_wins and stats1.wet_total %}
+                        {% if stats1.wet_wins > stats2.wet_wins %}
+                        <span class="advantage-badge winner mb-2">✅ Дождь</span><br>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <h5 class="text-info mb-3">Равны</h5>
+                <div>
+                    {% if stats1.total_starts == stats2.total_starts %}
+                    <span class="advantage-badge mb-2">🤝 Старты</span><br>
+                    {% endif %}
+
+                    {% if stats1.podiums == stats2.podiums %}
+                    <span class="advantage-badge mb-2">🤝 Подиумы</span><br>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <h5 class="text-info mb-3">Пилот 2</h5>
+                <div>
+                    {% if stats2.win_rate > stats1.win_rate %}
+                    <span class="advantage-badge winner mb-2">✅ Процент побед</span><br>
+                    {% endif %}
+
+                    {% if stats2.dry_wins and stats2.dry_total %}
+                        {% if stats2.dry_wins > stats1.dry_wins %}
+                        <span class="advantage-badge winner mb-2">✅ Сухой асфальт</span><br>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if stats2.wet_wins and stats2.wet_total %}
+                        {% if stats2.wet_wins > stats1.wet_wins %}
+                        <span class="advantage-badge winner mb-2">✅ Дождь</span><br>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-info mb-4" style="background-color: #1a1a25; border: 1px solid #2a2a35; color: #adb5bd; border-left: 4px solid #0dcaf0;">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-info-circle text-info fs-4 me-3"></i>
+            <div>
+                <strong class="text-warning">О трассах:</strong><br>
+                Показаны <strong class="text-info">только общие трассы</strong>, на которых выступали оба пилота.
+                Для каждой трассы указано количество гонок, побед и лучший результат.
+                <br>
+                <span class="small">
+                    • Учитываются <strong class="text-info">все гонки за всё время</strong> (не только последние)<br>
+                    • Трассы отсортированы по <strong class="text-info">популярности</strong> (сумме стартов обоих пилотов)<br>
+                    • Показаны <strong class="text-info">топ-5</strong> самых популярных трасс (Трассы, где пилоты чаще всего встречались и соревновались друг с другом.)<br>
+                    • Найдено <strong class="text-warning">{{ stats1.track_stats|length }}</strong> общих трасс
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Лучшие трассы -->
+    <div class="compare-card">
+        <h3 class="text-warning mb-4 text-center">🏁 Общие трассы</h3>
+
+        {% if stats1.track_stats %}
+            {% for track in stats1.track_stats %}
+            <div class="row mb-4 pb-3 border-bottom border-secondary">
+                <div class="col-12">
+                    <h4 class="text-info text-center mb-3">
+                        <a href="{% url 'track_detail' slug=track.slug %}" target="_blank" class="text-info text-decoration-none">
+                            {{ track.name }}
+                        </a>
+                    </h4>
+                </div>
+
+                <!-- Пилот 1 -->
+                <div class="col-md-6">
+                    <div class="bg-black bg-opacity-25 rounded-3 p-3 mx-2">
+                        <div class="row g-2 align-items-center">
+                            <!-- Левая колонка: гонки -->
+                            <div class="col-4 text-center">
+                                <div class="display-5 fw-bold text-warning">{{ track.starts }}</div>
+                                <div class="text-info small text-uppercase">
+                                    {% if track.starts == 1 %}ГОНКА
+                                    {% elif track.starts >= 2 and track.starts <= 4 %}ГОНКИ
+                                    {% else %}ГОНОК
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <!-- Средняя колонка: лучший результат -->
+                            <div class="col-4 text-center">
+                                <div class="text-muted small text-uppercase mb-1">ЛУЧШИЙ РЕЗУЛЬТАТ</div>
+                                <div class="display-6 fw-bold">
+                                    {% if track.best == 1 %}🥇
+                                    {% elif track.best == 2 %}🥈
+                                    {% elif track.best == 3 %}🥉
+                                    {% else %}🏁{% endif %}
+                                    <span class="text-info">{{ track.best }}</span>
+                                </div>
+                                <div class="text-muted small">МЕСТО</div>
+                            </div>
+                            <!-- Правая колонка: победы -->
+                            <div class="col-4 text-center">
+                                <div class="display-5 fw-bold text-warning">{{ track.wins }}</div>
+                                <div class="text-info small text-uppercase">
+                                    {% if track.wins == 1 %}ПОБЕДА
+                                    {% elif track.wins >= 2 and track.wins <= 4 %}ПОБЕДЫ
+                                    {% else %}ПОБЕД
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Пилот 2 (зеркально) -->
+                <div class="col-md-6">
+                    {% for track2 in stats2.track_stats %}
+                        {% if track2.name == track.name %}
+                        <div class="bg-black bg-opacity-25 rounded-3 p-3 mx-2">
+                            <div class="row g-2 align-items-center">
+                                <!-- Левая колонка: победы (зеркально) -->
+                                <div class="col-4 text-center">
+                                    <div class="display-5 fw-bold text-warning">{{ track2.wins }}</div>
+                                    <div class="text-info small text-uppercase">
+                                        {% if track2.wins == 1 %}ПОБЕДА
+                                        {% elif track2.wins >= 2 and track2.wins <= 4 %}ПОБЕДЫ
+                                        {% else %}ПОБЕД
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <!-- Средняя колонка: лучший результат -->
+                                <div class="col-4 text-center">
+                                    <div class="text-muted small text-uppercase mb-1">ЛУЧШИЙ РЕЗУЛЬТАТ</div>
+                                    <div class="display-6 fw-bold">
+                                        {% if track2.best == 1 %}🥇
+                                        {% elif track2.best == 2 %}🥈
+                                        {% elif track2.best == 3 %}🥉
+                                        {% else %}🏁{% endif %}
+                                        <span class="text-info">{{ track2.best|default:"—" }}</span>
+                                    </div>
+                                    <div class="text-muted small">МЕСТО</div>
+                                </div>
+                                <!-- Правая колонка: гонки (зеркально) -->
+                                <div class="col-4 text-center">
+                                    <div class="display-5 fw-bold text-warning">{{ track2.starts }}</div>
+                                    <div class="text-info small text-uppercase">
+                                        {% if track2.starts == 1 %}ГОНКА
+                                        {% elif track2.starts >= 2 and track2.starts <= 4 %}ГОНКИ
+                                        {% else %}ГОНОК
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted text-center py-5">Нет общих трасс для сравнения</p>
+        {% endif %}
+    </div>
+
+    <!-- Информационное сообщение -->
+        <div class="alert alert-info mb-4" style="background-color: #1a1a25; border: 1px solid #2a2a35; color: #adb5bd; border-left: 4px solid #0dcaf0;">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-info-circle text-info fs-4 me-3"></i>
+                <div>
+                    <strong class="text-warning">О графике:</strong><br>
+                    Показаны <strong class="text-info">только общие заезды</strong>, в которых участвовали оба пилота.
+                    Отображается не более <strong class="text-info">10 последних гонок</strong>.
+                    {% if stats1.chart_data|length < 10 %}
+                        <br><span class="small">Найдено {{ stats1.chart_data|length }} общих заездов.</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    <!-- График рейтинга -->
+    <div class="compare-card">
+        <h3 class="text-warning mb-4 text-center">Динамика результатов</h3>
+        <div class="chart-container">
+            {% if stats1.chart_data %}
+                <canvas id="compareChart"></canvas>
+            {% else %}
+                <p class="text-center text-muted py-5">Нет общих этапов для сравнения</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// Данные всех пилотов
+const driversData = [
+    {% for driver in all_drivers %}
+    {
+        id: {{ driver.id }},
+        name: "{{ driver.full_name }}",
+        city: "{{ driver.city|default:'город?' }}",
+        search: "{{ driver.full_name }} {{ driver.city|default:'' }}".toLowerCase()
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+];
+
+// Функция для создания выпадающего списка
+function setupDriverSearch(inputId, hiddenId, resultsId) {
+    const input = document.getElementById(inputId);
+    const hidden = document.getElementById(hiddenId);
+    const results = document.getElementById(resultsId);
+
+    if (!input || !hidden || !results) return;
+
+    // Показываем ВСЕХ пилотов при фокусе на поле
+    input.addEventListener('focus', function() {
+        showAllDrivers();
+    });
+
+    // Функция показа ВСЕХ пилотов
+    function showAllDrivers() {
+        results.innerHTML = driversData.map(d =>
+            `<div class="driver-result-item" onclick="selectDriver('${inputId}', '${hiddenId}', ${d.id}, '${d.name}')">
+                ${d.name} (${d.city})
+            </div>`
+        ).join('');
+
+        results.style.display = 'block';
+    }
+
+    input.addEventListener('input', function() {
+        const search = this.value.toLowerCase().trim();
+
+        if (search.length === 0) {
+            showAllDrivers();
+            return;
+        }
+
+        const filtered = driversData.filter(d => d.search.includes(search));
+
+        if (filtered.length === 0) {
+            results.innerHTML = '<div class="driver-result-item">Ничего не найдено</div>';
+            results.style.display = 'block';
+            return;
+        }
+
+        results.innerHTML = filtered.map(d =>
+            `<div class="driver-result-item" onclick="selectDriver('${inputId}', '${hiddenId}', ${d.id}, '${d.name}')">
+                ${d.name} (${d.city})
+            </div>`
+        ).join('');
+
+        results.style.display = 'block';
+    });
+
+    // Закрываем список при клике вне
+    document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !results.contains(e.target)) {
+            results.style.display = 'none';
+        }
+    });
+}
+
+// Функция выбора пилота
+function selectDriver(inputId, hiddenId, driverId, displayName) {
+    const input = document.getElementById(inputId);
+    const hidden = document.getElementById(hiddenId);
+    const results = document.getElementById(inputId + '_results');
+
+    if (input) input.value = displayName;
+    if (hidden) hidden.value = driverId;
+    if (results) {
+        results.style.display = 'none';
+        results.innerHTML = '';
+    }
+}
+
+console.log('Labels:', [
+    {% for d in stats1.chart_data %}
+    "{{ d.event }}"{% if not forloop.last %},{% endif %}
+    {% endfor %}
+]);
+console.log('STATS1 chart_data length from template: {{ stats1.chart_data|length }}');
+console.log('STATS2 chart_data length from template: {{ stats2.chart_data|length }}');
+
+console.log('Data1 ({{ driver1.full_name }}):', [{% for d in stats1.chart_data %}{{ d.points }}{% if not forloop.last %},{% endif %}{% endfor %}]);
+console.log('Data2 ({{ driver2.full_name }}):', [{% for d in stats1.chart_data %}{{ d.other_points }}{% if not forloop.last %},{% endif %}{% endfor %}]);
+
+// Инициализация
+document.addEventListener('DOMContentLoaded', function() {
+    setupDriverSearch('driver1_search', 'driver1', 'driver1_results');
+    setupDriverSearch('driver2_search', 'driver2', 'driver2_results');
+});
+
+{% if driver1 and driver2 and stats1.chart_data %}
+// График сравнения
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('compareChart').getContext('2d');
+
+    // Очищаем предыдущий график
+    if (window.driverChart) {
+        window.driverChart.destroy();
+    }
+
+    // Берем данные напрямую из stats1 (только 8 элементов!)
+    const data = {{ stats1.chart_data|safe }};
+
+    console.log('Данные из Django:', data);
+    console.log('Количество элементов:', data.length);
+
+    // Извлекаем массивы
+    const labels = data.map(item => item.event);
+    const points1 = data.map(item => item.points);
+    const points2 = data.map(item => item.other_points);
+
+    console.log('labels (8 шт):', labels);
+    console.log('points1 (8 шт):', points1);
+    console.log('points2 (8 шт):', points2);
+
+    window.driverChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: '{{ driver1.full_name }}',
+                    data: points1,
+                    borderColor: '#ffc107',
+                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                    tension: 0.3,
+                    fill: false
+                },
+                {
+                    label: '{{ driver2.full_name }}',
+                    data: points2,
+                    borderColor: '#0dcaf0',
+                    backgroundColor: 'rgba(13, 202, 240, 0.1)',
+                    tension: 0.3,
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: { color: '#adb5bd' }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    // Динамический максимум: округляем до ближайшего кратного 25
+                    suggestedMax: (function() {
+                        const maxValue = Math.max(...points1, ...points2);
+                        return Math.ceil(maxValue / 25) * 25; // Округляем вверх до 25
+                    })(),
+                    grid: {
+                        color: 'rgba(255,255,255,0.1)',
+                        lineWidth: 0.5
+                    },
+                    ticks: {
+                        color: '#adb5bd',
+                        stepSize: 25,  // Шаг 25 очков
+                        callback: function(value, index, values) {
+                            return value; // Показываем все значения
+                        },
+                        autoSkip: false, // Не пропускать подписи
+                        maxTicksLimit: 20  // Максимум 20 делений
+                    },
+                    afterBuildTicks: function(scale) {
+                        // Принудительно добавляем все деления через 25
+                        scale.ticks = [];
+                        for (let i = 0; i <= scale.max; i += 25) {
+                            scale.ticks.push({ value: i });
+                        }
+                    }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        color: '#adb5bd',
+                        maxRotation: 0,
+                        minRotation: 0,
+                        autoSkip: true,
+                        maxTicksLimit: 10
+                    }
+                }
+            }
+        }
+    });
+});
+{% endif %}
+// Функция для фильтрации по классу
+function filterByClass(classId) {
+    // Очищаем выбранных пилотов
+    document.getElementById('driver1_search').value = '';
+    document.getElementById('driver1').value = '';
+    document.getElementById('driver2_search').value = '';
+    document.getElementById('driver2').value = '';
+
+    // Перенаправляем с выбранным классом
+    window.location.href = `?class=${classId}`;
+    return false; // Отменяем стандартный переход по ссылке
+}
+
+// Функция для сброса на все классы
+function clearDrivers() {
+    document.getElementById('driver1_search').value = '';
+    document.getElementById('driver1').value = '';
+    document.getElementById('driver2_search').value = '';
+    document.getElementById('driver2').value = '';
+
+    window.location.href = '?class=';
+    return false;
+}
+
+// При загрузке страницы показываем сообщение о количестве пилотов
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Доступно пилотов в выбранном классе:', {{ all_drivers|length }});
+});
+</script>
+{% endblock %}

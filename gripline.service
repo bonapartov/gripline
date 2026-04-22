@@ -1,0 +1,30 @@
+[Unit]
+Description=Gripline Django Application
+After=network.target
+After=postgresql.service
+
+[Service]
+Type=notify
+User=root
+Group=root
+WorkingDirectory=/www/wwwroot/gripline.ru
+Environment="PATH=/www/wwwroot/gripline.ru/venv/bin"
+ExecStart=/www/wwwroot/gripline.ru/venv/bin/gunicorn --workers 3 --bind 127.0.0.1:8000 mysite.wsgi:application
+
+# Автоматический перезапуск
+Restart=always
+RestartSec=10
+
+# Логирование
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gripline
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+Environment="GUNICORN_WORKERS=2"
+Environment="GUNICORN_TIMEOUT=120"
+

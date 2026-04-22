@@ -1,0 +1,15 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block content %}
+<div class="container my-5" style="max-width: 500px;">
+    <h2 class="text-warning mb-4">Повторная отправка письма</h2>
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label class="form-label text-info">Email</label>
+            <input type="email" name="email" class="form-control bg-dark text-white border-secondary" required>
+        </div>
+        <button type="submit" class="btn btn-warning w-100">Отправить письмо</button>
+    </form>
+</div>
+{% endblock %}

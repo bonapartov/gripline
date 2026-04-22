@@ -1,0 +1,468 @@
+{% extends "coderedcms/pages/article_index_page.html" %}
+{% load wagtailcore_tags wagtailimages_tags %}
+{% load wagtailcore_tags wagtailimages_tags website_tags %}
+
+
+{% block content %}
+
+<style>
+    .force-width-1700 {
+        max-width: 1700px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    
+    /* === НОВЫЙ КОНТЕЙНЕР ДЛЯ ДВУХ КОЛОНОК === */
+    .two-columns {
+        display: flex;
+        gap: 2rem;
+        align-items: flex-start;
+    }
+    
+    /* === ЛЕВАЯ КОЛОНКА — ФИЛЬТРЫ (sticky) === */
+    .filters-sidebar {
+        width: 280px;
+        flex-shrink: 0;
+        position: sticky;
+        align-self: flex-start;
+        top: 80px; /* значение по умолчанию */
+    }
+    
+    /* Десктоп (большие экраны) */
+    @media (min-width: 1200px) {
+        .filters-sidebar {
+            top: 80px;
+        }
+    }
+    
+    /* Планшеты */
+    @media (max-width: 1199px) and (min-width: 769px) {
+        .filters-sidebar {
+            top: 70px;
+        }
+    }
+    
+    /* Мобильные */
+    @media (max-width: 768px) {
+        .filters-sidebar {
+            top: 60px;
+        }
+    }
+    
+    /* Стили для фильтров (оставлены как были, но без margin-bottom) */
+    .filter-bar {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1rem;
+    }
+    
+    .filter-group {
+        margin-bottom: 1rem;
+    }
+    
+    .filter-group:last-child {
+        margin-bottom: 0;
+    }
+    
+    .filter-group h5 {
+        color: #0dcaf0;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-bottom: 0.75rem;
+        text-align: center;
+    }
+    
+    .filter-btn {
+        display: block;
+        width: 100%;
+        padding: 0.5rem 0.8rem;
+        background-color: #2a2a35;
+        border: 1px solid #3a3a45;
+        border-radius: 8px;
+        color: #adb5bd;
+        font-size: 0.8rem;
+        text-decoration: none;
+        transition: all 0.2s;
+        text-align: center;
+        box-sizing: border-box;
+    }
+    
+    .filter-btn:hover,
+    .filter-btn.active {
+        background-color: #ffc107;
+        border-color: #ffc107;
+        color: #1a1a25;
+    }
+    
+    .filter-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .clear-filters {
+        margin-top: 0.5rem;
+    }
+    
+    .clear-filters a {
+        color: #0dcaf0;
+        font-size: 0.75rem;
+        text-decoration: none;
+    }
+    
+    .clear-filters a:hover {
+        color: #ffc107;
+    }
+    
+    /* === ПРАВАЯ КОЛОНКА — НОВОСТИ === */
+    .content-main {
+        flex: 1;
+        min-width: 0; /* предотвращает переполнение */
+    }
+    
+    .articles-count {
+        text-align: center;
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
+    
+    .site-title-dynamic {
+        font-size: clamp(2rem, 15cqi, 10rem);
+        font-weight: 900;
+        text-transform: uppercase;
+        text-align: center;
+        line-height: 0.8;
+        letter-spacing: -0.05em;
+        margin-bottom: 40px;
+    }
+    
+    .bento-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-auto-rows: 350px;
+        grid-auto-flow: dense;
+        gap: 20px;
+        width: 100%;
+        margin-bottom: 50px;
+    }
+    
+    .post-card {
+        position: relative;
+        overflow: hidden;
+        background: #111;
+        border-radius: 10px;
+    }
+    
+    .post-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.8s cubic-bezier(0.2, 1, 0.3, 1);
+    }
+    
+    .post-card:hover img {
+        transform: scale(1.05);
+    }
+    
+    .post-overlay {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.4) 40%, transparent 100%);
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 25px;
+        color: white;
+    }
+    
+    .post-overlay h2 {
+        font-weight: 900;
+        line-height: 0.9;
+        margin: 10px 0 0;
+        font-size: 1.6rem;
+    }
+    
+    .post-meta {
+        font-size: 10px;
+        font-weight: 900;
+        text-transform: uppercase;
+        color: #ff0000;
+    }
+    
+    .post-card:nth-child(6n+1) {
+        grid-column: 1 / span 2;
+        grid-row: span 2;
+    }
+    
+    .post-card:nth-child(6n+1) h2 {
+        font-size: 3.5rem;
+    }
+    
+    .post-card:nth-child(6n+4) {
+        grid-column: 2 / span 2;
+        grid-row: span 2;
+    }
+    
+    .post-card:nth-child(6n+4) h2 {
+        font-size: 3.5rem;
+    }
+    
+    /* === АДАПТАЦИЯ ДЛЯ ПЛАНШЕТОВ (ширина < 1100px) === */
+    @media (max-width: 1100px) {
+        .bento-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        .post-card:nth-child(n) {
+            grid-column: span 1 !important;
+            grid-row: span 1 !important;
+        }
+        .post-card:nth-child(n) h2 {
+            font-size: 1.5rem !important;
+        }
+    }
+    
+    /* === МОБИЛЬНАЯ ВЕРСИЯ (ширина < 768px) === */
+    @media (max-width: 768px) {
+        .two-columns {
+            flex-direction: column;
+        }
+        
+        .filters-sidebar {
+            width: 100%;
+            position: static;
+            margin-bottom: 1.5rem;
+        }
+        
+        /* Выпадающее меню для фильтров */
+        .filter-bar {
+            display: none;
+        }
+        
+        .filter-dropdown {
+            background-color: #1a1a25;
+            border: 1px solid #2a2a35;
+            border-radius: 8px;
+            padding: 0;
+        }
+        
+        .filter-dropdown summary {
+            padding: 0.75rem 1rem;
+            font-weight: bold;
+            color: #ffc107;
+            cursor: pointer;
+            list-style: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .filter-dropdown summary::-webkit-details-marker {
+            display: none;
+        }
+        
+        .filter-dropdown summary::after {
+            content: "▼";
+            font-size: 0.8rem;
+            color: #adb5bd;
+        }
+        
+        .filter-dropdown[open] summary::after {
+            content: "▲";
+        }
+        
+        .filter-dropdown .filter-bar {
+            display: block;
+            border: none;
+            border-top: 1px solid #2a2a35;
+            border-radius: 0 0 8px 8px;
+        }
+    }
+    
+    .pagination-container {
+        visibility: hidden;
+        height: 0;
+    }
+</style>
+
+<div class="force-width-1700 mt-8">
+    <h1 class="site-title-dynamic">{{ page.title }}</h1>
+    
+    {% if classifiers_data %}
+        <!-- ДВЕ КОЛОНКИ: фильтры слева + новости справа -->
+        <div class="two-columns">
+            
+            <!-- ЛЕВАЯ КОЛОНКА: Фильтры (sticky на десктопе) -->
+            <div class="filters-sidebar">
+                
+                <!-- На мобильных показываем выпадающий блок, на десктопе — обычные фильтры -->
+                <div class="filter-dropdown">
+                    
+                    <div class="filter-bar">
+                        {% for classifier, terms in classifiers_data.items %}
+                        <div class="filter-group">
+                            <h5>{{ classifier.name }}</h5>
+                            <div class="filter-buttons">
+                                <a href="?{% for key, value in active_filters.items %}{% if key != classifier.slug %}{{ key }}={{ value }}&{% endif %}{% endfor %}" 
+                                   class="filter-btn {% if not active_filters|get_item:classifier.slug %}active{% endif %}">
+                                    Все
+                                </a>
+                                {% for term in terms %}
+                                    <a href="?{{ classifier.slug }}={{ term.slug }}{% for key, value in active_filters.items %}{% if key != classifier.slug %}&{{ key }}={{ value }}{% endif %}{% endfor %}" 
+                                       class="filter-btn {% if active_filters|get_item:classifier.slug == term.slug %}active{% endif %}">
+                                        {{ term.name }}
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        {% if active_filters %}
+                        <div class="clear-filters text-end">
+                            <a href=".">✕ Сбросить все фильтры</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ПРАВАЯ КОЛОНКА: Счётчик + сетка новостей -->
+            <div class="content-main">                               
+                <div class="bento-grid" id="post-wrapper">
+                    {% for post in articles %}
+                        <article class="post-card">
+                            <a href="{% pageurl post %}">
+                                {% if post.specific.cover_image %}
+                                    {% image post.specific.cover_image fill-1200x900 %}
+                                {% elif post.specific.image %}
+                                    {% image post.specific.image fill-1200x900 %}
+                                {% elif post.specific.featured_image %}
+                                    {% image post.specific.featured_image fill-1200x900 %}
+                                {% elif post.specific.hero_image %}
+                                    {% image post.specific.hero_image fill-1200x900 %}
+                                {% elif post.specific.og_image %}
+                                    {% image post.specific.og_image fill-1200x900 %}
+                                {% else %}
+                                    <div style="width:100%; height:100%; background:#222; display:flex; align-items:center; justify-content:center;">
+                                        <span style="color:#666; font-size:14px;">Нет изображения, фотограф уже бежит</span>
+                                    </div>
+                                {% endif %}
+
+                                <div class="post-overlay">
+                                    <span class="post-meta">
+                                        {% if post.specific.seo_published_at %}
+                                            {{ post.specific.seo_published_at|date:"d.m.Y" }}
+                                        {% else %}
+                                            {{ post.first_published_at|date:"d.m.Y" }}
+                                        {% endif %}
+                                    </span>
+                                    <h2>{{ post.title }}</h2>
+                                </div>
+                            </a>
+                        </article>
+                    {% empty %}
+                        <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #666;">
+                            <p>Пока нет статей.</p>
+                        </div>
+                    {% endfor %}
+                </div>    
+            </div>            
+        </div> <!-- .two-columns -->
+    {% else %}
+        <!-- Если классификаторов нет, показываем только сетку новостей (без фильтров) -->
+        <div class="bento-grid" id="post-wrapper">
+            {% for post in articles %}
+                <article class="post-card">
+                    <a href="{% pageurl post %}">
+                        {% if post.specific.cover_image %}
+                            {% image post.specific.cover_image fill-1200x900 %}
+                        {% elif post.specific.image %}
+                            {% image post.specific.image fill-1200x900 %}
+                        {% elif post.specific.featured_image %}
+                            {% image post.specific.featured_image fill-1200x900 %}
+                        {% elif post.specific.hero_image %}
+                            {% image post.specific.hero_image fill-1200x900 %}
+                        {% elif post.specific.og_image %}
+                            {% image post.specific.og_image fill-1200x900 %}
+                        {% else %}
+                            <div style="width:100%; height:100%; background:#222; display:flex; align-items:center; justify-content:center;">
+                                <span style="color:#666; font-size:14px;">Нет изображения, фотограф уже бежит</span>
+                            </div>
+                        {% endif %}
+
+                        <div class="post-overlay">
+                            <span class="post-meta">
+                                {% if post.specific.seo_published_at %}
+                                    {{ post.specific.seo_published_at|date:"d.m.Y" }}
+                                {% else %}
+                                    {{ post.first_published_at|date:"d.m.Y" }}
+                                {% endif %}
+                            </span>
+                            <h2>{{ post.title }}</h2>
+                        </div>
+                    </a>
+                </article>
+            {% empty %}
+                <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #666;">
+                    <p>Пока нет статей.</p>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {# Пагинация для бесконечного скролла #}
+    {% if page.paginator and page.paginator.num_pages > 1 %}
+        <div class="pagination-container">
+            <a href="?page={{ page.next_page_number }}" id="next-page-link">Следующая страница</a>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    let wrapper = document.querySelector('#post-wrapper');
+    let nextLink = document.querySelector('#next-page-link');
+    let loading = false;
+
+    if (!nextLink) return;
+
+    window.onscroll = function() {
+        if (loading) return;
+
+        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
+            loading = true;
+
+            fetch(nextLink.href)
+                .then(response => response.text())
+                .then(data => {
+                    let parser = new DOMParser();
+                    let doc = parser.parseFromString(data, 'text/html');
+                    let newPosts = doc.querySelectorAll('.bento-grid .post-card');
+                    let newNextLink = doc.querySelector('#next-page-link');
+
+                    newPosts.forEach(post => {
+                        wrapper.appendChild(post.cloneNode(true));
+                    });
+
+                    if (newNextLink) {
+                        nextLink.href = newNextLink.href;
+                    } else {
+                        nextLink = null;
+                    }
+
+                    loading = false;
+                })
+                .catch(error => {
+                    console.error('Error loading more posts:', error);
+                    loading = false;
+                });
+        }
+    };
+});
+</script>
+
+{% endblock %}

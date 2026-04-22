@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="background:#15151c;color:#fff;padding:20px;font-family:Arial,sans-serif;">
+<div style="max-width:500px;margin:0 auto;background:#1a1a25;padding:30px;border-radius:8px;border:1px solid #2a2a35;">
+    <h2 style="color:#ffc107;margin-bottom:20px;">Подтверждение регистрации</h2>
+    <p>Здравствуйте, <strong>{{ user.first_name }} {{ user.last_name }}</strong>!</p>
+    <p>Вы зарегистрировались на сайте <a href="https://gripline.ru" style="color:#0dcaf0;">Gripline.ru</a>.</p>
+    <p>Для завершения регистрации и активации аккаунта нажмите на кнопку:</p>
+    <div style="text-align:center;margin:30px 0;">
+        <a href="{{ verification_url }}" style="display:inline-block;background:#ffc107;color:#000;padding:12px 30px;text-decoration:none;border-radius:4px;font-weight:bold;">Подтвердить email</a>
+    </div>
+    <p>Ссылка действительна <strong>{{ expiry_minutes }} минут</strong>.</p>
+    <p>Если вы не регистрировались на нашем сайте, просто проигнорируйте это письмо.</p>
+    <hr style="border-color:#2a2a35;margin:20px 0;">
+    <p style="font-size:12px;color:#6c757d;text-align:center;">С уважением, команда Gripline<br><a href="https://gripline.ru" style="color:#0dcaf0;">gripline.ru</a></p>
+</div>
+</body>
+</html>
