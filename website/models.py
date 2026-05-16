@@ -1309,6 +1309,104 @@ class AnalyticsMetadata(models.Model):
     def __str__(self):
         return f"{self.key}: {self.value}"
 
+class AnalyticsSettings(models.Model):
+    """
+    Singleton-модель глобальных параметров аналитического движка.
+    Доступна через AnalyticsSettings.get().
+    Изменения вступают в силу при следующем запуске update_ratings.
+    """
+
+    # --- Temporal decay ---
+    lambda_active = models.FloatField(
+        default=0.8,
+        verbose_name="λ активного пилота",
+        help_text=(
+            "Скорость затухания для пилотов с недавними гонками. "
+            "Полураспад = ln(2)/λ лет. Рекомендуется 0.5–1.2."
+        ),
+    )
+    lambda_inactive = models.FloatField(
+        default=2.0,
+        verbose_name="λ неактивного пилота",
+        help_text=(
+            "Скорость затухания для пилотов без гонок дольше порога. "
+            "Должен быть выше lambda_active. Рекомендуется 1.5–3.0."
+        ),
+    )
+    inactive_threshold_days = models.IntegerField(
+        default=180,
+        verbose_name="Порог неактивности (дней)",
+        help_text=(
+            "Количество дней без гонок в классе, после которого применяется "
+            "lambda_inactive. Один летний сезон ≈ 180 дней."
+        ),
+    )
+
+    # --- Пороги данных ---
+    min_races_per_class = models.IntegerField(
+        default=5,
+        verbose_name="Мин. гонок для расчёта класса",
+        help_text="Класс с меньшим количеством гонок пропускается при расчёте BT.",
+    )
+    min_comparisons = models.IntegerField(
+        default=10,
+        verbose_name="Мин. парных сравнений (BT)",
+        help_text="Класс с меньшим количеством парных сравнений пропускается.",
+    )
+    min_starts_display = models.IntegerField(
+        default=3,
+        verbose_name="Мин. стартов для отображения рейтинга",
+        help_text="Пилоты с меньшим числом стартов считаются без достаточной статистики.",
+    )
+    min_races_context = models.IntegerField(
+        default=10,
+        verbose_name="Мин. гонок для контекстной модели",
+        help_text="Класс с меньшим количеством гонок пропускается при расчёте контекстной модели.",
+    )
+    min_comparisons_context = models.IntegerField(
+        default=20,
+        verbose_name="Мин. парных сравнений (контекстная модель)",
+        help_text="Класс с меньшим числом сравнений пропускается в контекстной модели.",
+    )
+
+    # --- Параметры моделей ---
+    bt_alpha = models.FloatField(
+        default=0.1,
+        verbose_name="Alpha (L1-регуляризация BT)",
+        help_text=(
+            "Lasso-регуляризация Bradley-Terry. Выше → сильнее сглаживание "
+            "к среднему для пилотов с малым числом гонок. Диапазон: 0.01–1.0."
+        ),
+    )
+    pagerank_damping = models.FloatField(
+        default=0.85,
+        verbose_name="Damping factor (PageRank)",
+        help_text="Коэффициент затухания PageRank. Стандартное значение 0.85. Диапазон: 0.5–0.99.",
+    )
+    ensemble_min_common_drivers = models.IntegerField(
+        default=3,
+        verbose_name="Мин. общих пилотов для ансамбля",
+        help_text="Минимальное число общих пилотов между BT и PageRank для построения ансамбля.",
+    )
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Настройки аналитики"
+        verbose_name_plural = "Настройки аналитики"
+
+    def __str__(self):
+        return (
+            f"AnalyticsSettings (λ={self.lambda_active}/{self.lambda_inactive}, "
+            f"inactive={self.inactive_threshold_days}d)"
+        )
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
 class EngineIndexPage(CoderedWebPage):
     """
     Страница со списком всех двигателей

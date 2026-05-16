@@ -1,5 +1,5 @@
 from wagtail_modeladmin.options import (ModelAdmin, ModelAdminGroup, modeladmin_register)
-from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership
+from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings
 from wagtail import hooks
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -113,12 +113,31 @@ class TracksGroup(ModelAdminGroup):
     menu_icon = 'site'
     items = (TrackAdmin,)
 
+class AnalyticsSettingsAdmin(ModelAdmin):
+    model = AnalyticsSettings
+    menu_label = 'Параметры рейтинга'
+    menu_icon = 'cog'
+    list_display = (
+        'lambda_active',
+        'lambda_inactive',
+        'inactive_threshold_days',
+        'bt_alpha',
+        'pagerank_damping',
+        'updated_at',
+    )
+
+class AnalyticsGroup(ModelAdminGroup):
+    menu_label = 'Аналитика'
+    menu_icon = 'fa-bar-chart'
+    items = (AnalyticsSettingsAdmin,)
+
 # Регистрируем группы
 modeladmin_register(PilotsGroup)
 modeladmin_register(TeamsGroup)
 modeladmin_register(EquipmentGroup)
 modeladmin_register(TyresGroup)
 modeladmin_register(TracksGroup)
+modeladmin_register(AnalyticsGroup)
 
 @hooks.register('register_admin_urls')
 def register_import_urls():

@@ -117,19 +117,24 @@ class DataLoader:
         logger.info("Загрузка данных завершена")
         return self.df_races
 
-    def create_pairwise_comparisons(self, entity_type='chassis'):
+    def create_pairwise_comparisons(self, entity_type='chassis', settings=None):
         """
         Создает матрицу парных сравнений для указанной сущности.
 
         Args:
             entity_type: 'chassis' или 'driver'
+            settings: экземпляр AnalyticsSettings; если передан — применяется temporal decay
 
         Returns:
             DataFrame с колонками: entity_1_id, entity_2_id, winner_id, weight
         """
+        import math
+        from datetime import date as date_type
+
         if self.df_races is None:
             self.load_all_data()
 
+        today = date_type.today()
         comparisons = []
 
         # Группируем по group_id (один заезд)
@@ -139,6 +144,18 @@ class DataLoader:
 
             # Сортируем по месту
             group = group.sort_values('position')
+
+            # Temporal decay weight для всей группы (гонки)
+            temporal_weight = 1.0
+            if settings is not None:
+                race_date = group['date'].iloc[0] if 'date' in group.columns else None
+                if race_date is not None:
+                    if hasattr(race_date, 'date'):
+                        race_date = race_date.date()
+                    days = (today - race_date).days
+                    is_inactive = days > settings.inactive_threshold_days
+                    lam = settings.lambda_inactive if is_inactive else settings.lambda_active
+                    temporal_weight = math.exp(-lam * days / 365)
 
             # Создаем все попарные сравнения
             for i, row_i in group.iterrows():
@@ -154,9 +171,9 @@ class DataLoader:
                         winner_id = row_j[f'{entity_type}_id']
                         loser_id = row_i[f'{entity_type}_id']
 
-                    # Вес сравнения (чем больше разница в местах, тем меньше вес)
+                    # Вес сравнения (позиция × временное затухание)
                     position_diff = abs(row_i['position'] - row_j['position'])
-                    weight = 1.0 / (1.0 + position_diff)
+                    weight = (1.0 / (1.0 + position_diff)) * temporal_weight
 
                     comparisons.append({
                         'entity_1_id': winner_id,
@@ -189,21 +206,26 @@ class DataLoader:
         )
         return df
 
-    def create_contextual_comparisons(self, entity_type='driver'):
+    def create_contextual_comparisons(self, entity_type='driver', settings=None):
         """
         Создает матрицу парных сравнений с контекстными признаками.
 
         Args:
             entity_type: 'driver' или 'chassis'
+            settings: экземпляр AnalyticsSettings; если передан — применяется temporal decay
 
         Returns:
             DataFrame с колонками:
             entity_1_id, entity_2_id, winner_id, weight,
             temperature, precipitation, tyre_id, track_id
         """
+        import math
+        from datetime import date as date_type
+
         if self.df_races is None:
             self.load_all_data()
 
+        today = date_type.today()
         comparisons = []
 
         # Группируем по group_id (один заезд)
@@ -219,6 +241,18 @@ class DataLoader:
             tyre_id = group['tyre_id'].iloc[0] if 'tyre_id' in group.columns else None
             track_id = group['track_id'].iloc[0] if 'track_id' in group.columns else None
 
+            # Temporal decay weight для всей группы (гонки)
+            temporal_weight = 1.0
+            if settings is not None:
+                race_date = group['date'].iloc[0] if 'date' in group.columns else None
+                if race_date is not None:
+                    if hasattr(race_date, 'date'):
+                        race_date = race_date.date()
+                    days = (today - race_date).days
+                    is_inactive = days > settings.inactive_threshold_days
+                    lam = settings.lambda_inactive if is_inactive else settings.lambda_active
+                    temporal_weight = math.exp(-lam * days / 365)
+
             # Создаем все попарные сравнения
             for i, row_i in group.iterrows():
                 for j, row_j in group.iterrows():
@@ -233,9 +267,9 @@ class DataLoader:
                         winner_id = row_j[f'{entity_type}_id']
                         loser_id = row_i[f'{entity_type}_id']
 
-                    # Вес сравнения
+                    # Вес сравнения (позиция × временное затухание)
                     position_diff = abs(row_i['position'] - row_j['position'])
-                    weight = 1.0 / (1.0 + position_diff)
+                    weight = (1.0 / (1.0 + position_diff)) * temporal_weight
 
                     comparisons.append({
                         'entity_1_id': winner_id,
