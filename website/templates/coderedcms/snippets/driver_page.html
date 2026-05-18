@@ -218,73 +218,107 @@
                   </div>
 
                   {% if class_ratings %}
-                  <div class="row g-3">
-                      {% for cr in class_ratings %}
-                      <div class="col-md-6 col-xl-4">
-                          <div class="bg-black bg-opacity-25 rounded-3 p-3 h-100 border {% if cr.low_data %}border-warning border-opacity-50{% else %}border-secondary{% endif %}">
+                  {% for cr in class_ratings %}
+                  <div class="rounded-3 p-3 mb-3 border {% if cr.low_data %}border-warning border-opacity-50{% else %}border-secondary{% endif %}" style="background:rgba(0,0,0,0.25);">
 
-                              <!-- Класс + предупреждение -->
-                              <div class="d-flex justify-content-between align-items-center mb-2">
-                                  <span class="text-info small text-uppercase fw-bold">{{ cr.class_name }}</span>
-                                  {% if cr.low_data %}
-                                  <span title="Мало стартов — рейтинг предварительный" style="font-size:1rem;">⚠️</span>
-                                  {% endif %}
+                      <!-- Заголовок класса -->
+                      <div class="d-flex align-items-center gap-2 mb-3">
+                          <span class="text-info text-uppercase fw-bold">{{ cr.class_name }}</span>
+                          {% if cr.low_data %}
+                          <span title="Мало стартов — рейтинг предварительный">⚠️</span>
+                          {% endif %}
+                          {% if cr.rank == 1 %}
+                          <span class="badge bg-warning text-dark ms-1"><i class="fas fa-crown me-1"></i>Лидер класса</span>
+                          {% endif %}
+                      </div>
+
+                      <!-- Основные метрики -->
+                      <div class="row g-3 align-items-stretch">
+
+                          <!-- Рейтинг -->
+                          <div class="col-6 col-md-2">
+                              <div class="text-center">
+                                  <div class="text-white fw-bold" style="font-size:2.4rem; line-height:1;">{{ cr.normalized_score }}</div>
+                                  <div class="text-muted small">из 100 баллов</div>
                               </div>
+                          </div>
 
-                              <!-- Рейтинг + место -->
-                              <div class="d-flex align-items-end gap-3 mb-2">
-                                  <div>
-                                      <div class="text-white fw-bold" style="font-size:2.2rem; line-height:1;">{{ cr.normalized_score }}</div>
-                                      <div class="text-muted" style="font-size:0.7rem;">из 100</div>
-                                  </div>
-                                  <div class="text-end ms-auto">
-                                      <div class="fw-bold text-warning" style="font-size:1.4rem; line-height:1.1;">#{{ cr.rank }}</div>
-                                      <div class="text-muted small">из {{ cr.total }} пилотов</div>
-                                  </div>
+                          <!-- Место -->
+                          <div class="col-6 col-md-2">
+                              <div class="text-center">
+                                  <div class="fw-bold text-warning" style="font-size:2rem; line-height:1;">#{{ cr.rank }}</div>
+                                  <div class="text-muted small">из {{ cr.total }} пилотов</div>
                               </div>
+                          </div>
 
-                              <!-- Форм-тренд + старты -->
-                              <div class="d-flex align-items-center gap-2 mb-3">
+                          <!-- Тренд формы -->
+                          <div class="col-6 col-md-2">
+                              <div class="text-center">
                                   {% if cr.form_trend == 'up' %}
-                                  <span class="text-success fw-bold" title="На подъёме: последние 5 гонок лучше предыдущих" style="font-size:1.1rem;">▲ На подъёме</span>
+                                  <div class="text-success fw-bold" style="font-size:1.6rem;">▲</div>
+                                  <div class="text-success small">На подъёме</div>
                                   {% elif cr.form_trend == 'down' %}
-                                  <span class="text-danger fw-bold" title="Спад формы" style="font-size:1.1rem;">▼ Спад формы</span>
+                                  <div class="text-danger fw-bold" style="font-size:1.6rem;">▼</div>
+                                  <div class="text-danger small">Спад формы</div>
                                   {% elif cr.form_trend == 'stable' %}
-                                  <span class="text-secondary fw-bold" title="Стабильная форма" style="font-size:1.1rem;">▬ Стабильно</span>
+                                  <div class="text-secondary fw-bold" style="font-size:1.6rem;">▬</div>
+                                  <div class="text-secondary small">Стабильно</div>
                                   {% else %}
-                                  <span class="text-muted small" title="Недостаточно данных для оценки тренда">— Тренд: мало данных</span>
+                                  <div class="text-muted" style="font-size:1.6rem;">—</div>
+                                  <div class="text-muted small">Мало данных</div>
                                   {% endif %}
-                                  <span class="ms-auto text-muted small">{{ cr.starts }} старт.</span>
+                                  <div class="text-muted" style="font-size:0.7rem;">{{ cr.starts }} стартов</div>
                               </div>
+                          </div>
 
-                              <!-- Соседи по рейтингу -->
-                              <div style="font-size:0.8rem; border-top:1px solid #2a2a35; padding-top:0.5rem;">
+                          <!-- Статистика в классе -->
+                          <div class="col-6 col-md-3">
+                              <div class="d-flex flex-column gap-1 h-100 justify-content-center" style="font-size:0.85rem; border-left:1px solid #2a2a35; padding-left:1rem;">
+                                  <div class="d-flex justify-content-between">
+                                      <span class="text-muted">Победы</span>
+                                      <span class="text-white fw-bold">{{ cr.wins }} <span class="text-muted fw-normal">({{ cr.win_pct }}%)</span></span>
+                                  </div>
+                                  <div class="d-flex justify-content-between">
+                                      <span class="text-muted">Подиумы</span>
+                                      <span class="text-white fw-bold">{{ cr.podiums }} <span class="text-muted fw-normal">({{ cr.podium_pct }}%)</span></span>
+                                  </div>
+                                  <div class="d-flex justify-content-between">
+                                      <span class="text-muted">Стартов</span>
+                                      <span class="text-white fw-bold">{{ cr.starts }}</span>
+                                  </div>
+                              </div>
+                          </div>
+
+                          <!-- Соседи -->
+                          <div class="col-12 col-md-3">
+                              <div class="d-flex flex-column gap-2 justify-content-center h-100" style="font-size:0.82rem; border-left:1px solid #2a2a35; padding-left:1rem;">
                                   {% if cr.driver_above %}
-                                  <div class="d-flex justify-content-between text-muted mb-1">
+                                  <div class="d-flex justify-content-between align-items-center">
                                       <span>
                                           <i class="fas fa-chevron-up text-success me-1" style="font-size:0.65rem;"></i>
                                           <a href="/drivers/{{ cr.driver_above.slug }}/" class="text-muted text-decoration-none">{{ cr.driver_above.full_name }}</a>
                                       </span>
-                                      <span class="text-danger">−{{ cr.gap_to_above }}</span>
+                                      <span class="text-danger ms-2 text-nowrap">−{{ cr.gap_to_above }} б.</span>
                                   </div>
-                                  {% else %}
-                                  <div class="text-warning small mb-1"><i class="fas fa-crown me-1"></i>Лидер класса</div>
                                   {% endif %}
                                   {% if cr.driver_below %}
-                                  <div class="d-flex justify-content-between text-muted">
+                                  <div class="d-flex justify-content-between align-items-center">
                                       <span>
                                           <i class="fas fa-chevron-down text-danger me-1" style="font-size:0.65rem;"></i>
                                           <a href="/drivers/{{ cr.driver_below.slug }}/" class="text-muted text-decoration-none">{{ cr.driver_below.full_name }}</a>
                                       </span>
-                                      <span class="text-success">+{{ cr.gap_to_below }}</span>
+                                      <span class="text-success ms-2 text-nowrap">+{{ cr.gap_to_below }} б.</span>
                                   </div>
                                   {% endif %}
+                                  {% if not cr.driver_above and not cr.driver_below %}
+                                  <span class="text-muted small">Единственный в классе</span>
+                                  {% endif %}
                               </div>
-
                           </div>
+
                       </div>
-                      {% endfor %}
                   </div>
+                  {% endfor %}
                   {% else %}
                   <div class="text-center text-muted py-4">Рейтинг ещё не рассчитан</div>
                   {% endif %}

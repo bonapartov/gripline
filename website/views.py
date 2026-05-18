@@ -933,14 +933,25 @@ def _get_driver_class_ratings(driver):
         except RaceClass.DoesNotExist:
             class_name = f'Класс {class_id}'
 
+        class_qs = RaceResult.objects.filter(driver=driver, group__race_class_id=class_id)
+        starts = target['starts']
+        wins_in_class = class_qs.filter(position=1).count()
+        podiums_in_class = class_qs.filter(position__in=[1, 2, 3]).count()
+        win_pct = round(wins_in_class / starts * 100, 1) if starts > 0 else 0
+        podium_pct = round(podiums_in_class / starts * 100, 1) if starts > 0 else 0
+
         class_ratings.append({
             'class_id': class_id,
             'class_name': class_name,
             'rank': rank,
             'total': total,
             'normalized_score': target['normalized'],
-            'starts': target['starts'],
-            'low_data': target['starts'] < 3,
+            'starts': starts,
+            'wins': wins_in_class,
+            'podiums': podiums_in_class,
+            'win_pct': win_pct,
+            'podium_pct': podium_pct,
+            'low_data': starts < 3,
             'form_trend': _compute_form_trend(driver.id, class_id),
             'gap_to_above': gap_to_above,
             'gap_to_below': gap_to_below,
