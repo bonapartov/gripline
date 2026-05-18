@@ -128,13 +128,15 @@ def driver_detail_view(request, slug):
     results = RaceResult.objects.filter(driver=driver).select_related(
         'group__page',
         'group__race_class',
-        'team'
+        'team',
+        'chassis_new',
     ).annotate(
         event_date=Subquery(
             EventOccurrence.objects.filter(
                 event_id=OuterRef('group__page_id')
             ).order_by('-end').values('end')[:1]
-        )
+        ),
+        group_size=Count('group__class_results'),
     ).order_by('-event_date', '-group__page__last_published_at')
 
     # --- РАСЧЕТ СТАТИСТИКИ ---
@@ -239,7 +241,9 @@ def driver_detail_view(request, slug):
     class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
                    'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 Masters']
     driver_class_periods.sort(key=lambda x: class_order.index(x['class_name']) if x['class_name'] in class_order else 999)
-    
+
+    class_ratings = _get_driver_class_ratings(driver)
+
     return render(request, "coderedcms/snippets/driver_page.html", {
         "driver": driver,
         "object": driver,
@@ -255,12 +259,9 @@ def driver_detail_view(request, slug):
         "win_percentage": win_percentage,
         "podium_percentage": podium_percentage,
         # -------------------------------------
-        "rating_score": driver.rating_score,
-        "pagerank_score": pagerank_value,
-        "ensemble_score": ensemble_value,
-        "context_score": context_value,
         "last_update": last_update,
-        "driver_class_periods": driver_class_periods,  # ← НОВАЯ ПЕРЕМЕННАЯ
+        "driver_class_periods": driver_class_periods,
+        "class_ratings": class_ratings,
     })
 
 def team_detail_view(request, slug):
@@ -845,6 +846,112 @@ def _compute_form_trend(driver_id, class_id, window=5):
     elif diff < -10:
         return 'down'
     return 'stable'
+
+
+def _get_driver_class_ratings(driver):
+    """
+    Returns per-class rating context for a driver profile page:
+    rank, total, normalized BT score (0-100), form trend, gaps to neighbours.
+    Uses same Bayesian smoothing (C=15) as top_drivers_view.
+    """
+    import json, statistics
+
+    C = 15
+    class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
+                   'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 Masters',
+                   'Rotax Max DD2 32+']
+
+    rbc = driver.rating_by_class or {}
+    if isinstance(rbc, str):
+        try:
+            rbc = json.loads(rbc)
+        except Exception:
+            rbc = {}
+    if not rbc:
+        return []
+
+    all_drivers = list(
+        Driver.objects.exclude(rating_by_class={})
+        .only('id', 'first_name', 'last_name', 'slug', 'rating_by_class')
+    )
+
+    class_ratings = []
+
+    for class_id_str in rbc.keys():
+        class_id = int(class_id_str)
+
+        class_entries = []
+        for d in all_drivers:
+            d_rbc = d.rating_by_class or {}
+            if isinstance(d_rbc, str):
+                try:
+                    d_rbc = json.loads(d_rbc)
+                except Exception:
+                    d_rbc = {}
+            if class_id_str not in d_rbc:
+                continue
+            entry = d_rbc[class_id_str]
+            class_entries.append({
+                'driver_id': d.id,
+                'full_name': f"{d.first_name} {d.last_name}".strip(),
+                'slug': d.slug,
+                'bt_score': float(entry.get('score', 0.0)),
+                'starts': int(entry.get('starts', 0)),
+            })
+
+        if not class_entries:
+            continue
+
+        mu = statistics.median(e['bt_score'] for e in class_entries)
+        for e in class_entries:
+            n = e['starts']
+            e['smoothed'] = (n * e['bt_score'] + C * mu) / (n + C)
+
+        class_entries.sort(key=lambda x: x['smoothed'], reverse=True)
+
+        min_s = min(e['smoothed'] for e in class_entries)
+        max_s = max(e['smoothed'] for e in class_entries)
+        rng = max_s - min_s if max_s != min_s else 1.0
+        total = len(class_entries)
+
+        for i, e in enumerate(class_entries):
+            e['rank'] = i + 1
+            e['normalized'] = round((e['smoothed'] - min_s) / rng * 100, 1)
+
+        target = next((e for e in class_entries if e['driver_id'] == driver.id), None)
+        if target is None:
+            continue
+
+        rank = target['rank']
+        driver_above = class_entries[rank - 2] if rank > 1 else None
+        driver_below = class_entries[rank] if rank < total else None
+        gap_to_above = round(driver_above['normalized'] - target['normalized'], 1) if driver_above else None
+        gap_to_below = round(target['normalized'] - driver_below['normalized'], 1) if driver_below else None
+
+        try:
+            class_name = RaceClass.objects.get(id=class_id).name
+        except RaceClass.DoesNotExist:
+            class_name = f'Класс {class_id}'
+
+        class_ratings.append({
+            'class_id': class_id,
+            'class_name': class_name,
+            'rank': rank,
+            'total': total,
+            'normalized_score': target['normalized'],
+            'starts': target['starts'],
+            'low_data': target['starts'] < 3,
+            'form_trend': _compute_form_trend(driver.id, class_id),
+            'gap_to_above': gap_to_above,
+            'gap_to_below': gap_to_below,
+            'driver_above': driver_above,
+            'driver_below': driver_below,
+        })
+
+    class_ratings.sort(
+        key=lambda x: class_order.index(x['class_name']) if x['class_name'] in class_order else 999
+    )
+    return class_ratings
 
 
 def top_drivers_view(request):

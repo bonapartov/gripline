@@ -81,31 +81,36 @@
                   document.addEventListener('DOMContentLoaded', function() {
                       const ctx = document.getElementById('driverChart').getContext('2d');
 
-                      // Данные из Django
                       const results = [
                           {% for res in results reversed %}
                               {
-                                              event: "{% with occurrence=res.group.page.occurrences.all.first %}{% if occurrence and occurrence.end %}{{ occurrence.end|date:'m.Y' }}{% else %}{{ res.group.page.first_published_at|date:'m.Y' }}{% endif %}{% endwith %}",
-                                  points: {{ res.points|floatformat:"0" }},
-                                  position: {{ res.position }}
+                                  event: "{% with occurrence=res.group.page.occurrences.all.first %}{% if occurrence and occurrence.end %}{{ occurrence.end|date:'m.Y' }}{% else %}{{ res.group.page.first_published_at|date:'m.Y' }}{% endif %}{% endwith %}",
+                                  class_name: "{{ res.group.race_class.name }}",
+                                  position: {{ res.position }},
+                                  group_size: {{ res.group_size|default:1 }},
                               }{% if not forloop.last %},{% endif %}
                           {% endfor %}
                       ];
+
+                      // Normalized position: 100% = 1st place, 0% = last place
+                      function normPos(pos, total) {
+                          return total > 1 ? (total - pos) / (total - 1) * 100 : 50;
+                      }
 
                       new Chart(ctx, {
                           type: 'line',
                           data: {
                               labels: results.map(r => r.event),
                               datasets: [{
-                                  label: 'Очки',
-                                  data: results.map(r => r.points),
+                                  label: 'Позиция в гонке',
+                                  data: results.map(r => normPos(r.position, r.group_size)),
                                   borderColor: '#0dcaf0',
                                   backgroundColor: 'rgba(13, 202, 240, 0.1)',
                                   tension: 0.3,
                                   fill: true,
                                   pointBackgroundColor: results.map(r =>
                                       r.position === 1 ? '#ffc107' :
-                                      r.position === 2 ? '#6c757d' :
+                                      r.position === 2 ? '#adb5bd' :
                                       r.position === 3 ? '#cd7f32' : '#0dcaf0'
                                   ),
                                   pointBorderColor: '#fff',
@@ -121,10 +126,11 @@
                                   tooltip: {
                                       callbacks: {
                                           label: function(context) {
-                                              const result = results[context.dataIndex];
+                                              const r = results[context.dataIndex];
                                               return [
-                                                  `Очки: ${result.points}`,
-                                                  `Место: ${result.position}`
+                                                  `Место: ${r.position} из ${r.group_size}`,
+                                                  `Класс: ${r.class_name}`,
+                                                  `Результат: ${Math.round(normPos(r.position, r.group_size))}%`,
                                               ];
                                           }
                                       }
@@ -132,9 +138,14 @@
                               },
                               scales: {
                                   y: {
-                                      beginAtZero: true,
+                                      min: 0,
+                                      max: 100,
                                       grid: { color: 'rgba(255,255,255,0.1)' },
-                                      ticks: { color: '#adb5bd' }
+                                      ticks: {
+                                          color: '#adb5bd',
+                                          callback: v => v + '%'
+                                      },
+                                      title: { display: true, text: '← хуже | лучше →', color: '#6c757d', font: { size: 10 } }
                                   },
                                   x: {
                                       grid: { display: false },
@@ -191,48 +202,92 @@
               </div>
           </div>
 
-          <!-- Математический рейтинг -->
+          <!-- Рейтинг по классам -->
           <div class="col-12">
               <div class="card bg-dark border-secondary p-4">
-                  <h4 class="text-primary border-bottom border-secondary pb-2 mb-4 text-uppercase fw-bold">Математический рейтинг</h4>
-
-                  <div class="row text-center g-3">
-                      <div class="col">
-                          <div class="bg-black bg-opacity-25 rounded-3 py-3 px-2 h-100 border border-secondary">
-                              <div class="display-6 fw-bold text-white">{{ driver.rating_score|floatformat:2 }}</div>
-                              <div class="text-info small text-uppercase">Брэдли-Терри</div>
-                          </div>
-                      </div>
-                      <div class="col">
-                          <div class="bg-black bg-opacity-25 rounded-3 py-3 px-2 h-100 border border-secondary">
-                              <div class="display-6 fw-bold text-white">{{ pagerank_score|floatformat:2 }}</div>
-                              <div class="text-info small text-uppercase">PageRank</div>
-                          </div>
-                      </div>
-                      <div class="col">
-                          <div class="bg-black bg-opacity-25 rounded-3 py-3 px-2 h-100 border border-secondary">
-                              <div class="display-6 fw-bold text-white">{{ ensemble_score|floatformat:2 }}</div>
-                              <div class="text-info small text-uppercase">Ансамбль</div>
-                          </div>
-                      </div>
-                      <div class="col">
-                          <div class="bg-black bg-opacity-25 rounded-3 py-3 px-2 h-100 border border-secondary">
-                              <div class="display-6 fw-bold text-white">{{ context_score|floatformat:2 }}</div>
-                              <div class="text-info small text-uppercase">Context-Aware</div>
-                          </div>
+                  <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-2 mb-4">
+                      <h4 class="text-primary text-uppercase fw-bold mb-0">Рейтинг по классам</h4>
+                      <div class="d-flex align-items-center gap-3">
+                          {% if last_update %}
+                          <span class="text-muted small"><i class="fas fa-clock me-1"></i>{{ last_update|date:"d.m.Y H:i" }}</span>
+                          {% endif %}
+                          <a href="/rating-info/" class="btn btn-outline-info btn-sm text-uppercase">
+                              <i class="fas fa-calculator me-1"></i>Методология
+                          </a>
                       </div>
                   </div>
 
-                  <div class="d-flex justify-content-end align-items-center mt-3">
-                      {% if last_update %}
-                      <div class="text-muted small me-3">
-                          <i class="fas fa-clock me-1"></i>Обновлено: {{ last_update|date:"d.m.Y H:i" }}
+                  {% if class_ratings %}
+                  <div class="row g-3">
+                      {% for cr in class_ratings %}
+                      <div class="col-md-6 col-xl-4">
+                          <div class="bg-black bg-opacity-25 rounded-3 p-3 h-100 border {% if cr.low_data %}border-warning border-opacity-50{% else %}border-secondary{% endif %}">
+
+                              <!-- Класс + предупреждение -->
+                              <div class="d-flex justify-content-between align-items-center mb-2">
+                                  <span class="text-info small text-uppercase fw-bold">{{ cr.class_name }}</span>
+                                  {% if cr.low_data %}
+                                  <span title="Мало стартов — рейтинг предварительный" style="font-size:1rem;">⚠️</span>
+                                  {% endif %}
+                              </div>
+
+                              <!-- Рейтинг + место -->
+                              <div class="d-flex align-items-end gap-3 mb-2">
+                                  <div>
+                                      <div class="text-white fw-bold" style="font-size:2.2rem; line-height:1;">{{ cr.normalized_score }}</div>
+                                      <div class="text-muted" style="font-size:0.7rem;">из 100</div>
+                                  </div>
+                                  <div class="text-end ms-auto">
+                                      <div class="fw-bold text-warning" style="font-size:1.4rem; line-height:1.1;">#{{ cr.rank }}</div>
+                                      <div class="text-muted small">из {{ cr.total }} пилотов</div>
+                                  </div>
+                              </div>
+
+                              <!-- Форм-тренд + старты -->
+                              <div class="d-flex align-items-center gap-2 mb-3">
+                                  {% if cr.form_trend == 'up' %}
+                                  <span class="text-success fw-bold" title="На подъёме: последние 5 гонок лучше предыдущих" style="font-size:1.1rem;">▲ На подъёме</span>
+                                  {% elif cr.form_trend == 'down' %}
+                                  <span class="text-danger fw-bold" title="Спад формы" style="font-size:1.1rem;">▼ Спад формы</span>
+                                  {% elif cr.form_trend == 'stable' %}
+                                  <span class="text-secondary fw-bold" title="Стабильная форма" style="font-size:1.1rem;">▬ Стабильно</span>
+                                  {% else %}
+                                  <span class="text-muted small" title="Недостаточно данных для оценки тренда">— Тренд: мало данных</span>
+                                  {% endif %}
+                                  <span class="ms-auto text-muted small">{{ cr.starts }} старт.</span>
+                              </div>
+
+                              <!-- Соседи по рейтингу -->
+                              <div style="font-size:0.8rem; border-top:1px solid #2a2a35; padding-top:0.5rem;">
+                                  {% if cr.driver_above %}
+                                  <div class="d-flex justify-content-between text-muted mb-1">
+                                      <span>
+                                          <i class="fas fa-chevron-up text-success me-1" style="font-size:0.65rem;"></i>
+                                          <a href="/drivers/{{ cr.driver_above.slug }}/" class="text-muted text-decoration-none">{{ cr.driver_above.full_name }}</a>
+                                      </span>
+                                      <span class="text-danger">−{{ cr.gap_to_above }}</span>
+                                  </div>
+                                  {% else %}
+                                  <div class="text-warning small mb-1"><i class="fas fa-crown me-1"></i>Лидер класса</div>
+                                  {% endif %}
+                                  {% if cr.driver_below %}
+                                  <div class="d-flex justify-content-between text-muted">
+                                      <span>
+                                          <i class="fas fa-chevron-down text-danger me-1" style="font-size:0.65rem;"></i>
+                                          <a href="/drivers/{{ cr.driver_below.slug }}/" class="text-muted text-decoration-none">{{ cr.driver_below.full_name }}</a>
+                                      </span>
+                                      <span class="text-success">+{{ cr.gap_to_below }}</span>
+                                  </div>
+                                  {% endif %}
+                              </div>
+
+                          </div>
                       </div>
-                      {% endif %}
-                      <a href="/rating-info/" class="btn btn-outline-info btn-sm text-uppercase">
-                          <i class="fas fa-calculator me-1"></i> как считаем
-                      </a>
+                      {% endfor %}
                   </div>
+                  {% else %}
+                  <div class="text-center text-muted py-4">Рейтинг ещё не рассчитан</div>
+                  {% endif %}
               </div>
           </div>
       </div>
