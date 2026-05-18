@@ -1148,6 +1148,89 @@ def compare_drivers_view(request):
     if driver2:
         stats2 = get_driver_stats(driver2, class_id, all_drivers, driver1)
 
+    # --- BT вероятность победы ---
+    bt_prob = None
+    if driver1 and driver2:
+        import json, math
+        rbc1 = driver1.rating_by_class or {}
+        rbc2 = driver2.rating_by_class or {}
+        if isinstance(rbc1, str):
+            try: rbc1 = json.loads(rbc1)
+            except: rbc1 = {}
+        if isinstance(rbc2, str):
+            try: rbc2 = json.loads(rbc2)
+            except: rbc2 = {}
+        common_class_ids = set(rbc1.keys()) & set(rbc2.keys())
+        if common_class_ids:
+            use_class_str = (
+                str(class_id) if class_id and str(class_id) in common_class_ids
+                else max(common_class_ids, key=lambda k: rbc1.get(k, {}).get('starts', 0))
+            )
+            bt1 = float(rbc1[use_class_str].get('score', 0))
+            bt2 = float(rbc2[use_class_str].get('score', 0))
+            s1, s2 = math.exp(bt1), math.exp(bt2)
+            prob1 = round(s1 / (s1 + s2) * 100, 1)
+            try:
+                prob_class_name = RaceClass.objects.get(id=int(use_class_str)).name
+            except RaceClass.DoesNotExist:
+                prob_class_name = ''
+            bt_prob = {
+                'prob1': prob1,
+                'prob2': round(100 - prob1, 1),
+                'class_name': prob_class_name,
+            }
+
+    # --- H2H встречи ---
+    h2h = None
+    if driver1 and driver2:
+        common_group_ids = list(
+            RaceResult.objects.filter(driver__in=[driver1, driver2])
+            .values('group_id')
+            .annotate(cnt=Count('driver', distinct=True))
+            .filter(cnt=2)
+            .values_list('group_id', flat=True)
+        )
+        if common_group_ids:
+            all_h2h_results = RaceResult.objects.filter(
+                group_id__in=common_group_ids,
+                driver__in=[driver1, driver2],
+            ).select_related('group__page', 'group__race_class').annotate(
+                group_size=Count('group__class_results'),
+                event_end=Subquery(
+                    EventOccurrence.objects.filter(
+                        event_id=OuterRef('group__page_id')
+                    ).order_by('-end').values('end')[:1]
+                )
+            )
+            by_group = {}
+            for r in all_h2h_results:
+                gid = r.group_id
+                if gid not in by_group:
+                    by_group[gid] = {
+                        'event': r.group.page.title,
+                        'class_name': r.group.race_class.name,
+                        'date': r.event_end or r.group.page.first_published_at,
+                        'group_size': r.group_size,
+                        'd1': None, 'd2': None,
+                    }
+                if r.driver_id == driver1.id:
+                    by_group[gid]['d1'] = r.position
+                else:
+                    by_group[gid]['d2'] = r.position
+
+            meetings = sorted(
+                [v for v in by_group.values() if v['d1'] and v['d2']],
+                key=lambda x: x['date'], reverse=True
+            )
+            d1_wins = sum(1 for m in meetings if m['d1'] < m['d2'])
+            d2_wins = sum(1 for m in meetings if m['d2'] < m['d1'])
+            h2h = {
+                'meetings': len(meetings),
+                'd1_wins': d1_wins,
+                'd2_wins': d2_wins,
+                'list': meetings,
+            }
+
     context = {
         'driver1': driver1,
         'driver2': driver2,
@@ -1155,7 +1238,9 @@ def compare_drivers_view(request):
         'stats2': stats2,
         'classes': classes,
         'selected_class': class_id,
-        'all_drivers': filtered_drivers,  # ← Отправляем отфильтрованный список
+        'all_drivers': filtered_drivers,
+        'bt_prob': bt_prob,
+        'h2h': h2h,
         'site': current_site,
         'page': None,
     }
@@ -1263,63 +1348,45 @@ def get_driver_stats(driver, class_id=None, all_drivers=None, other_driver=None)
             driver_count=Count('driver', distinct=True)
         ).filter(driver_count=2).values_list('group_id', flat=True)
 
-        print(f"[INFO] Найдено общих групп: {len(common_groups)}")
-
         if not common_groups:
-            # Если общих гонок нет
             chart_data = []
-            print("[ERROR] Общих этапов нет")
         else:
-            # Получаем все результаты для этих групп
             all_results = RaceResult.objects.filter(
-                group_id__in=common_groups
-            ).select_related(
-                'group__page'
+                group_id__in=common_groups,
+                driver__in=[driver, other_driver],
+            ).select_related('group__page').annotate(
+                group_size=Count('group__class_results')
             )
 
-            # Группируем по group_id
             results_by_group = {}
             for res in all_results:
-                group_id = res.group_id
-                if group_id not in results_by_group:
-                    # Получаем дату окончания гонки
+                gid = res.group_id
+                if gid not in results_by_group:
                     page = res.group.page
                     occurrence = EventOccurrence.objects.filter(event=page).first()
                     event_date = occurrence.end if occurrence else page.last_published_at
-
-                    # Формируем уникальное название с датой
-                    if event_date:
-                        event_name = f"{page.title} ({event_date.strftime('%d.%m.%Y')})"
-                    else:
-                        event_name = page.title
-
-                    results_by_group[group_id] = {
-                        'event': event_name,
+                    results_by_group[gid] = {
+                        'event': f"{page.title} ({event_date.strftime('%d.%m.%Y')})" if event_date else page.title,
                         'date': event_date,
                         driver.id: None,
-                        other_driver.id: None
+                        other_driver.id: None,
                     }
-                results_by_group[group_id][res.driver_id] = res.points
+                results_by_group[gid][res.driver_id] = {
+                    'position': res.position,
+                    'group_size': res.group_size,
+                }
 
-            # Сортируем по дате (от новых к старым)
-            sorted_groups = sorted(results_by_group.values(), key=lambda x: x['date'], reverse=True)
-
-            # Берем последние 10 или сколько есть
-            max_points = min(10, len(sorted_groups))
-            display_groups = sorted_groups[:max_points]
-
-            # Формируем данные (уже с проверкой, что оба результата есть)
-            for group in display_groups:
-                if group[driver.id] is not None and group[other_driver.id] is not None:
+            sorted_groups = sorted(results_by_group.values(), key=lambda x: x['date'] or '', reverse=True)
+            for group in sorted_groups[:10]:
+                r1, r2 = group[driver.id], group[other_driver.id]
+                if r1 and r2:
                     chart_data.append({
                         'event': group['event'],
-                        'points': group[driver.id],
-                        'other_points': group[other_driver.id],
-                        #'date': group['date'],
+                        'pos1': r1['position'],
+                        'size1': r1['group_size'],
+                        'pos2': r2['position'],
+                        'size2': r2['group_size'],
                     })
-                    print(f"[OK] Добавлено: {group['event']}, {driver.full_name}: {group[driver.id]}, {other_driver.full_name}: {group[other_driver.id]}")
-
-            print(f"[INFO] Всего точек на графике: {len(chart_data)}")
     else:
         # Если второго пилота нет - показываем последние 10 гонок пилота
         recent_results = results.order_by('-group__page__last_published_at')[:10]
@@ -1336,40 +1403,35 @@ def get_driver_stats(driver, class_id=None, all_drivers=None, other_driver=None)
     # ====================================================
 
 
-    # === НОРМИРОВАННЫЙ РЕЙТИНГ ===
+    # === НОРМИРОВАННЫЙ РЕЙТИНГ (байесовский BT, класс с наибольшим числом стартов) ===
     normalized_rating = 0
-    if all_drivers and len(all_drivers) > 0 and driver.rating_score:
-        # Собираем все рейтинги для нормировки
-        ratings = []
+    import json as _json, statistics as _stats
+    C = 15
+    rbc = driver.rating_by_class or {}
+    if isinstance(rbc, str):
+        try: rbc = _json.loads(rbc)
+        except: rbc = {}
+    if rbc and all_drivers:
+        best_class_str = max(rbc.keys(), key=lambda k: rbc[k].get('starts', 0))
+        class_entries = []
         for d in all_drivers:
-            if d.rating_score:
-                ratings.append(d.rating_score)
-
-        if ratings:
-            min_rating = min(ratings)
-            max_rating = max(ratings)
-            rating_range = max_rating - min_rating if max_rating > min_rating else 1
-
-            # Нормируем текущего пилота
-            normalized_rating = round(
-                (driver.rating_score - min_rating) / rating_range * 100, 1
-            )
-
-    print(f"=== ОТЛАДКА === for driver {driver.id}")
-    print(f"other_driver: {other_driver}")
-    print(f"chart_data length: {len(chart_data)}")
-    if chart_data:
-        print(f"First item keys: {chart_data[0].keys()}")
-    print(f"[INFO] Порядок этапов для {driver.full_name}:")
-    for i, d in enumerate(chart_data):
-        # print(f"   {i}: {d['event']} - {d['date']}")
-        print(f"   {i}: {d['event']}")
-
-    print(f"[INFO] ИТОГО chart_data для {driver.full_name}: {len(chart_data)} элементов")
-    for i, d in enumerate(chart_data):
-        print(f"   {i}: {d['event']} = {d['points']} vs {d['other_points']}")
-    print(f"[INFO] ТИП chart_data: {type(chart_data)}")
-    print(f"[INFO] ID chart_data: {id(chart_data)}")
+            d_rbc = d.rating_by_class or {}
+            if isinstance(d_rbc, str):
+                try: d_rbc = _json.loads(d_rbc)
+                except: d_rbc = {}
+            if best_class_str in d_rbc:
+                class_entries.append({'bt': float(d_rbc[best_class_str].get('score', 0)),
+                                      'n': int(d_rbc[best_class_str].get('starts', 0))})
+        if class_entries:
+            mu = _stats.median(e['bt'] for e in class_entries)
+            smoothed = [(e['n'] * e['bt'] + C * mu) / (e['n'] + C) for e in class_entries]
+            my_entry = rbc[best_class_str]
+            my_n = int(my_entry.get('starts', 0))
+            my_bt = float(my_entry.get('score', 0))
+            my_s = (my_n * my_bt + C * mu) / (my_n + C)
+            mn, mx = min(smoothed), max(smoothed)
+            rng = mx - mn if mx != mn else 1.0
+            normalized_rating = round((my_s - mn) / rng * 100, 1)
 
     return {
         'total_starts': total_starts,

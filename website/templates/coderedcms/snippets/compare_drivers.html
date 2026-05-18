@@ -256,6 +256,88 @@
     </div>
 
     {% if driver1 and driver2 %}
+
+    <!-- BT вероятность победы -->
+    {% if bt_prob %}
+    <div class="compare-card mb-4">
+        <h3 class="text-warning text-center mb-1">Вероятность победы по модели</h3>
+        <p class="text-center text-muted small mb-3">Bradley-Terry · класс {{ bt_prob.class_name }}</p>
+        <div class="d-flex align-items-center gap-3">
+            <div class="text-end fw-bold text-warning" style="min-width:60px; font-size:1.4rem;">{{ bt_prob.prob1 }}%</div>
+            <div class="flex-grow-1">
+                <div style="height:18px; background:#2a2a35; border-radius:9px; overflow:hidden; display:flex;">
+                    <div style="width:{{ bt_prob.prob1 }}%; background:#ffc107; border-radius:9px 0 0 9px; transition:width 0.5s;"></div>
+                    <div style="width:{{ bt_prob.prob2 }}%; background:#0dcaf0; border-radius:0 9px 9px 0;"></div>
+                </div>
+            </div>
+            <div class="fw-bold text-info" style="min-width:60px; font-size:1.4rem;">{{ bt_prob.prob2 }}%</div>
+        </div>
+        <div class="d-flex justify-content-between mt-1 px-1">
+            <small class="text-muted">{{ driver1.full_name }}</small>
+            <small class="text-muted">{{ driver2.full_name }}</small>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- H2H счёт -->
+    {% if h2h and h2h.meetings > 0 %}
+    <div class="compare-card mb-4 text-center">
+        <h3 class="text-warning mb-3">Личные встречи</h3>
+        <div class="d-flex justify-content-center align-items-center gap-4">
+            <div>
+                <div class="fw-bold text-warning" style="font-size:3rem; line-height:1;">{{ h2h.d1_wins }}</div>
+                <div class="text-muted small">{{ driver1.full_name }}</div>
+            </div>
+            <div class="text-muted" style="font-size:1.5rem;">—</div>
+            <div>
+                <div class="fw-bold text-info" style="font-size:3rem; line-height:1;">{{ h2h.d2_wins }}</div>
+                <div class="text-muted small">{{ driver2.full_name }}</div>
+            </div>
+        </div>
+        <div class="text-muted small mt-2">{{ h2h.meetings }} встреч в одном заезде</div>
+
+        <!-- История встреч (раскрывающаяся) -->
+        <div class="mt-3 text-start">
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#meetingsList">
+                <i class="fas fa-list me-1"></i>История встреч
+            </button>
+            <div class="collapse mt-2" id="meetingsList">
+                <table class="table table-dark table-sm mb-0" style="font-size:0.85rem;">
+                    <thead>
+                        <tr class="text-muted">
+                            <th>Дата</th>
+                            <th>Событие</th>
+                            <th>Класс</th>
+                            <th class="text-center">{{ driver1.last_name }}</th>
+                            <th class="text-center">{{ driver2.last_name }}</th>
+                            <th class="text-center">Итог</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in h2h.list %}
+                        <tr>
+                            <td class="text-muted">{{ m.date|date:"d.m.Y" }}</td>
+                            <td>{{ m.event }}</td>
+                            <td class="text-info small">{{ m.class_name }}</td>
+                            <td class="text-center fw-bold {% if m.d1 < m.d2 %}text-warning{% else %}text-muted{% endif %}">
+                                {{ m.d1 }}
+                            </td>
+                            <td class="text-center fw-bold {% if m.d2 < m.d1 %}text-info{% else %}text-muted{% endif %}">
+                                {{ m.d2 }}
+                            </td>
+                            <td class="text-center small">
+                                {% if m.d1 < m.d2 %}<span class="text-warning">{{ driver1.last_name }}</span>
+                                {% else %}<span class="text-info">{{ driver2.last_name }}</span>{% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Блок сравнения -->
     <div class="row g-4 mb-4">
         <!-- Пилот 1 -->
@@ -687,17 +769,6 @@ function selectDriver(inputId, hiddenId, driverId, displayName) {
     }
 }
 
-console.log('Labels:', [
-    {% for d in stats1.chart_data %}
-    "{{ d.event }}"{% if not forloop.last %},{% endif %}
-    {% endfor %}
-]);
-console.log('STATS1 chart_data length from template: {{ stats1.chart_data|length }}');
-console.log('STATS2 chart_data length from template: {{ stats2.chart_data|length }}');
-
-console.log('Data1 ({{ driver1.full_name }}):', [{% for d in stats1.chart_data %}{{ d.points }}{% if not forloop.last %},{% endif %}{% endfor %}]);
-console.log('Data2 ({{ driver2.full_name }}):', [{% for d in stats1.chart_data %}{{ d.other_points }}{% if not forloop.last %},{% endif %}{% endfor %}]);
-
 // Инициализация
 document.addEventListener('DOMContentLoaded', function() {
     setupDriverSearch('driver1_search', 'driver1', 'driver1_results');
@@ -705,29 +776,19 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 {% if driver1 and driver2 and stats1.chart_data %}
-// График сравнения
 document.addEventListener('DOMContentLoaded', function() {
     const ctx = document.getElementById('compareChart').getContext('2d');
+    if (window.driverChart) window.driverChart.destroy();
 
-    // Очищаем предыдущий график
-    if (window.driverChart) {
-        window.driverChart.destroy();
-    }
-
-    // Берем данные напрямую из stats1 (только 8 элементов!)
     const data = {{ stats1.chart_data|safe }};
 
-    console.log('Данные из Django:', data);
-    console.log('Количество элементов:', data.length);
+    function normPos(pos, total) {
+        return total > 1 ? (total - pos) / (total - 1) * 100 : 50;
+    }
 
-    // Извлекаем массивы
-    const labels = data.map(item => item.event);
-    const points1 = data.map(item => item.points);
-    const points2 = data.map(item => item.other_points);
-
-    console.log('labels (8 шт):', labels);
-    console.log('points1 (8 шт):', points1);
-    console.log('points2 (8 шт):', points2);
+    const labels = data.map(d => d.event);
+    const vals1 = data.map(d => Math.round(normPos(d.pos1, d.size1)));
+    const vals2 = data.map(d => Math.round(normPos(d.pos2, d.size2)));
 
     window.driverChart = new Chart(ctx, {
         type: 'line',
@@ -736,68 +797,50 @@ document.addEventListener('DOMContentLoaded', function() {
             datasets: [
                 {
                     label: '{{ driver1.full_name }}',
-                    data: points1,
+                    data: vals1,
                     borderColor: '#ffc107',
-                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                    backgroundColor: 'rgba(255,193,7,0.1)',
                     tension: 0.3,
-                    fill: false
+                    fill: false,
+                    pointRadius: 5,
                 },
                 {
                     label: '{{ driver2.full_name }}',
-                    data: points2,
+                    data: vals2,
                     borderColor: '#0dcaf0',
-                    backgroundColor: 'rgba(13, 202, 240, 0.1)',
+                    backgroundColor: 'rgba(13,202,240,0.1)',
                     tension: 0.3,
-                    fill: false
+                    fill: false,
+                    pointRadius: 5,
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: { padding: { top: 12 } },
             plugins: {
-                legend: {
-                    labels: { color: '#adb5bd' }
+                legend: { labels: { color: '#adb5bd' } },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            const d = data[ctx.dataIndex];
+                            const pos = ctx.datasetIndex === 0 ? d.pos1 : d.pos2;
+                            const sz  = ctx.datasetIndex === 0 ? d.size1 : d.size2;
+                            return `${ctx.dataset.label}: место ${pos} из ${sz} (${ctx.raw}%)`;
+                        }
+                    }
                 }
             },
             scales: {
                 y: {
-                    beginAtZero: true,
-                    // Динамический максимум: округляем до ближайшего кратного 25
-                    suggestedMax: (function() {
-                        const maxValue = Math.max(...points1, ...points2);
-                        return Math.ceil(maxValue / 25) * 25; // Округляем вверх до 25
-                    })(),
-                    grid: {
-                        color: 'rgba(255,255,255,0.1)',
-                        lineWidth: 0.5
-                    },
-                    ticks: {
-                        color: '#adb5bd',
-                        stepSize: 25,  // Шаг 25 очков
-                        callback: function(value, index, values) {
-                            return value; // Показываем все значения
-                        },
-                        autoSkip: false, // Не пропускать подписи
-                        maxTicksLimit: 20  // Максимум 20 делений
-                    },
-                    afterBuildTicks: function(scale) {
-                        // Принудительно добавляем все деления через 25
-                        scale.ticks = [];
-                        for (let i = 0; i <= scale.max; i += 25) {
-                            scale.ticks.push({ value: i });
-                        }
-                    }
+                    min: 0, max: 100,
+                    grid: { color: 'rgba(255,255,255,0.1)' },
+                    ticks: { color: '#adb5bd', callback: v => v + '%' },
                 },
                 x: {
                     grid: { display: false },
-                    ticks: {
-                        color: '#adb5bd',
-                        maxRotation: 0,
-                        minRotation: 0,
-                        autoSkip: true,
-                        maxTicksLimit: 10
-                    }
+                    ticks: { color: '#adb5bd', maxRotation: 30, autoSkip: true, maxTicksLimit: 10 }
                 }
             }
         }
