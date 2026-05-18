@@ -1089,6 +1089,7 @@ def compare_drivers_view(request):
     """
     Страница сравнения двух пилотов
     """
+    from django.db.models import Count
     current_site = Site.find_for_request(request)
 
     # Получаем ID пилотов из GET-параметров
