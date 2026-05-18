@@ -26,7 +26,7 @@ class ContextAwareBradleyTerry:
     θ_i(context) = θ_i + β₁*temp + β₂*rain + β₃*tyre + β₄*track
     """
 
-    def __init__(self, alpha=0.1, max_iter=1000):
+    def __init__(self, alpha=0.1, max_iter=3000):
         self.alpha = alpha
         self.max_iter = max_iter
         self.ratings_ = None
@@ -114,12 +114,12 @@ class ContextAwareBradleyTerry:
 
         # Обучаем логистическую регрессию
         self.model = LogisticRegression(
-            penalty='l1',
             C=1.0 / self.alpha,
             solver='saga',
+            l1_ratio=1.0,
             max_iter=self.max_iter,
             fit_intercept=False,
-            random_state=42
+            random_state=42,
         )
 
         self.model.fit(X, y, sample_weight=weights)
