@@ -2096,27 +2096,48 @@ def ads_favorite(request, ad_id):
     return redirect('ads_detail', ad_id=ad.id)
 
 def rating_stats_api(request):
+    from website.models import AnalyticsSettings, AnalyticsMetadata, UpdateLog
+    from django.utils import timezone as tz
+
     drivers = Driver.objects.exclude(rating_score__isnull=True)
     drivers_with_count = drivers.annotate(race_count=Count('raceresult'))
-    
-    # Получаем веса контекстной модели
+
+    # Веса контекстной модели
     driver_with_weights = Driver.objects.exclude(context_weights={}).first()
     weights = driver_with_weights.context_weights if driver_with_weights else {}
-    
+
+    # Реальная дата последнего обновления рейтингов
+    last_update_str = None
+    last_log = UpdateLog.objects.filter(status='success').first()
+    if last_log:
+        last_update_str = tz.localtime(last_log.updated_at).strftime('%d.%m.%Y %H:%M')
+
+    # Параметры аналитики из БД
+    settings = AnalyticsSettings.get()
+
     data = {
         'total_drivers': drivers.count(),
         'total_races': RaceResult.objects.values('group__page').distinct().count(),
-        'low_starts_count': drivers_with_count.filter(race_count__lt=3).count(),
+        'low_starts_count': drivers_with_count.filter(race_count__lt=settings.min_starts_display).count(),
         'reliable_count': drivers_with_count.filter(race_count__gte=10).count(),
         'active_classes_count': RaceClass.objects.filter(raceclassresultgroup__isnull=False).distinct().count(),
         'top_drivers': [
-            {'name': d.full_name, 'rating': round(d.rating_score, 1)} 
+            {'name': d.full_name, 'rating': round(d.rating_score, 1)}
             for d in drivers.order_by('-rating_score')[:5]
         ],
         'weights': {
             'precipitation': weights.get('precipitation', 0.00),
             'temperature': weights.get('temperature', 0.00),
             'tyre': weights.get('tyre', 0.00),
-        }
+        },
+        'last_update': last_update_str,
+        'settings': {
+            'lambda_active': settings.lambda_active,
+            'lambda_inactive': settings.lambda_inactive,
+            'inactive_threshold_days': settings.inactive_threshold_days,
+            'min_starts_display': settings.min_starts_display,
+            'bt_alpha': settings.bt_alpha,
+            'pagerank_damping': settings.pagerank_damping,
+        },
     }
     return JsonResponse(data)
