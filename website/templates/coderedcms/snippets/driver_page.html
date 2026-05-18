@@ -231,6 +231,9 @@
                           {% if cr.rank == 1 %}
                           <span class="text-warning ms-1 fw-bold" style="font-size:0.85rem;"><i class="fas fa-crown me-1"></i>Лидер класса</span>
                           {% endif %}
+                          {% if cr.last_race_date %}
+                          <span class="text-muted ms-auto" style="font-size:0.8rem;">последний старт: {{ cr.last_race_date|date:"m.Y" }}</span>
+                          {% endif %}
                       </div>
 
                       <!-- Основные метрики -->

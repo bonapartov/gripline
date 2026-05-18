@@ -940,6 +940,9 @@ def _get_driver_class_ratings(driver):
         win_pct = round(wins_in_class / starts * 100, 1) if starts > 0 else 0
         podium_pct = round(podiums_in_class / starts * 100, 1) if starts > 0 else 0
 
+        last_result = class_qs.order_by('-group__page__first_published_at').first()
+        last_race_date = last_result.group.page.first_published_at if last_result else None
+
         class_ratings.append({
             'class_id': class_id,
             'class_name': class_name,
@@ -952,6 +955,7 @@ def _get_driver_class_ratings(driver):
             'win_pct': win_pct,
             'podium_pct': podium_pct,
             'low_data': starts < 3,
+            'last_race_date': last_race_date,
             'form_trend': _compute_form_trend(driver.id, class_id),
             'gap_to_above': gap_to_above,
             'gap_to_below': gap_to_below,
