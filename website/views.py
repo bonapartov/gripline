@@ -807,87 +807,143 @@ def get_chassis_stats(chassis, class_id=None):
         'wet_total': wet_results.count(),
         'avg_position': round(results.aggregate(avg=Avg('position'))['avg'] or 0, 2),
     }
+def _compute_form_trend(driver_id, class_id, window=5):
+    """
+    Сравнивает последние 5 гонок с предыдущими 5 по нормализованной позиции.
+    Возвращает 'up', 'down', 'stable' или None (мало данных).
+    """
+    from django.db.models import Count
+
+    rows = list(
+        RaceResult.objects.filter(
+            driver_id=driver_id,
+            group__race_class_id=class_id,
+        )
+        .annotate(group_size=Count('group__class_results'))
+        .order_by('group__page__first_published_at')
+        .values('position', 'group_size')
+    )
+
+    if len(rows) < window + 1:
+        return None
+
+    def norm(pos, total):
+        return (total - pos) / (total - 1) * 100 if total > 1 else 50.0
+
+    recent = rows[-window:]
+    previous = rows[-(2 * window):-window]
+
+    if not previous:
+        return None
+
+    avg_recent = sum(norm(r['position'], r['group_size']) for r in recent) / len(recent)
+    avg_prev = sum(norm(r['position'], r['group_size']) for r in previous) / len(previous)
+
+    diff = avg_recent - avg_prev
+    if diff > 10:
+        return 'up'
+    elif diff < -10:
+        return 'down'
+    return 'stable'
+
+
 def top_drivers_view(request):
     """
-    Страница с топ-пилотами (главный рейтинг - Ансамбль)
+    Страница с топ-пилотами (главный рейтинг — Bradley-Terry с байесовским сглаживанием).
     """
+    import json
+    import statistics
+
     current_site = Site.find_for_request(request)
 
     from .models import Driver, RaceClass, RaceResult
 
-    # Получаем все классы для вкладок
     class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
                    'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 32+']
     all_classes = list(RaceClass.objects.all())
     classes = sorted(all_classes, key=lambda x: class_order.index(x.name) if x.name in class_order else 999)
 
-    # Получаем выбранный класс
     selected_class_id = request.GET.get('class')
     if selected_class_id and selected_class_id.isdigit():
         selected_class_id = int(selected_class_id)
     else:
         selected_class_id = classes[0].id if classes else None
 
-    # Получаем пилотов с рейтингом ансамбля
-    drivers = Driver.objects.exclude(ensemble_by_class={}).order_by('last_name')
+    # Пилоты с BT-рейтингом (чистый Bradley-Terry, без PageRank)
+    drivers = Driver.objects.exclude(rating_by_class={}).order_by('last_name')
 
     result_drivers = []
 
     for driver in drivers:
-        if selected_class_id:
-            class_key = str(selected_class_id)
-            # ensemble_by_class может быть строкой или dict
-            ebc = driver.ensemble_by_class
-            if isinstance(ebc, str):
-                try:
-                    import json
-                    ebc = json.loads(ebc)
-                except:
-                    ebc = {}
-            ensemble_data = ebc.get(class_key, {})
+        if not selected_class_id:
+            continue
 
-            if not ensemble_data:
-                continue
+        class_key = str(selected_class_id)
+        rbc = driver.rating_by_class
+        if isinstance(rbc, str):
+            try:
+                rbc = json.loads(rbc)
+            except Exception:
+                rbc = {}
 
-            rating_score = ensemble_data.get('score', 0)
-            starts = ensemble_data.get('starts', 0)
+        bt_data = rbc.get(class_key, {})
+        if not bt_data:
+            continue
 
-            # Статистика
-            results = RaceResult.objects.filter(
-                driver=driver,
-                group__race_class_id=selected_class_id
-            )
-            race_count = results.count()
-            win_count = results.filter(position=1).count()
-            podium_count = results.filter(position__in=[1,2,3]).count()
-            win_percentage = round(win_count / race_count * 100, 1) if race_count > 0 else 0
+        bt_score = bt_data.get('score', 0)
+        starts = bt_data.get('starts', 0)
 
-            driver.race_count = race_count
-            driver.win_count = win_count
-            driver.podium_count = podium_count
-            driver.win_percentage = win_percentage
-            driver.rating_score = rating_score
-            driver.starts_in_class = starts
+        results = RaceResult.objects.filter(
+            driver=driver,
+            group__race_class_id=selected_class_id,
+        )
+        race_count = results.count()
+        win_count = results.filter(position=1).count()
+        podium_count = results.filter(position__in=[1, 2, 3]).count()
+        win_percentage = round(win_count / race_count * 100, 1) if race_count > 0 else 0
 
-            result_drivers.append(driver)
+        driver.race_count = race_count
+        driver.win_count = win_count
+        driver.podium_count = podium_count
+        driver.win_percentage = win_percentage
+        driver.bt_score = bt_score
+        driver.starts_in_class = starts
 
-    # Сортируем по рейтингу
-    result_drivers.sort(key=lambda x: x.rating_score, reverse=True)
+        result_drivers.append(driver)
 
-    # Добавляем место
+    if not result_drivers:
+        return render(request, "coderedcms/snippets/top_drivers_page.html", {
+            "drivers": [],
+            "classes": classes,
+            "selected_class_id": selected_class_id,
+            "site": current_site,
+            "page": None,
+        })
+
+    # Байесовское сглаживание: тянем новичков к медиане класса (C=15)
+    raw_scores = [d.bt_score for d in result_drivers]
+    mu = statistics.median(raw_scores)
+    C = 15
+
+    for driver in result_drivers:
+        n = driver.starts_in_class
+        driver.smoothed_score = (n * driver.bt_score + C * mu) / (n + C)
+
+    # Сортировка и места
+    result_drivers.sort(key=lambda x: x.smoothed_score, reverse=True)
     for idx, driver in enumerate(result_drivers, 1):
         driver.rank = idx
 
-    # Нормируем
-    if result_drivers:
-        min_rating = result_drivers[-1].rating_score
-        max_rating = result_drivers[0].rating_score
-        rating_range = max_rating - min_rating if max_rating > min_rating else 1
+    # Нормировка 0–100
+    min_s = result_drivers[-1].smoothed_score
+    max_s = result_drivers[0].smoothed_score
+    rng = max_s - min_s if max_s > min_s else 1
+    for driver in result_drivers:
+        driver.normalized_rating = round((driver.smoothed_score - min_s) / rng * 100, 1)
 
-        for driver in result_drivers:
-            driver.normalized_rating = round(
-                (driver.rating_score - min_rating) / rating_range * 100, 1
-            )
+    # Тренд формы (▲ / ▬ / ▼)
+    for driver in result_drivers:
+        driver.form_trend = _compute_form_trend(driver.id, selected_class_id)
 
     return render(request, "coderedcms/snippets/top_drivers_page.html", {
         "drivers": result_drivers,

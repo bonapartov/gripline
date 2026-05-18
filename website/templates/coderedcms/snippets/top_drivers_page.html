@@ -184,6 +184,7 @@
                     <th class="text-center">Подиумы</th>
                     <th class="text-center">Win%</th>
                     <th class="text-center">Рейтинг</th>
+                    <th class="text-center" style="width: 50px;" title="Тренд формы: сравнение последних 5 гонок с предыдущими 5">Тренд</th>
                     <th class="text-center" style="width: 40px;"></th>
                 </tr>
             </thead>
@@ -228,7 +229,20 @@
                         </span>
                     </td>
 
-                    <!-- Столбец только для иконки -->
+                    <!-- Тренд формы -->
+                    <td class="text-center" style="font-size: 1.1rem;">
+                        {% if driver.form_trend == 'up' %}
+                            <span class="text-success" title="На подъёме: последние 5 гонок лучше предыдущих">▲</span>
+                        {% elif driver.form_trend == 'down' %}
+                            <span class="text-danger" title="Спад: последние 5 гонок хуже предыдущих">▼</span>
+                        {% elif driver.form_trend == 'stable' %}
+                            <span class="text-secondary" title="Стабильно">▬</span>
+                        {% else %}
+                            <span class="text-muted" style="font-size: 0.75rem;" title="Недостаточно данных">—</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Предупреждение о малом количестве стартов -->
                     <td class="text-center" style="width: 40px;">
                         {% if driver.starts_in_class < 3 %}
                             <span class="warning-icon" title="Мало стартов в этом классе">⚠️</span>
@@ -237,7 +251,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="9" class="text-center p-5 text-muted">
+                    <td colspan="10" class="text-center p-5 text-muted">
                         Нет данных для отображения
                     </td>
                 </tr>
@@ -250,7 +264,7 @@
     <div class="methodology-link">
         <small class="text-muted">
             <i class="fas fa-info-circle me-1"></i>
-            Рейтинг рассчитан по модели <span class="badge bg-success">Ансамбль</span> —
+            Рейтинг рассчитан по модели <span class="badge bg-success">Bradley-Terry</span> с байесовским сглаживанием —
             <a href="/rating-info/" class="text-info">подробнее о методологии</a>
         </small>
     </div>
