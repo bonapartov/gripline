@@ -162,6 +162,9 @@ class Command(BaseCommand):
 
         if model_type in ['bt', 'all']:
             bt_ratings = self._update_driver_bt_ratings(loader, settings)
+        elif model_type in ['context']:
+            # При запуске только context — загружаем BT-рейтинги из БД
+            bt_ratings = self._load_bt_ratings_from_db()
 
         if model_type in ['pr', 'all']:
             pr_ratings = self._update_driver_pr_ratings(loader, settings.pagerank_damping)
@@ -221,6 +224,17 @@ class Command(BaseCommand):
 
             self.stdout.write(f"      Обновлено {len(ratings)} пилотов")
 
+        return bt_ratings
+
+    def _load_bt_ratings_from_db(self):
+        """Загружает BT-рейтинги из БД (для передачи в контекстную модель)."""
+        bt_ratings = {}
+        for driver in Driver.objects.exclude(rating_by_class={}).exclude(rating_by_class=None):
+            for class_id_str, data in (driver.rating_by_class or {}).items():
+                class_id = int(class_id_str)
+                if class_id not in bt_ratings:
+                    bt_ratings[class_id] = {}
+                bt_ratings[class_id][driver.id] = data.get('score', 0.0)
         return bt_ratings
 
     def _update_driver_pr_ratings(self, loader, damping):

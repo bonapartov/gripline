@@ -1,4 +1,3 @@
-import io
 import json
 import os
 import subprocess
@@ -6,7 +5,6 @@ import sys
 import tempfile
 import datetime
 
-from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -32,6 +30,19 @@ def _write_task(data):
         json.dump(data, f)
 
 
+def _is_process_running(pid):
+    """Проверяет жив ли процесс (не зомби и не завершён)."""
+    try:
+        with open(f'/proc/{pid}/status') as f:
+            for line in f:
+                if line.startswith('State:'):
+                    # Z = zombie (процесс завершился, но не прибран)
+                    return 'Z' not in line
+        return False
+    except (FileNotFoundError, PermissionError):
+        return False
+
+
 @staff_member_required
 def analytics_dashboard(request):
     context = {
@@ -49,14 +60,16 @@ def analytics_dashboard(request):
 
     if request.method == 'POST':
         task = _read_task()
-        if task and task.get('running'):
+        if task and task.get('running') and _is_process_running(task.get('pid', 0)):
             return JsonResponse({'error': 'Обновление уже запущено'}, status=400)
 
-        # Очищаем лог
         open(_LOG_FILE, 'w').close()
 
         python = sys.executable
-        manage_py = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'manage.py')
+        manage_py = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'manage.py'
+        )
 
         proc = subprocess.Popen(
             [python, manage_py, 'update_ratings', '--entity', 'all', '--model', 'all'],
@@ -78,9 +91,8 @@ def analytics_status(request):
     task = _read_task()
 
     if not task:
-        return JsonResponse({'running': False, 'lines': [], 'done': False})
+        return JsonResponse({'running': False, 'lines': [], 'done': True})
 
-    # Читаем лог
     try:
         with open(_LOG_FILE) as f:
             lines = f.read().splitlines()
@@ -89,13 +101,10 @@ def analytics_status(request):
 
     running = False
     if task.get('running'):
-        pid = task.get('pid')
-        try:
-            os.kill(pid, 0)
-            running = True
-        except (ProcessLookupError, PermissionError):
-            running = False
-            # Процесс завершился — сохраняем в UpdateLog
+        pid = task.get('pid', 0)
+        running = _is_process_running(pid)
+
+        if not running:
             log_text = '\n'.join(lines)
             status = 'error' if any('Error' in l or 'Traceback' in l for l in lines) else 'success'
             UpdateLog.objects.create(status=status, message=log_text[:500])
