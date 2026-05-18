@@ -112,13 +112,13 @@ class BradleyTerryLasso:
         from sklearn.linear_model import LogisticRegression
 
         self.model = LogisticRegression(
-            penalty='l1',
-            C=1.0 / self.alpha,  # обратная alpha
+            C=1.0 / self.alpha,
             solver='saga',
+            l1_ratio=1.0,
             max_iter=self.max_iter,
             fit_intercept=False,
-            random_state=42,  # для воспроизводимости
-            warm_start=False   # убираем warm_start
+            random_state=42,
+            warm_start=False,
         )
 
         self.model.fit(X, y, sample_weight=weights)
