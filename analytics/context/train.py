@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-Обучение мультимодальной модели для разных классов.
+Обучение двухэтапной контекстной модели для разных классов.
 """
 
+import math
 import pandas as pd
 import numpy as np
 import logging
-from typing import Dict, List, Optional, Tuple
+from datetime import date as date_type
+from typing import Dict, Optional, Tuple
 
 from analytics.context.weather_model import ContextAwareBradleyTerry
 from analytics.core.data_loader import DataLoader
@@ -19,23 +21,25 @@ def train_context_model_by_class(
     entity_type: str = 'driver',
     alpha: float = 0.1,
     settings=None,
-) -> Tuple[Dict[int, Dict[int, float]], Dict[int, np.ndarray]]:
+    bt_ratings_by_class: Optional[Dict[int, Dict]] = None,
+) -> Tuple[Dict[int, np.ndarray], Dict[int, np.ndarray]]:
     """
-    Обучает контекстную модель для каждого класса отдельно.
+    Обучает двухэтапную контекстную модель для каждого класса.
+
+    Этап 1: BT-рейтинги берутся из bt_ratings_by_class (уже посчитаны).
+    Этап 2: Логистическая регрессия на 5 признаках (bt_diff + 4 контекста).
 
     Args:
         data_loader: загрузчик данных
         entity_type: 'driver' или 'chassis'
         alpha: коэффициент регуляризации
-        settings: экземпляр AnalyticsSettings; если передан — применяется temporal decay
-                  и пороги из настроек
+        settings: экземпляр AnalyticsSettings
+        bt_ratings_by_class: dict {class_id: {entity_id: score}} — BT-рейтинги
 
     Returns:
-        tuple: (ratings_by_class, context_weights_by_class)
+        tuple: (context_weights_by_class, bt_coef_by_class)
+               context_weights_by_class: {class_id: np.ndarray([temp, precip, tyre, track])}
     """
-    import math
-    from datetime import date as date_type
-
     from website.models import RaceClass
 
     df_races = data_loader.df_races
@@ -44,26 +48,29 @@ def train_context_model_by_class(
         df_races = data_loader.df_races
 
     classes = RaceClass.objects.all()
+    today = date_type.today()
 
     min_races = settings.min_races_context if settings is not None else 10
     min_comparisons = settings.min_comparisons_context if settings is not None else 20
-    today = date_type.today()
 
+    # context_weights_by_class хранит веса контекста для каждого класса
+    context_weights_by_class = {}
+    # ratings_by_class возвращает BT-рейтинги (из bt_ratings_by_class или пустые)
     ratings_by_class = {}
-    weights_by_class = {}
 
     for race_class in classes:
         class_id = race_class.id
-        logger.info(f"Обучение контекстной модели для класса {race_class.name} (ID: {class_id})")
+        logger.info(f"Контекстная модель для класса {race_class.name} (ID: {class_id})")
 
-        # Фильтруем данные по классу
         df_class = df_races[df_races['class_id'] == class_id].copy()
 
         if len(df_class) < min_races:
             logger.info(f"  Недостаточно данных для класса {class_id}")
             continue
 
-        # Создаём контекстные сравнения
+        # BT-рейтинги для этого класса
+        bt_ratings = (bt_ratings_by_class or {}).get(class_id, {})
+
         comparisons = []
 
         for group_id, group in df_class.groupby('group_id'):
@@ -72,24 +79,20 @@ def train_context_model_by_class(
 
             group = group.sort_values('position')
 
-            # Контекст для группы с обработкой пропусков
-            temp = group['temperature'].iloc[0] if 'temperature' in group.columns else 0
+            temp = float(group['temperature'].iloc[0]) if 'temperature' in group.columns else 0.0
             if pd.isna(temp):
                 temp = 0.0
 
-            precip = group['precipitation'].iloc[0] if 'precipitation' in group.columns else 0
+            precip = float(group['precipitation'].iloc[0]) if 'precipitation' in group.columns else 0.0
             if pd.isna(precip):
                 precip = 0.0
 
             tyre = group['tyre_id'].iloc[0] if 'tyre_id' in group.columns else 0
-            if pd.isna(tyre):
-                tyre = 0
+            tyre = 0 if pd.isna(tyre) else int(tyre)
 
             track = group['track_id'].iloc[0] if 'track_id' in group.columns else 0
-            if pd.isna(track):
-                track = 0
+            track = 0 if pd.isna(track) else int(track)
 
-            # Temporal decay weight для всей группы (гонки)
             temporal_weight = 1.0
             if settings is not None:
                 race_date = group['date'].iloc[0] if 'date' in group.columns else None
@@ -97,8 +100,7 @@ def train_context_model_by_class(
                     if hasattr(race_date, 'date'):
                         race_date = race_date.date()
                     days = (today - race_date).days
-                    is_inactive = days > settings.inactive_threshold_days
-                    lam = settings.lambda_inactive if is_inactive else settings.lambda_active
+                    lam = settings.lambda_inactive if days > settings.inactive_threshold_days else settings.lambda_active
                     temporal_weight = math.exp(-lam * days / 365)
 
             for i, row_i in group.iterrows():
@@ -132,26 +134,22 @@ def train_context_model_by_class(
             logger.info(f"  Недостаточно сравнений для класса {class_id}")
             continue
 
-        df_comp = pd.DataFrame(comparisons)
-        # Убеждаемся, что нет NaN перед обучением
-        df_comp = df_comp.fillna(0)
-        logger.info(f"  Создано {len(df_comp)} сравнений")
+        df_comp = pd.DataFrame(comparisons).fillna(0)
+        logger.info(f"  Сравнений: {len(df_comp)}, признаков модели: 5 (bt_diff + 4 контекста)")
 
-        # Обучаем модель
         model = ContextAwareBradleyTerry(alpha=alpha)
-        model.fit(df_comp)
+        model.fit(df_comp, bt_ratings=bt_ratings)
 
-        # Сохраняем результаты
-        ratings = model.get_all_ratings()
-        ratings_by_class[class_id] = ratings
+        # Сохраняем BT-рейтинги как рейтинги класса (из предобученного BT)
+        ratings_by_class[class_id] = bt_ratings
 
         if model.context_weights_ is not None:
-            weights_by_class[class_id] = model.context_weights_
-            logger.info(f"  Веса контекста: temp={model.context_weights_[0]:.3f}, "
-                       f"precip={model.context_weights_[1]:.3f}, "
-                       f"tyre={model.context_weights_[2]:.3f}, "
-                       f"track={model.context_weights_[3]:.3f}")
+            context_weights_by_class[class_id] = model.context_weights_
+            logger.info(f"  Веса: temp={model.context_weights_[0]:.3f}, "
+                        f"precip={model.context_weights_[1]:.3f}, "
+                        f"tyre={model.context_weights_[2]:.3f}, "
+                        f"track={model.context_weights_[3]:.3f}")
 
-        logger.info(f"  Получено рейтингов: {len(ratings)}")
+        logger.info(f"  Рейтингов в классе: {len(bt_ratings)}")
 
-    return ratings_by_class, weights_by_class
+    return ratings_by_class, context_weights_by_class

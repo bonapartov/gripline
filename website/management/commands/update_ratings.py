@@ -170,7 +170,7 @@ class Command(BaseCommand):
             self._update_driver_ensemble_ratings(loader, bt_ratings, pr_ratings, optimize)
 
         if model_type in ['context', 'all']:
-            self._update_driver_context_ratings(loader, settings)
+            self._update_driver_context_ratings(loader, settings, bt_ratings_by_class=bt_ratings)
 
         return bt_ratings, pr_ratings
 
@@ -303,18 +303,19 @@ class Command(BaseCommand):
 
                 self.stdout.write(f"      Обновлено {len(ratings)} пилотов")
 
-    def _update_driver_context_ratings(self, loader, settings):
+    def _update_driver_context_ratings(self, loader, settings, bt_ratings_by_class=None):
         """Обновляет рейтинги пилотов по контекстной модели."""
         self.stdout.write("  Context-Aware (с учётом погоды и шин):")
 
         from analytics.context.train import train_context_model_by_class
 
-        # Обучаем контекстную модель
+        # Обучаем контекстную модель (двухэтапная: BT-рейтинги + контекст)
         ratings_by_class, weights_by_class = train_context_model_by_class(
             data_loader=loader,
             entity_type='driver',
             alpha=settings.bt_alpha,
             settings=settings,
+            bt_ratings_by_class=bt_ratings_by_class,
         )
 
         with transaction.atomic():
