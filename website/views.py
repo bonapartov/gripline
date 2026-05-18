@@ -940,8 +940,17 @@ def _get_driver_class_ratings(driver):
         win_pct = round(wins_in_class / starts * 100, 1) if starts > 0 else 0
         podium_pct = round(podiums_in_class / starts * 100, 1) if starts > 0 else 0
 
-        last_result = class_qs.order_by('-group__page__first_published_at').first()
-        last_race_date = last_result.group.page.first_published_at if last_result else None
+        last_result = class_qs.annotate(
+            event_end=Subquery(
+                EventOccurrence.objects.filter(
+                    event_id=OuterRef('group__page_id')
+                ).order_by('-end').values('end')[:1]
+            )
+        ).order_by('-event_end', '-group__page__last_published_at').first()
+        if last_result:
+            last_race_date = getattr(last_result, 'event_end', None) or last_result.group.page.last_published_at
+        else:
+            last_race_date = None
 
         class_ratings.append({
             'class_id': class_id,
