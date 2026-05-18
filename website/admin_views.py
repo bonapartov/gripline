@@ -38,7 +38,7 @@ def analytics_dashboard(request):
             sys.stderr = error_output
 
             # Запускаем обновление всех моделей
-            call_command('update_ratings', '--entity', 'all', '--model', 'all', '--alpha', '0.1')
+            call_command('update_ratings', '--entity', 'all', '--model', 'all')
 
             # Возвращаем stdout/stderr обратно
             sys.stdout = sys.__stdout__
