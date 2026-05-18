@@ -10,8 +10,6 @@
         padding-left: 1rem !important;
         padding-right: 1rem !important;
     }
-
-    /* Основной контейнер страницы */
     .rating-info-page {
         background-color: #15151c;
         color: #fff;
@@ -19,8 +17,6 @@
         border-radius: 10px;
         margin: 2rem 0;
     }
-
-    /* Заголовки */
     .rating-info-page h2 {
         color: #ffc107 !important;
         font-size: 2rem;
@@ -30,33 +26,25 @@
         border-bottom: 2px solid #ffc107;
         padding-bottom: 1rem;
     }
-
     .rating-info-page h3 {
         color: #0dcaf0 !important;
         font-size: 1.5rem;
         font-weight: bold;
         margin: 2rem 0 1rem 0;
     }
-
     .rating-info-page h4 {
         color: #ffc107 !important;
         font-size: 1.2rem;
         font-weight: bold;
         margin: 1.5rem 0 1rem 0;
     }
-
-    /* Текст */
     .rating-info-page p {
         color: #adb5bd !important;
         line-height: 1.6;
         margin-bottom: 1rem;
     }
+    .rating-info-page strong { color: #fff !important; }
 
-    .rating-info-page strong {
-        color: #fff !important;
-    }
-
-    /* Блок с формулой */
     .formula-block {
         background-color: #1a1a25;
         border: 1px solid #2a2a35;
@@ -68,8 +56,6 @@
         color: #ffc107 !important;
         text-align: center;
     }
-
-    /* Простая таблица */
     .simple-table {
         background-color: #1a1a25;
         border: 1px solid #2a2a35;
@@ -79,7 +65,6 @@
         width: 100%;
         border-collapse: collapse;
     }
-
     .simple-table th {
         background-color: #2a2a35;
         color: #ffc107 !important;
@@ -89,18 +74,13 @@
         text-align: left;
         border-bottom: 2px solid #ffc107;
     }
-
     .simple-table td {
         padding: 0.75rem;
         border-bottom: 1px solid #2a2a35;
         color: #fff !important;
     }
+    .simple-table tr:last-child td { border-bottom: none; }
 
-    .simple-table tr:last-child td {
-        border-bottom: none;
-    }
-
-    /* Бейджи для мест */
     .place-badge {
         display: inline-block;
         width: 30px;
@@ -110,57 +90,39 @@
         border-radius: 4px;
         font-weight: bold;
     }
+    .place-badge.gold { background-color: #ffc107; color: #000; }
+    .place-badge.silver { background-color: #f8f9fa; color: #000; }
+    .place-badge.bronze { background-color: #cd7f32; color: #fff; }
 
-    .place-badge.gold {
-        background-color: #ffc107;
-        color: #000;
-    }
-
-    .place-badge.silver {
-        background-color: #f8f9fa;
-        color: #000;
-    }
-
-    .place-badge.bronze {
-        background-color: #cd7f32;
-        color: #fff;
-    }
-
-    /* Рейтинговый бейдж */
     .rating-badge-example {
-        background-color: #ffc107;
-        color: #000;
+        background-color: #28a745;
+        color: #fff;
         padding: 0.25rem 0.75rem;
         border-radius: 20px;
         font-weight: bold;
         display: inline-block;
     }
+    .rating-badge-example.rating-low-data { opacity: 0.8; }
 
-    .rating-badge-example.rating-low-data {
-        opacity: 0.8;
-    }
-
-    /* Блок с примером */
     .note-box {
         background-color: rgba(255, 193, 7, 0.1);
         border-left: 4px solid #ffc107;
         padding: 1rem;
         margin: 1rem 0;
     }
-
-    /* Список шагов */
-    .step-list {
-        list-style: none;
-        padding: 0;
+    .info-box {
+        background-color: rgba(13, 202, 240, 0.1);
+        border-left: 4px solid #0dcaf0;
+        padding: 1rem;
+        margin: 1rem 0;
     }
-
+    .step-list { list-style: none; padding: 0; }
     .step-list li {
         margin-bottom: 1rem;
         padding-left: 2rem;
         position: relative;
         color: #adb5bd;
     }
-
     .step-list li:before {
         content: "→";
         color: #ffc107;
@@ -168,16 +130,12 @@
         left: 0;
         font-weight: bold;
     }
-
-    /* Карточки для сравнения */
     .comparison-card {
         background-color: rgba(0, 0, 0, 0.25);
         padding: 1rem;
         border-radius: 8px;
         height: 100%;
     }
-
-    /* Кнопка */
     .btn-filter {
         background-color: #ffc107;
         color: #000 !important;
@@ -191,185 +149,343 @@
         text-decoration: none;
         cursor: pointer;
     }
-
     .btn-filter:hover {
         background-color: #e0a800;
         transform: translateY(-2px);
         color: #000 !important;
         text-decoration: none;
     }
+
+    /* Карточки статистики */
+    .stat-cards { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1.5rem 0; }
+    .stat-card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1rem 1.5rem;
+        flex: 1 1 140px;
+        text-align: center;
+    }
+    .stat-card .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #ffc107;
+        display: block;
+    }
+    .stat-card .stat-label {
+        font-size: 0.8rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Параметры из БД */
+    .param-grid { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 1rem 0; }
+    .param-item {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 6px;
+        padding: 0.5rem 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .param-name { color: #6c757d; font-size: 0.85rem; }
+    .param-value { color: #ffc107; font-weight: bold; font-family: monospace; }
+
+    /* Тренд */
+    .trend-demo {
+        display: flex;
+        gap: 2rem;
+        margin: 1rem 0;
+        flex-wrap: wrap;
+    }
+    .trend-item {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1rem 1.5rem;
+        text-align: center;
+        flex: 1;
+        min-width: 120px;
+    }
+    .trend-item .trend-arrow { font-size: 2rem; }
+    .trend-item .trend-label { font-size: 0.8rem; color: #6c757d; margin-top: 0.25rem; }
 </style>
 
 <div class="force-width-1500 my-5">
     <div class="rating-info-page">
-        <h2>Как считается рейтинг пилотов?</h2>
 
-        <!-- Основная формула -->
-        <h3>1. Математическая основа</h3>
+        <!-- Заголовок -->
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-2">
+            <h2 class="mb-0">Как считается рейтинг пилотов?</h2>
+            <div style="text-align:right;">
+                <div style="color:#6c757d; font-size:0.85rem;">Последнее обновление</div>
+                <div style="color:#ffc107; font-weight:bold;" id="last-update">загрузка...</div>
+            </div>
+        </div>
+
+        <!-- Живая статистика -->
+        <div class="stat-cards" id="stat-cards">
+            <div class="stat-card">
+                <span class="stat-value" id="stat-pilots">—</span>
+                <span class="stat-label">Пилотов в базе</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="stat-races">—</span>
+                <span class="stat-label">Этапов</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="stat-classes">—</span>
+                <span class="stat-label">Классов</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="stat-reliable">—</span>
+                <span class="stat-label">Пилотов 10+ стартов</span>
+            </div>
+        </div>
+
+        <!-- 1. Математическая основа -->
+        <h3>1. Математическая основа — Брэдли-Терри</h3>
         <p>
             Мы используем <strong>модель Брэдли-Терри с Lasso-регуляризацией</strong> —
-            это стандарт спортивной аналитики, который применяется в футболе, теннисе и киберспорте.
+            стандарт спортивной аналитики, применяемый в теннисе, футболе и киберспорте.
+            Модель не просто считает места — она определяет <strong>вероятность победы
+            одного пилота над другим</strong>.
         </p>
 
         <div class="formula-block">
-            P(i > j) = exp(θᵢ) / (exp(θᵢ) + exp(θⱼ))
+            P(i победит j) = exp(θᵢ) / (exp(θᵢ) + exp(θⱼ))
         </div>
 
         <p>
-            Где <strong>P(i > j)</strong> — вероятность того, что пилот i финиширует выше пилота j,
-            а <strong>θᵢ</strong> и <strong>θⱼ</strong> — их рейтинги.
+            Где <strong>θᵢ</strong> — рейтинговый коэффициент пилота i.
+            Чем выше θ, тем выше вероятность победы в прямом столкновении.
         </p>
 
-        <!-- Как это работает на практике -->
-        <h3>2. Как это работает на практике</h3>
+        <!-- 2. Парные сравнения -->
+        <h3>2. Парные сравнения — честный учёт каждой гонки</h3>
 
-        <h4>Шаг 1. Парные сравнения</h4>
+        <h4>Шаг 1. Разбиваем гонку на пары</h4>
         <p>
-            Каждая гонка разбивается на множество парных сравнений. Например, если в гонке 10 пилотов,
-            мы получаем 45 сравнений (каждый с каждым). Пилот, финишировавший выше, считается победителем в паре.
+            Каждая гонка разбивается на все возможные парные сравнения.
+            Если в заезде 10 пилотов — получаем 45 пар «каждый с каждым».
+            Пилот, финишировавший выше, засчитывается победителем в паре.
         </p>
 
-        <!-- Простая таблица -->
         <table class="simple-table">
             <thead>
                 <tr>
                     <th>Место</th>
                     <th>Пилот</th>
-                    <th>Победы в парах</th>
+                    <th>Победы в парах (из 9)</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     <td><span class="place-badge gold">1</span></td>
-                    <td>Пилот 1</td>
-                    <td>9 побед (выше всех 9 соперников)</td>
+                    <td>Пилот А</td>
+                    <td>9 — выше всех соперников</td>
                 </tr>
                 <tr>
                     <td><span class="place-badge silver">2</span></td>
-                    <td>Пилот 2</td>
-                    <td>8 побед (выше всех, кроме 1-го места)</td>
+                    <td>Пилот Б</td>
+                    <td>8 — выше всех, кроме А</td>
                 </tr>
                 <tr>
                     <td><span class="place-badge bronze">3</span></td>
-                    <td>Пилот 3</td>
-                    <td>7 побед (выше всех, кроме 1-го и 2-го)</td>
+                    <td>Пилот В</td>
+                    <td>7 — выше всех, кроме А и Б</td>
                 </tr>
             </tbody>
         </table>
 
-        <h4>Шаг 2. Учет силы соперников</h4>
+        <h4>Шаг 2. Победа над сильным соперником ценится выше</h4>
         <p>
-            Победа над сильным соперником добавляет больше рейтинга, чем победа над слабым.
-            Это главное отличие от простого подсчета процента побед.
+            Это ключевое отличие от простых таблиц. Если Пилот А обгоняет Пилота Б,
+            который сам регулярно выигрывает — это большой вклад в рейтинг.
+            Победа над аутсайдером даёт меньше.
         </p>
 
         <div class="note-box">
             <i class="fas fa-lightbulb text-warning me-2"></i>
             <strong>Пример:</strong>
-            <span>Победа над пилотом с рейтингом 2000 даст +20 очков, а над пилотом с рейтингом 1000 — только +5.</span>
+            Финиш 2-м в классе с сильными пилотами может дать больше рейтинга,
+            чем победа в слабом поле.
         </div>
-        <!-- Таблица с весами контекстной модели -->
-        <h4 class="mt-5">Шаг 3. Расчёт влияния погоды и трасс</h4>
+
+        <!-- 3. Временное затухание -->
+        <h3>3. Временное затухание — свежие гонки важнее</h3>
+
         <p>
-            Модель анализирует тысячи гонок и определяет, насколько каждый фактор важен.
-            Например, может оказаться, что на трассе "Пластушка" пилоты едут на 10% быстрее,
-            а в дождь шансы на победу падают на 30%.
+            Каждая пара в сравнении получает <strong>весовой коэффициент</strong>,
+            зависящий от того, как давно была гонка. Старые результаты постепенно
+            теряют влияние — как в реальном спорте.
         </p>
 
-        <!-- Динамическая таблица с весами -->
-        {% include "coderedcms/snippets/weights_table.html" %}
+        <div class="formula-block">
+            вес = exp(−λ × дней / 365)
+        </div>
 
-        <!-- Дополнительное разъяснение -->
-        <h3>5.1. Почему веса могут быть нулевыми?</h3>
+        <p>Используется два режима λ в зависимости от активности пилота:</p>
+
+        <div class="param-grid" id="param-grid">
+            <div class="param-item">
+                <span class="param-name">λ активный пилот</span>
+                <span class="param-value" id="param-lambda-active">0.8</span>
+            </div>
+            <div class="param-item">
+                <span class="param-name">λ неактивный пилот</span>
+                <span class="param-value" id="param-lambda-inactive">2.0</span>
+            </div>
+            <div class="param-item">
+                <span class="param-name">Порог неактивности</span>
+                <span class="param-value" id="param-threshold">180 дней</span>
+            </div>
+            <div class="param-item">
+                <span class="param-name">Lasso α</span>
+                <span class="param-value" id="param-alpha">0.1</span>
+            </div>
+        </div>
+
+        <table class="simple-table">
+            <thead>
+                <tr>
+                    <th>Давность гонки</th>
+                    <th>Вес (λ=0.8, активный)</th>
+                    <th>Вес (λ=2.0, неактивный)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>Сегодня</td><td>100%</td><td>100%</td></tr>
+                <tr><td>3 месяца назад</td><td>~82%</td><td>~61%</td></tr>
+                <tr><td>6 месяцев назад</td><td>~67%</td><td>~37%</td></tr>
+                <tr><td>1 год назад</td><td>~45%</td><td>~14%</td></tr>
+                <tr><td>2 года назад</td><td>~20%</td><td>~2%</td></tr>
+            </tbody>
+        </table>
+
+        <div class="info-box">
+            <i class="fas fa-info-circle text-info me-2"></i>
+            <strong>Смена класса или длительный перерыв:</strong>
+            Если пилот не стартовал более <span id="info-threshold">180</span> дней,
+            он переходит в режим «неактивный» — его исторические результаты затухают
+            быстрее. Возврат в класс снова переключает на режим активного.
+        </div>
+
+        <!-- 4. Байесовское сглаживание -->
+        <h3>4. Байесовское сглаживание — защита от случайных скачков</h3>
+
         <p>
-            Контекстная модель учитывает не просто наличие данных, а их статистическую значимость.
-            Вес фактора становится заметным только тогда, когда он реально влияет на результаты.
+            Пилот с 1–2 стартами может случайно оказаться на вершине.
+            Мы применяем байесовское сглаживание: рейтинг новичка
+            <strong>тянется к медиане класса</strong>, пока не накопится достаточно данных.
         </p>
 
-        <div class="note-box">
-            <i class="fas fa-cloud-rain text-warning me-2"></i>
-            <strong>Осадки = 0.00</strong>
-            <span><br>
-                Это означает, что в наше базе пока нет дождевых гонок, либо их слишком мало
-                для статистически значимого вывода. Как только появятся гонки под дождём,
-                модель начнёт рассчитывать влияние осадков.
-            </span>
+        <div class="formula-block">
+            Байес = (N × BT_raw + C × μ) / (N + C)
         </div>
-
-        <div class="note-box">
-            <i class="fas fa-temperature-high text-warning me-2"></i>
-            <strong>Температура = 0.00</strong>
-            <span><br>
-                Данные по температуре есть, но они не показывают устойчивой зависимости
-                результатов от температуры. Если в жару побеждают те же пилоты, что и в холод,
-                вес останется нулевым.
-            </span>
-        </div>
-
-        <div class="note-box">
-            <i class="fas fa-circle text-warning me-2"></i>
-            <strong>Шины = 0.00</strong>
-            <span><br>
-                В рамках одного класса все пилоты используют одинаковые шины, поэтому
-                этот фактор не может влиять на результат. Ноль здесь — это норма. Но мы его всё равно учитываем.
-            </span>
-        </div>
-
-        <!-- Lasso-регуляризация -->
-        <h3>3. Lasso-регуляризация (решение проблемы "мало стартов")</h3>
 
         <p>
-            Что делать, если у пилота всего 1-2 старта? Его рейтинг может быть случайно высоким или низким.
-            Lasso-регуляризация автоматически "подтягивает" таких пилотов к среднему значению,
-            пока не накопится достаточно данных.
+            Где <strong>N</strong> — число стартов пилота,
+            <strong>C = 15</strong> — коэффициент доверия,
+            <strong>μ</strong> — медиана BT-рейтингов всех пилотов класса.
         </p>
 
         <div class="row">
             <div class="col-md-6 mb-3">
                 <div class="comparison-card">
-                    <h4 style="color: #0dcaf0 !important;">Без регуляризации</h4>
-                    <ul style="list-style: none; padding: 0;">
-                        <li style="margin-bottom: 0.5rem; color: #fff;">⚠️ 1 старт, 1 победа → рейтинг 100</li>
-                        <li style="margin-bottom: 0.5rem; color: #fff;">⚠️ 1 старт, 10-е место → рейтинг 0</li>
-                        <li style="color: #6c757d; font-size: 0.9rem;">Слишком резкие скачки</li>
+                    <h4 style="color:#dc3545 !important;">Без сглаживания</h4>
+                    <ul style="list-style:none; padding:0;">
+                        <li style="margin-bottom:0.5rem; color:#fff;">⚠️ 1 старт, случайная победа → рейтинг 100</li>
+                        <li style="margin-bottom:0.5rem; color:#fff;">⚠️ Рейтинг нестабилен, скачет после каждой гонки</li>
+                        <li style="color:#6c757d; font-size:0.9rem;">Новичок выше опытных пилотов</li>
                     </ul>
                 </div>
             </div>
             <div class="col-md-6 mb-3">
                 <div class="comparison-card">
-                    <h4 style="color: #0dcaf0 !important;">С Lasso</h4>
-                    <ul style="list-style: none; padding: 0;">
-                        <li style="margin-bottom: 0.5rem; color: #fff;">✅ 1 старт, 1 победа → рейтинг 85</li>
-                        <li style="margin-bottom: 0.5rem; color: #fff;">✅ 1 старт, 10-е место → рейтинг 15</li>
-                        <li style="color: #6c757d; font-size: 0.9rem;">Плавные, реалистичные значения</li>
+                    <h4 style="color:#28a745 !important;">С байесовским сглаживанием</h4>
+                    <ul style="list-style:none; padding:0;">
+                        <li style="margin-bottom:0.5rem; color:#fff;">✅ 1 старт → рейтинг близок к среднему по классу</li>
+                        <li style="margin-bottom:0.5rem; color:#fff;">✅ После 15+ стартов — полное доверие к результату</li>
+                        <li style="color:#6c757d; font-size:0.9rem;">Рост рейтинга заслуженный</li>
                     </ul>
                 </div>
             </div>
         </div>
 
-        <!-- Нормировка 0-100 -->
-        <h3>4. Нормировка (шкала 0–100)</h3>
+        <!-- 5. Нормировка -->
+        <h3>5. Нормировка — шкала 0–100</h3>
 
         <p>
-            Исходные рейтинги могут быть любыми числами (от -5 до +15). Чтобы сделать их понятными,
-            мы нормируем значения:
+            После байесовского сглаживания все рейтинги нормируются в понятную шкалу:
         </p>
 
         <div class="formula-block">
-            Рейтинг<sub>норм</sub> = (θ - θ<sub>мин</sub>) / (θ<sub>макс</sub> - θ<sub>мин</sub>) × 100
+            Рейтинг = (θ − θ<sub>мин</sub>) / (θ<sub>макс</sub> − θ<sub>мин</sub>) × 100
         </div>
 
         <p>
-            Где <strong>θ<sub>мин</sub></strong> — минимальный рейтинг среди всех пилотов,
-            а <strong>θ<sub>макс</sub></strong> — максимальный.
+            Лидер класса всегда имеет рейтинг <strong>100</strong>,
+            замыкающий — <strong>0</strong>. Все остальные — между ними.
+            Рейтинг отдельный для каждого класса: нельзя сравнивать пилота из Mini
+            с пилотом из Senior.
         </p>
 
-        <!-- Доверительный интервал -->
-        <h3>5. Доверительный интервал (иконка ⚠️)</h3>
+        <!-- 6. Тренд формы -->
+        <h3>6. Тренд формы — ▲ / ▬ / ▼</h3>
 
         <p>
-            Чем меньше стартов у пилота, тем менее надёжен его рейтинг. Мы показываем это иконкой ⚠️
-            и полупрозрачным фоном для пилотов с менее чем 3 стартами.
+            Рядом с каждым пилотом отображается стрелка тренда.
+            Она показывает, <strong>улучшились или ухудшились</strong> результаты
+            в последних гонках по сравнению с предыдущими.
+        </p>
+
+        <p>
+            Для каждой гонки считается <strong>нормализованная позиция</strong>:
+        </p>
+
+        <div class="formula-block">
+            позиция_норм = (N − место) / (N − 1) × 100
+        </div>
+
+        <p>
+            Где <strong>N</strong> — число участников. 1-е место из 20 пилотов
+            даёт 100, 1-е место из 4 — тоже 100, но 10-е из 20 даёт 47,
+            а 10-е из 11 — лишь 9. Затем сравниваем средние за последние 5 и предыдущие 5 гонок:
+        </p>
+
+        <div class="trend-demo">
+            <div class="trend-item">
+                <div class="trend-arrow text-success">▲</div>
+                <div style="color:#28a745; font-weight:bold;">На подъёме</div>
+                <div class="trend-label">Последние 5 лучше<br>предыдущих 5 на 10%+</div>
+            </div>
+            <div class="trend-item">
+                <div class="trend-arrow text-secondary">▬</div>
+                <div style="color:#6c757d; font-weight:bold;">Стабильно</div>
+                <div class="trend-label">Разница<br>в пределах ±10%</div>
+            </div>
+            <div class="trend-item">
+                <div class="trend-arrow text-danger">▼</div>
+                <div style="color:#dc3545; font-weight:bold;">Спад</div>
+                <div class="trend-label">Последние 5 хуже<br>предыдущих 5 на 10%+</div>
+            </div>
+            <div class="trend-item">
+                <div class="trend-arrow text-muted" style="font-size:1.2rem;">—</div>
+                <div style="color:#6c757d; font-weight:bold;">Нет данных</div>
+                <div class="trend-label">Менее 6 гонок<br>в классе</div>
+            </div>
+        </div>
+
+        <!-- 7. Доверительный интервал -->
+        <h3>7. Иконка ⚠️ — мало стартов</h3>
+
+        <p>
+            Пилоты с менее чем <strong id="min-starts-text">3</strong> стартами
+            отмечаются иконкой ⚠️. Байесовское сглаживание уже корректирует их
+            рейтинг, но визуальное предупреждение помогает не переоценивать результат.
         </p>
 
         <table class="simple-table">
@@ -378,56 +494,102 @@
                     <th>Пилот</th>
                     <th>Старты</th>
                     <th>Рейтинг</th>
-                    <th>Доверительный интервал</th>
+                    <th>Надёжность</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     <td>Пилот А</td>
-                    <td>1</td>
-                    <td><span class="rating-badge-example rating-low-data">98</span>⚠️</td>
-                    <td>от 45 до 151 (очень широкий)</td>
+                    <td>2</td>
+                    <td><span class="rating-badge-example rating-low-data">54.2</span> ⚠️</td>
+                    <td style="color:#6c757d;">Рейтинг тянется к медиане</td>
                 </tr>
                 <tr>
                     <td>Пилот Б</td>
-                    <td>12</td>
-                    <td><span class="rating-badge-example">76</span></td>
-                    <td>от 72 до 80 (узкий)</td>
+                    <td>7</td>
+                    <td><span class="rating-badge-example">78.1</span></td>
+                    <td style="color:#adb5bd;">Умеренное доверие</td>
+                </tr>
+                <tr>
+                    <td>Пилот В</td>
+                    <td>15</td>
+                    <td><span class="rating-badge-example">91.4</span></td>
+                    <td style="color:#28a745;">Полное доверие</td>
                 </tr>
             </tbody>
         </table>
 
-        <h3>5.1. Смена класса и рейтинг</h3>
+        <!-- 8. Классы -->
+        <h3>8. Рейтинг раздельный по классам</h3>
         <p>
-            При переходе в новый класс рейтинг пилота <strong>начинается с нуля</strong>.
-            Это связано с тем, что каждый класс имеет свою специфику (разные шасси, двигатели,
-            возрастные группы), и результаты в одном классе не переносятся в другой.
-            В профиле пилота вы можете видеть рейтинги отдельно по каждому классу.
+            В Rotax Max каждый класс — отдельная дисциплина: разные возрастные группы,
+            разные конкурентные поля. Пересчёт рейтинга между классами не производится.
+            При переходе из Micro в Mini пилот начинает с нуля, и это правильно —
+            конкурентный уровень в новом классе другой.
         </p>
-        <!-- Итоговый алгоритм -->
-        <h3>6. Итоговый алгоритм</h3>
+
+        <!-- 9. Итоговый алгоритм -->
+        <h3>9. Итоговый алгоритм</h3>
 
         <ul class="step-list">
-            <li>Собираем все результаты гонок</li>
-            <li>Разбиваем на попарные сравнения (каждый с каждым внутри одной гонки)</li>
-            <li>Обучаем модель Брэдли-Терри с Lasso-регуляризацией</li>
-            <li>Получаем "сырые" рейтинги для каждого пилота</li>
-            <li>Нормируем в шкалу 0–100</li>
+            <li>Собираем все результаты гонок по каждому классу</li>
+            <li>Разбиваем каждую гонку на парные сравнения «каждый с каждым»</li>
+            <li>Применяем временной вес: свежие гонки важнее старых (exp(-λ×days/365))</li>
+            <li>Обучаем модель Брэдли-Терри с Lasso-регуляризацией (α = <span id="algo-alpha">0.1</span>)</li>
+            <li>Применяем байесовское сглаживание C=15: новички тянутся к медиане класса</li>
+            <li>Нормируем в шкалу 0–100 внутри каждого класса</li>
+            <li>Рассчитываем тренд формы ▲/▬/▼ по последним 10 гонкам</li>
             <li>Помечаем ⚠️ пилотов с малым числом стартов</li>
         </ul>
 
         <div class="note-box">
             <i class="fas fa-sync-alt text-warning me-2"></i>
             <strong>Обновление:</strong>
-            <span>Рейтинг пересчитывается автоматически после каждого импорта новых результатов.</span>
+            Рейтинг пересчитывается вручную администратором после каждого нового этапа.
+            Последнее обновление: <strong id="note-last-update">—</strong>
         </div>
 
-        <!-- Ссылка назад -->
+        <!-- Кнопка назад -->
         <div class="text-center mt-5">
             <a href="/top/drivers/" class="btn-filter">
-            <i class="fas fa-arrow-left me-2"></i>Вернуться к рейтингу
-        </a>
+                <i class="fas fa-arrow-left me-2"></i>Вернуться к рейтингу
+            </a>
         </div>
+
     </div>
 </div>
+
+<script>
+fetch('/api/rating-stats/')
+    .then(r => r.json())
+    .then(data => {
+        // Статистика
+        document.getElementById('stat-pilots').textContent = data.total_drivers ?? '—';
+        document.getElementById('stat-races').textContent = data.total_races ?? '—';
+        document.getElementById('stat-classes').textContent = data.active_classes_count ?? '—';
+        document.getElementById('stat-reliable').textContent = data.reliable_count ?? '—';
+
+        // Дата обновления
+        const upd = data.last_update ?? '—';
+        document.getElementById('last-update').textContent = upd;
+        document.getElementById('note-last-update').textContent = upd;
+
+        // Параметры
+        const s = data.settings || {};
+        document.getElementById('param-lambda-active').textContent = s.lambda_active ?? '0.8';
+        document.getElementById('param-lambda-inactive').textContent = s.lambda_inactive ?? '2.0';
+        document.getElementById('param-threshold').textContent = (s.inactive_threshold_days ?? 180) + ' дней';
+        document.getElementById('param-alpha').textContent = s.bt_alpha ?? '0.1';
+        document.getElementById('algo-alpha').textContent = s.bt_alpha ?? '0.1';
+
+        const thr = s.inactive_threshold_days ?? 180;
+        document.getElementById('info-threshold').textContent = thr;
+
+        const minStarts = s.min_starts_display ?? 3;
+        document.getElementById('min-starts-text').textContent = minStarts;
+    })
+    .catch(() => {
+        document.getElementById('last-update').textContent = '—';
+    });
+</script>
 {% endblock %}
