@@ -6,7 +6,7 @@ from django.utils.safestring import mark_safe
 from django.urls import path, reverse
 from .import_utils import import_results, import_preview, import_confirm
 from wagtail.admin.menu import MenuItem
-from .admin_views import analytics_dashboard
+from .admin_views import analytics_dashboard, analytics_status
 
 class DriverAdmin(ModelAdmin):
     model = Driver
@@ -146,6 +146,7 @@ def register_import_urls():
         path('import/preview/', import_preview, name='event_import_preview'),
         path('import/confirm/', import_confirm, name='event_import_confirm'),
         path('analytics/', analytics_dashboard, name='analytics_dashboard'),
+        path('analytics/status/', analytics_status, name='analytics_status'),
     ]
 
 @hooks.register('register_admin_menu_item')

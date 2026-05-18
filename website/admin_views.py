@@ -1,25 +1,45 @@
-from django.shortcuts import render
-from django.contrib.admin.views.decorators import staff_member_required
-from django.contrib import messages
-from django.core.management import call_command
-from django.http import HttpResponseRedirect
-from django.urls import reverse
-from django.utils import timezone
-from website.models import Driver, Chassis, RaceResult, UpdateLog
 import io
+import json
+import os
+import subprocess
 import sys
+import tempfile
 import datetime
+
+from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
+from django.http import JsonResponse
+from django.shortcuts import render
+from django.utils import timezone
+
+from website.models import Driver, Chassis, RaceResult, UpdateLog
+
+
+_TASK_FILE = os.path.join(tempfile.gettempdir(), 'analytics_task.json')
+_LOG_FILE = os.path.join(tempfile.gettempdir(), 'analytics_task.log')
+
+
+def _read_task():
+    try:
+        with open(_TASK_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _write_task(data):
+    with open(_TASK_FILE, 'w') as f:
+        json.dump(data, f)
+
 
 @staff_member_required
 def analytics_dashboard(request):
-    context = {}
+    context = {
+        'total_pilots': Driver.objects.count(),
+        'total_chassis': Chassis.objects.count(),
+        'total_races': RaceResult.objects.count(),
+    }
 
-    # Реальная статистика из базы данных
-    context['total_pilots'] = Driver.objects.count()
-    context['total_chassis'] = Chassis.objects.count()
-    context['total_races'] = RaceResult.objects.count()
-
-    # Последнее обновление из лога
     last_log = UpdateLog.objects.first()
     if last_log:
         context['last_update'] = timezone.localtime(last_log.updated_at).strftime('%d.%m.%Y %H:%M')
@@ -28,49 +48,57 @@ def analytics_dashboard(request):
         context['last_update'] = '—'
 
     if request.method == 'POST':
-        # Буфер для перехвата вывода команды
-        output = io.StringIO()
-        error_output = io.StringIO()
+        task = _read_task()
+        if task and task.get('running'):
+            return JsonResponse({'error': 'Обновление уже запущено'}, status=400)
 
-        try:
-            # Перенаправляем stdout/stderr
-            sys.stdout = output
-            sys.stderr = error_output
+        # Очищаем лог
+        open(_LOG_FILE, 'w').close()
 
-            # Запускаем обновление всех моделей
-            call_command('update_ratings', '--entity', 'all', '--model', 'all')
+        python = sys.executable
+        manage_py = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'manage.py')
 
-            # Возвращаем stdout/stderr обратно
-            sys.stdout = sys.__stdout__
-            sys.stderr = sys.__stderr__
+        proc = subprocess.Popen(
+            [python, manage_py, 'update_ratings', '--entity', 'all', '--model', 'all'],
+            stdout=open(_LOG_FILE, 'w'),
+            stderr=subprocess.STDOUT,
+            close_fds=True,
+        )
 
-            context['success'] = True
-            context['output'] = output.getvalue()
+        _write_task({'pid': proc.pid, 'running': True, 'started': datetime.datetime.now().isoformat()})
 
-            # Записываем успешное обновление в лог
-            UpdateLog.objects.create(
-                status='success',
-                message=output.getvalue()[:500]  # обрезаем, чтобы не забивать базу
-            )
-
-            messages.success(request, "✅ Все рейтинги успешно обновлены!")
-
-        except Exception as e:
-            # Возвращаем stdout/stderr обратно в случае ошибки
-            sys.stdout = sys.__stdout__
-            sys.stderr = sys.__stderr__
-
-            context['error'] = True
-            context['error_message'] = str(e)
-            context['error_output'] = error_output.getvalue()
-            context['output'] = output.getvalue()
-
-            # Записываем ошибку в лог
-            UpdateLog.objects.create(
-                status='error',
-                message=f"Ошибка: {str(e)}\n\n{error_output.getvalue()}"
-            )
-
-            messages.error(request, f"❌ Ошибка при обновлении: {str(e)}")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'started': True, 'pid': proc.pid})
 
     return render(request, 'admin/analytics_dashboard.html', context)
+
+
+@staff_member_required
+def analytics_status(request):
+    task = _read_task()
+
+    if not task:
+        return JsonResponse({'running': False, 'lines': [], 'done': False})
+
+    # Читаем лог
+    try:
+        with open(_LOG_FILE) as f:
+            lines = f.read().splitlines()
+    except Exception:
+        lines = []
+
+    running = False
+    if task.get('running'):
+        pid = task.get('pid')
+        try:
+            os.kill(pid, 0)
+            running = True
+        except (ProcessLookupError, PermissionError):
+            running = False
+            # Процесс завершился — сохраняем в UpdateLog
+            log_text = '\n'.join(lines)
+            status = 'error' if any('Error' in l or 'Traceback' in l for l in lines) else 'success'
+            UpdateLog.objects.create(status=status, message=log_text[:500])
+            _write_task({'pid': pid, 'running': False})
+
+    return JsonResponse({'running': running, 'lines': lines, 'done': not running})
