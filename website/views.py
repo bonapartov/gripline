@@ -902,7 +902,7 @@ def _get_driver_class_ratings(driver):
         if not class_entries:
             continue
 
-        mu = statistics.median(e['bt_score'] for e in class_entries)
+        mu = _stats.median(e['bt_score'] for e in class_entries)
         for e in class_entries:
             n = e['starts']
             e['smoothed'] = (n * e['bt_score'] + C * mu) / (n + C)
