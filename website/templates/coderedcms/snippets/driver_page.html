@@ -330,38 +330,66 @@
 
                       <!-- Инсайты -->
                       {% if not cr.low_data %}
-                      <div class="mt-3 pt-3 border-top border-secondary d-flex flex-wrap gap-2" style="font-size:0.82rem;">
+                      <div class="mt-3 pt-3 border-top border-secondary row g-2">
 
-                          {% if cr.win_pct > cr.median_win_pct %}
-                          <span class="badge rounded-pill" style="background:rgba(25,135,84,0.18); color:#75e6a8; border:1px solid #198754;">
-                              🏆 Победы {{ cr.win_pct }}% — выше среднего {{ cr.median_win_pct }}%
-                          </span>
-                          {% elif cr.median_win_pct > 0 %}
-                          <span class="badge rounded-pill" style="background:rgba(108,117,125,0.18); color:#adb5bd; border:1px solid #495057;">
-                              🏆 Победы {{ cr.win_pct }}% — среднее {{ cr.median_win_pct }}%
-                          </span>
+                          {% if cr.median_win_pct > 0 %}
+                          <div class="col-12 col-md-6">
+                              <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2" style="background:rgba(0,0,0,0.2); border:1px solid {% if cr.win_pct > cr.median_win_pct %}#198754{% else %}#495057{% endif %};">
+                                  <span style="font-size:1.1rem;">🏆</span>
+                                  <div>
+                                      <div class="text-muted small">% побед vs класс</div>
+                                      <div class="fw-bold {% if cr.win_pct > cr.median_win_pct %}text-success{% else %}text-white{% endif %}">
+                                          {{ cr.win_pct }}%
+                                          <span class="text-muted fw-normal small">/ среднее {{ cr.median_win_pct }}%</span>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
                           {% endif %}
 
-                          {% if cr.podium_pct > cr.median_podium_pct %}
-                          <span class="badge rounded-pill" style="background:rgba(25,135,84,0.18); color:#75e6a8; border:1px solid #198754;">
-                              🥉 Подиумы {{ cr.podium_pct }}% — выше среднего {{ cr.median_podium_pct }}%
-                          </span>
-                          {% elif cr.median_podium_pct > 0 %}
-                          <span class="badge rounded-pill" style="background:rgba(108,117,125,0.18); color:#adb5bd; border:1px solid #495057;">
-                              🥉 Подиумы {{ cr.podium_pct }}% — среднее {{ cr.median_podium_pct }}%
-                          </span>
+                          {% if cr.median_podium_pct > 0 %}
+                          <div class="col-12 col-md-6">
+                              <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2" style="background:rgba(0,0,0,0.2); border:1px solid {% if cr.podium_pct > cr.median_podium_pct %}#198754{% else %}#495057{% endif %};">
+                                  <span style="font-size:1.1rem;">🥉</span>
+                                  <div>
+                                      <div class="text-muted small">% подиумов vs класс</div>
+                                      <div class="fw-bold {% if cr.podium_pct > cr.median_podium_pct %}text-success{% else %}text-white{% endif %}">
+                                          {{ cr.podium_pct }}%
+                                          <span class="text-muted fw-normal small">/ среднее {{ cr.median_podium_pct }}%</span>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
                           {% endif %}
 
                           {% if cr.nemesis %}
-                          <span class="badge rounded-pill" style="background:rgba(220,53,69,0.15); color:#f87171; border:1px solid #dc3545;">
-                              😤 Немезис: <a href="/drivers/{{ cr.nemesis.slug }}/" class="text-decoration-none" style="color:inherit;">{{ cr.nemesis.name }}</a> — проигрываешь {{ cr.nemesis.losses }} из {{ cr.nemesis.meetings }}
-                          </span>
+                          <div class="col-12 col-md-6">
+                              <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2" style="background:rgba(0,0,0,0.2); border:1px solid #dc3545;">
+                                  <span style="font-size:1.1rem;">😤</span>
+                                  <div>
+                                      <div class="text-muted small">Немезис</div>
+                                      <div>
+                                          <a href="/drivers/{{ cr.nemesis.slug }}/" class="fw-bold text-danger text-decoration-none">{{ cr.nemesis.name }}</a>
+                                          <span class="text-muted small ms-1">— проигрываешь {{ cr.nemesis.losses }} из {{ cr.nemesis.meetings }}</span>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
                           {% endif %}
 
                           {% if cr.victim %}
-                          <span class="badge rounded-pill" style="background:rgba(13,110,253,0.15); color:#7ab8f5; border:1px solid #0d6efd;">
-                              💪 Уверенно против: <a href="/drivers/{{ cr.victim.slug }}/" class="text-decoration-none" style="color:inherit;">{{ cr.victim.name }}</a> — выигрываешь {{ cr.victim.wins }} из {{ cr.victim.meetings }}
-                          </span>
+                          <div class="col-12 col-md-6">
+                              <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2" style="background:rgba(0,0,0,0.2); border:1px solid #0d6efd;">
+                                  <span style="font-size:1.1rem;">💪</span>
+                                  <div>
+                                      <div class="text-muted small">Уверенно против</div>
+                                      <div>
+                                          <a href="/drivers/{{ cr.victim.slug }}/" class="fw-bold text-info text-decoration-none">{{ cr.victim.name }}</a>
+                                          <span class="text-muted small ms-1">— выигрываешь {{ cr.victim.wins }} из {{ cr.victim.meetings }}</span>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
                           {% endif %}
 
                       </div>
