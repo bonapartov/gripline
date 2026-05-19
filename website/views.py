@@ -940,6 +940,55 @@ def _get_driver_class_ratings(driver):
         win_pct = round(wins_in_class / starts * 100, 1) if starts > 0 else 0
         podium_pct = round(podiums_in_class / starts * 100, 1) if starts > 0 else 0
 
+        # --- Медианы класса для инсайтов ---
+        all_class_results = list(RaceResult.objects.filter(
+            group__race_class_id=class_id
+        ).values('driver_id', 'position'))
+        class_driver_stats = {}
+        for r in all_class_results:
+            d = class_driver_stats.setdefault(r['driver_id'], {'starts': 0, 'wins': 0, 'podiums': 0})
+            d['starts'] += 1
+            if r['position'] == 1: d['wins'] += 1
+            if r['position'] <= 3: d['podiums'] += 1
+        win_pcts_all = [s['wins']/s['starts']*100 for s in class_driver_stats.values() if s['starts'] >= 3]
+        podium_pcts_all = [s['podiums']/s['starts']*100 for s in class_driver_stats.values() if s['starts'] >= 3]
+        median_win_pct = round(_stats.median(win_pcts_all), 1) if win_pcts_all else 0
+        median_podium_pct = round(_stats.median(podium_pcts_all), 1) if podium_pcts_all else 0
+
+        # --- Немезис и жертва ---
+        driver_group_ids = set(class_qs.values_list('group_id', flat=True))
+        driver_positions = {r['group_id']: r['position'] for r in class_qs.values('group_id', 'position')}
+        other_results = RaceResult.objects.filter(
+            group_id__in=driver_group_ids,
+            group__race_class_id=class_id,
+        ).exclude(driver=driver).select_related('driver').values(
+            'driver_id', 'driver__first_name', 'driver__last_name', 'driver__slug', 'group_id', 'position'
+        )
+        opp_stats = {}
+        for r in other_results:
+            oid = r['driver_id']
+            if oid not in opp_stats:
+                opp_stats[oid] = {
+                    'name': f"{r['driver__first_name']} {r['driver__last_name']}".strip(),
+                    'slug': r['driver__slug'],
+                    'meetings': 0, 'wins': 0, 'losses': 0,
+                }
+            my_pos = driver_positions.get(r['group_id'])
+            if my_pos is None:
+                continue
+            opp_stats[oid]['meetings'] += 1
+            if my_pos < r['position']:
+                opp_stats[oid]['wins'] += 1
+            elif my_pos > r['position']:
+                opp_stats[oid]['losses'] += 1
+        qualified = {k: v for k, v in opp_stats.items() if v['meetings'] >= 3}
+        nemesis = max(qualified.values(), key=lambda x: x['losses'], default=None)
+        if nemesis and nemesis['losses'] <= nemesis['wins']:
+            nemesis = None  # не настоящий немезис если чаще побеждаем
+        victim = max(qualified.values(), key=lambda x: x['wins'], default=None)
+        if victim and victim['wins'] <= victim['losses']:
+            victim = None  # не настоящая жертва если чаще проигрываем
+
         last_result = class_qs.annotate(
             event_end=Subquery(
                 EventOccurrence.objects.filter(
@@ -970,6 +1019,10 @@ def _get_driver_class_ratings(driver):
             'gap_to_below': gap_to_below,
             'driver_above': driver_above,
             'driver_below': driver_below,
+            'median_win_pct': median_win_pct,
+            'median_podium_pct': median_podium_pct,
+            'nemesis': nemesis,
+            'victim': victim,
         })
 
     class_ratings.sort(
