@@ -72,4 +72,5 @@ urlpatterns = [
         path('api/matrix-cell/', views.matrix_cell_detail_api, name='matrix_cell_api'),
     ])),
     path("tyre-analysis/", views.tyre_analysis_view, name="tyre_analysis"),
+    path("team-ratings/", views.team_ratings_view, name="team_ratings"),
 ]

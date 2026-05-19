@@ -17,6 +17,8 @@ urlpatterns = [
     path('remove-staff/<int:staff_id>/', views.remove_staff, name='remove_staff'),
     path('edit-staff/<int:staff_id>/', views.edit_staff, name='edit_staff'),
     
+    path('join/<slug:team_slug>/', views.join_team, name='join_team'),
+
     # Email verification
     path('verify-email/<uidb64>/<token>/', views.team_verify_email, name='team_verify_email'),
     path('resend-verification/', views.team_resend_verification, name='team_resend_verification'),

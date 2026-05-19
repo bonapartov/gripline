@@ -363,11 +363,14 @@ def team_detail_view(request, slug):
             'membership': membership,
         })
 
+    all_drivers = Driver.objects.order_by('last_name', 'first_name')
+
     return render(request, "coderedcms/snippets/team_page.html", {
         "team": team,
         "driver_classes": sorted_driver_classes,
         "staff_members": staff_list,
         "site": current_site,
+        "all_drivers": all_drivers,
     })
 
 def track_detail_view(request, slug):
@@ -1945,6 +1948,122 @@ def drivers_api(request):
         ]
     }
     return JsonResponse(data)
+
+def team_ratings_view(request):
+    """Командный рейтинг — агрегация BT-рейтингов пилотов по командам."""
+    import json, statistics as _stats
+
+    current_site = Site.find_for_request(request)
+    class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
+                   'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 32+']
+
+    # Собираем все рейтинги всех пилотов для нормализации
+    all_drivers = Driver.objects.exclude(rating_by_class__isnull=True).exclude(rating_by_class={})
+    global_class_bt = {}  # {class_id_str: [bt_score, ...]}
+    for d in all_drivers:
+        rbc = d.rating_by_class or {}
+        if isinstance(rbc, str):
+            try:
+                rbc = json.loads(rbc)
+            except Exception:
+                rbc = {}
+        for class_id_str, entry in rbc.items():
+            bt = entry.get('bt_score', 0) or 0
+            starts = entry.get('starts', 0) or 0
+            if starts < 3:
+                continue
+            global_class_bt.setdefault(class_id_str, []).append(bt)
+
+    # Байесовское сглаживание и нормализация 0-100 на уровне класса
+    C = 15
+
+    def normalized_bt(class_id_str, bt_score, starts):
+        entries = global_class_bt.get(class_id_str, [])
+        if not entries:
+            return 0
+        mu = _stats.median(entries)
+        smoothed = (starts * bt_score + C * mu) / (starts + C)
+        all_smoothed = [(n * b + C * mu) / (n + C) for b, n in
+                        zip(entries, [3] * len(entries))]
+        mn, mx = min(all_smoothed), max(all_smoothed)
+        if mx == mn:
+            return 50
+        return round((smoothed - mn) / (mx - mn) * 100, 1)
+
+    # Получаем класс_id → name
+    class_name_map = {str(c.id): c.name for c in RaceClass.objects.all()}
+
+    teams = Team.objects.all()
+    team_rows = []
+
+    for team in teams:
+        active_drivers = list(Driver.objects.filter(
+            team_memberships__team=team,
+            team_memberships__is_active=True
+        ).distinct())
+
+        if not active_drivers:
+            continue
+
+        class_data = {}  # {class_name: {'scores': [], 'drivers': []}}
+
+        for driver in active_drivers:
+            rbc = driver.rating_by_class or {}
+            if isinstance(rbc, str):
+                try:
+                    rbc = json.loads(rbc)
+                except Exception:
+                    rbc = {}
+            for class_id_str, entry in rbc.items():
+                bt = entry.get('bt_score', 0) or 0
+                starts = entry.get('starts', 0) or 0
+                if starts < 3:
+                    continue
+                class_name = class_name_map.get(class_id_str, f'Класс {class_id_str}')
+                norm = normalized_bt(class_id_str, bt, starts)
+                class_data.setdefault(class_name, {'scores': [], 'drivers': []})
+                class_data[class_name]['scores'].append(norm)
+                class_data[class_name]['drivers'].append({
+                    'driver': driver,
+                    'score': norm,
+                })
+
+        if not class_data:
+            continue
+
+        # Сортируем классы
+        sorted_classes = sorted(
+            class_data.items(),
+            key=lambda x: class_order.index(x[0]) if x[0] in class_order else 999
+        )
+
+        # Средний балл команды (по всем классам)
+        all_scores = [s for _, d in class_data.items() for s in d['scores']]
+        avg_score = round(sum(all_scores) / len(all_scores), 1) if all_scores else 0
+
+        team_rows.append({
+            'team': team,
+            'driver_count': len(active_drivers),
+            'avg_score': avg_score,
+            'classes': [
+                {
+                    'name': name,
+                    'avg': round(sum(d['scores']) / len(d['scores']), 1),
+                    'drivers': sorted(d['drivers'], key=lambda x: -x['score']),
+                }
+                for name, d in sorted_classes
+            ],
+        })
+
+    team_rows.sort(key=lambda x: -x['avg_score'])
+    for i, row in enumerate(team_rows):
+        row['rank'] = i + 1
+
+    return render(request, 'coderedcms/snippets/team_ratings.html', {
+        'team_rows': team_rows,
+        'site': current_site,
+    })
+
 
 def teams_api(request):
     """Возвращает список всех команд в формате JSON для поиска"""

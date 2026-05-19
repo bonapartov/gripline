@@ -1,0 +1,204 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailimages_tags %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    .table-hover tbody tr:hover {
+        background-color: rgba(13, 202, 240, 0.1) !important;
+        transition: 0.3s;
+    }
+    .team-logo-sm {
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
+        background: #111;
+        border-radius: 6px;
+        border: 1px solid #2a2a35;
+        padding: 4px;
+    }
+    .team-logo-placeholder {
+        width: 48px;
+        height: 48px;
+        background: #1a1a25;
+        border-radius: 6px;
+        border: 1px solid #2a2a35;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .score-bar-wrap {
+        height: 6px;
+        background: rgba(255,255,255,0.08);
+        border-radius: 3px;
+        overflow: hidden;
+        min-width: 80px;
+    }
+    .score-bar {
+        height: 100%;
+        border-radius: 3px;
+        background: linear-gradient(90deg, #0dcaf0, #0d6efd);
+    }
+    .class-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(13,202,240,0.08);
+        border: 1px solid rgba(13,202,240,0.2);
+        border-radius: 20px;
+        padding: 2px 10px;
+        font-size: 0.78rem;
+        white-space: nowrap;
+    }
+    .accordion-button {
+        background: transparent !important;
+        color: #adb5bd !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.8rem;
+    }
+    .accordion-button::after {
+        filter: invert(1);
+    }
+    .accordion-collapse {
+        background: rgba(0,0,0,0.3);
+    }
+</style>
+
+<div class="force-width-1500 my-5 text-white">
+
+    <div class="d-flex justify-content-between align-items-center border-bottom border-primary pb-3 mb-5">
+        <div>
+            <h1 class="display-5 fw-bold text-uppercase mb-1">Командный рейтинг</h1>
+            <p class="text-muted mb-0 small">Средний нормализованный BT-рейтинг активных пилотов команды по всем классам</p>
+        </div>
+        <a href="/rating-info/" class="btn btn-outline-info btn-sm text-uppercase">
+            <i class="fas fa-calculator me-1"></i>Методология
+        </a>
+    </div>
+
+    {% if team_rows %}
+    <div class="d-flex flex-column gap-3">
+        {% for row in team_rows %}
+        <div class="card bg-dark border-secondary p-0 overflow-hidden">
+            <div class="p-3">
+                <div class="row align-items-center g-3">
+
+                    <!-- Место -->
+                    <div class="col-auto text-center" style="min-width:56px;">
+                        {% if row.rank == 1 %}
+                        <div class="fw-bold text-warning" style="font-size:1.8rem; line-height:1;">#1</div>
+                        <i class="fas fa-crown text-warning small"></i>
+                        {% else %}
+                        <div class="fw-bold text-muted" style="font-size:1.8rem; line-height:1;">#{{ row.rank }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Логотип -->
+                    <div class="col-auto">
+                        {% if row.team.logo %}
+                            {% image row.team.logo fill-48x48 as logo %}
+                            <img src="{{ logo.url }}" class="team-logo-sm" alt="{{ row.team.name }}">
+                        {% else %}
+                            <div class="team-logo-placeholder">
+                                <i class="fas fa-users text-secondary"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Название и пилоты -->
+                    <div class="col">
+                        <a href="/teams/{{ row.team.slug }}/" class="text-white text-decoration-none fw-bold fs-5">
+                            {{ row.team.name }}
+                        </a>
+                        <div class="text-muted small mt-1">
+                            <i class="fas fa-users me-1"></i>{{ row.driver_count }} пилот{{ row.driver_count|pluralize:",,ов" }}
+                        </div>
+                    </div>
+
+                    <!-- Балл -->
+                    <div class="col-auto text-center" style="min-width:110px;">
+                        <div class="fw-bold text-white" style="font-size:1.6rem; line-height:1;">{{ row.avg_score }}</div>
+                        <div class="text-muted" style="font-size:0.72rem;">из 100 баллов</div>
+                        <div class="score-bar-wrap mt-1 mx-auto">
+                            <div class="score-bar" style="width:{{ row.avg_score }}%;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Классы -->
+                    <div class="col-12 col-md">
+                        <div class="d-flex flex-wrap gap-1">
+                            {% for cls in row.classes %}
+                            <span class="class-pill">
+                                <span class="text-info fw-bold">{{ cls.avg }}</span>
+                                <span class="text-muted">{{ cls.name }}</span>
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Раскрыть пилотов -->
+                    <div class="col-auto">
+                        <button class="btn btn-outline-secondary btn-sm text-uppercase"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#team-{{ row.team.id }}-drivers"
+                                aria-expanded="false">
+                            <i class="fas fa-chevron-down me-1"></i>Пилоты
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Раскрывающийся список пилотов по классам -->
+            <div class="collapse" id="team-{{ row.team.id }}-drivers">
+                <div class="border-top border-secondary px-4 py-3">
+                    {% for cls in row.classes %}
+                    <div class="mb-3">
+                        <div class="text-info text-uppercase small fw-bold mb-2">{{ cls.name }}</div>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for item in cls.drivers %}
+                            <a href="{{ item.driver.get_absolute_url }}"
+                               class="d-flex align-items-center gap-2 text-decoration-none px-3 py-2 rounded-2"
+                               style="background:rgba(0,0,0,0.3); border:1px solid #2a2a35; min-width:180px;">
+                                {% if item.driver.photo %}
+                                    {% image item.driver.photo fill-36x36 as dphoto %}
+                                    <img src="{{ dphoto.url }}" style="width:36px;height:36px;object-fit:cover;border-radius:50%;border:1px solid #3a3a45;">
+                                {% else %}
+                                    <div style="width:36px;height:36px;background:#1a1a25;border-radius:50%;border:1px solid #3a3a45;display:flex;align-items:center;justify-content:center;">
+                                        <i class="fas fa-user text-muted small"></i>
+                                    </div>
+                                {% endif %}
+                                <div>
+                                    <div class="text-white fw-bold" style="font-size:0.85rem;">{{ item.driver.full_name }}</div>
+                                    <div class="text-warning" style="font-size:0.75rem;">{{ item.score }} баллов</div>
+                                </div>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="text-center text-muted py-5">
+        <i class="fas fa-users fa-3x mb-3 d-block opacity-25"></i>
+        Нет команд с активными пилотами и достаточной статистикой
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

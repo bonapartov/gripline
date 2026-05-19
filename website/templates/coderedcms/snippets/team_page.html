@@ -81,6 +81,19 @@
 </style>
 
 <div class="force-width-1500 my-5 text-white">
+
+    {% if messages %}
+    <div class="mb-4">
+        {% for message in messages %}
+        <div class="alert {% if message.tags == 'success' %}alert-success{% elif message.tags == 'warning' %}alert-warning{% else %}alert-danger{% endif %} alert-dismissible fade show" role="alert">
+            <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'warning' %}fa-exclamation-triangle{% else %}fa-times-circle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <div class="row mb-5">
         <div class="col-md-4 col-lg-3 text-center">
             {% if team.logo %}
@@ -208,7 +221,13 @@
 
     <div class="row">
         <div class="col-12">
-            <h3 class="border-bottom border-primary pb-2 mb-4 text-uppercase fw-bold">Пилоты команды</h3>
+            <div class="d-flex justify-content-between align-items-center border-bottom border-primary pb-2 mb-4">
+                <h3 class="text-uppercase fw-bold mb-0">Пилоты команды</h3>
+                <button type="button" class="btn btn-warning fw-bold text-dark text-uppercase"
+                        data-bs-toggle="modal" data-bs-target="#joinTeamModal">
+                    <i class="fas fa-flag-checkered me-2"></i>Вступить в команду
+                </button>
+            </div>
             <div class="alert alert-info mb-4" style="background-color: #1a1a25; border: 1px solid #2a2a35; color: #adb5bd; border-left: 4px solid #0dcaf0;">
                 <i class="fas fa-info-circle me-2 text-info"></i>
                 Пилоты отображаются по классам, в которых они выступали <strong>за последние 12 месяцев</strong>.
@@ -270,4 +289,48 @@
         </div>
     </div>
                   </div>
-                  {% endblock %}
+
+<!-- Modal: Вступить в команду -->
+<div class="modal fade" id="joinTeamModal" tabindex="-1" aria-labelledby="joinTeamModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border border-secondary text-white">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title fw-bold text-uppercase" id="joinTeamModalLabel">
+                    <i class="fas fa-flag-checkered me-2 text-warning"></i>Вступить в команду {{ team.name }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'teams:join_team' team.slug %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p class="text-muted small mb-4">
+                        Выберите свой профиль пилота и напишите короткое сообщение менеджеру команды.
+                        Заявка будет рассмотрена в ближайшее время.
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label text-info text-uppercase small fw-bold">Ваш профиль пилота *</label>
+                        <select name="driver_id" class="form-select bg-black border-secondary text-white" required>
+                            <option value="">— выберите пилота —</option>
+                            {% for d in all_drivers %}
+                            <option value="{{ d.id }}">{{ d.full_name }}{% if d.city %} ({{ d.city }}){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-info text-uppercase small fw-bold">Сообщение менеджеру</label>
+                        <textarea name="comment" class="form-control bg-black border-secondary text-white" rows="3"
+                            placeholder="Расскажите о себе, вашем опыте и почему хотите выступать за эту команду..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-warning fw-bold text-dark text-uppercase">
+                        <i class="fas fa-paper-plane me-1"></i>Отправить заявку
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

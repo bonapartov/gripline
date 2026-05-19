@@ -759,3 +759,41 @@ def edit_staff(request, staff_id):
             messages.error(request, f'Ошибка в форме: {form.errors}')
 
     return redirect('teams:dashboard')
+
+def join_team(request, team_slug):
+    """Заявка пилота на вступление в команду (публичная форма)"""
+    from website.models import Team, Driver, TeamMembership
+
+    team = get_object_or_404(Team, slug=team_slug)
+
+    if request.method != 'POST':
+        return redirect('team_detail', slug=team_slug)
+
+    driver_id = request.POST.get('driver_id', '').strip()
+    comment = request.POST.get('comment', '').strip()
+
+    if not driver_id:
+        messages.error(request, 'Выберите пилота из списка')
+        return redirect('team_detail', slug=team_slug)
+
+    driver = get_object_or_404(Driver, id=driver_id)
+
+    if TeamMembership.objects.filter(driver=driver, team=team, is_active=True).exists():
+        messages.warning(request, f'{driver.full_name} уже является членом команды {team.name}')
+        return redirect('team_detail', slug=team_slug)
+
+    existing = TeamJoinRequest.objects.filter(driver=driver, team=team, status='pending').exists()
+    if existing:
+        messages.warning(request, f'Заявка от {driver.full_name} в команду {team.name} уже ожидает рассмотрения')
+        return redirect('team_detail', slug=team_slug)
+
+    TeamJoinRequest.objects.update_or_create(
+        driver=driver,
+        team=team,
+        defaults={'status': 'pending', 'comment': comment},
+    )
+    messages.success(
+        request,
+        f'Заявка от {driver.full_name} отправлена! Менеджер команды {team.name} рассмотрит её в ближайшее время.'
+    )
+    return redirect('team_detail', slug=team_slug)
