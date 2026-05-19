@@ -203,6 +203,13 @@ def organizer_register(request):
             user = form.save(commit=False)
             user.is_active = False
             user.save()
+            OrganizerProfile.objects.get_or_create(
+                user=user,
+                defaults={
+                    'phone': form.cleaned_data.get('phone', ''),
+                    'telegram': form.cleaned_data.get('telegram', ''),
+                }
+            )
             try:
                 send_organizer_verification_email(user, request)
                 messages.success(request, 'Регистрация почти завершена! Проверьте почту.')
@@ -261,6 +268,7 @@ def organizer_verify_email(request, uidb64, token):
     if user and default_token_generator.check_token(user, token):
         user.is_active = True
         user.save()
+        OrganizerProfile.objects.get_or_create(user=user)
         messages.success(request, 'Email подтверждён! Теперь вы можете войти.')
         return redirect('organizers:login')
     else:

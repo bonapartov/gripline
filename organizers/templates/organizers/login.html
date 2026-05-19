@@ -16,6 +16,18 @@
 <div class="force-width-1500 my-5">
     <div class="login-container">
         <h1 class="login-title">Вход для организатора</h1>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div style="padding:0.75rem 1rem;border-radius:4px;margin-bottom:1rem;
+                    {% if 'error' in message.tags %}background:#dc3545;color:#fff;
+                    {% elif 'success' in message.tags %}background:#28a745;color:#fff;
+                    {% else %}background:#ffc107;color:#000;{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
         <form method="post">
             {% csrf_token %}
             <div class="form-group">
