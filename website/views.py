@@ -365,12 +365,36 @@ def team_detail_view(request, slug):
 
     all_drivers = Driver.objects.order_by('last_name', 'first_name')
 
+    # Контекст для кнопки "Вступить в команду"
+    user_driver = None
+    join_status = None  # 'no_auth' | 'no_driver' | 'already_member' | 'pending' | 'ready'
+    if request.user.is_authenticated:
+        try:
+            user_driver = request.user.profile.driver
+        except Exception:
+            user_driver = None
+        if user_driver is None:
+            join_status = 'no_driver'
+        else:
+            from website.models import TeamMembership
+            from teams.models import TeamJoinRequest
+            if TeamMembership.objects.filter(driver=user_driver, team=team, is_active=True).exists():
+                join_status = 'already_member'
+            elif TeamJoinRequest.objects.filter(driver=user_driver, team=team, status='pending').exists():
+                join_status = 'pending'
+            else:
+                join_status = 'ready'
+    else:
+        join_status = 'no_auth'
+
     return render(request, "coderedcms/snippets/team_page.html", {
         "team": team,
         "driver_classes": sorted_driver_classes,
         "staff_members": staff_list,
         "site": current_site,
         "all_drivers": all_drivers,
+        "user_driver": user_driver,
+        "join_status": join_status,
     })
 
 def track_detail_view(request, slug):

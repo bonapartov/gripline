@@ -761,30 +761,35 @@ def edit_staff(request, staff_id):
     return redirect('teams:dashboard')
 
 def join_team(request, team_slug):
-    """Заявка пилота на вступление в команду (публичная форма)"""
-    from website.models import Team, Driver, TeamMembership
+    """Заявка авторизованного пилота на вступление в команду."""
+    from website.models import Team, TeamMembership
 
     team = get_object_or_404(Team, slug=team_slug)
+
+    if not request.user.is_authenticated:
+        messages.error(request, 'Войдите в аккаунт чтобы подать заявку')
+        return redirect(f'/accounts/login/?next=/teams/{team_slug}/')
 
     if request.method != 'POST':
         return redirect('team_detail', slug=team_slug)
 
-    driver_id = request.POST.get('driver_id', '').strip()
+    try:
+        driver = request.user.profile.driver
+    except Exception:
+        driver = None
+
+    if not driver:
+        messages.error(request, 'Привяжите профиль пилота в личном кабинете')
+        return redirect('team_detail', slug=team_slug)
+
     comment = request.POST.get('comment', '').strip()
 
-    if not driver_id:
-        messages.error(request, 'Выберите пилота из списка')
-        return redirect('team_detail', slug=team_slug)
-
-    driver = get_object_or_404(Driver, id=driver_id)
-
     if TeamMembership.objects.filter(driver=driver, team=team, is_active=True).exists():
-        messages.warning(request, f'{driver.full_name} уже является членом команды {team.name}')
+        messages.warning(request, f'Вы уже являетесь членом команды {team.name}')
         return redirect('team_detail', slug=team_slug)
 
-    existing = TeamJoinRequest.objects.filter(driver=driver, team=team, status='pending').exists()
-    if existing:
-        messages.warning(request, f'Заявка от {driver.full_name} в команду {team.name} уже ожидает рассмотрения')
+    if TeamJoinRequest.objects.filter(driver=driver, team=team, status='pending').exists():
+        messages.warning(request, f'Ваша заявка в команду {team.name} уже ожидает рассмотрения')
         return redirect('team_detail', slug=team_slug)
 
     TeamJoinRequest.objects.update_or_create(
@@ -794,6 +799,6 @@ def join_team(request, team_slug):
     )
     messages.success(
         request,
-        f'Заявка от {driver.full_name} отправлена! Менеджер команды {team.name} рассмотрит её в ближайшее время.'
+        f'Заявка отправлена! Менеджер команды {team.name} рассмотрит её в ближайшее время.'
     )
     return redirect('team_detail', slug=team_slug)
