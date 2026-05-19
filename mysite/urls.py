@@ -3,6 +3,7 @@ from django.urls import include, path
 from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse
+from django.contrib.auth import views as auth_views
 from website.models import Driver, Chassis, RaceResult, Track
 from website.views import staff_detail_view, staff_api
 from website.views import rating_stats_api
@@ -42,7 +43,13 @@ urlpatterns = [
 
     path("docs/", include("wagtail.documents.urls")),
     path("search/", include("coderedcms.search_urls")),
-    path('accounts/password-reset/', include('django.contrib.auth.urls')),
+    path('accounts/password-reset/', auth_views.PasswordResetView.as_view(
+        email_template_name='registration/password_reset_email.txt',
+        html_email_template_name='registration/password_reset_email.html',
+    ), name='password_reset'),
+    path('accounts/password-reset/done/', auth_views.PasswordResetDoneView.as_view(), name='password_reset_done'),
+    path('accounts/password-reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
+    path('accounts/password-reset/complete/', auth_views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
     path("", include("coderedcms.urls")),  # Wagtail в самом конце
 ]
 
