@@ -300,7 +300,7 @@
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form method="post" action="{% url 'teams:join_team' team.slug %}">
+            <form method="post" action="/teams/join/{{ team.slug }}/">
                 {% csrf_token %}
                 <div class="modal-body">
                     <p class="text-muted small mb-4">
