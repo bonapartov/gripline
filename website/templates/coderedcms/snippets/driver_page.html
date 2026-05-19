@@ -302,7 +302,10 @@
                                           <i class="fas fa-chevron-up text-success me-1" style="font-size:0.65rem;"></i>
                                           <a href="/drivers/{{ cr.driver_above.slug }}/" class="text-muted text-decoration-none">{{ cr.driver_above.full_name }}</a>
                                       </span>
-                                      <span class="text-danger ms-2 text-nowrap">−{{ cr.gap_to_above }} б.</span>
+                                      <span class="d-flex align-items-center gap-2 ms-2">
+                                          <span class="text-danger text-nowrap">−{{ cr.gap_to_above }} б.</span>
+                                          <a href="/compare-drivers/?driver1={{ driver.id }}&driver2={{ cr.driver_above.driver_id }}" class="text-nowrap" style="font-size:0.75rem; color:#ffc107; text-decoration:none;" title="Сравнить">⚔</a>
+                                      </span>
                                   </div>
                                   {% endif %}
                                   {% if cr.driver_below %}
@@ -311,7 +314,12 @@
                                           <i class="fas fa-chevron-down text-danger me-1" style="font-size:0.65rem;"></i>
                                           <a href="/drivers/{{ cr.driver_below.slug }}/" class="text-muted text-decoration-none">{{ cr.driver_below.full_name }}</a>
                                       </span>
-                                      <span class="text-success ms-2 text-nowrap">+{{ cr.gap_to_below }} б.</span>
+                                      <span class="d-flex align-items-center gap-2 ms-2">
+                                          <span class="text-success text-nowrap">+{{ cr.gap_to_below }} б.</span>
+                                          <a href="/compare-drivers/?driver1={{ driver.id }}&driver2={{ cr.driver_below.driver_id }}" class="text-nowrap" style="font-size:0.75rem; color:#ffc107; text-decoration:none;" title="Сравнить">⚔</a>
+                                      </span>
+                                  </div>
+                                  {% endif %}
                                   </div>
                                   {% endif %}
                                   {% if not cr.driver_above and not cr.driver_below %}
