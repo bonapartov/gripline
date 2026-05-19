@@ -304,7 +304,7 @@
                                       </span>
                                       <span class="d-flex align-items-center gap-2 ms-2">
                                           <span class="text-danger text-nowrap">−{{ cr.gap_to_above }} б.</span>
-                                          <a href="/compare-drivers/?driver1={{ driver.id }}&driver2={{ cr.driver_above.driver_id }}" class="text-nowrap" style="font-size:0.75rem; color:#ffc107; text-decoration:none;" title="Сравнить">⚔</a>
+                                          <a href="/compare-drivers/?driver1={{ driver.id }}&driver2={{ cr.driver_above.driver_id }}" class="text-nowrap" style="font-size:0.75rem; background:#ffc107; color:#000; padding:2px 8px; border-radius:4px; text-decoration:none; font-weight:bold; white-space:nowrap;" title="Сравнить">⚔ vs</a>
                                       </span>
                                   </div>
                                   {% endif %}
@@ -316,7 +316,7 @@
                                       </span>
                                       <span class="d-flex align-items-center gap-2 ms-2">
                                           <span class="text-success text-nowrap">+{{ cr.gap_to_below }} б.</span>
-                                          <a href="/compare-drivers/?driver1={{ driver.id }}&driver2={{ cr.driver_below.driver_id }}" class="text-nowrap" style="font-size:0.75rem; color:#ffc107; text-decoration:none;" title="Сравнить">⚔</a>
+                                          <a href="/compare-drivers/?driver1={{ driver.id }}&driver2={{ cr.driver_below.driver_id }}" class="text-nowrap" style="font-size:0.75rem; background:#ffc107; color:#000; padding:2px 8px; border-radius:4px; text-decoration:none; font-weight:bold; white-space:nowrap;" title="Сравнить">⚔ vs</a>
                                       </span>
                                   </div>
                                   {% endif %}
