@@ -157,6 +157,13 @@
                       });
                   });
               </script>
+              <script>
+                  document.addEventListener('DOMContentLoaded', function() {
+                      document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
+                          new bootstrap.Tooltip(el);
+                      });
+                  });
+              </script>
 
         </div>
     </div>
@@ -329,71 +336,85 @@
                       </div>
 
                       <!-- Инсайты -->
-                      {% if not cr.low_data %}
-                      <div class="mt-3 pt-3 border-top border-secondary row g-2">
-
-                          {% if cr.median_win_pct > 0 %}
-                          <div class="col-12 col-md">
-                              <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid {% if cr.win_pct > cr.median_win_pct %}#198754{% else %}#495057{% endif %};">
-                                  <span style="font-size:1.1rem;">🏆</span>
-                                  <div>
-                                      <div class="text-muted small">% побед vs класс</div>
-                                      <div class="fw-bold {% if cr.win_pct > cr.median_win_pct %}text-success{% else %}text-white{% endif %}">
-                                          {{ cr.win_pct }}%
-                                          <span class="text-muted fw-normal small">/ среднее {{ cr.median_win_pct }}%</span>
-                                      </div>
-                                  </div>
-                              </div>
+                      <div class="mt-3 pt-3 border-top border-secondary">
+                          <div class="d-flex align-items-center gap-2 mb-2">
+                              <span class="text-muted small text-uppercase" style="letter-spacing:0.05em;">Личная статистика</span>
+                              <span class="text-muted" style="font-size:0.75rem;" data-bs-toggle="tooltip" data-bs-placement="top"
+                                  title="% побед и подиумов сравнивается со средним значением по классу среди пилотов с 3+ стартами. Немезис и «уверенно против» — пилоты, с которыми больше всего очных встреч в одном заезде, и у кого устойчивый перевес.">
+                                  <i class="fas fa-circle-info"></i> как считается?
+                              </span>
                           </div>
-                          {% endif %}
 
-                          {% if cr.median_podium_pct > 0 %}
-                          <div class="col-12 col-md">
-                              <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid {% if cr.podium_pct > cr.median_podium_pct %}#198754{% else %}#495057{% endif %};">
-                                  <span style="font-size:1.1rem;">🥉</span>
-                                  <div>
-                                      <div class="text-muted small">% подиумов vs класс</div>
-                                      <div class="fw-bold {% if cr.podium_pct > cr.median_podium_pct %}text-success{% else %}text-white{% endif %}">
-                                          {{ cr.podium_pct }}%
-                                          <span class="text-muted fw-normal small">/ среднее {{ cr.median_podium_pct }}%</span>
-                                      </div>
-                                  </div>
-                              </div>
+                          {% if cr.low_data %}
+                          <div class="text-muted small fst-italic px-1" style="opacity:0.6;">
+                              <i class="fas fa-hourglass-half me-1"></i>Статистика появится после {{ cr.starts }} / 3 гонок в этом классе
                           </div>
-                          {% endif %}
+                          {% else %}
+                          <div class="row g-2">
 
-                          {% if cr.nemesis %}
-                          <div class="col-12 col-md">
-                              <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid #dc3545;">
-                                  <span style="font-size:1.1rem;">😤</span>
-                                  <div>
-                                      <div class="text-muted small">Немезис</div>
+                              {% if cr.median_win_pct > 0 %}
+                              <div class="col-12 col-md">
+                                  <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid {% if cr.win_pct > cr.median_win_pct %}#198754{% else %}#495057{% endif %};">
+                                      <span style="font-size:1.1rem;">🏆</span>
                                       <div>
-                                          <a href="/drivers/{{ cr.nemesis.slug }}/" class="fw-bold text-danger text-decoration-none">{{ cr.nemesis.name }}</a>
-                                          <span class="text-muted small ms-1">— он впереди в {{ cr.nemesis.losses }} из {{ cr.nemesis.meetings }}</span>
+                                          <div class="text-muted small">% побед vs класс</div>
+                                          <div class="fw-bold {% if cr.win_pct > cr.median_win_pct %}text-success{% else %}text-white{% endif %}">
+                                              {{ cr.win_pct }}%
+                                              <span class="text-muted fw-normal small">/ среднее {{ cr.median_win_pct }}%</span>
+                                          </div>
                                       </div>
                                   </div>
                               </div>
-                          </div>
-                          {% endif %}
+                              {% endif %}
 
-                          {% if cr.victim %}
-                          <div class="col-12 col-md">
-                              <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid #0d6efd;">
-                                  <span style="font-size:1.1rem;">💪</span>
-                                  <div>
-                                      <div class="text-muted small">Уверенно против</div>
+                              {% if cr.median_podium_pct > 0 %}
+                              <div class="col-12 col-md">
+                                  <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid {% if cr.podium_pct > cr.median_podium_pct %}#198754{% else %}#495057{% endif %};">
+                                      <span style="font-size:1.1rem;">🥉</span>
                                       <div>
-                                          <a href="/drivers/{{ cr.victim.slug }}/" class="fw-bold text-info text-decoration-none">{{ cr.victim.name }}</a>
-                                          <span class="text-muted small ms-1">— ты впереди в {{ cr.victim.wins }} из {{ cr.victim.meetings }}</span>
+                                          <div class="text-muted small">% подиумов vs класс</div>
+                                          <div class="fw-bold {% if cr.podium_pct > cr.median_podium_pct %}text-success{% else %}text-white{% endif %}">
+                                              {{ cr.podium_pct }}%
+                                              <span class="text-muted fw-normal small">/ среднее {{ cr.median_podium_pct }}%</span>
+                                          </div>
                                       </div>
                                   </div>
                               </div>
+                              {% endif %}
+
+                              {% if cr.nemesis %}
+                              <div class="col-12 col-md">
+                                  <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid #dc3545;">
+                                      <span style="font-size:1.1rem;">😤</span>
+                                      <div>
+                                          <div class="text-muted small">Немезис <span style="font-size:0.7rem;">(чаще впереди в очных стартах)</span></div>
+                                          <div>
+                                              <a href="/drivers/{{ cr.nemesis.slug }}/" class="fw-bold text-danger text-decoration-none">{{ cr.nemesis.name }}</a>
+                                              <span class="text-muted small ms-1">— он впереди в {{ cr.nemesis.losses }} из {{ cr.nemesis.meetings }}</span>
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                              {% endif %}
+
+                              {% if cr.victim %}
+                              <div class="col-12 col-md">
+                                  <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid #0d6efd;">
+                                      <span style="font-size:1.1rem;">💪</span>
+                                      <div>
+                                          <div class="text-muted small">Уверенно против <span style="font-size:0.7rem;">(чаще впереди в очных стартах)</span></div>
+                                          <div>
+                                              <a href="/drivers/{{ cr.victim.slug }}/" class="fw-bold text-info text-decoration-none">{{ cr.victim.name }}</a>
+                                              <span class="text-muted small ms-1">— ты впереди в {{ cr.victim.wins }} из {{ cr.victim.meetings }}</span>
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                              {% endif %}
+
                           </div>
                           {% endif %}
-
                       </div>
-                      {% endif %}
 
                   </div>
                   {% endfor %}
