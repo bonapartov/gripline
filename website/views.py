@@ -854,7 +854,7 @@ def _get_driver_class_ratings(driver):
     rank, total, normalized BT score (0-100), form trend, gaps to neighbours.
     Uses same Bayesian smoothing (C=15) as top_drivers_view.
     """
-    import json, statistics
+    import json, statistics as _stats
 
     C = 15
     class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
