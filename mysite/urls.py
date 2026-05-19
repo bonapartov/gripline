@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, reverse_lazy
 from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse
@@ -48,7 +48,10 @@ urlpatterns = [
         html_email_template_name='registration/password_reset_email.html',
     ), name='password_reset'),
     path('accounts/password-reset/done/', auth_views.PasswordResetDoneView.as_view(), name='password_reset_done'),
-    path('accounts/password-reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
+    path('accounts/password-reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(
+        post_reset_login=True,
+        success_url=reverse_lazy('accounts:profile'),
+    ), name='password_reset_confirm'),
     path('accounts/password-reset/complete/', auth_views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
     path("", include("coderedcms.urls")),  # Wagtail в самом конце
 ]

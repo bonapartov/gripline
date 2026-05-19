@@ -221,6 +221,11 @@ def organizer_login(request):
         email = request.POST.get('email')
         password = request.POST.get('password')
         user = authenticate(request, username=email, password=password)
+        if user is None:
+            for candidate in User.objects.filter(email__iexact=email):
+                user = authenticate(request, username=candidate.username, password=password)
+                if user is not None:
+                    break
         if user is not None:
             if user.is_active:
                 login(request, user)

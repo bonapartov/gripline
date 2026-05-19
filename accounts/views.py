@@ -310,11 +310,10 @@ def login_view(request):
         user = authenticate(request, username=email, password=password)
         if user is None:
             from django.contrib.auth.models import User as AuthUser
-            try:
-                u = AuthUser.objects.get(email__iexact=email)
-                user = authenticate(request, username=u.username, password=password)
-            except (AuthUser.DoesNotExist, AuthUser.MultipleObjectsReturned):
-                pass
+            for candidate in AuthUser.objects.filter(email__iexact=email):
+                user = authenticate(request, username=candidate.username, password=password)
+                if user is not None:
+                    break
 
         if user is not None:
             if user.is_active:
