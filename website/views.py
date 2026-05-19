@@ -2039,7 +2039,7 @@ def team_ratings_view(request):
                 except Exception:
                     rbc = {}
             for class_id_str, entry in rbc.items():
-                bt = entry.get('bt_score', 0) or 0
+                bt = entry.get('score', 0) or 0
                 starts = entry.get('starts', 0) or 0
                 if starts < 3:
                     continue
