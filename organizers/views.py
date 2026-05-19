@@ -33,9 +33,11 @@ def dashboard(request):
     championships = Championship.objects.filter(organizer=profile)
     
     # Собираем все этапы для чемпионатов организатора
+    from .models import Registration
     stages = []
     for champ in championships:
         for stage in champ.stages.all().order_by('start_date'):
+            reg_qs = stage.registrations
             stages.append({
                 'id': stage.id,
                 'title': stage.title,
@@ -46,6 +48,8 @@ def dashboard(request):
                 'entry_fee': stage.entry_fee,
                 'track': stage.track.name if stage.track else 'не указана',
                 'wagtail_page': stage.wagtail_page,
+                'reg_count': reg_qs.exclude(status__in=['cancelled', 'rejected']).count(),
+                'reg_pending': reg_qs.filter(status='draft').count(),
             })
     
     # Сортируем этапы по дате начала
@@ -358,3 +362,113 @@ def stage_delete(request, pk):
     stage.delete()
     messages.success(request, f'Этап "{title}" удалён!')
     return redirect('organizers:dashboard')
+
+
+def stage_register(request, stage_id):
+    """Регистрация участника на этап через страницу этапа."""
+    from .models import Registration, Stage
+    stage = get_object_or_404(Stage, pk=stage_id)
+
+    if not request.user.is_authenticated:
+        messages.error(request, 'Войдите в аккаунт для регистрации на этап.')
+        stage_url = stage.wagtail_page.url if stage.wagtail_page else '/'
+        return redirect(f'/accounts/login/?next={stage_url}')
+
+    if request.method != 'POST':
+        stage_url = stage.wagtail_page.url if stage.wagtail_page else '/'
+        return redirect(stage_url)
+
+    race_class_id = request.POST.get('race_class_id')
+    if not race_class_id:
+        messages.error(request, 'Выберите класс для регистрации.')
+        stage_url = stage.wagtail_page.url if stage.wagtail_page else '/'
+        return redirect(stage_url)
+
+    race_class = get_object_or_404(RaceClass, pk=race_class_id)
+
+    try:
+        driver = request.user.profile.driver
+    except Exception:
+        driver = None
+
+    if Registration.objects.filter(stage=stage, user=request.user, race_class=race_class,
+                                   status__in=['draft', 'paid', 'confirmed']).exists():
+        messages.warning(request, f'Вы уже зарегистрированы на этот этап в классе {race_class.name}.')
+        stage_url = stage.wagtail_page.url if stage.wagtail_page else '/'
+        return redirect(stage_url)
+
+    team = driver.current_team if driver and hasattr(driver, 'current_team') else None
+
+    Registration.objects.create(
+        stage=stage,
+        user=request.user,
+        race_class=race_class,
+        driver=driver,
+        team=team,
+        status='draft',
+        amount=stage.entry_fee,
+    )
+    messages.success(request, f'Вы зарегистрированы на этап «{stage.title}» в классе {race_class.name}!')
+    stage_url = stage.wagtail_page.url if stage.wagtail_page else '/'
+    return redirect(stage_url)
+
+
+@login_required
+def registration_cancel(request, registration_id):
+    """Участник отменяет свою регистрацию."""
+    from .models import Registration
+    reg = get_object_or_404(Registration, pk=registration_id, user=request.user)
+
+    if reg.status not in ('draft', 'paid'):
+        messages.error(request, 'Эту регистрацию уже нельзя отменить.')
+    else:
+        reg.status = 'cancelled'
+        reg.save()
+        messages.success(request, 'Регистрация отменена.')
+
+    stage_url = reg.stage.wagtail_page.url if reg.stage.wagtail_page else '/'
+    return redirect(stage_url)
+
+
+@login_required
+def stage_registrations(request, stage_id):
+    """Список регистраций на этап (только для организатора)."""
+    from .models import Registration, Stage
+    stage = get_object_or_404(Stage, pk=stage_id, championship__organizer__user=request.user)
+    registrations = stage.registrations.select_related(
+        'user', 'race_class', 'driver', 'team'
+    ).order_by('race_class__name', 'created_at')
+
+    by_class = {}
+    for reg in registrations:
+        cls_name = reg.race_class.name
+        by_class.setdefault(cls_name, []).append(reg)
+
+    return render(request, 'organizers/stage_registrations.html', {
+        'stage': stage,
+        'by_class': by_class,
+        'total': registrations.count(),
+    })
+
+
+@login_required
+def registration_action(request, registration_id):
+    """Организатор подтверждает или отклоняет регистрацию."""
+    from .models import Registration
+    reg = get_object_or_404(
+        Registration, pk=registration_id,
+        stage__championship__organizer__user=request.user
+    )
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'confirm':
+            reg.status = 'confirmed'
+            reg.save()
+            messages.success(request, f'Регистрация {reg.user.email} подтверждена.')
+        elif action == 'reject':
+            reg.status = 'rejected'
+            reg.save()
+            messages.warning(request, f'Регистрация {reg.user.email} отклонена.')
+
+    return redirect('organizers:stage_registrations', stage_id=reg.stage.pk)

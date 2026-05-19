@@ -2053,6 +2053,43 @@ class StagePage(CoderedWebPage):
             if event.race_class_groups.exists():
                 return True
         return False
+
+    def get_context(self, request, *args, **kwargs):
+        context = super().get_context(request, *args, **kwargs)
+        try:
+            from organizers.models import Stage, Registration
+            org_stage = Stage.objects.filter(wagtail_page=self).first()
+            if org_stage:
+                context['org_stage'] = org_stage
+                context['entry_fee'] = org_stage.entry_fee
+                available_classes = list(org_stage.championship.race_classes.all())
+                context['available_classes'] = available_classes
+
+                if request.user.is_authenticated:
+                    user_regs = Registration.objects.filter(
+                        stage=org_stage, user=request.user,
+                        status__in=['draft', 'paid', 'confirmed']
+                    ).select_related('race_class')
+                    context['user_registrations'] = user_regs
+                    registered_class_ids = set(r.race_class_id for r in user_regs)
+                    context['registered_class_ids'] = registered_class_ids
+                else:
+                    context['user_registrations'] = []
+                    context['registered_class_ids'] = set()
+
+                # Публичный список участников
+                confirmed_regs = Registration.objects.filter(
+                    stage=org_stage, status__in=['confirmed', 'paid']
+                ).select_related('race_class', 'driver', 'team').order_by('race_class__name', 'created_at')
+                participants_by_class = {}
+                for reg in confirmed_regs:
+                    cls_name = reg.race_class.name
+                    participants_by_class.setdefault(cls_name, []).append(reg)
+                context['participants_by_class'] = participants_by_class
+        except Exception:
+            pass
+        return context
+
 # ========== ОБЪЯВЛЕНИЯ ==========
 class AdCategory(models.Model):
     """Категория объявления (роль или товар)"""

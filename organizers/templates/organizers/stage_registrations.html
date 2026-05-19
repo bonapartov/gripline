@@ -1,0 +1,121 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block content %}
+<style>
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    .reg-card {
+        background: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+    }
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 20px;
+        font-weight: 600;
+    }
+    .status-draft    { background: rgba(108,117,125,0.2); color: #adb5bd; border: 1px solid #6c757d; }
+    .status-paid     { background: rgba(13,202,240,0.15); color: #0dcaf0; border: 1px solid #0dcaf0; }
+    .status-confirmed{ background: rgba(40,167,69,0.15);  color: #28a745; border: 1px solid #28a745; }
+    .status-rejected { background: rgba(220,53,69,0.15);  color: #dc3545; border: 1px solid #dc3545; }
+    .status-cancelled{ background: rgba(255,193,7,0.1);   color: #6c757d; border: 1px solid #6c757d; }
+</style>
+
+<div class="force-width-1500 my-5 text-white">
+
+    <div class="d-flex justify-content-between align-items-center border-bottom border-primary pb-3 mb-4">
+        <div>
+            <h1 class="display-6 fw-bold text-uppercase mb-1">{{ stage.title }}</h1>
+            <p class="text-muted mb-0 small">{{ stage.championship.title }} · Всего регистраций: {{ total }}</p>
+        </div>
+        <a href="{% url 'organizers:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Назад
+        </a>
+    </div>
+
+    {% if by_class %}
+        {% for cls_name, regs in by_class.items %}
+        <div class="reg-card mb-4">
+            <div class="text-info fw-bold text-uppercase small mb-3">
+                {{ cls_name }}
+                <span class="text-muted ms-2">({{ regs|length }})</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover table-sm mb-0" style="--bs-table-bg: transparent;">
+                    <thead>
+                        <tr class="text-muted" style="font-size:0.8rem;">
+                            <th>#</th>
+                            <th>Участник</th>
+                            <th>Пилот</th>
+                            <th>Команда</th>
+                            <th>Статус</th>
+                            <th>Дата</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for reg in regs %}
+                        <tr>
+                            <td class="text-muted">{{ forloop.counter }}</td>
+                            <td>
+                                <span class="text-white">{{ reg.user.get_full_name|default:reg.user.email }}</span>
+                                <div class="text-muted" style="font-size:0.75rem;">{{ reg.user.email }}</div>
+                            </td>
+                            <td>
+                                {% if reg.driver %}
+                                <a href="{{ reg.driver.get_absolute_url }}" class="text-info text-decoration-none">{{ reg.driver.full_name }}</a>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if reg.team %}
+                                <span class="text-white">{{ reg.team.name }}</span>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="status-badge status-{{ reg.status }}">
+                                    {% if reg.status == 'draft' %}На рассмотрении
+                                    {% elif reg.status == 'paid' %}Оплачена
+                                    {% elif reg.status == 'confirmed' %}Подтверждена
+                                    {% elif reg.status == 'rejected' %}Отклонена
+                                    {% elif reg.status == 'cancelled' %}Отменена
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td class="text-muted small">{{ reg.created_at|date:"d.m.Y H:i" }}</td>
+                            <td>
+                                {% if reg.status == 'draft' or reg.status == 'paid' %}
+                                <form method="post" action="{% url 'organizers:registration_action' reg.pk %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button name="action" value="confirm" class="btn btn-xs btn-outline-success" style="font-size:0.7rem; padding:2px 8px;">✓ Подтвердить</button>
+                                    <button name="action" value="reject" class="btn btn-xs btn-outline-danger ms-1" style="font-size:0.7rem; padding:2px 8px;">✗ Отклонить</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+    <div class="text-center text-muted py-5">
+        <i class="fas fa-clipboard-list fa-3x mb-3 d-block opacity-25"></i>
+        Регистраций пока нет
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

@@ -20,9 +20,10 @@ class ChampionshipForm(forms.ModelForm):
     
     default_tyre = forms.ModelChoiceField(
         queryset=Tyre.objects.all(),
-        widget=forms.CheckboxSelectMultiple,
+        widget=forms.Select(attrs={'class': 'form-select'}),
         required=False,
-        label="Шины по умолчанию"
+        label="Шины по умолчанию",
+        empty_label="— не указаны —",
     )
     
     class Meta:
