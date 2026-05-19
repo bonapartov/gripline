@@ -333,8 +333,8 @@
                       <div class="mt-3 pt-3 border-top border-secondary row g-2">
 
                           {% if cr.median_win_pct > 0 %}
-                          <div class="col-12 col-md-6">
-                              <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2" style="background:rgba(0,0,0,0.2); border:1px solid {% if cr.win_pct > cr.median_win_pct %}#198754{% else %}#495057{% endif %};">
+                          <div class="col-12 col-md">
+                              <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid {% if cr.win_pct > cr.median_win_pct %}#198754{% else %}#495057{% endif %};">
                                   <span style="font-size:1.1rem;">🏆</span>
                                   <div>
                                       <div class="text-muted small">% побед vs класс</div>
@@ -348,8 +348,8 @@
                           {% endif %}
 
                           {% if cr.median_podium_pct > 0 %}
-                          <div class="col-12 col-md-6">
-                              <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2" style="background:rgba(0,0,0,0.2); border:1px solid {% if cr.podium_pct > cr.median_podium_pct %}#198754{% else %}#495057{% endif %};">
+                          <div class="col-12 col-md">
+                              <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid {% if cr.podium_pct > cr.median_podium_pct %}#198754{% else %}#495057{% endif %};">
                                   <span style="font-size:1.1rem;">🥉</span>
                                   <div>
                                       <div class="text-muted small">% подиумов vs класс</div>
@@ -363,14 +363,14 @@
                           {% endif %}
 
                           {% if cr.nemesis %}
-                          <div class="col-12 col-md-6">
-                              <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2" style="background:rgba(0,0,0,0.2); border:1px solid #dc3545;">
+                          <div class="col-12 col-md">
+                              <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid #dc3545;">
                                   <span style="font-size:1.1rem;">😤</span>
                                   <div>
                                       <div class="text-muted small">Немезис</div>
                                       <div>
                                           <a href="/drivers/{{ cr.nemesis.slug }}/" class="fw-bold text-danger text-decoration-none">{{ cr.nemesis.name }}</a>
-                                          <span class="text-muted small ms-1">— проигрываешь {{ cr.nemesis.losses }} из {{ cr.nemesis.meetings }}</span>
+                                          <span class="text-muted small ms-1">— он впереди в {{ cr.nemesis.losses }} из {{ cr.nemesis.meetings }}</span>
                                       </div>
                                   </div>
                               </div>
@@ -378,14 +378,14 @@
                           {% endif %}
 
                           {% if cr.victim %}
-                          <div class="col-12 col-md-6">
-                              <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2" style="background:rgba(0,0,0,0.2); border:1px solid #0d6efd;">
+                          <div class="col-12 col-md">
+                              <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid #0d6efd;">
                                   <span style="font-size:1.1rem;">💪</span>
                                   <div>
                                       <div class="text-muted small">Уверенно против</div>
                                       <div>
                                           <a href="/drivers/{{ cr.victim.slug }}/" class="fw-bold text-info text-decoration-none">{{ cr.victim.name }}</a>
-                                          <span class="text-muted small ms-1">— выигрываешь {{ cr.victim.wins }} из {{ cr.victim.meetings }}</span>
+                                          <span class="text-muted small ms-1">— ты впереди в {{ cr.victim.wins }} из {{ cr.victim.meetings }}</span>
                                       </div>
                                   </div>
                               </div>
