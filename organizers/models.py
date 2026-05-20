@@ -82,8 +82,48 @@ class Stage(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     wagtail_page = models.OneToOneField('wagtailcore.Page', on_delete=models.SET_NULL, null=True, blank=True, related_name='stage')
 
+    # Настройки регистрации
+    registration_enabled = models.BooleanField(default=True, verbose_name='Регистрация открыта')
+    registration_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Дедлайн регистрации')
+    late_registration_allowed = models.BooleanField(default=False, verbose_name='Допустить позднюю регистрацию')
+    late_registration_fee_multiplier = models.DecimalField(
+        max_digits=4, decimal_places=2, default=2.0,
+        verbose_name='Множитель позднего взноса'
+    )
+    max_participants = models.PositiveIntegerField(null=True, blank=True, verbose_name='Макс. участников')
+
+    # Стартовые номера
+    start_number_digits = models.PositiveIntegerField(
+        default=2,
+        choices=[(2, '2-значные (10–99)'), (3, '3-значные (100–999)')],
+        verbose_name='Формат стартовых номеров'
+    )
+    reserved_start_numbers = models.JSONField(
+        default=list, blank=True,
+        verbose_name='Зарезервированные номера',
+        help_text='Номера недоступные для выбора участниками (JSON-список)'
+    )
+
     def __str__(self):
         return f"{self.championship.title} - {self.title}"
+
+    def get_available_numbers(self):
+        """Возвращает список номеров доступных для выбора"""
+        from applications.models import Application
+        if self.start_number_digits == 2:
+            all_numbers = set(range(10, 100))
+        else:
+            all_numbers = set(range(100, 1000))
+        reserved = set(self.reserved_start_numbers or [])
+        taken = set(
+            Application.objects.filter(
+                stage=self,
+                start_number__isnull=False,
+            ).exclude(
+                status__in=['rejected', 'cancelled']
+            ).values_list('start_number', flat=True)
+        )
+        return sorted(all_numbers - reserved - taken)
 
 
 class Registration(models.Model):

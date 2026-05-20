@@ -29,6 +29,7 @@ LOCALE_PATHS = [
 INSTALLED_APPS = [
     'wagtail_modeladmin',
     'organizers.apps.OrganizersConfig',
+    'applications.apps.ApplicationsConfig',
     # This project
     "website.apps.WebsiteConfig",
     # Wagtail CRX (CodeRed Extensions)
