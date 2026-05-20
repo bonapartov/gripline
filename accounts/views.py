@@ -75,44 +75,64 @@ def send_verification_email(user, request):
 
 
 def register(request):
-    """Регистрация нового пользователя с email-подтверждением"""
+    """Регистрация нового пользователя — мгновенная, без подтверждения email"""
     if request.method == 'POST':
         form = RegistrationForm(request.POST)
-        
-        # Проверяем, существует ли пользователь с таким email
+
         email = request.POST.get('email')
         if User.objects.filter(email=email).exists():
             messages.error(request, 'Пользователь с таким email уже зарегистрирован.')
             return render(request, 'accounts/register.html', {'form': form})
-        
+
         if form.is_valid():
             user = form.save(commit=False)
-            user.is_active = False  # Неактивен до подтверждения email
+            user.is_active = True
             user.save()
-            
-            # Сохраняем данные в сессию для последующего выбора пилота
+
             first_name = form.cleaned_data['first_name']
             last_name = form.cleaned_data['last_name']
             city = form.cleaned_data.get('city', '')
-            
-            request.session['pending_user_id'] = user.id
-            request.session['pending_first_name'] = first_name
-            request.session['pending_last_name'] = last_name
-            request.session['pending_city'] = city
-            
-            # Отправляем письмо с подтверждением
-            try:
-                send_verification_email(user, request)
-                messages.success(request, 'Регистрация почти завершена! Проверьте почту и перейдите по ссылке для подтверждения.')
-                return redirect('accounts:verification_sent')
-            except Exception as e:
-                user.delete()
-                messages.error(request, f'Ошибка отправки письма: {str(e)}')
+
+            login(request, user)
+
+            drivers = Driver.objects.filter(
+                first_name__iexact=first_name,
+                last_name__iexact=last_name,
+            )
+
+            if drivers.exists():
+                request.session['found_drivers'] = [
+                    {'id': d.id, 'name': d.full_name, 'city': d.city or ''}
+                    for d in drivers
+                ]
+                request.session['user_id'] = user.id
+                request.session['first_name'] = first_name
+                request.session['last_name'] = last_name
+                request.session['city'] = city
+                messages.success(request, 'Аккаунт создан! Выберите своего пилота.')
+                return redirect('accounts:select_driver')
+            else:
+                DriverClaim.objects.create(
+                    user=user,
+                    requested_first_name=first_name,
+                    requested_last_name=last_name,
+                    requested_city=city,
+                    status='pending',
+                )
+                send_admin_notification('пилотом', {
+                    'user_email': user.email,
+                    'first_name': first_name,
+                    'last_name': last_name,
+                    'city': city,
+                    'driver_name': 'новый пилот',
+                })
+                messages.success(request, 'Аккаунт создан! Ваша заявка отправлена администратору.')
+                return redirect('accounts:profile')
         else:
             messages.error(request, 'Пожалуйста, исправьте ошибки в форме.')
     else:
         form = RegistrationForm()
-    
+
     return render(request, 'accounts/register.html', {'form': form})
 
 
