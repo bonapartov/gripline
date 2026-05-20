@@ -265,7 +265,12 @@
 
             <div class="form-group">
                 <label for="id_password1" class="form-label">Пароль*</label>
-                <input type="password" name="password1" id="id_password1" required class="form-control" placeholder="••••••••">
+                <input type="password" name="password1" id="id_password1" required class="form-control" placeholder="••••••••" oninput="checkPassword()">
+                <div id="pwd-hints" style="margin-top:0.5rem; display:none; font-size:0.82rem;">
+                    <div id="hint-len"  class="pwd-hint">✗ Минимум 8 символов</div>
+                    <div id="hint-num"  class="pwd-hint">✗ Содержит цифру</div>
+                    <div id="hint-alfa" class="pwd-hint">✗ Содержит букву</div>
+                </div>
                 {% if form.password1.errors %}
                     <div class="text-danger small mt-1">{{ form.password1.errors }}</div>
                 {% endif %}
@@ -273,7 +278,8 @@
 
             <div class="form-group">
                 <label for="id_password2" class="form-label">Подтверждение пароля*</label>
-                <input type="password" name="password2" id="id_password2" required class="form-control" placeholder="••••••••">
+                <input type="password" name="password2" id="id_password2" required class="form-control" placeholder="••••••••" oninput="checkMatch()">
+                <div id="match-hint" style="margin-top:0.5rem; font-size:0.82rem; display:none;"></div>
                 {% if form.password2.errors %}
                     <div class="text-danger small mt-1">{{ form.password2.errors }}</div>
                 {% endif %}
@@ -281,6 +287,13 @@
 
             <button type="submit" class="btn-register">Зарегистрировать команду</button>
         </form>
+
+        <style>.pwd-hint{color:#dc3545}.pwd-hint.ok{color:#28a745}</style>
+        <script>
+        function checkPassword(){const v=document.getElementById('id_password1').value;const h=document.getElementById('pwd-hints');h.style.display=v.length?'block':'none';set('hint-len',v.length>=8);set('hint-num',/\d/.test(v));set('hint-alfa',/[a-zA-Zа-яА-ЯёЁ]/.test(v));checkMatch();}
+        function set(id,ok){const e=document.getElementById(id);const t={'hint-len':['✗ Минимум 8 символов','✓ Минимум 8 символов'],'hint-num':['✗ Содержит цифру','✓ Содержит цифру'],'hint-alfa':['✗ Содержит букву','✓ Содержит букву']};e.textContent=t[id][ok?1:0];e.className='pwd-hint'+(ok?' ok':'');}
+        function checkMatch(){const p1=document.getElementById('id_password1').value;const p2=document.getElementById('id_password2').value;const h=document.getElementById('match-hint');if(!p2.length){h.style.display='none';return;}h.style.display='block';if(p1===p2){h.textContent='✓ Пароли совпадают';h.style.color='#28a745';}else{h.textContent='✗ Пароли не совпадают';h.style.color='#dc3545';}}
+        </script>
 
         <div class="auth-links">
             Уже есть аккаунт команды? <a href="{% url 'teams:login' %}">Войти</a>
