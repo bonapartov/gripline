@@ -45,7 +45,6 @@ class Application(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        pilot_name = getattr(self, '_pilot_name', None)
         try:
             pilot_name = self.pilot.full_name
         except Exception:

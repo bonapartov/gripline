@@ -1,0 +1,141 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block content %}
+<style>
+    .app-wrap { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+    .app-card { background:#1a1a25; border:1px solid #2a2a35; border-radius:8px; padding:1.5rem; margin-bottom:1.5rem; }
+    .app-section-title { color:#0dcaf0; text-transform:uppercase; font-weight:bold; font-size:0.9rem; margin-bottom:1rem; }
+    .kv { display:flex; justify-content:space-between; padding:0.4rem 0; border-bottom:1px solid #2a2a35; font-size:0.9rem; }
+    .kv:last-child { border-bottom:none; }
+    .kv .k { color:#adb5bd; }
+    .kv .v { color:#fff; font-weight:500; }
+    .doc-row { padding:0.75rem 0; border-bottom:1px solid #2a2a35; }
+    .doc-row:last-child { border-bottom:none; }
+    .badge-status { font-size:0.75rem; padding:0.25rem 0.6rem; border-radius:20px; }
+    .st-pending { background:rgba(108,117,125,.2); color:#adb5bd; }
+    .st-uploaded { background:rgba(13,202,240,.15); color:#0dcaf0; }
+    .st-verified { background:rgba(40,167,69,.15); color:#28a745; }
+    .st-rejected { background:rgba(220,53,69,.15); color:#dc3545; }
+    .form-control { background:#15151c !important; border:1px solid #2a2a35 !important; color:#fff !important; }
+</style>
+
+<div class="app-wrap text-white">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h1 class="text-warning mb-1">Заявка #{{ application.id }}</h1>
+            <p class="text-muted mb-0">{{ application.stage.championship.title }} · {{ application.stage.title }}</p>
+        </div>
+        <div class="text-end">
+            {% if application.status == 'confirmed' %}<span class="badge bg-success fs-6">Подтверждена</span>
+            {% elif application.status == 'submitted' %}<span class="badge bg-info text-dark fs-6">На рассмотрении</span>
+            {% elif application.status == 'rejected' %}<span class="badge bg-danger fs-6">Отклонена</span>
+            {% elif application.status == 'cancelled' %}<span class="badge bg-secondary fs-6">Отменена</span>
+            {% else %}<span class="badge bg-secondary fs-6">{{ application.get_status_display }}</span>{% endif %}
+            {% if application.start_number %}<div class="mt-2"><span class="text-muted small">Номер:</span> <span class="text-warning fs-4 fw-bold">{{ application.start_number }}</span></div>{% endif %}
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert {% if 'error' in message.tags %}alert-danger{% else %}alert-success{% endif %}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    {% if application.organizer_comment %}
+    <div class="alert alert-warning"><strong>Комментарий организатора:</strong> {{ application.organizer_comment }}</div>
+    {% endif %}
+
+    <!-- Данные пилота -->
+    <div class="app-card">
+        <div class="app-section-title">Пилот</div>
+        <div class="kv"><span class="k">ФИО</span><span class="v">{{ application.pilot.full_name }}</span></div>
+        <div class="kv"><span class="k">Класс</span><span class="v">{{ application.race_class.name }}</span></div>
+        {% if application.pilot.birth_date %}<div class="kv"><span class="k">Дата рождения</span><span class="v">{{ application.pilot.birth_date|date:"d.m.Y" }}{% if application.pilot.is_minor %} <span class="badge bg-warning text-dark">несовершеннолетний</span>{% endif %}</span></div>{% endif %}
+        {% if application.pilot.license_number %}<div class="kv"><span class="k">Лицензия</span><span class="v">{{ application.pilot.license_number }}</span></div>{% endif %}
+        {% if application.pilot.phone %}<div class="kv"><span class="k">Телефон</span><span class="v">{{ application.pilot.phone }}</span></div>{% endif %}
+    </div>
+
+    <!-- Карт -->
+    {% if application.kart %}
+    <div class="app-card">
+        <div class="app-section-title">Карт</div>
+        <div class="kv"><span class="k">Шасси</span><span class="v">{{ application.kart.chassis_brand }}</span></div>
+        <div class="kv"><span class="k">Двигатель</span><span class="v">{{ application.kart.engine_1 }}{% if application.kart.engine_2 %} / {{ application.kart.engine_2 }}{% endif %}</span></div>
+        {% if application.kart.tires %}<div class="kv"><span class="k">Шины</span><span class="v">{{ application.kart.tires }}</span></div>{% endif %}
+        {% if application.kart.transponder_number %}<div class="kv"><span class="k">Транспондер</span><span class="v">{{ application.kart.transponder_number }}</span></div>{% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Документы -->
+    <div class="app-card">
+        <div class="app-section-title">Документы</div>
+        {% for doc in documents %}
+        <div class="doc-row">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-white">{{ doc.stage_document.name }}</span>
+                    {% if doc.stage_document.required %}<span class="text-danger">*</span>{% endif %}
+                    {% if doc.expiry_date %}<div class="text-muted small">действует до {{ doc.expiry_date|date:"d.m.Y" }}{% if doc.is_expired %} <span class="text-danger">(истёк!)</span>{% endif %}</div>{% endif %}
+                    {% if doc.organizer_comment %}<div class="text-danger small">{{ doc.organizer_comment }}</div>{% endif %}
+                </div>
+                <span class="badge-status st-{{ doc.status }}">{{ doc.get_status_display }}</span>
+            </div>
+            {% if is_owner and doc.status != 'verified' %}
+            <form method="post" action="{% url 'applications:upload_document' doc.id %}" enctype="multipart/form-data" class="mt-2">
+                {% csrf_token %}
+                <div class="row g-2 align-items-end">
+                    <div class="col"><input type="file" name="file" class="form-control form-control-sm" required></div>
+                    {% if doc.stage_document.has_expiry_date %}
+                    <div class="col-auto"><input type="date" name="expiry_date" class="form-control form-control-sm" title="Срок действия"></div>
+                    {% endif %}
+                    <div class="col-auto"><button class="btn btn-sm btn-outline-info">Загрузить</button></div>
+                </div>
+            </form>
+            {% elif doc.file %}
+            <a href="{{ doc.file.url }}" target="_blank" class="text-info small">📎 посмотреть файл</a>
+            {% endif %}
+        </div>
+        {% empty %}
+        <p class="text-muted mb-0">Для этого этапа документы не требуются.</p>
+        {% endfor %}
+    </div>
+
+    <!-- Оплата -->
+    <div class="app-card">
+        <div class="app-section-title">Оплата</div>
+        <div class="kv"><span class="k">Стартовый взнос</span><span class="v">{{ application.entry_fee_amount }} ₽</span></div>
+        {% for opt in application.selected_options.all %}
+        <div class="kv"><span class="k">{{ opt.option.name }}</span><span class="v">{{ opt.price_at_time }} ₽</span></div>
+        {% endfor %}
+        <div class="kv"><span class="k fw-bold">Итого</span><span class="v text-warning fs-5">{{ application.get_total_amount }} ₽</span></div>
+
+        <div class="mt-3">
+            {% if payment %}
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="text-muted">Статус оплаты:</span>
+                <span class="badge-status st-{% if payment.status == 'verified' %}verified{% elif payment.status == 'uploaded' %}uploaded{% elif payment.status == 'rejected' %}rejected{% else %}pending{% endif %}">{{ payment.get_status_display }}</span>
+            </div>
+            {% endif %}
+
+            {% if is_owner and payment.status != 'verified' %}
+            <div class="alert alert-warning mt-2 small mb-2">⚠️ Сервис работает в тестовом режиме. Загрузите скриншот/квитанцию об оплате — онлайн-оплата появится позже.</div>
+            <form method="post" action="{% url 'applications:upload_payment' application.id %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="row g-2 align-items-end">
+                    <div class="col"><input type="file" name="receipt" class="form-control form-control-sm" accept="image/*,.pdf" required></div>
+                    <div class="col-auto"><button class="btn btn-sm btn-warning">Загрузить квитанцию</button></div>
+                </div>
+            </form>
+            {% if payment.receipt_file %}<a href="{{ payment.receipt_file.url }}" target="_blank" class="text-info small mt-2 d-inline-block">📎 загруженная квитанция</a>{% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    {% if is_owner and application.status != 'cancelled' and application.status != 'rejected' %}
+    <form method="post" action="{% url 'applications:cancel' application.id %}" onsubmit="return confirm('Отменить заявку? Стартовый номер освободится.');">
+        {% csrf_token %}
+        <button class="btn btn-outline-danger btn-sm">Отменить заявку</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

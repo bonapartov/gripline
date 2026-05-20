@@ -2057,34 +2057,29 @@ class StagePage(CoderedWebPage):
     def get_context(self, request, *args, **kwargs):
         context = super().get_context(request, *args, **kwargs)
         try:
-            from organizers.models import Stage, Registration
+            from organizers.models import Stage
+            from applications.models import Application
             org_stage = Stage.objects.filter(wagtail_page=self).first()
             if org_stage:
                 context['org_stage'] = org_stage
                 context['entry_fee'] = org_stage.entry_fee
-                available_classes = list(org_stage.championship.race_classes.all())
-                context['available_classes'] = available_classes
+                context['available_classes'] = list(org_stage.championship.race_classes.all())
 
                 if request.user.is_authenticated:
-                    user_regs = Registration.objects.filter(
-                        stage=org_stage, user=request.user,
-                        status__in=['draft', 'paid', 'confirmed']
-                    ).select_related('race_class')
-                    context['user_registrations'] = user_regs
-                    registered_class_ids = set(r.race_class_id for r in user_regs)
-                    context['registered_class_ids'] = registered_class_ids
+                    context['my_applications'] = Application.objects.filter(
+                        stage=org_stage, submitted_by=request.user
+                    ).exclude(status='cancelled').select_related('race_class').order_by('-created_at')
                 else:
-                    context['user_registrations'] = []
-                    context['registered_class_ids'] = set()
+                    context['my_applications'] = []
 
-                # Публичный список участников
-                confirmed_regs = Registration.objects.filter(
-                    stage=org_stage, status__in=['confirmed', 'paid']
-                ).select_related('race_class', 'driver', 'team').order_by('race_class__name', 'created_at')
+                # Публичный список участников — подтверждённые заявки
+                confirmed = Application.objects.filter(
+                    stage=org_stage, status='confirmed'
+                ).select_related('race_class', 'pilot', 'pilot__driver').order_by('race_class__name', 'start_number')
                 participants_by_class = {}
-                for reg in confirmed_regs:
-                    cls_name = reg.race_class.name
-                    participants_by_class.setdefault(cls_name, []).append(reg)
+                for app in confirmed:
+                    cls_name = app.race_class.name if app.race_class else 'Без класса'
+                    participants_by_class.setdefault(cls_name, []).append(app)
                 context['participants_by_class'] = participants_by_class
         except Exception:
             pass

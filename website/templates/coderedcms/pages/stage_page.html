@@ -256,52 +256,34 @@
         <p class="text-muted small mb-3">Стартовый взнос: <strong class="text-white">{{ entry_fee }} ₽</strong></p>
         {% endif %}
 
-        {% if user_registrations %}
+        {% if my_applications %}
         <div class="mb-3">
-            <div class="text-success mb-2"><i class="fas fa-check-circle me-1"></i>Вы зарегистрированы в:</div>
-            {% for reg in user_registrations %}
+            <div class="text-success mb-2"><i class="fas fa-check-circle me-1"></i>Ваши заявки:</div>
+            {% for app in my_applications %}
             <div class="d-flex align-items-center gap-3 mb-2 p-2 rounded" style="background:#0d0d15; border:1px solid #2a2a35;">
-                <span class="badge bg-warning text-dark">{{ reg.race_class.name }}</span>
+                {% if app.race_class %}<span class="badge bg-warning text-dark">{{ app.race_class.name }}</span>{% endif %}
+                {% if app.start_number %}<span class="text-warning fw-bold">#{{ app.start_number }}</span>{% endif %}
                 <span class="text-muted small">
-                    {% if reg.status == 'draft' %}⏳ На рассмотрении
-                    {% elif reg.status == 'confirmed' %}✅ Подтверждена
-                    {% elif reg.status == 'paid' %}💳 Оплачена
+                    {% if app.status == 'submitted' %}⏳ На рассмотрении
+                    {% elif app.status == 'confirmed' %}✅ Подтверждена
+                    {% elif app.status == 'rejected' %}❌ Отклонена
+                    {% elif app.status == 'cancelled' %}⊘ Отменена
                     {% endif %}
                 </span>
-                <form method="post" action="/organizers/registration/{{ reg.pk }}/cancel/" class="ms-auto" onsubmit="return confirm('Отменить регистрацию в классе {{ reg.race_class.name }}?')">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-sm btn-outline-danger">Отменить</button>
-                </form>
+                <a href="/applications/{{ app.id }}/" class="btn btn-sm btn-outline-info ms-auto">Открыть заявку</a>
             </div>
             {% endfor %}
         </div>
         {% endif %}
 
-        {% if available_classes %}
-        <form method="post" action="/organizers/stage/{{ org_stage.pk }}/register/">
-            {% csrf_token %}
-            <div class="d-flex flex-wrap gap-2 align-items-end">
-                <div>
-                    <label class="text-muted small mb-1 d-block">Выберите класс</label>
-                    <select name="race_class_id" class="form-select form-select-sm" style="background:#0d0d15; color:#fff; border-color:#2a2a35; min-width:180px;">
-                        {% for cls in available_classes %}
-                        {% if cls.id not in registered_class_ids %}
-                        <option value="{{ cls.id }}">{{ cls.name }}</option>
-                        {% endif %}
-                        {% endfor %}
-                    </select>
-                </div>
-                {% if request.user.is_authenticated %}
-                <button type="submit" class="btn btn-warning fw-bold">
-                    <i class="fas fa-sign-in-alt me-1"></i>Зарегистрироваться
-                </button>
-                {% else %}
-                <a href="/accounts/login/?next={{ request.path }}" class="btn btn-outline-warning fw-bold">
-                    <i class="fas fa-sign-in-alt me-1"></i>Войти для регистрации
-                </a>
-                {% endif %}
-            </div>
-        </form>
+        {% if request.user.is_authenticated %}
+        <a href="/applications/apply/{{ org_stage.pk }}/" class="btn btn-warning fw-bold">
+            <i class="fas fa-flag-checkered me-1"></i>Подать заявку
+        </a>
+        {% else %}
+        <a href="/accounts/login/?next=/applications/apply/{{ org_stage.pk }}/" class="btn btn-outline-warning fw-bold">
+            <i class="fas fa-sign-in-alt me-1"></i>Войти для подачи заявки
+        </a>
         {% endif %}
     </div>
     {% endif %}
@@ -314,15 +296,13 @@
         <div style="background:#1a1a25; border:1px solid #2a2a35; border-radius:8px; padding:1.25rem; margin-bottom:1rem;">
             <div class="text-warning fw-bold mb-2 text-uppercase small">{{ cls_name }}</div>
             <div class="d-flex flex-wrap gap-2">
-                {% for reg in regs %}
+                {% for app in regs %}
                 <div style="background:#0d0d15; border:1px solid #2a2a35; border-radius:6px; padding:0.5rem 1rem; display:flex; align-items:center; gap:0.5rem;">
-                    {% if reg.driver %}
-                    <a href="{{ reg.driver.get_absolute_url }}" class="text-white text-decoration-none fw-bold" style="font-size:0.9rem;">{{ reg.driver.full_name }}</a>
+                    {% if app.start_number %}<span class="text-warning fw-bold" style="font-size:0.85rem;">#{{ app.start_number }}</span>{% endif %}
+                    {% if app.pilot.driver %}
+                    <a href="{{ app.pilot.driver.get_absolute_url }}" class="text-white text-decoration-none fw-bold" style="font-size:0.9rem;">{{ app.pilot.full_name }}</a>
                     {% else %}
-                    <span class="text-white" style="font-size:0.9rem;">{{ reg.user.get_full_name|default:reg.user.email }}</span>
-                    {% endif %}
-                    {% if reg.team %}
-                    <span class="text-muted small">· {{ reg.team.name }}</span>
+                    <span class="text-white" style="font-size:0.9rem;">{{ app.pilot.full_name }}</span>
                     {% endif %}
                 </div>
                 {% endfor %}

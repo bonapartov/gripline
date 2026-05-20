@@ -38,6 +38,37 @@ class UserProfile(models.Model):
         help_text="Отправлять уведомления о статусе заявок в Telegram"
     )
 
+    # Личные данные пилота для автозаполнения заявок
+    middle_name = models.CharField("Отчество", max_length=100, blank=True)
+    birth_date = models.DateField("Дата рождения", null=True, blank=True)
+    citizenship = models.CharField("Гражданство", max_length=100, blank=True, default="Россия")
+    phone = models.CharField("Телефон", max_length=30, blank=True)
+    license_number = models.CharField("Лицензия пилота", max_length=100, blank=True)
+    sport_rank = models.CharField("Спортивное звание", max_length=100, blank=True)
+
+    # Данные родителя/опекуна (для несовершеннолетних)
+    parent_last_name = models.CharField("Фамилия родителя", max_length=100, blank=True)
+    parent_first_name = models.CharField("Имя родителя", max_length=100, blank=True)
+    parent_middle_name = models.CharField("Отчество родителя", max_length=100, blank=True)
+    parent_relation = models.CharField(
+        "Кем приходится", max_length=20, blank=True,
+        choices=[('mother', 'Мать'), ('father', 'Отец'), ('guardian', 'Опекун/попечитель')]
+    )
+    parent_phone = models.CharField("Телефон родителя", max_length=30, blank=True)
+    parent_email = models.EmailField("Email родителя", blank=True)
+
+    # Данные карта по умолчанию
+    default_chassis_brand = models.CharField("Марка шасси", max_length=100, blank=True)
+    default_engine = models.CharField("Двигатель", max_length=100, blank=True)
+    default_transponder = models.CharField("Номер транспондера AMB", max_length=50, blank=True)
+
+    @property
+    def is_minor(self):
+        if not self.birth_date:
+            return False
+        from datetime import date
+        return (date.today() - self.birth_date).days / 365.25 < 18
+
 
 class DriverClaim(models.Model):
     """Заявка на привязку к пилоту"""
