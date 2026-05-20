@@ -245,3 +245,87 @@ def cancel(request, application_id):
         messages.success(request, 'Заявка отменена. Стартовый номер освобождён.')
 
     return redirect('applications:detail', application_id=application.id)
+
+
+# ---------------------------------------------------------------------------
+# Действия организатора
+# ---------------------------------------------------------------------------
+
+def _check_organizer(request, application):
+    """True если текущий пользователь — организатор этого чемпионата"""
+    return (hasattr(request.user, 'organizer_profile')
+            and application.stage.championship.organizer == request.user.organizer_profile)
+
+
+@login_required
+def org_action(request, application_id):
+    """Организатор подтверждает или отклоняет заявку"""
+    application = get_object_or_404(Application, pk=application_id)
+    if not _check_organizer(request, application):
+        messages.error(request, 'Нет доступа.')
+        return redirect('/')
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        comment = request.POST.get('comment', '').strip()
+        if action == 'confirm':
+            application.status = 'confirmed'
+            application.organizer_comment = comment
+            application.save()
+            messages.success(request, 'Заявка подтверждена.')
+        elif action == 'reject':
+            application.status = 'rejected'
+            application.organizer_comment = comment
+            application.save()
+            messages.warning(request, 'Заявка отклонена. Стартовый номер освобождён.')
+
+    return redirect('applications:detail', application_id=application.id)
+
+
+@login_required
+def org_verify_document(request, document_id):
+    """Организатор проверяет или отклоняет документ"""
+    doc = get_object_or_404(ApplicationDocument, pk=document_id)
+    if not _check_organizer(request, doc.application):
+        messages.error(request, 'Нет доступа.')
+        return redirect('/')
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'verify':
+            doc.status = 'verified'
+            doc.verified_at = timezone.now()
+            doc.verified_by = request.user
+            doc.organizer_comment = ''
+            doc.save()
+        elif action == 'reject':
+            doc.status = 'rejected'
+            doc.organizer_comment = request.POST.get('comment', '').strip()
+            doc.save()
+
+    return redirect('applications:detail', application_id=doc.application.id)
+
+
+@login_required
+def org_verify_payment(request, application_id):
+    """Организатор подтверждает или отклоняет оплату"""
+    application = get_object_or_404(Application, pk=application_id)
+    if not _check_organizer(request, application):
+        messages.error(request, 'Нет доступа.')
+        return redirect('/')
+
+    payment = getattr(application, 'payment', None)
+    if payment and request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'verify':
+            payment.status = 'verified'
+            payment.verified_at = timezone.now()
+            payment.verified_by = request.user
+            payment.save()
+            messages.success(request, 'Оплата подтверждена.')
+        elif action == 'reject':
+            payment.status = 'rejected'
+            payment.save()
+            messages.warning(request, 'Оплата отклонена.')
+
+    return redirect('applications:detail', application_id=application.id)

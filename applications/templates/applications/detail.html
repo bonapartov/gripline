@@ -94,6 +94,15 @@
             {% elif doc.file %}
             <a href="{{ doc.file.url }}" target="_blank" class="text-info small">📎 посмотреть файл</a>
             {% endif %}
+
+            {% if is_organizer and doc.file and doc.status != 'verified' %}
+            <form method="post" action="{% url 'applications:org_verify_document' doc.id %}" class="mt-2 d-flex gap-2 align-items-center">
+                {% csrf_token %}
+                <button name="action" value="verify" class="btn btn-sm btn-outline-success">✓ Принять</button>
+                <input type="text" name="comment" class="form-control form-control-sm" placeholder="Причина отклонения" style="max-width:240px;">
+                <button name="action" value="reject" class="btn btn-sm btn-outline-danger">✗ Отклонить</button>
+            </form>
+            {% endif %}
         </div>
         {% empty %}
         <p class="text-muted mb-0">Для этого этапа документы не требуются.</p>
@@ -128,8 +137,33 @@
             </form>
             {% if payment.receipt_file %}<a href="{{ payment.receipt_file.url }}" target="_blank" class="text-info small mt-2 d-inline-block">📎 загруженная квитанция</a>{% endif %}
             {% endif %}
+
+            {% if is_organizer and payment %}
+            {% if payment.receipt_file %}<a href="{{ payment.receipt_file.url }}" target="_blank" class="text-info small mt-2 d-inline-block">📎 квитанция участника</a>{% endif %}
+            {% if payment.status != 'verified' %}
+            <form method="post" action="{% url 'applications:org_verify_payment' application.id %}" class="mt-2 d-flex gap-2">
+                {% csrf_token %}
+                <button name="action" value="verify" class="btn btn-sm btn-outline-success">✓ Подтвердить оплату</button>
+                <button name="action" value="reject" class="btn btn-sm btn-outline-danger">✗ Отклонить</button>
+            </form>
+            {% endif %}
+            {% endif %}
         </div>
     </div>
+
+    {% if is_organizer and application.status == 'submitted' %}
+    <div class="app-card">
+        <div class="app-section-title">Решение по заявке</div>
+        <form method="post" action="{% url 'applications:org_action' application.id %}">
+            {% csrf_token %}
+            <input type="text" name="comment" class="form-control mb-2" placeholder="Комментарий участнику (необязательно)">
+            <div class="d-flex gap-2">
+                <button name="action" value="confirm" class="btn btn-success">✓ Подтвердить заявку</button>
+                <button name="action" value="reject" class="btn btn-danger">✗ Отклонить заявку</button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
 
     {% if is_owner and application.status != 'cancelled' and application.status != 'rejected' %}
     <form method="post" action="{% url 'applications:cancel' application.id %}" onsubmit="return confirm('Отменить заявку? Стартовый номер освободится.');">

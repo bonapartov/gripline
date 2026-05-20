@@ -33,11 +33,11 @@ def dashboard(request):
     championships = Championship.objects.filter(organizer=profile)
     
     # Собираем все этапы для чемпионатов организатора
-    from .models import Registration
+    from applications.models import Application
     stages = []
     for champ in championships:
         for stage in champ.stages.all().order_by('start_date'):
-            reg_qs = stage.registrations
+            app_qs = Application.objects.filter(stage=stage)
             stages.append({
                 'id': stage.id,
                 'title': stage.title,
@@ -48,8 +48,8 @@ def dashboard(request):
                 'entry_fee': stage.entry_fee,
                 'track': stage.track.name if stage.track else 'не указана',
                 'wagtail_page': stage.wagtail_page,
-                'reg_count': reg_qs.exclude(status__in=['cancelled', 'rejected']).count(),
-                'reg_pending': reg_qs.filter(status='draft').count(),
+                'reg_count': app_qs.exclude(status__in=['cancelled', 'rejected']).count(),
+                'reg_pending': app_qs.filter(status='submitted').count(),
             })
     
     # Сортируем этапы по дате начала
@@ -508,22 +508,31 @@ def registration_cancel(request, registration_id):
 
 @login_required
 def stage_registrations(request, stage_id):
-    """Список регистраций на этап (только для организатора)."""
-    from .models import Registration, Stage
+    """Список заявок на этап (только для организатора)."""
+    from .models import Stage
+    from applications.models import Application
     stage = get_object_or_404(Stage, pk=stage_id, championship__organizer__user=request.user)
-    registrations = stage.registrations.select_related(
-        'user', 'race_class', 'driver', 'team'
-    ).order_by('race_class__name', 'created_at')
+
+    applications = Application.objects.filter(stage=stage).exclude(
+        status='cancelled'
+    ).select_related('race_class', 'pilot', 'pilot__driver', 'payment').prefetch_related(
+        'documents'
+    ).order_by('race_class__name', 'start_number', 'created_at')
 
     by_class = {}
-    for reg in registrations:
-        cls_name = reg.race_class.name
-        by_class.setdefault(cls_name, []).append(reg)
+    for app in applications:
+        # Считаем готовность документов
+        docs = list(app.documents.all())
+        app.docs_total = len(docs)
+        app.docs_verified = sum(1 for d in docs if d.status == 'verified')
+        cls_name = app.race_class.name if app.race_class else 'Без класса'
+        by_class.setdefault(cls_name, []).append(app)
 
     return render(request, 'organizers/stage_registrations.html', {
         'stage': stage,
         'by_class': by_class,
-        'total': registrations.count(),
+        'total': applications.count(),
+        'pending_count': applications.filter(status='submitted').count(),
     })
 
 
