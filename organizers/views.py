@@ -360,8 +360,8 @@ def stage_edit(request, pk):
             return redirect('organizers:dashboard')
     else:
         form = StageForm(instance=stage)
-    
-    return render(request, 'organizers/stage_form.html', {'form': form, 'championship': stage.championship})
+
+    return render(request, 'organizers/stage_form.html', {'form': form, 'championship': stage.championship, 'stage': stage})
     
 
 
@@ -375,6 +375,69 @@ def stage_delete(request, pk):
     stage.delete()
     messages.success(request, f'Этап "{title}" удалён!')
     return redirect('organizers:dashboard')
+
+
+@login_required
+def stage_settings(request, pk):
+    """Настройка регистрации этапа: документы, доп. опции, зарезервированные номера"""
+    from .forms import StageDocumentForm, StageOptionForm
+    from applications.models import StageDocument, StageOption
+
+    stage = get_object_or_404(Stage, pk=pk, championship__organizer__user=request.user)
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'add_document':
+            form = StageDocumentForm(request.POST)
+            if form.is_valid():
+                doc = form.save(commit=False)
+                doc.stage = stage
+                doc.order = stage.required_documents.count()
+                doc.save()
+                messages.success(request, f'Документ «{doc.name}» добавлен.')
+            return redirect('organizers:stage_settings', pk=stage.id)
+
+        if action == 'delete_document':
+            StageDocument.objects.filter(id=request.POST.get('doc_id'), stage=stage).delete()
+            messages.success(request, 'Документ удалён.')
+            return redirect('organizers:stage_settings', pk=stage.id)
+
+        if action == 'add_option':
+            form = StageOptionForm(request.POST)
+            if form.is_valid():
+                opt = form.save(commit=False)
+                opt.stage = stage
+                opt.order = stage.options.count()
+                opt.save()
+                messages.success(request, f'Опция «{opt.name}» добавлена.')
+            return redirect('organizers:stage_settings', pk=stage.id)
+
+        if action == 'delete_option':
+            StageOption.objects.filter(id=request.POST.get('option_id'), stage=stage).delete()
+            messages.success(request, 'Опция удалена.')
+            return redirect('organizers:stage_settings', pk=stage.id)
+
+        if action == 'save_reserved':
+            raw = request.POST.get('reserved_numbers', '')
+            numbers = []
+            for part in raw.replace(';', ',').split(','):
+                part = part.strip()
+                if part.isdigit():
+                    numbers.append(int(part))
+            stage.reserved_start_numbers = sorted(set(numbers))
+            stage.save(update_fields=['reserved_start_numbers'])
+            messages.success(request, 'Зарезервированные номера сохранены.')
+            return redirect('organizers:stage_settings', pk=stage.id)
+
+    return render(request, 'organizers/stage_settings.html', {
+        'stage': stage,
+        'documents': stage.required_documents.all(),
+        'options': stage.options.all(),
+        'document_form': StageDocumentForm(),
+        'option_form': StageOptionForm(),
+        'reserved_str': ', '.join(str(n) for n in (stage.reserved_start_numbers or [])),
+    })
 
 
 def stage_register(request, stage_id):

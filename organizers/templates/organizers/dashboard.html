@@ -245,6 +245,9 @@
 								<a href="{% url 'organizers:stage_registrations' stage.id %}" class="btn btn-sm btn-outline-primary" title="Регистрации">
 									<i class="fas fa-users"></i>
 								</a>
+								<a href="{% url 'organizers:stage_settings' stage.id %}" class="btn btn-sm btn-outline-info" title="Настройки регистрации">
+									<i class="fas fa-cog"></i>
+								</a>
 								<a href="{% url 'organizers:stage_edit' stage.id %}" class="btn btn-sm btn-outline-warning">
 									<i class="fas fa-edit"></i>
 								</a>

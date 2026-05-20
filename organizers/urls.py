@@ -16,6 +16,7 @@ urlpatterns = [
     path('stage/create/<int:championship_id>/', views.stage_create, name='stage_create'),
     path('stage/edit/<int:pk>/', views.stage_edit, name='stage_edit'),
     path('stage/delete/<int:pk>/', views.stage_delete, name='stage_delete'),
+    path('stage/settings/<int:pk>/', views.stage_settings, name='stage_settings'),
     path('stage/<int:stage_id>/register/', views.stage_register, name='stage_register'),
     path('stage/<int:stage_id>/registrations/', views.stage_registrations, name='stage_registrations'),
     path('registration/<int:registration_id>/cancel/', views.registration_cancel, name='registration_cancel'),

@@ -42,7 +42,7 @@
 <div class="container my-5">
     <div class="card">
         <div class="card-header">
-            <h1 class="text-warning mb-0">Создание этапа для "{{ championship.title }}"</h1>
+            <h1 class="text-warning mb-0">{% if stage %}Редактирование этапа{% else %}Создание этапа{% endif %} для "{{ championship.title }}"</h1>
         </div>
         <div class="card-body">
             <form method="post">
@@ -84,7 +84,52 @@
                     <label class="form-label">{{ form.schedule.label }}</label>
                     {{ form.schedule }}
                 </div>
-                
+
+                <hr style="border-color:#2a2a35;">
+                <h5 class="text-info text-uppercase mb-3" style="font-size:0.9rem;">Настройки регистрации</h5>
+
+                <div class="form-check mb-3">
+                    {{ form.registration_enabled }}
+                    <label class="form-check-label text-white">{{ form.registration_enabled.label }}</label>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.registration_deadline.label }}</label>
+                        {{ form.registration_deadline }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.max_participants.label }}</label>
+                        {{ form.max_participants }}
+                    </div>
+                </div>
+
+                <div class="form-check mb-2">
+                    {{ form.late_registration_allowed }}
+                    <label class="form-check-label text-white">{{ form.late_registration_allowed.label }}</label>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">{{ form.late_registration_fee_multiplier.label }}</label>
+                    {{ form.late_registration_fee_multiplier }}
+                    <small class="text-muted d-block mt-1">{{ form.late_registration_fee_multiplier.help_text }}</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">{{ form.start_number_digits.label }}</label>
+                    {{ form.start_number_digits }}
+                </div>
+
+                {% if stage %}
+                <div class="alert alert-secondary small">
+                    Документы, доп. опции и зарезервированные номера настраиваются на
+                    <a href="{% url 'organizers:stage_settings' stage.id %}" class="text-warning">странице настроек регистрации</a>.
+                </div>
+                {% else %}
+                <div class="alert alert-secondary small">
+                    После создания этапа вы сможете настроить требуемые документы, доп. опции и зарезервированные номера.
+                </div>
+                {% endif %}
+
                 <button type="submit" class="btn btn-warning w-100 py-2">Сохранить этап</button>
             </form>
         </div>
@@ -93,6 +138,7 @@
 
 <script>
     document.querySelectorAll('input, select, textarea').forEach(field => {
+        if (field.type === 'checkbox' || field.type === 'radio') return;
         field.classList.add('form-control-dark');
     });
 </script>
