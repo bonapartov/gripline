@@ -235,6 +235,8 @@
     <div class="row g-4">
         {% for event_data in enriched_events %}
         <div class="col-md-6 col-lg-4">
+            {% with stage=event_data.event.get_parent.specific %}
+            {% with championship=stage.get_parent.specific %}
             <div class="event-card">
 
                 <!-- Фото трассы с ссылкой на чемпионат -->
@@ -252,35 +254,26 @@
                 {% endif %}
 
                 <div class="card-body">
-                   <!-- Название чемпионата (маленьким шрифтом) -->
-					<h5 class="card-title mb-1" style="font-size: 1rem; font-weight: bold;">
-						{% with stage=event_data.event.get_parent.specific %}
-							{% with championship=stage.get_parent.specific %}
-								{% if championship and championship.title %}
-									<a href="{{ championship.url }}" class="text-decoration-none" style="color: #fff;">
-										{{ championship.title }}
-									</a>
-								{% else %}
-									<a href="{{ stage.url }}" class="text-decoration-none" style="color: #fff;">
-										{{ stage.title }}
-									</a>
-								{% endif %}
-							{% endwith %}
-						{% endwith %}
-					</h5>
-					
+                    <!-- Название чемпионата -->
+                    <h5 class="card-title mb-1" style="font-size: 1rem; font-weight: bold;">
+                        {% if championship and championship.title %}
+                            <a href="{{ championship.url }}" class="text-decoration-none" style="color: #fff;">
+                                {{ championship.title }}
+                            </a>
+                        {% else %}
+                            <a href="{{ stage.url }}" class="text-decoration-none" style="color: #fff;">
+                                {{ stage.title }}
+                            </a>
+                        {% endif %}
+                    </h5>
 
-                    <!-- Таблица с двумя колонками: слева даты и трасса, справа номер этапа -->
+                    <!-- Даты и трасса -->
                     <div class="row">
-                        <!-- Левая колонка (9 колонок) - даты и трасса -->
                         <div class="col-9">
-                            <!-- Даты -->
                             <p class="card-text mb-1">
                                 <i class="fas fa-calendar-alt"></i>
                                 {{ event_data.start_date|date:"d.m.Y" }} — {{ event_data.end_date|date:"d.m.Y" }}
                             </p>
-
-                            <!-- Трасса -->
                             {% if event_data.track %}
                             <p class="card-text">
                                 <i class="fas fa-map-marker-alt"></i>
@@ -294,27 +287,34 @@
                             </p>
                             {% endif %}
                         </div>
-
-                        <!-- Правая колонка (3 колонки) - номер этапа -->
                         <div class="col-3 d-flex align-items-center justify-content-end">
-                            <div class="event-stage text-end">
-                                {{ event_data.event.title }}
-                            </div>
+                            <div class="event-stage text-end">{{ event_data.event.title }}</div>
                         </div>
                     </div>
 
-                    <!-- Список классов (на всю ширину) -->
+                    <!-- Классы — ссылки на страницы с результатами -->
                     {% if event_data.classes %}
-                    <div class="mt-3">
+                    <div class="mt-2">
                         {% for class_name in event_data.classes %}
-                            <a href="{{ event_data.event.url }}" class="class-badge text-decoration-none">
+                            <a href="{{ event_data.event_url }}" class="class-badge text-decoration-none">
                                 {{ class_name }}
                             </a>
                         {% endfor %}
                     </div>
                     {% endif %}
+
+                    <!-- Кнопка регистрации — только если организатор открыл регистрацию -->
+                    {% if event_data.org_stage %}
+                    <a href="/applications/apply/{{ event_data.org_stage.pk }}/"
+                       class="btn btn-warning mt-3 w-100 fw-bold"
+                       style="border-radius:6px;">
+                        🏁 Регистрация открыта — {{ event_data.org_stage.title }}
+                    </a>
+                    {% endif %}
                 </div>
             </div>
+            {% endwith %}
+            {% endwith %}
         </div>
         {% empty %}
         <div class="col-12">

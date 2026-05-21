@@ -1713,6 +1713,21 @@ class EventCalendarPage(CoderedWebPage):
         enriched_events = list(unique_events.values())
         enriched_events.sort(key=lambda x: x['start_date'] or x['event'].first_published_at)
 
+        # Добавляем org_stage (Django Stage) для карточек с открытой регистрацией
+        try:
+            from organizers.models import Stage as OrgStage
+            open_stages = {
+                s.wagtail_page_id: s
+                for s in OrgStage.objects.filter(
+                    registration_enabled=True, wagtail_page__isnull=False
+                ).only('id', 'title', 'wagtail_page_id')
+            }
+            for ed in enriched_events:
+                stage_page = ed.get('stage')
+                ed['org_stage'] = open_stages.get(stage_page.pk) if stage_page else None
+        except Exception:
+            pass
+
         context['enriched_events'] = enriched_events
 
         # ИНИЦИАЛИЗИРУЕМ months ПУСТЫМ СЛОВАРЕМ ПО УМОЛЧАНИЮ
