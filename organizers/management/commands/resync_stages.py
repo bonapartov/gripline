@@ -25,8 +25,9 @@ class Command(BaseCommand):
             return
 
         self.stdout.write(f'Родительская страница: {parent_page.title} (id={parent_page.id})')
+        self.stdout.write(f'Чемпионатов в БД: {Championship.objects.count()}')
 
-        for championship in Championship.objects.all():
+        for championship in Championship.objects.prefetch_related('race_classes', 'stages'):
             if not championship.wagtail_page_id:
                 slug = championship.slug or slugify(championship.title)
                 # Проверяем, нет ли уже такой страницы
@@ -42,6 +43,12 @@ class Command(BaseCommand):
                     championship.wagtail_page = cp
                     championship.save(update_fields=['wagtail_page'])
                     self.stdout.write(self.style.SUCCESS(f'  Создан ChampionshipPage для: {championship.title}'))
+
+            classes = list(championship.race_classes.all())
+            stages = list(championship.stages.all())
+            self.stdout.write(f'  Чемпионат: {championship.title} | wagtail_page={championship.wagtail_page_id} | классов={len(classes)} | этапов={len(stages)}')
+            for c in classes:
+                self.stdout.write(f'    Класс: {c.name}')
 
             champ_wagtail = championship.wagtail_page
             if not champ_wagtail:
