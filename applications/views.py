@@ -422,7 +422,7 @@ def org_verify_payment(request, application_id):
             payment.verified_at = timezone.now()
             payment.verified_by = request.user
             payment.save()
-            messages.success(request, 'Оплата подтверждена.')
+            messages.success(request, 'Оплата подтверждена. Уведомление отправлено участнику.')
             _notify(
                 _participant_email(application),
                 f'Оплата подтверждена — {application.stage.title}',

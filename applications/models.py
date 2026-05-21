@@ -333,10 +333,10 @@ class ApplicationPayment(models.Model):
         ('online', 'Онлайн оплата'),
     ]
     STATUS_CHOICES = [
-        ('pending', 'Ожидает оплаты'),
-        ('uploaded', 'Проверка оплаты'),
+        ('pending', 'Ожидает квитанции'),
+        ('uploaded', 'На проверке у организатора'),
         ('verified', 'Оплата подтверждена'),
-        ('rejected', 'Отклонена'),
+        ('rejected', 'Квитанция отклонена'),
         ('refunded', 'Возвращена'),
     ]
 
