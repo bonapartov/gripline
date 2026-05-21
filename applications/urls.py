@@ -5,6 +5,7 @@ app_name = 'applications'
 
 urlpatterns = [
     path('apply/<int:stage_id>/', views.apply, name='apply'),
+    path('apply/<int:stage_id>/numbers/', views.available_numbers_api, name='available_numbers'),
     path('<int:application_id>/', views.detail, name='detail'),
     path('<int:application_id>/cancel/', views.cancel, name='cancel'),
     path('<int:application_id>/pay/', views.upload_payment, name='upload_payment'),

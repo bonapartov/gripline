@@ -107,22 +107,22 @@ class Stage(models.Model):
     def __str__(self):
         return f"{self.championship.title} - {self.title}"
 
-    def get_available_numbers(self):
-        """Возвращает список номеров доступных для выбора"""
+    def get_available_numbers(self, race_class=None):
+        """Возвращает список номеров доступных для выбора.
+        Если передан race_class — исключает только номера занятые в этом классе."""
         from applications.models import Application
         if self.start_number_digits == 2:
             all_numbers = set(range(10, 100))
         else:
             all_numbers = set(range(100, 1000))
         reserved = set(self.reserved_start_numbers or [])
-        taken = set(
-            Application.objects.filter(
-                stage=self,
-                start_number__isnull=False,
-            ).exclude(
-                status__in=['rejected', 'cancelled']
-            ).values_list('start_number', flat=True)
-        )
+        qs = Application.objects.filter(
+            stage=self,
+            start_number__isnull=False,
+        ).exclude(status__in=['rejected', 'cancelled'])
+        if race_class is not None:
+            qs = qs.filter(race_class=race_class)
+        taken = set(qs.values_list('start_number', flat=True))
         return sorted(all_numbers - reserved - taken)
 
 

@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.http import JsonResponse
 from django.utils import timezone
 from decimal import Decimal
 
@@ -43,10 +44,16 @@ def apply(request, stage_id):
     if hasattr(request.user, 'organizer_profile'):
         submitted_by_type = 'organizer'
 
-    available_numbers = stage.get_available_numbers()
+    from website.models import Team, Chassis, RaceClass
     stage_options = stage.options.filter(is_active=True)
-    classes = _stage_classes(stage)
+    classes = list(_stage_classes(stage))
     entry_fee = _effective_entry_fee(stage)
+    # Начальные номера для первого класса (или все если класс не выбран)
+    first_class = classes[0] if classes else None
+    available_numbers = stage.get_available_numbers(race_class=first_class)
+    teams = list(Team.objects.values_list('name', flat=True).order_by('name'))
+    chassis_list = list(Chassis.objects.values_list('name', flat=True).order_by('name'))
+    default_tyre = stage.championship.default_tyre
 
     if request.method == 'POST':
         pilot_form = PilotForm(request.POST, prefix='pilot')
@@ -163,6 +170,10 @@ def apply(request, stage_id):
         'applicant_form': applicant_form,
         'kart_form': kart_form,
         'mechanic_form': mechanic_form,
+        'teams': teams,
+        'chassis_list': chassis_list,
+        'default_tyre': default_tyre,
+        'first_class_id': first_class.id if first_class else '',
     })
 
 
@@ -329,3 +340,15 @@ def org_verify_payment(request, application_id):
             messages.warning(request, 'Оплата отклонена.')
 
     return redirect('applications:detail', application_id=application.id)
+
+
+def available_numbers_api(request, stage_id):
+    """JSON: доступные стартовые номера для этапа и класса"""
+    stage = get_object_or_404(Stage, pk=stage_id)
+    race_class_id = request.GET.get('class_id')
+    race_class = None
+    if race_class_id:
+        from website.models import RaceClass
+        race_class = RaceClass.objects.filter(pk=race_class_id).first()
+    numbers = stage.get_available_numbers(race_class=race_class)
+    return JsonResponse({'numbers': numbers})

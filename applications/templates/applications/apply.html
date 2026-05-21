@@ -7,12 +7,17 @@
     .app-section-title { color:#0dcaf0; text-transform:uppercase; font-weight:bold; font-size:0.95rem; margin-bottom:1rem; border-bottom:1px solid #2a2a35; padding-bottom:0.5rem; }
     .app-wrap label { color:#adb5bd; font-size:0.8rem; margin-bottom:0.25rem; display:block; }
     .form-control, .form-select { background:#15151c !important; border:1px solid #2a2a35 !important; color:#fff !important; }
-    .num-grid { display:flex; flex-wrap:wrap; gap:6px; max-height:220px; overflow-y:auto; padding:0.5rem; background:#15151c; border-radius:6px; }
-    .num-cell { width:46px; height:36px; display:flex; align-items:center; justify-content:center; border:1px solid #2a2a35; border-radius:4px; cursor:pointer; font-size:0.85rem; color:#adb5bd; user-select:none; }
-    .num-cell:hover { border-color:#ffc107; color:#fff; }
+    .form-control::placeholder { color:#555 !important; }
+    .num-grid { display:flex; flex-wrap:wrap; gap:6px; max-height:220px; overflow-y:auto; padding:0.5rem; background:#15151c; border-radius:6px; border:1px solid #2a2a35; }
+    .num-cell { width:46px; height:36px; display:flex; align-items:center; justify-content:center;
+                border:1px solid #2a2a35; border-radius:4px; cursor:pointer; font-size:0.85rem;
+                color:#adb5bd; user-select:none; transition:all .15s; pointer-events:all; }
+    .num-cell:hover { border-color:#ffc107; color:#ffc107; background:#1e1e10; }
     .num-cell.selected { background:#ffc107; color:#000; font-weight:bold; border-color:#ffc107; }
     .opt-row { display:flex; align-items:center; justify-content:space-between; padding:0.6rem 0; border-bottom:1px solid #2a2a35; }
     .opt-row:last-child { border-bottom:none; }
+    #numPlaceholder { color:#555; font-size:0.85rem; padding:0.5rem; }
+    datalist option { background:#1a1a25; color:#fff; }
 </style>
 
 <div class="app-wrap text-white">
@@ -34,10 +39,10 @@
             <div class="row g-3">
                 <div class="col-md-6">
                     <label>Класс соревнования*</label>
-                    <select name="race_class" class="form-select" required>
+                    <select name="race_class" id="raceClassSelect" class="form-select" required>
                         <option value="">— выберите класс —</option>
                         {% for c in classes %}
-                        <option value="{{ c.id }}">{{ c.name }}</option>
+                        <option value="{{ c.id }}" {% if c.id == first_class_id %}selected{% endif %}>{{ c.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -49,11 +54,11 @@
             </div>
             <div class="mt-3">
                 <label>Доступные номера ({{ stage.start_number_digits }}-значные):</label>
-                <div class="num-grid">
+                <div class="num-grid" id="numGrid">
                     {% for n in available_numbers %}
                     <div class="num-cell" data-num="{{ n }}">{{ n }}</div>
                     {% empty %}
-                    <span class="text-muted">Нет доступных номеров</span>
+                    <span id="numPlaceholder">Нет доступных номеров</span>
                     {% endfor %}
                 </div>
             </div>
@@ -76,7 +81,6 @@
                 <div class="col-md-6"><label>Страна</label>{{ pilot_form.country }}</div>
             </div>
 
-            <!-- Блок родителя (для несовершеннолетних) -->
             <div id="parentBlock" style="display:none; margin-top:1rem; padding-top:1rem; border-top:1px dashed #2a2a35;">
                 <div class="text-warning small mb-2">⚠️ Пилот несовершеннолетний — укажите данные родителя/опекуна</div>
                 <div class="row g-3">
@@ -94,8 +98,25 @@
         <div class="app-card">
             <div class="app-section-title">Заявитель</div>
             <div class="row g-3">
-                <div class="col-md-4"><label>Тип</label>{{ applicant_form.type }}</div>
-                <div class="col-md-8"><label>Название команды / ФИО заявителя</label>{{ applicant_form.name }}</div>
+                <div class="col-md-4">
+                    <label>Тип</label>
+                    {{ applicant_form.type }}
+                </div>
+                <div class="col-md-8" id="applicantNameBlock">
+                    <label>Название команды / ФИО заявителя</label>
+                    <div id="teamSelectWrap" style="display:none;">
+                        <input type="text" id="teamSearch" class="form-control mb-1" placeholder="Поиск команды...">
+                        <select id="teamSelect" class="form-select" size="4" style="height:auto; background:#15151c !important; border:1px solid #2a2a35 !important; color:#fff !important;">
+                        </select>
+                        <div class="mt-1">
+                            <small class="text-muted">Нет нужной команды? <a href="/teams/create/" target="_blank" class="text-info">Добавить команду →</a></small>
+                        </div>
+                        <input type="hidden" name="{{ applicant_form.name.html_name }}" id="applicantNameHidden">
+                    </div>
+                    <div id="nameInputWrap">
+                        {{ applicant_form.name }}
+                    </div>
+                </div>
                 <div class="col-md-6"><label>Лицензия заявителя</label>{{ applicant_form.license_number }}</div>
             </div>
             <div id="repBlock" style="display:none; margin-top:1rem;">
@@ -113,10 +134,28 @@
         <div class="app-card">
             <div class="app-section-title">Карт</div>
             <div class="row g-3">
-                <div class="col-md-4"><label>Марка шасси*</label>{{ kart_form.chassis_brand }}</div>
-                <div class="col-md-4"><label>Двигатель 1*</label>{{ kart_form.engine_1 }}</div>
-                <div class="col-md-4"><label>Двигатель 2</label>{{ kart_form.engine_2 }}</div>
-                <div class="col-md-4"><label>Шины</label>{{ kart_form.tires }}</div>
+                <div class="col-md-4">
+                    <label>Марка шасси*</label>
+                    <input type="text" name="{{ kart_form.chassis_brand.html_name }}"
+                           id="chassisInput" class="form-control"
+                           value="{{ kart_form.chassis_brand.value|default:'' }}"
+                           list="chassisList" autocomplete="off" required>
+                    <datalist id="chassisList">
+                        {% for ch in chassis_list %}<option value="{{ ch }}">{% endfor %}
+                    </datalist>
+                </div>
+                <div class="col-md-4"><label>Двигатель 1* №</label>{{ kart_form.engine_1 }}</div>
+                <div class="col-md-4"><label>Двигатель 2 №</label>{{ kart_form.engine_2 }}</div>
+                <div class="col-md-4">
+                    <label>Шины</label>
+                    {% if default_tyre %}
+                    <input type="text" name="{{ kart_form.tires.html_name }}" class="form-control"
+                           value="{{ default_tyre.name }}" readonly style="opacity:0.7; cursor:default;">
+                    <div class="text-muted small mt-1">Определено организатором</div>
+                    {% else %}
+                    {{ kart_form.tires }}
+                    {% endif %}
+                </div>
                 <div class="col-md-4"><label>Номер транспондера AMB</label>{{ kart_form.transponder_number }}</div>
                 <div class="col-md-4 d-flex align-items-end">
                     <div class="form-check">
@@ -147,8 +186,11 @@
                     <div class="form-check">
                         <input type="checkbox" class="form-check-input opt-check" name="option_{{ opt.id }}"
                                value="1" data-price="{{ opt.price }}"
+                               id="opt_{{ opt.id }}"
                                {% if opt.is_mandatory %}checked disabled{% endif %}>
-                        <label class="form-check-label text-white">{{ opt.name }}{% if opt.is_mandatory %} <span class="badge bg-secondary">обязательно</span>{% endif %}</label>
+                        <label class="form-check-label text-white" for="opt_{{ opt.id }}">
+                            {{ opt.name }}{% if opt.is_mandatory %} <span class="badge bg-secondary">обязательно</span>{% endif %}
+                        </label>
                     </div>
                     {% if opt.description %}<div class="text-muted small ms-4">{{ opt.description }}</div>{% endif %}
                 </div>
@@ -163,6 +205,9 @@
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <div class="text-muted small">Стартовый взнос: {{ entry_fee }} ₽</div>
+                    {% if stage_options %}
+                    <div id="optionsSum" class="text-muted small"></div>
+                    {% endif %}
                     <div class="text-warning fs-4 fw-bold">Итого: <span id="totalSum">{{ entry_fee }}</span> ₽</div>
                 </div>
                 <button type="submit" class="btn btn-warning btn-lg">Подать заявку</button>
@@ -172,42 +217,122 @@
 </div>
 
 <script>
-const entryFee = {{ entry_fee }};
+const ENTRY_FEE = parseFloat('{{ entry_fee }}') || 0;
+const STAGE_ID = {{ stage.id }};
+const NUMBERS_URL = '{% url "applications:available_numbers" stage.id %}';
 
-// Выбор стартового номера
-document.querySelectorAll('.num-cell').forEach(cell => {
-    cell.addEventListener('click', () => {
-        document.querySelectorAll('.num-cell.selected').forEach(c => c.classList.remove('selected'));
-        cell.classList.add('selected');
-        document.getElementById('startNumber').value = cell.dataset.num;
-        document.getElementById('numberDisplay').value = cell.dataset.num;
+// ── Стартовые номера ──────────────────────────────────────────────────────────
+function buildGrid(numbers) {
+    const grid = document.getElementById('numGrid');
+    grid.innerHTML = '';
+    if (!numbers || numbers.length === 0) {
+        grid.innerHTML = '<span style="color:#555; font-size:0.85rem; padding:0.5rem;">Нет доступных номеров</span>';
+        return;
+    }
+    const currentVal = document.getElementById('startNumber').value;
+    numbers.forEach(n => {
+        const cell = document.createElement('div');
+        cell.className = 'num-cell' + (String(n) === currentVal ? ' selected' : '');
+        cell.dataset.num = n;
+        cell.textContent = n;
+        cell.addEventListener('click', selectNumber);
+        grid.appendChild(cell);
     });
-});
+}
 
-// Несовершеннолетний → показать блок родителя
+function selectNumber() {
+    document.querySelectorAll('.num-cell.selected').forEach(c => c.classList.remove('selected'));
+    this.classList.add('selected');
+    document.getElementById('startNumber').value = this.dataset.num;
+    document.getElementById('numberDisplay').value = this.dataset.num;
+}
+
+function loadNumbers(classId) {
+    const url = NUMBERS_URL + (classId ? '?class_id=' + classId : '');
+    fetch(url)
+        .then(r => r.json())
+        .then(data => buildGrid(data.numbers))
+        .catch(() => {});
+}
+
+// Начальная инициализация сетки номеров
+document.querySelectorAll('.num-cell').forEach(c => c.addEventListener('click', selectNumber));
+
+// При смене класса — перезагрузить номера
+const classSelect = document.getElementById('raceClassSelect');
+classSelect.addEventListener('change', () => loadNumbers(classSelect.value));
+
+// ── Несовершеннолетний ────────────────────────────────────────────────────────
 const birthInput = document.getElementById('id_pilot-birth_date');
 function checkMinor() {
-    const v = birthInput.value;
-    if (!v) { document.getElementById('parentBlock').style.display = 'none'; return; }
-    const age = (Date.now() - new Date(v).getTime()) / (365.25*24*3600*1000);
+    if (!birthInput || !birthInput.value) { document.getElementById('parentBlock').style.display = 'none'; return; }
+    const age = (Date.now() - new Date(birthInput.value).getTime()) / (365.25*24*3600*1000);
     document.getElementById('parentBlock').style.display = age < 18 ? 'block' : 'none';
 }
 if (birthInput) { birthInput.addEventListener('change', checkMinor); checkMinor(); }
 
-// Тип заявителя → представитель
+// ── Тип заявителя ─────────────────────────────────────────────────────────────
 const typeSelect = document.getElementById('id_applicant-type');
-function checkType() {
-    document.getElementById('repBlock').style.display = typeSelect.value === 'team' ? 'block' : 'none';
-}
-if (typeSelect) { typeSelect.addEventListener('change', checkType); checkType(); }
+const allTeams = [{% for t in teams %}"{{ t|escapejs }}",{% endfor %}];
+let teamFilterTimeout = null;
 
-// Подсчёт суммы
-function recalc() {
-    let total = entryFee;
-    document.querySelectorAll('.opt-check').forEach(c => {
-        if (c.checked) total += parseFloat(c.dataset.price);
+function filterTeams(query) {
+    const sel = document.getElementById('teamSelect');
+    sel.innerHTML = '';
+    const q = query.toLowerCase();
+    const filtered = q ? allTeams.filter(t => t.toLowerCase().includes(q)) : allTeams;
+    filtered.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name; opt.textContent = name;
+        sel.appendChild(opt);
     });
+    if (filtered.length === 0) {
+        const opt = document.createElement('option'); opt.disabled = true;
+        opt.textContent = 'Ничего не найдено'; sel.appendChild(opt);
+    }
+}
+
+function checkApplicantType() {
+    const isTeam = typeSelect && typeSelect.value === 'team';
+    document.getElementById('repBlock').style.display = isTeam ? 'block' : 'none';
+    document.getElementById('teamSelectWrap').style.display = isTeam ? 'block' : 'none';
+    document.getElementById('nameInputWrap').style.display = isTeam ? 'none' : 'block';
+
+    const nameInput = document.querySelector('#nameInputWrap input, #nameInputWrap select');
+    const hiddenInput = document.getElementById('applicantNameHidden');
+
+    if (isTeam) {
+        if (nameInput) nameInput.removeAttribute('required');
+        if (hiddenInput) hiddenInput.setAttribute('required', '');
+        filterTeams('');
+    } else {
+        if (nameInput) nameInput.setAttribute('required', '');
+        if (hiddenInput) hiddenInput.removeAttribute('required');
+    }
+}
+
+document.getElementById('teamSearch').addEventListener('input', function() {
+    clearTimeout(teamFilterTimeout);
+    teamFilterTimeout = setTimeout(() => filterTeams(this.value), 150);
+});
+
+document.getElementById('teamSelect').addEventListener('change', function() {
+    document.getElementById('applicantNameHidden').value = this.value;
+    document.getElementById('teamSearch').value = this.value;
+});
+
+if (typeSelect) { typeSelect.addEventListener('change', checkApplicantType); checkApplicantType(); }
+
+// ── Подсчёт суммы ─────────────────────────────────────────────────────────────
+function recalc() {
+    let optTotal = 0;
+    document.querySelectorAll('.opt-check').forEach(c => {
+        if (c.checked) optTotal += parseFloat(c.dataset.price) || 0;
+    });
+    const total = ENTRY_FEE + optTotal;
     document.getElementById('totalSum').textContent = total.toFixed(0);
+    const optLine = document.getElementById('optionsSum');
+    if (optLine) optLine.textContent = optTotal > 0 ? 'Опции: +' + optTotal.toFixed(0) + ' ₽' : '';
 }
 document.querySelectorAll('.opt-check').forEach(c => c.addEventListener('change', recalc));
 recalc();
