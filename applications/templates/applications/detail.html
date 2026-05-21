@@ -24,9 +24,34 @@
     .upload-spinner { display:none; }
     .org-review { background:rgba(255,193,7,.06); border:1px dashed rgba(255,193,7,.4); border-radius:6px; padding:0.6rem 0.75rem; margin-top:0.6rem; }
     .org-tag { display:inline-block; background:#ffc107; color:#000; font-size:0.65rem; font-weight:700; padding:1px 7px; border-radius:10px; text-transform:uppercase; margin-right:0.5rem; vertical-align:middle; }
+    .org-nav { background:rgba(255,193,7,.08); border:1px solid rgba(255,193,7,.3); border-radius:8px; padding:0.6rem 1rem; margin-bottom:1.5rem; display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; }
+    .org-nav a { color:#ffc107; text-decoration:none; font-size:0.85rem; }
+    .org-nav a:hover { text-decoration:underline; }
+    .org-nav .sep { color:#6c757d; }
+    .doc-upload-result { font-size:0.8rem; margin-left:0.5rem; }
+    .doc-required-border { border:1px solid #dc3545 !important; border-radius:4px; }
 </style>
 
 <div class="app-wrap text-white">
+
+    {% if is_organizer %}
+    <!-- Навигация организатора -->
+    <div class="org-nav">
+        <span class="org-tag">Организатор</span>
+        <a href="{% url 'organizers:stage_registrations' application.stage.pk %}">← Список заявок</a>
+        <span class="sep">|</span>
+        {% with wp=application.stage.wagtail_page %}
+        {% if wp %}<a href="{{ wp.url }}">Этап: {{ application.stage.title }}</a>{% else %}<span class="text-muted small">Этап: {{ application.stage.title }}</span>{% endif %}
+        {% endwith %}
+        <span class="sep">|</span>
+        {% with champ=application.stage.championship %}
+        <a href="{% url 'organizers:championship_edit' champ.pk %}">Чемпионат: {{ champ.title }}</a>
+        <span class="sep">|</span>
+        {% endwith %}
+        <a href="{% url 'organizers:dashboard' %}">Дашборд</a>
+    </div>
+    {% endif %}
+
     <div class="d-flex justify-content-between align-items-start mb-3">
         <div>
             <h1 class="text-warning mb-1">Заявка #{{ application.id }}</h1>
@@ -35,6 +60,7 @@
         <div class="text-end">
             {% if application.status == 'confirmed' %}<span class="badge bg-success fs-6">Допущен ✓</span>
             {% elif application.status == 'submitted' %}<span class="badge bg-info text-dark fs-6">На рассмотрении</span>
+            {% elif application.status == 'draft' %}<span class="badge bg-warning text-dark fs-6">Черновик</span>
             {% elif application.status == 'rejected' %}<span class="badge bg-danger fs-6">Отклонена</span>
             {% elif application.status == 'cancelled' %}<span class="badge bg-secondary fs-6">Отменена</span>
             {% else %}<span class="badge bg-secondary fs-6">{{ application.get_status_display }}</span>{% endif %}
@@ -51,6 +77,12 @@
     <div class="alert alert-warning"><strong>Комментарий организатора:</strong> {{ application.organizer_comment }}</div>
     {% endif %}
 
+    {% if is_owner and application.status == 'draft' %}
+    <div class="alert alert-info">
+        <strong>Черновик заявки.</strong> Загрузите обязательные документы и квитанцию об оплате, затем нажмите кнопку <b>«Отправить заявку»</b> внизу страницы.
+    </div>
+    {% endif %}
+
     <!-- Чеклист статуса -->
     {% if application.status != 'cancelled' and application.status != 'rejected' %}
     <div class="app-card">
@@ -64,9 +96,9 @@
             Оплата: <b id="checklistPayText">{{ payment.get_status_display|default:"Ожидает загрузки квитанции" }}</b>
         </div>
         {% for doc in documents %}
-        <div class="checklist-item {% if doc.status == 'verified' %}ci-ok{% elif doc.status == 'rejected' %}ci-no{% else %}ci-wait{% endif %}">
-            {% if doc.status == 'verified' %}✅{% elif doc.status == 'rejected' %}❌{% elif doc.status == 'uploaded' %}⏳{% else %}○{% endif %}
-            {{ doc.stage_document.name }}: <b>{{ doc.get_status_display }}</b>
+        <div class="checklist-item {% if doc.status == 'verified' %}ci-ok{% elif doc.status == 'rejected' %}ci-no{% else %}ci-wait{% endif %}" id="checklistDoc_{{ doc.id }}">
+            <span id="checklistDocIcon_{{ doc.id }}">{% if doc.status == 'verified' %}✅{% elif doc.status == 'rejected' %}❌{% elif doc.status == 'uploaded' %}⏳{% else %}○{% endif %}</span>
+            {{ doc.stage_document.name }}: <b id="checklistDocText_{{ doc.id }}">{{ doc.get_status_display }}</b>
             {% if doc.organizer_comment %}<span class="text-danger small">— {{ doc.organizer_comment }}</span>{% endif %}
         </div>
         {% endfor %}
@@ -116,20 +148,25 @@
             {% endif %}
 
             {% if is_owner and doc.status != 'verified' %}
-            <form class="ajax-doc-form mt-2" data-doc-id="{{ doc.id }}"
-                  action="{% url 'applications:upload_document' doc.id %}" method="post" enctype="multipart/form-data">
-                {% csrf_token %}
+            <div class="mt-2">
                 <div class="row g-2 align-items-end">
-                    <div class="col"><input type="file" name="file" class="form-control form-control-sm" required></div>
+                    <div class="col">
+                        <input type="file" class="form-control form-control-sm auto-doc-upload {% if doc.stage_document.required and doc.status == 'pending' %}doc-required{% endif %}"
+                               id="docInput_{{ doc.id }}"
+                               data-doc-id="{{ doc.id }}"
+                               data-action="{% url 'applications:upload_document' doc.id %}">
+                    </div>
                     {% if doc.stage_document.has_expiry_date %}
-                    <div class="col-auto"><input type="date" name="expiry_date" class="form-control form-control-sm" title="Срок действия"></div>
+                    <div class="col-auto">
+                        <input type="date" class="form-control form-control-sm" id="docExpiry_{{ doc.id }}" title="Срок действия">
+                    </div>
                     {% endif %}
                     <div class="col-auto">
-                        <button type="submit" class="btn btn-sm btn-outline-info doc-submit-btn">Загрузить</button>
-                        <span class="upload-spinner ms-1 text-muted small">⏳</span>
+                        <span class="upload-spinner" id="docSpinner_{{ doc.id }}">⏳</span>
+                        <span class="doc-upload-result" id="docResult_{{ doc.id }}"></span>
                     </div>
                 </div>
-            </form>
+            </div>
             {% endif %}
 
             {% if is_organizer %}
@@ -181,17 +218,15 @@
 
             {% if is_owner and payment.status != 'verified' %}
             <div class="alert alert-warning mt-2 small mb-2">⚠️ Сервис работает в тестовом режиме. Загрузите скриншот/квитанцию об оплате — онлайн-оплата появится позже.</div>
-            <form class="ajax-pay-form mt-2" action="{% url 'applications:upload_payment' application.id %}"
-                  method="post" enctype="multipart/form-data">
-                {% csrf_token %}
-                <div class="row g-2 align-items-end">
-                    <div class="col"><input type="file" name="receipt" class="form-control form-control-sm" accept="image/*,.pdf" required></div>
-                    <div class="col-auto">
-                        <button type="submit" class="btn btn-sm btn-warning pay-submit-btn">Отправить квитанцию</button>
-                        <span class="upload-spinner ms-1 text-muted small">⏳</span>
-                    </div>
+            <div class="row g-2 align-items-center mt-2">
+                <div class="col">
+                    <input type="file" name="receipt" id="payFileInput" class="form-control form-control-sm" accept="image/*,.pdf">
                 </div>
-            </form>
+                <div class="col-auto">
+                    <span class="upload-spinner" id="paySpinner" style="display:none;">⏳</span>
+                    <span id="payResult" class="small"></span>
+                </div>
+            </div>
             {% endif %}
 
             {% if is_organizer and payment %}
@@ -241,6 +276,16 @@
     </div>
     {% endif %}
 
+    <!-- Кнопка "Отправить заявку" для черновика -->
+    {% if is_owner and application.status == 'draft' %}
+    <div class="app-card" style="border-color:#ffc107;">
+        <div id="submitError" class="text-danger small mb-2" style="display:none;"></div>
+        <button id="submitBtn" class="btn btn-warning btn-lg w-100 fw-bold" onclick="submitApplication()">
+            🏁 Отправить заявку
+        </button>
+    </div>
+    {% endif %}
+
     {% if is_owner and application.status != 'cancelled' and application.status != 'rejected' %}
     <form method="post" action="{% url 'applications:cancel' application.id %}" onsubmit="return confirm('Отменить заявку? Стартовый номер освободится.');">
         {% csrf_token %}
@@ -267,101 +312,154 @@ function showAlert(type, text) {
     setTimeout(() => { area.innerHTML = ''; }, 6000);
 }
 
-// AJAX загрузка документов
-document.querySelectorAll('.ajax-doc-form').forEach(form => {
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const fileInput = form.querySelector('input[type=file]');
-        if (!fileInput || !fileInput.files.length) return;
+// Авто-загрузка документа при выборе файла
+document.querySelectorAll('.auto-doc-upload').forEach(input => {
+    input.addEventListener('change', function() {
+        if (!this.files.length) return;
+        const docId = this.dataset.docId;
+        const action = this.dataset.action;
+        const spinner = document.getElementById('docSpinner_' + docId);
+        const resultEl = document.getElementById('docResult_' + docId);
+        const expiryInput = document.getElementById('docExpiry_' + docId);
 
-        const docId = form.dataset.docId;
-        const btn = form.querySelector('.doc-submit-btn');
-        const spinner = form.querySelector('.upload-spinner');
-        btn.disabled = true;
+        this.classList.remove('doc-required-border');
         if (spinner) spinner.style.display = 'inline';
+        if (resultEl) resultEl.textContent = '';
 
-        fetch(form.action, {
+        const fd = new FormData();
+        fd.append('file', this.files[0]);
+        if (expiryInput && expiryInput.value) fd.append('expiry_date', expiryInput.value);
+
+        fetch(action, {
             method: 'POST',
-            body: new FormData(form),
+            body: fd,
             headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCookie('csrftoken') },
         })
         .then(r => r.json())
         .then(data => {
+            if (spinner) spinner.style.display = 'none';
             if (data.success) {
+                if (resultEl) resultEl.innerHTML = '<span class="text-success">✓</span>';
                 const statusEl = document.getElementById('docStatus_' + docId);
-                if (statusEl) {
-                    statusEl.textContent = data.status_display;
-                    statusEl.className = 'badge-status st-' + data.status;
-                }
+                if (statusEl) { statusEl.textContent = data.status_display; statusEl.className = 'badge-status st-' + data.status; }
                 const fileEl = document.getElementById('docFile_' + docId);
                 if (fileEl) { fileEl.href = data.file_url; fileEl.classList.remove('d-none'); }
-                form.style.display = 'none';
-                showAlert('success', 'Документ загружен. Ожидайте проверки организатором.');
+                // Обновляем чеклист
+                const clRow = document.getElementById('checklistDoc_' + docId);
+                if (clRow) clRow.className = 'checklist-item ci-wait';
+                const clIcon = document.getElementById('checklistDocIcon_' + docId);
+                if (clIcon) clIcon.textContent = '⏳';
+                const clText = document.getElementById('checklistDocText_' + docId);
+                if (clText) clText.textContent = data.status_display;
             } else {
+                if (resultEl) resultEl.innerHTML = '<span class="text-danger">✗</span>';
                 showAlert('error', data.error || 'Ошибка загрузки.');
-                btn.disabled = false;
-                if (spinner) spinner.style.display = 'none';
             }
         })
         .catch(() => {
-            showAlert('error', 'Ошибка сети. Попробуйте ещё раз.');
-            btn.disabled = false;
             if (spinner) spinner.style.display = 'none';
+            if (resultEl) resultEl.innerHTML = '<span class="text-danger">✗</span>';
+            showAlert('error', 'Ошибка сети. Попробуйте ещё раз.');
         });
     });
 });
 
-// AJAX загрузка квитанции
-const payForm = document.querySelector('.ajax-pay-form');
-if (payForm) {
-    payForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const fileInput = payForm.querySelector('input[type=file]');
-        if (!fileInput || !fileInput.files.length) return;
-
-        const btn = payForm.querySelector('.pay-submit-btn');
-        const spinner = payForm.querySelector('.upload-spinner');
-        btn.disabled = true;
+// Авто-загрузка квитанции при выборе файла
+const payInput = document.getElementById('payFileInput');
+if (payInput) {
+    payInput.addEventListener('change', function() {
+        if (!this.files.length) return;
+        const spinner = document.getElementById('paySpinner');
+        const resultEl = document.getElementById('payResult');
         if (spinner) spinner.style.display = 'inline';
+        if (resultEl) resultEl.textContent = '';
 
-        fetch(payForm.action, {
+        const fd = new FormData();
+        fd.append('receipt', this.files[0]);
+
+        fetch('{% url "applications:upload_payment" application.id %}', {
             method: 'POST',
-            body: new FormData(payForm),
+            body: fd,
             headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCookie('csrftoken') },
         })
         .then(r => r.json())
         .then(data => {
+            if (spinner) spinner.style.display = 'none';
             if (data.success) {
+                if (resultEl) resultEl.innerHTML = '<span class="text-success">✓ Квитанция загружена</span>';
                 const statusEl = document.getElementById('payStatus');
-                if (statusEl) {
-                    statusEl.textContent = data.status_display;
-                    statusEl.className = 'badge-status st-' + data.status;
-                }
-                // Обновляем чеклист
+                if (statusEl) { statusEl.textContent = data.status_display; statusEl.className = 'badge-status st-' + data.status; }
                 const clRow = document.getElementById('checklistPayRow');
-                if (clRow) {
-                    clRow.className = 'checklist-item ' + (data.status === 'verified' ? 'ci-ok' : 'ci-wait');
-                }
+                if (clRow) clRow.className = 'checklist-item ' + (data.status === 'verified' ? 'ci-ok' : 'ci-wait');
                 const clIcon = document.getElementById('checklistPayIcon');
                 if (clIcon) clIcon.textContent = data.status === 'verified' ? '✅' : '⏳';
                 const clText = document.getElementById('checklistPayText');
                 if (clText) clText.textContent = data.status_display;
-
                 const fileEl = document.getElementById('payFile');
                 if (fileEl) { fileEl.href = data.file_url; fileEl.classList.remove('d-none'); fileEl.style.display = 'inline'; }
-                payForm.style.display = 'none';
-                showAlert('success', 'Квитанция загружена. Ожидайте подтверждения организатором.');
             } else {
-                showAlert('error', data.error || 'Ошибка загрузки.');
-                btn.disabled = false;
-                if (spinner) spinner.style.display = 'none';
+                if (resultEl) resultEl.innerHTML = '<span class="text-danger">✗ Ошибка загрузки</span>';
+                showAlert('error', data.error || 'Ошибка загрузки квитанции.');
             }
         })
         .catch(() => {
-            showAlert('error', 'Ошибка сети. Попробуйте ещё раз.');
-            btn.disabled = false;
             if (spinner) spinner.style.display = 'none';
+            if (resultEl) resultEl.innerHTML = '<span class="text-danger">✗ Ошибка сети</span>';
         });
+    });
+}
+
+// Кнопка "Отправить заявку"
+function submitApplication() {
+    const errorEl = document.getElementById('submitError');
+    const btn = document.getElementById('submitBtn');
+
+    // Подсветить незаполненные обязательные документы
+    let hasUnuploaded = false;
+    document.querySelectorAll('.auto-doc-upload.doc-required').forEach(input => {
+        const docId = input.dataset.docId;
+        const statusEl = document.getElementById('docStatus_' + docId);
+        const currentStatus = statusEl ? statusEl.textContent.trim() : '';
+        // Если файл не выбран и статус всё ещё "pending" — выделяем
+        if (!input.files.length && statusEl && statusEl.className.includes('st-pending')) {
+            input.classList.add('doc-required-border');
+            hasUnuploaded = true;
+        }
+    });
+
+    if (hasUnuploaded) {
+        if (errorEl) {
+            errorEl.style.display = 'block';
+            errorEl.textContent = '⚠️ Загрузите все обязательные документы (отмечены красной рамкой) перед отправкой заявки.';
+        }
+        return;
+    }
+
+    if (errorEl) errorEl.style.display = 'none';
+    if (btn) btn.disabled = true;
+
+    fetch('{% url "applications:submit" application.id %}', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCookie('csrftoken') },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else if (data.error === 'missing_docs') {
+            if (errorEl) {
+                errorEl.style.display = 'block';
+                errorEl.textContent = '⚠️ Не загружены обязательные документы: ' + data.missing.join(', ');
+            }
+            if (btn) btn.disabled = false;
+        } else {
+            showAlert('error', data.error || 'Ошибка отправки заявки.');
+            if (btn) btn.disabled = false;
+        }
+    })
+    .catch(() => {
+        showAlert('error', 'Ошибка сети.');
+        if (btn) btn.disabled = false;
     });
 }
 </script>

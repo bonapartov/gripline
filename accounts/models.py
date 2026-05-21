@@ -70,6 +70,41 @@ class UserProfile(models.Model):
         return (date.today() - self.birth_date).days / 365.25 < 18
 
 
+class PilotDocument(models.Model):
+    """Личное хранилище документов пилота (паспорт, лицензия и т.д.)"""
+    profile = models.ForeignKey(
+        UserProfile, on_delete=models.CASCADE,
+        related_name='documents', verbose_name='Профиль'
+    )
+    name = models.CharField('Название документа', max_length=200)
+    file = models.FileField('Файл', upload_to='pilot_documents/')
+    expiry_date = models.DateField('Срок действия', null=True, blank=True)
+    uploaded_at = models.DateTimeField('Загружен', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Документ пилота'
+        verbose_name_plural = 'Документы пилота'
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.profile} — {self.name}"
+
+    @property
+    def is_expired(self):
+        if not self.expiry_date:
+            return False
+        from datetime import date
+        return date.today() > self.expiry_date
+
+    @property
+    def expires_soon(self):
+        if not self.expiry_date:
+            return False
+        from datetime import date
+        delta = (self.expiry_date - date.today()).days
+        return 0 <= delta <= 30
+
+
 class DriverClaim(models.Model):
     """Заявка на привязку к пилоту"""
     STATUS_CHOICES = [

@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.decorators import login_required
@@ -12,7 +12,7 @@ from django.conf import settings
 from django.db.models import Q
 from .forms import RegistrationForm, DriverProfileForm, SocialLinkFormSet
 from website.models import Driver
-from .models import DriverClaim
+from .models import DriverClaim, PilotDocument
 from wagtail.images.models import Image
 from django.utils import timezone
 from django.http import JsonResponse
@@ -387,11 +387,14 @@ def profile(request):
                 form = DriverProfileForm(instance=driver)
                 formset = SocialLinkFormSet(instance=driver)
 
+            profile = getattr(request.user, 'profile', None)
+            pilot_docs = profile.documents.all() if profile else []
             return render(request, 'accounts/profile.html', {
                 'driver': driver,
                 'claim': claim,
                 'form': form,
                 'formset': formset,
+                'pilot_docs': pilot_docs,
             })
         else:
             messages.warning(request, 'Ваша заявка ещё не подтверждена администратором.')
@@ -493,3 +496,50 @@ def favorite_ads(request):
     """Избранные объявления пользователя"""
     favorites = AdFavorite.objects.filter(user=request.user).select_related('ad')
     return render(request, 'accounts/favorite_ads.html', {'favorites': favorites})
+
+
+@login_required
+def upload_pilot_document(request):
+    """AJAX: загрузка документа в личное хранилище пилота"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    profile = getattr(request.user, 'profile', None)
+    if not profile:
+        return JsonResponse({'error': 'Профиль не найден'}, status=404)
+
+    name = request.POST.get('name', '').strip()
+    file = request.FILES.get('file')
+    expiry_date = request.POST.get('expiry_date') or None
+
+    if not name or not file:
+        return JsonResponse({'error': 'Название и файл обязательны'}, status=400)
+
+    doc = PilotDocument.objects.create(
+        profile=profile,
+        name=name,
+        file=file,
+        expiry_date=expiry_date,
+    )
+    return JsonResponse({
+        'success': True,
+        'id': doc.id,
+        'name': doc.name,
+        'file_url': doc.file.url,
+        'expiry_date': doc.expiry_date.strftime('%d.%m.%Y') if doc.expiry_date else '',
+        'is_expired': doc.is_expired,
+        'expires_soon': doc.expires_soon,
+    })
+
+
+@login_required
+def delete_pilot_document(request, doc_id):
+    """AJAX: удаление документа из личного хранилища"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    profile = getattr(request.user, 'profile', None)
+    doc = get_object_or_404(PilotDocument, pk=doc_id, profile=profile)
+    doc.file.delete(save=False)
+    doc.delete()
+    return JsonResponse({'success': True})

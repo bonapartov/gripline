@@ -115,9 +115,8 @@ def apply(request, stage_id):
                 submitted_by_type=submitted_by_type,
                 race_class_id=race_class_id,
                 start_number=chosen_number,
-                status='submitted',
+                status='draft',
                 entry_fee_amount=entry_fee,
-                submitted_at=timezone.now(),
             )
 
             pilot = pilot_form.save(commit=False)
@@ -151,16 +150,44 @@ def apply(request, stage_id):
                         price_at_time=opt.price,
                     )
 
-            # Создаём строки документов
+            # Создаём строки документов; пробуем подтянуть из хранилища пилота
             is_minor = pilot.is_minor
+            vault_docs = {}
+            if profile:
+                from accounts.models import PilotDocument
+                from datetime import date as _date
+                for pd in profile.documents.all():
+                    if not pd.is_expired:
+                        vault_docs[pd.name.lower()] = pd
+
             for doc in stage.required_documents.all():
                 if doc.minors_only and not is_minor:
                     continue
-                ApplicationDocument.objects.create(
-                    application=application,
-                    stage_document=doc,
-                    status='pending',
-                )
+                vault_match = vault_docs.get(doc.name.lower())
+                if vault_match:
+                    import shutil, os
+                    from django.core.files.base import ContentFile
+                    vault_match.file.seek(0)
+                    app_doc = ApplicationDocument(
+                        application=application,
+                        stage_document=doc,
+                        status='uploaded',
+                        uploaded_at=timezone.now(),
+                    )
+                    app_doc.file.save(
+                        os.path.basename(vault_match.file.name),
+                        ContentFile(vault_match.file.read()),
+                        save=False,
+                    )
+                    if vault_match.expiry_date:
+                        app_doc.expiry_date = vault_match.expiry_date
+                    app_doc.save()
+                else:
+                    ApplicationDocument.objects.create(
+                        application=application,
+                        stage_document=doc,
+                        status='pending',
+                    )
 
             # Создаём запись об оплате
             ApplicationPayment.objects.create(
@@ -173,7 +200,7 @@ def apply(request, stage_id):
             # Сохраняем данные обратно в профиль
             save_to_profile(request.user, pilot_form.cleaned_data)
 
-            messages.success(request, 'Заявка подана! Теперь загрузите документы и подтверждение оплаты.')
+            messages.success(request, 'Заявка создана! Загрузите документы и квитанцию, затем нажмите «Отправить заявку».')
             return redirect('applications:detail', application_id=application.id)
     else:
         initial = prefill_from_profile(request.user)
@@ -446,6 +473,48 @@ def org_verify_payment(request, application_id):
                 + f'<p>Пожалуйста, загрузите корректную квитанцию. <a href="{link}">Открыть заявку</a></p>',
             )
 
+    return redirect('applications:detail', application_id=application.id)
+
+
+@login_required
+def submit_application(request, application_id):
+    """Пилот подтверждает заявку: draft → submitted"""
+    application = get_object_or_404(Application, pk=application_id)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    if application.submitted_by != request.user:
+        if is_ajax:
+            return JsonResponse({'error': 'Нет доступа.'}, status=403)
+        messages.error(request, 'Нет доступа.')
+        return redirect('/')
+
+    if application.status != 'draft':
+        if is_ajax:
+            return JsonResponse({'error': 'Заявка уже отправлена.'}, status=400)
+        return redirect('applications:detail', application_id=application.id)
+
+    if request.method != 'POST':
+        return redirect('applications:detail', application_id=application.id)
+
+    # Проверяем обязательные документы
+    missing = []
+    for doc in application.documents.select_related('stage_document'):
+        if doc.stage_document.required and doc.status == 'pending':
+            missing.append(doc.stage_document.name)
+
+    if missing:
+        if is_ajax:
+            return JsonResponse({'error': 'missing_docs', 'missing': missing}, status=400)
+        messages.error(request, 'Загрузите все обязательные документы перед отправкой.')
+        return redirect('applications:detail', application_id=application.id)
+
+    application.status = 'submitted'
+    application.submitted_at = timezone.now()
+    application.save()
+
+    if is_ajax:
+        return JsonResponse({'success': True})
+    messages.success(request, 'Заявка отправлена! Ожидайте решения организатора.')
     return redirect('applications:detail', application_id=application.id)
 
 
