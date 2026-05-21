@@ -12,11 +12,16 @@
     .doc-row { padding:0.75rem 0; border-bottom:1px solid #2a2a35; }
     .doc-row:last-child { border-bottom:none; }
     .badge-status { font-size:0.75rem; padding:0.25rem 0.6rem; border-radius:20px; }
-    .st-pending { background:rgba(108,117,125,.2); color:#adb5bd; }
+    .st-pending  { background:rgba(108,117,125,.2); color:#adb5bd; }
     .st-uploaded { background:rgba(13,202,240,.15); color:#0dcaf0; }
-    .st-verified { background:rgba(40,167,69,.15); color:#28a745; }
-    .st-rejected { background:rgba(220,53,69,.15); color:#dc3545; }
+    .st-verified { background:rgba(40,167,69,.15);  color:#28a745; }
+    .st-rejected { background:rgba(220,53,69,.15);  color:#dc3545; }
     .form-control { background:#15151c !important; border:1px solid #2a2a35 !important; color:#fff !important; }
+    .checklist-item { display:flex; align-items:center; gap:0.5rem; padding:0.3rem 0; font-size:0.9rem; }
+    .ci-ok   { color:#28a745; }
+    .ci-wait { color:#0dcaf0; }
+    .ci-no   { color:#6c757d; }
+    .upload-spinner { display:none; }
 </style>
 
 <div class="app-wrap text-white">
@@ -26,7 +31,7 @@
             <p class="text-muted mb-0">{{ application.stage.championship.title }} · {{ application.stage.title }}</p>
         </div>
         <div class="text-end">
-            {% if application.status == 'confirmed' %}<span class="badge bg-success fs-6">Подтверждена</span>
+            {% if application.status == 'confirmed' %}<span class="badge bg-success fs-6">Допущен ✓</span>
             {% elif application.status == 'submitted' %}<span class="badge bg-info text-dark fs-6">На рассмотрении</span>
             {% elif application.status == 'rejected' %}<span class="badge bg-danger fs-6">Отклонена</span>
             {% elif application.status == 'cancelled' %}<span class="badge bg-secondary fs-6">Отменена</span>
@@ -35,14 +40,35 @@
         </div>
     </div>
 
-    {% if messages %}
-        {% for message in messages %}
-        <div class="alert {% if 'error' in message.tags %}alert-danger{% else %}alert-success{% endif %}">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
+    <div id="alertArea"></div>
+    {% if messages %}{% for message in messages %}
+    <div class="alert {% if 'error' in message.tags %}alert-danger{% else %}alert-success{% endif %}">{{ message }}</div>
+    {% endfor %}{% endif %}
 
     {% if application.organizer_comment %}
     <div class="alert alert-warning"><strong>Комментарий организатора:</strong> {{ application.organizer_comment }}</div>
+    {% endif %}
+
+    <!-- Чеклист статуса -->
+    {% if application.status != 'cancelled' and application.status != 'rejected' %}
+    <div class="app-card">
+        <div class="app-section-title">Статус заявки</div>
+        <div class="checklist-item {% if application.status == 'confirmed' %}ci-ok{% else %}ci-wait{% endif %}">
+            {% if application.status == 'confirmed' %}✅{% else %}⏳{% endif %}
+            Решение организатора: <b>{% if application.status == 'confirmed' %}Одобрена, допущен к соревнованиям{% else %}На рассмотрении{% endif %}</b>
+        </div>
+        <div class="checklist-item {% if payment and payment.status == 'verified' %}ci-ok{% elif payment and payment.status == 'uploaded' %}ci-wait{% else %}ci-no{% endif %}">
+            {% if payment and payment.status == 'verified' %}✅{% elif payment and payment.status == 'uploaded' %}⏳{% else %}○{% endif %}
+            Оплата: <b>{{ payment.get_status_display|default:"Ожидает загрузки квитанции" }}</b>
+        </div>
+        {% for doc in documents %}
+        <div class="checklist-item {% if doc.status == 'verified' %}ci-ok{% elif doc.status == 'rejected' %}ci-no{% else %}ci-wait{% endif %}">
+            {% if doc.status == 'verified' %}✅{% elif doc.status == 'rejected' %}❌{% elif doc.status == 'uploaded' %}⏳{% else %}○{% endif %}
+            {{ doc.stage_document.name }}: <b>{{ doc.get_status_display }}</b>
+            {% if doc.organizer_comment %}<span class="text-danger small">— {{ doc.organizer_comment }}</span>{% endif %}
+        </div>
+        {% endfor %}
+    </div>
     {% endif %}
 
     <!-- Данные пилота -->
@@ -60,7 +86,7 @@
     <div class="app-card">
         <div class="app-section-title">Карт</div>
         <div class="kv"><span class="k">Шасси</span><span class="v">{{ application.kart.chassis_brand }}</span></div>
-        <div class="kv"><span class="k">Двигатель</span><span class="v">{{ application.kart.engine_1 }}{% if application.kart.engine_2 %} / {{ application.kart.engine_2 }}{% endif %}</span></div>
+        <div class="kv"><span class="k">Двигатель 1 №</span><span class="v">{{ application.kart.engine_1 }}{% if application.kart.engine_2 %} / {{ application.kart.engine_2 }}{% endif %}</span></div>
         {% if application.kart.tires %}<div class="kv"><span class="k">Шины</span><span class="v">{{ application.kart.tires }}</span></div>{% endif %}
         {% if application.kart.transponder_number %}<div class="kv"><span class="k">Транспондер</span><span class="v">{{ application.kart.transponder_number }}</span></div>{% endif %}
     </div>
@@ -70,29 +96,38 @@
     <div class="app-card">
         <div class="app-section-title">Документы</div>
         {% for doc in documents %}
-        <div class="doc-row">
+        <div class="doc-row" id="docRow_{{ doc.id }}">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-white">{{ doc.stage_document.name }}</span>
                     {% if doc.stage_document.required %}<span class="text-danger">*</span>{% endif %}
-                    {% if doc.expiry_date %}<div class="text-muted small">действует до {{ doc.expiry_date|date:"d.m.Y" }}{% if doc.is_expired %} <span class="text-danger">(истёк!)</span>{% endif %}</div>{% endif %}
+                    {% if doc.expiry_date %}<div class="text-muted small">до {{ doc.expiry_date|date:"d.m.Y" }}{% if doc.is_expired %} <span class="text-danger">(истёк!)</span>{% endif %}</div>{% endif %}
                     {% if doc.organizer_comment %}<div class="text-danger small">{{ doc.organizer_comment }}</div>{% endif %}
                 </div>
-                <span class="badge-status st-{{ doc.status }}">{{ doc.get_status_display }}</span>
+                <span class="badge-status st-{{ doc.status }}" id="docStatus_{{ doc.id }}">{{ doc.get_status_display }}</span>
             </div>
+
+            {% if doc.file %}
+            <a href="{{ doc.file.url }}" target="_blank" class="text-info small" id="docFile_{{ doc.id }}">📎 посмотреть файл</a>
+            {% else %}
+            <a href="#" class="text-info small d-none" id="docFile_{{ doc.id }}">📎 посмотреть файл</a>
+            {% endif %}
+
             {% if is_owner and doc.status != 'verified' %}
-            <form method="post" action="{% url 'applications:upload_document' doc.id %}" enctype="multipart/form-data" class="mt-2">
+            <form class="ajax-doc-form mt-2" data-doc-id="{{ doc.id }}"
+                  action="{% url 'applications:upload_document' doc.id %}" method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="row g-2 align-items-end">
                     <div class="col"><input type="file" name="file" class="form-control form-control-sm" required></div>
                     {% if doc.stage_document.has_expiry_date %}
                     <div class="col-auto"><input type="date" name="expiry_date" class="form-control form-control-sm" title="Срок действия"></div>
                     {% endif %}
-                    <div class="col-auto"><button class="btn btn-sm btn-outline-info">Загрузить</button></div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-sm btn-outline-info doc-submit-btn">Загрузить</button>
+                        <span class="upload-spinner ms-1 text-muted small">⏳</span>
+                    </div>
                 </div>
             </form>
-            {% elif doc.file %}
-            <a href="{{ doc.file.url }}" target="_blank" class="text-info small">📎 посмотреть файл</a>
             {% endif %}
 
             {% if is_organizer and doc.file and doc.status != 'verified' %}
@@ -120,22 +155,30 @@
 
         <div class="mt-3">
             {% if payment %}
-            <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex justify-content-between align-items-center mb-2">
                 <span class="text-muted">Статус оплаты:</span>
-                <span class="badge-status st-{% if payment.status == 'verified' %}verified{% elif payment.status == 'uploaded' %}uploaded{% elif payment.status == 'rejected' %}rejected{% else %}pending{% endif %}">{{ payment.get_status_display }}</span>
+                <span class="badge-status st-{{ payment.status }}" id="payStatus">{{ payment.get_status_display }}</span>
             </div>
+            {% if payment.receipt_file %}
+            <a href="{{ payment.receipt_file.url }}" target="_blank" class="text-info small" id="payFile">📎 квитанция</a>
+            {% else %}
+            <a href="#" class="text-info small d-none" id="payFile">📎 квитанция</a>
+            {% endif %}
             {% endif %}
 
             {% if is_owner and payment.status != 'verified' %}
             <div class="alert alert-warning mt-2 small mb-2">⚠️ Сервис работает в тестовом режиме. Загрузите скриншот/квитанцию об оплате — онлайн-оплата появится позже.</div>
-            <form method="post" action="{% url 'applications:upload_payment' application.id %}" enctype="multipart/form-data">
+            <form class="ajax-pay-form mt-2" action="{% url 'applications:upload_payment' application.id %}"
+                  method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="row g-2 align-items-end">
                     <div class="col"><input type="file" name="receipt" class="form-control form-control-sm" accept="image/*,.pdf" required></div>
-                    <div class="col-auto"><button class="btn btn-sm btn-warning">Загрузить квитанцию</button></div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-sm btn-warning pay-submit-btn">Загрузить квитанцию</button>
+                        <span class="upload-spinner ms-1 text-muted small">⏳</span>
+                    </div>
                 </div>
             </form>
-            {% if payment.receipt_file %}<a href="{{ payment.receipt_file.url }}" target="_blank" class="text-info small mt-2 d-inline-block">📎 загруженная квитанция</a>{% endif %}
             {% endif %}
 
             {% if is_organizer and payment %}
@@ -151,14 +194,21 @@
         </div>
     </div>
 
+    <!-- Решение организатора -->
     {% if is_organizer and application.status == 'submitted' %}
     <div class="app-card">
         <div class="app-section-title">Решение по заявке</div>
+        {% for doc in documents %}{% if doc.status == 'rejected' %}
+        <div class="alert alert-danger small py-2 mb-2">⚠️ Документ «{{ doc.stage_document.name }}» отклонён — требует повторной загрузки участником</div>
+        {% endif %}{% endfor %}
+        {% if not payment or payment.status == 'pending' %}
+        <div class="alert alert-warning small py-2 mb-2">ℹ️ Квитанция об оплате ещё не загружена</div>
+        {% endif %}
         <form method="post" action="{% url 'applications:org_action' application.id %}">
             {% csrf_token %}
             <input type="text" name="comment" class="form-control mb-2" placeholder="Комментарий участнику (необязательно)">
             <div class="d-flex gap-2">
-                <button name="action" value="confirm" class="btn btn-success">✓ Подтвердить заявку</button>
+                <button name="action" value="confirm" class="btn btn-success">✓ Одобрить — допустить к соревнованиям</button>
                 <button name="action" value="reject" class="btn btn-danger">✗ Отклонить заявку</button>
             </div>
         </form>
@@ -172,4 +222,100 @@
     </form>
     {% endif %}
 </div>
+
+<script>
+function showAlert(type, text) {
+    const area = document.getElementById('alertArea');
+    area.innerHTML = `<div class="alert alert-${type === 'success' ? 'success' : 'danger'}">${text}</div>`;
+    setTimeout(() => { area.innerHTML = ''; }, 6000);
+}
+
+// AJAX загрузка документов
+document.querySelectorAll('.ajax-doc-form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const fileInput = form.querySelector('input[type=file]');
+        if (!fileInput || !fileInput.files.length) return;
+
+        const docId = form.dataset.docId;
+        const btn = form.querySelector('.doc-submit-btn');
+        const spinner = form.querySelector('.upload-spinner');
+        btn.disabled = true;
+        if (spinner) spinner.style.display = 'inline';
+
+        fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const statusEl = document.getElementById('docStatus_' + docId);
+                if (statusEl) {
+                    statusEl.textContent = data.status_display;
+                    statusEl.className = 'badge-status st-' + data.status;
+                }
+                const fileEl = document.getElementById('docFile_' + docId);
+                if (fileEl) { fileEl.href = data.file_url; fileEl.classList.remove('d-none'); }
+                form.style.display = 'none';
+                showAlert('success', 'Документ загружен. Ожидайте проверки организатором.');
+            } else {
+                showAlert('error', data.error || 'Ошибка загрузки.');
+                btn.disabled = false;
+                if (spinner) spinner.style.display = 'none';
+            }
+        })
+        .catch(() => {
+            showAlert('error', 'Ошибка сети. Попробуйте ещё раз.');
+            btn.disabled = false;
+            if (spinner) spinner.style.display = 'none';
+        });
+    });
+});
+
+// AJAX загрузка квитанции
+const payForm = document.querySelector('.ajax-pay-form');
+if (payForm) {
+    payForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const fileInput = payForm.querySelector('input[type=file]');
+        if (!fileInput || !fileInput.files.length) return;
+
+        const btn = payForm.querySelector('.pay-submit-btn');
+        const spinner = payForm.querySelector('.upload-spinner');
+        btn.disabled = true;
+        if (spinner) spinner.style.display = 'inline';
+
+        fetch(payForm.action, {
+            method: 'POST',
+            body: new FormData(payForm),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const statusEl = document.getElementById('payStatus');
+                if (statusEl) {
+                    statusEl.textContent = data.status_display;
+                    statusEl.className = 'badge-status st-' + data.status;
+                }
+                const fileEl = document.getElementById('payFile');
+                if (fileEl) { fileEl.href = data.file_url; fileEl.classList.remove('d-none'); fileEl.style.display = 'inline'; }
+                payForm.style.display = 'none';
+                showAlert('success', 'Квитанция загружена. Ожидайте подтверждения организатором.');
+            } else {
+                showAlert('error', data.error || 'Ошибка загрузки.');
+                btn.disabled = false;
+                if (spinner) spinner.style.display = 'none';
+            }
+        })
+        .catch(() => {
+            showAlert('error', 'Ошибка сети. Попробуйте ещё раз.');
+            btn.disabled = false;
+            if (spinner) spinner.style.display = 'none';
+        });
+    });
+}
+</script>
 {% endblock %}

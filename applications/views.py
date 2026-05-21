@@ -3,6 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.utils import timezone
+from django.core.mail import send_mail
+from django.conf import settings
 from decimal import Decimal
 
 from organizers.models import Stage
@@ -15,6 +17,26 @@ from .forms import (
     PilotForm, ApplicantForm, KartForm, MechanicForm,
     prefill_from_profile, save_to_profile,
 )
+
+
+def _notify(to_email, subject, body_html):
+    """Отправляет email-уведомление, не падает при ошибке"""
+    try:
+        send_mail(
+            subject, '', settings.EMAIL_HOST_USER, [to_email],
+            html_message=body_html, fail_silently=True,
+        )
+    except Exception:
+        pass
+
+
+def _participant_email(application):
+    return application.submitted_by.email
+
+
+def _app_link(application):
+    base = getattr(settings, 'BASE_URL', 'http://gripline.ru')
+    return f"{base}/applications/{application.id}/"
 
 
 def _stage_classes(stage):
@@ -200,9 +222,13 @@ def detail(request, application_id):
 
 @login_required
 def upload_document(request, document_id):
-    """Загрузка файла документа участником"""
+    """Загрузка файла документа участником (поддерживает AJAX)"""
     doc = get_object_or_404(ApplicationDocument, pk=document_id)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
     if doc.application.submitted_by != request.user:
+        if is_ajax:
+            return JsonResponse({'error': 'Нет доступа.'}, status=403)
         messages.error(request, 'Нет доступа.')
         return redirect('/')
 
@@ -215,16 +241,30 @@ def upload_document(request, document_id):
         doc.uploaded_at = timezone.now()
         doc.organizer_comment = ''
         doc.save()
+        if is_ajax:
+            return JsonResponse({
+                'success': True,
+                'status': doc.status,
+                'status_display': doc.get_status_display(),
+                'file_url': doc.file.url,
+            })
         messages.success(request, f'Документ «{doc.stage_document.name}» загружен.')
+        return redirect('applications:detail', application_id=doc.application.id)
 
+    if is_ajax:
+        return JsonResponse({'error': 'Файл не выбран.'}, status=400)
     return redirect('applications:detail', application_id=doc.application.id)
 
 
 @login_required
 def upload_payment(request, application_id):
-    """Загрузка квитанции об оплате участником"""
+    """Загрузка квитанции об оплате участником (поддерживает AJAX)"""
     application = get_object_or_404(Application, pk=application_id)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
     if application.submitted_by != request.user:
+        if is_ajax:
+            return JsonResponse({'error': 'Нет доступа.'}, status=403)
         messages.error(request, 'Нет доступа.')
         return redirect('/')
 
@@ -237,8 +277,18 @@ def upload_payment(request, application_id):
         payment.receipt_file = request.FILES['receipt']
         payment.status = 'uploaded'
         payment.save()
-        messages.success(request, 'Квитанция загружена. Ожидайте подтверждения организатором.')
+        if is_ajax:
+            return JsonResponse({
+                'success': True,
+                'status': payment.status,
+                'status_display': payment.get_status_display(),
+                'file_url': payment.receipt_file.url,
+            })
+        messages.success(request, 'Квитанция загружена. Ожидайте подтверждения.')
+        return redirect('applications:detail', application_id=application.id)
 
+    if is_ajax:
+        return JsonResponse({'error': 'Файл не выбран.'}, status=400)
     return redirect('applications:detail', application_id=application.id)
 
 
@@ -279,16 +329,34 @@ def org_action(request, application_id):
     if request.method == 'POST':
         action = request.POST.get('action')
         comment = request.POST.get('comment', '').strip()
+        link = _app_link(application)
+        pilot_name = application.pilot.full_name if hasattr(application, 'pilot') else application.submitted_by.email
         if action == 'confirm':
             application.status = 'confirmed'
             application.organizer_comment = comment
             application.save()
             messages.success(request, 'Заявка подтверждена.')
+            _notify(
+                _participant_email(application),
+                f'Заявка #{application.id} одобрена — {application.stage.title}',
+                f'<p>Здравствуйте, {pilot_name}!</p>'
+                f'<p>Ваша заявка на <b>{application.stage.title}</b> (<b>{application.stage.championship.title}</b>) <b style="color:green">одобрена</b>. Вы допущены к соревнованиям.</p>'
+                + (f'<p>Комментарий организатора: {comment}</p>' if comment else '')
+                + f'<p><a href="{link}">Открыть заявку</a></p>',
+            )
         elif action == 'reject':
             application.status = 'rejected'
             application.organizer_comment = comment
             application.save()
-            messages.warning(request, 'Заявка отклонена. Стартовый номер освобождён.')
+            messages.warning(request, 'Заявка отклонена.')
+            _notify(
+                _participant_email(application),
+                f'Заявка #{application.id} отклонена — {application.stage.title}',
+                f'<p>Здравствуйте, {pilot_name}!</p>'
+                f'<p>Ваша заявка на <b>{application.stage.title}</b> <b style="color:red">отклонена</b>.</p>'
+                + (f'<p>Причина: {comment}</p>' if comment else '')
+                + f'<p><a href="{link}">Открыть заявку</a></p>',
+            )
 
     return redirect('applications:detail', application_id=application.id)
 
@@ -303,16 +371,35 @@ def org_verify_document(request, document_id):
 
     if request.method == 'POST':
         action = request.POST.get('action')
+        application = doc.application
+        link = _app_link(application)
+        pilot_name = application.pilot.full_name if hasattr(application, 'pilot') else application.submitted_by.email
         if action == 'verify':
             doc.status = 'verified'
             doc.verified_at = timezone.now()
             doc.verified_by = request.user
             doc.organizer_comment = ''
             doc.save()
+            _notify(
+                _participant_email(application),
+                f'Документ проверен — {application.stage.title}',
+                f'<p>Здравствуйте, {pilot_name}!</p>'
+                f'<p>Документ <b>«{doc.stage_document.name}»</b> по заявке #{application.id} <b style="color:green">принят</b>.</p>'
+                f'<p><a href="{link}">Открыть заявку</a></p>',
+            )
         elif action == 'reject':
+            comment = request.POST.get('comment', '').strip()
             doc.status = 'rejected'
-            doc.organizer_comment = request.POST.get('comment', '').strip()
+            doc.organizer_comment = comment
             doc.save()
+            _notify(
+                _participant_email(application),
+                f'Документ отклонён — {application.stage.title}',
+                f'<p>Здравствуйте, {pilot_name}!</p>'
+                f'<p>Документ <b>«{doc.stage_document.name}»</b> по заявке #{application.id} <b style="color:red">отклонён</b>.</p>'
+                + (f'<p>Причина: {comment}</p>' if comment else '')
+                + f'<p>Пожалуйста, загрузите исправленный документ. <a href="{link}">Открыть заявку</a></p>',
+            )
 
     return redirect('applications:detail', application_id=doc.application.id)
 
@@ -328,16 +415,32 @@ def org_verify_payment(request, application_id):
     payment = getattr(application, 'payment', None)
     if payment and request.method == 'POST':
         action = request.POST.get('action')
+        link = _app_link(application)
+        pilot_name = application.pilot.full_name if hasattr(application, 'pilot') else application.submitted_by.email
         if action == 'verify':
             payment.status = 'verified'
             payment.verified_at = timezone.now()
             payment.verified_by = request.user
             payment.save()
             messages.success(request, 'Оплата подтверждена.')
+            _notify(
+                _participant_email(application),
+                f'Оплата подтверждена — {application.stage.title}',
+                f'<p>Здравствуйте, {pilot_name}!</p>'
+                f'<p>Оплата по заявке #{application.id} на <b>{application.stage.title}</b> <b style="color:green">подтверждена</b>.</p>'
+                f'<p><a href="{link}">Открыть заявку</a></p>',
+            )
         elif action == 'reject':
             payment.status = 'rejected'
             payment.save()
             messages.warning(request, 'Оплата отклонена.')
+            _notify(
+                _participant_email(application),
+                f'Оплата отклонена — {application.stage.title}',
+                f'<p>Здравствуйте, {pilot_name}!</p>'
+                f'<p>Оплата по заявке #{application.id} на <b>{application.stage.title}</b> <b style="color:red">отклонена</b>. Пожалуйста, загрузите корректную квитанцию.</p>'
+                f'<p><a href="{link}">Открыть заявку</a></p>',
+            )
 
     return redirect('applications:detail', application_id=application.id)
 

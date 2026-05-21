@@ -334,7 +334,7 @@ class ApplicationPayment(models.Model):
     ]
     STATUS_CHOICES = [
         ('pending', 'Ожидает оплаты'),
-        ('uploaded', 'Квитанция загружена'),
+        ('uploaded', 'Проверка оплаты'),
         ('verified', 'Оплата подтверждена'),
         ('rejected', 'Отклонена'),
         ('refunded', 'Возвращена'),
