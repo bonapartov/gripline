@@ -59,6 +59,37 @@ class Command(BaseCommand):
 
             for stage in championship.stages.all():
                 if stage.wagtail_page_id:
+                    # Этап есть — создаём EventPage только для недостающих классов
+                    sp = stage.wagtail_page.specific
+                    existing_class_ids = set(
+                        RaceClassResultGroup.objects.filter(
+                            page__in=EventPage.objects.child_of(sp)
+                        ).values_list('race_class_id', flat=True)
+                    )
+                    self.stdout.write(f'    Этап: {stage.title} | EventPages={EventPage.objects.child_of(sp).count()} | existing_classes={existing_class_ids}')
+                    for race_class in championship.race_classes.all():
+                        if race_class.id in existing_class_ids:
+                            continue
+                        base_slug = slugify(f'{stage.title}-{race_class.name}')
+                        slug = base_slug
+                        counter = 1
+                        while EventPage.objects.filter(slug=slug).exists():
+                            slug = f'{base_slug}-{counter}'
+                            counter += 1
+                        ep = EventPage(
+                            title=stage.title,
+                            admin_title=f'{stage.title} - {race_class.name}',
+                            slug=slug,
+                            track=stage.track,
+                        )
+                        sp.add_child(instance=ep)
+                        ep.save_revision().publish()
+                        EventOccurrence.objects.create(event=ep, start=stage.start_date, end=stage.end_date)
+                        group = RaceClassResultGroup.objects.create(page=ep, race_class=race_class)
+                        if championship.default_tyre:
+                            group.tyre = championship.default_tyre
+                            group.save()
+                        self.stdout.write(self.style.SUCCESS(f'      EventPage создан: {race_class.name}'))
                     continue
 
                 sp = StagePage(
