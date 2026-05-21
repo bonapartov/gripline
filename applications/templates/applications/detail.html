@@ -224,6 +224,17 @@
 </div>
 
 <script>
+function getCookie(name) {
+    let v = null;
+    if (document.cookie) {
+        document.cookie.split(';').forEach(c => {
+            c = c.trim();
+            if (c.startsWith(name + '=')) v = decodeURIComponent(c.slice(name.length + 1));
+        });
+    }
+    return v;
+}
+
 function showAlert(type, text) {
     const area = document.getElementById('alertArea');
     area.innerHTML = `<div class="alert alert-${type === 'success' ? 'success' : 'danger'}">${text}</div>`;
@@ -246,7 +257,7 @@ document.querySelectorAll('.ajax-doc-form').forEach(form => {
         fetch(form.action, {
             method: 'POST',
             body: new FormData(form),
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCookie('csrftoken') },
         })
         .then(r => r.json())
         .then(data => {
@@ -290,7 +301,7 @@ if (payForm) {
         fetch(payForm.action, {
             method: 'POST',
             body: new FormData(payForm),
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCookie('csrftoken') },
         })
         .then(r => r.json())
         .then(data => {
