@@ -134,9 +134,13 @@ def championship_create(request):
                 championship.save()
             
             # Создание Wagtail страницы
-            parent_page = Page.objects.filter(slug="championships").first()
+            from website.models import ChampionshipPage, SeasonArchivePage
+            parent_page = (
+                Page.objects.filter(slug="championships").first()
+                or SeasonArchivePage.objects.live().first()
+                or Page.objects.filter(depth=2).first()  # корневая страница сайта
+            )
             if parent_page:
-                from website.models import ChampionshipPage
                 wagtail_page = ChampionshipPage(
                     title=championship.title,
                     slug=championship.slug,
@@ -145,20 +149,20 @@ def championship_create(request):
                 parent_page.add_child(instance=wagtail_page)
                 wagtail_page.save_revision().publish()
                 championship.wagtail_page = wagtail_page
-                
-                # Синхронизация типов
+
                 specific_page = wagtail_page.specific
                 specific_page.championship_competition_types.clear()
                 for ct in championship.competition_types.all():
                     specific_page.championship_competition_types.create(competition_type=ct)
-                
-                # Синхронизация картинки
+
                 if championship.cover_image:
                     specific_page.cover_image = championship.cover_image
                     specific_page.save_revision().publish()
-                
+
                 championship.save()
-            
+            else:
+                messages.warning(request, "Чемпионат создан, но страница в публичном каталоге не создана — нет подходящего родителя в дереве страниц.")
+
             messages.success(request, f"Чемпионат '{championship.title}' создан!")
             return redirect("organizers:dashboard")
         else:
