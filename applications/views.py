@@ -415,12 +415,14 @@ def org_verify_payment(request, application_id):
     payment = getattr(application, 'payment', None)
     if payment and request.method == 'POST':
         action = request.POST.get('action')
+        comment = request.POST.get('comment', '').strip()
         link = _app_link(application)
         pilot_name = application.pilot.full_name if hasattr(application, 'pilot') else application.submitted_by.email
         if action == 'verify':
             payment.status = 'verified'
             payment.verified_at = timezone.now()
             payment.verified_by = request.user
+            payment.organizer_comment = ''
             payment.save()
             messages.success(request, 'Оплата подтверждена. Уведомление отправлено участнику.')
             _notify(
@@ -432,14 +434,16 @@ def org_verify_payment(request, application_id):
             )
         elif action == 'reject':
             payment.status = 'rejected'
+            payment.organizer_comment = comment
             payment.save()
-            messages.warning(request, 'Оплата отклонена.')
+            messages.warning(request, 'Оплата отклонена. Уведомление отправлено участнику.')
             _notify(
                 _participant_email(application),
                 f'Оплата отклонена — {application.stage.title}',
                 f'<p>Здравствуйте, {pilot_name}!</p>'
-                f'<p>Оплата по заявке #{application.id} на <b>{application.stage.title}</b> <b style="color:red">отклонена</b>. Пожалуйста, загрузите корректную квитанцию.</p>'
-                f'<p><a href="{link}">Открыть заявку</a></p>',
+                f'<p>Оплата по заявке #{application.id} на <b>{application.stage.title}</b> <b style="color:red">отклонена</b>.</p>'
+                + (f'<p>Причина: {comment}</p>' if comment else '')
+                + f'<p>Пожалуйста, загрузите корректную квитанцию. <a href="{link}">Открыть заявку</a></p>',
             )
 
     return redirect('applications:detail', application_id=application.id)

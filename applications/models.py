@@ -354,6 +354,7 @@ class ApplicationPayment(models.Model):
         upload_to='payment_receipts/%Y/%m/', blank=True, null=True,
         verbose_name='Квитанция об оплате'
     )
+    organizer_comment = models.TextField(blank=True, verbose_name='Комментарий организатора')
     # Зарезервировано для будущего эквайринга
     transaction_id = models.CharField(max_length=255, blank=True)
     gateway_response = models.JSONField(default=dict, blank=True)
