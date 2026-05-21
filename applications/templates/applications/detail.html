@@ -57,9 +57,9 @@
             {% if application.status == 'confirmed' %}✅{% else %}⏳{% endif %}
             Решение организатора: <b>{% if application.status == 'confirmed' %}Одобрена, допущен к соревнованиям{% else %}На рассмотрении{% endif %}</b>
         </div>
-        <div class="checklist-item {% if payment and payment.status == 'verified' %}ci-ok{% elif payment and payment.status == 'uploaded' %}ci-wait{% else %}ci-no{% endif %}">
-            {% if payment and payment.status == 'verified' %}✅{% elif payment and payment.status == 'uploaded' %}⏳{% else %}○{% endif %}
-            Оплата: <b>{{ payment.get_status_display|default:"Ожидает загрузки квитанции" }}</b>
+        <div class="checklist-item {% if payment and payment.status == 'verified' %}ci-ok{% elif payment and payment.status == 'uploaded' %}ci-wait{% else %}ci-no{% endif %}" id="checklistPayRow">
+            <span id="checklistPayIcon">{% if payment and payment.status == 'verified' %}✅{% elif payment and payment.status == 'uploaded' %}⏳{% else %}○{% endif %}</span>
+            Оплата: <b id="checklistPayText">{{ payment.get_status_display|default:"Ожидает загрузки квитанции" }}</b>
         </div>
         {% for doc in documents %}
         <div class="checklist-item {% if doc.status == 'verified' %}ci-ok{% elif doc.status == 'rejected' %}ci-no{% else %}ci-wait{% endif %}">
@@ -154,11 +154,11 @@
         <div class="kv"><span class="k fw-bold">Итого</span><span class="v text-warning fs-5">{{ application.get_total_amount }} ₽</span></div>
 
         <div class="mt-3">
-            {% if payment %}
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <span class="text-muted">Статус оплаты:</span>
-                <span class="badge-status st-{{ payment.status }}" id="payStatus">{{ payment.get_status_display }}</span>
+                <span class="badge-status st-{% if payment %}{{ payment.status }}{% else %}pending{% endif %}" id="payStatus">{% if payment %}{{ payment.get_status_display }}{% else %}Ожидает загрузки квитанции{% endif %}</span>
             </div>
+            {% if payment %}
             {% if payment.receipt_file %}
             <a href="{{ payment.receipt_file.url }}" target="_blank" class="text-info small" id="payFile">📎 квитанция</a>
             {% else %}
@@ -311,6 +311,16 @@ if (payForm) {
                     statusEl.textContent = data.status_display;
                     statusEl.className = 'badge-status st-' + data.status;
                 }
+                // Обновляем чеклист
+                const clRow = document.getElementById('checklistPayRow');
+                if (clRow) {
+                    clRow.className = 'checklist-item ' + (data.status === 'verified' ? 'ci-ok' : 'ci-wait');
+                }
+                const clIcon = document.getElementById('checklistPayIcon');
+                if (clIcon) clIcon.textContent = data.status === 'verified' ? '✅' : '⏳';
+                const clText = document.getElementById('checklistPayText');
+                if (clText) clText.textContent = data.status_display;
+
                 const fileEl = document.getElementById('payFile');
                 if (fileEl) { fileEl.href = data.file_url; fileEl.classList.remove('d-none'); fileEl.style.display = 'inline'; }
                 payForm.style.display = 'none';
