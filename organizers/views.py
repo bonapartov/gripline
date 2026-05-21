@@ -118,11 +118,15 @@ def championship_create(request):
             championship.slug = slug
             
             championship.save()
-            
+
             # Сохраняем типы соревнований
             if form.cleaned_data.get('competition_types'):
                 championship.competition_types.set(form.cleaned_data['competition_types'])
-            
+
+            # Сохраняем классы
+            if form.cleaned_data.get('race_classes'):
+                championship.race_classes.set(form.cleaned_data['race_classes'])
+
             # Обработка фото
             if 'cover_image' in request.FILES:
                 from wagtail.images.models import Image as WagtailImage
@@ -305,6 +309,12 @@ def championship_edit(request, pk):
                 championship.competition_types.set(form.cleaned_data['competition_types'])
             else:
                 championship.competition_types.clear()
+
+            # Обновляем классы
+            if form.cleaned_data.get('race_classes'):
+                championship.race_classes.set(form.cleaned_data['race_classes'])
+            else:
+                championship.race_classes.clear()
             
             # Обработка cover_image
             if 'cover_image' in request.FILES:
