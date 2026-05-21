@@ -247,6 +247,53 @@
 
         <!-- Правая колонка - формы -->
         <div class="col-md-8 col-lg-9">
+
+            <!-- Мои документы -->
+            <div class="profile-card mb-4">
+                <h4 class="text-warning border-bottom border-secondary pb-2 mb-3">Мои документы</h4>
+                <p class="text-muted small mb-3">Загрузите документы один раз — они автоматически подставятся при регистрации на этап.</p>
+
+                <div id="pilotDocsList">
+                {% for doc in pilot_docs %}
+                <div class="d-flex align-items-center justify-content-between p-2 mb-2 rounded" id="pdoc_{{ doc.id }}"
+                     style="background:#15151c; border:1px solid {% if doc.is_expired %}#dc3545{% elif doc.expires_soon %}#ffc107{% else %}#2a2a35{% endif %};">
+                    <div>
+                        <span class="text-white fw-bold">{{ doc.name }}</span>
+                        {% if doc.expiry_date %}
+                        <span class="ms-2 small {% if doc.is_expired %}text-danger{% elif doc.expires_soon %}text-warning{% else %}text-muted{% endif %}">
+                            до {{ doc.expiry_date|date:"d.m.Y" }}
+                            {% if doc.is_expired %}⚠️ истёк!{% elif doc.expires_soon %}⚠️ скоро истекает{% endif %}
+                        </span>
+                        {% endif %}
+                        <a href="{{ doc.file.url }}" target="_blank" class="text-info small ms-2">📎</a>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="deletePilotDoc({{ doc.id }})">✕</button>
+                </div>
+                {% empty %}
+                <p class="text-muted small" id="noPilotDocs">Документов ещё нет.</p>
+                {% endfor %}
+                </div>
+
+                <!-- Форма загрузки нового документа -->
+                <div class="mt-3 p-3 rounded" style="border:1px dashed #2a2a35;">
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <input type="text" id="pdocName" class="form-control form-control-sm" placeholder="Название (напр. Паспорт)" maxlength="200">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="date" id="pdocExpiry" class="form-control form-control-sm" title="Срок действия (необязательно)">
+                        </div>
+                        <div class="col-md-4">
+                            <input type="file" id="pdocFile" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-1">
+                            <button type="button" class="btn btn-sm btn-warning w-100" onclick="uploadPilotDoc()">+</button>
+                        </div>
+                    </div>
+                    <div id="pdocMsg" class="mt-2 small"></div>
+                </div>
+            </div>
+
             <div class="profile-card">
                 <form method="post" enctype="multipart/form-data">
                     {% csrf_token %}
@@ -307,4 +354,83 @@
         </div>
     </div>
 </div>
+<script>
+function getCookie(name) {
+    let v = null;
+    if (document.cookie) {
+        document.cookie.split(';').forEach(c => {
+            c = c.trim();
+            if (c.startsWith(name + '=')) v = decodeURIComponent(c.slice(name.length + 1));
+        });
+    }
+    return v;
+}
+
+function uploadPilotDoc() {
+    const name = document.getElementById('pdocName').value.trim();
+    const file = document.getElementById('pdocFile').files[0];
+    const expiry = document.getElementById('pdocExpiry').value;
+    const msg = document.getElementById('pdocMsg');
+
+    if (!name) { msg.innerHTML = '<span class="text-danger">Введите название документа.</span>'; return; }
+    if (!file) { msg.innerHTML = '<span class="text-danger">Выберите файл.</span>'; return; }
+
+    msg.innerHTML = '<span class="text-muted">⏳ Загружаем...</span>';
+
+    const fd = new FormData();
+    fd.append('name', name);
+    fd.append('file', file);
+    if (expiry) fd.append('expiry_date', expiry);
+
+    fetch('{% url "accounts:upload_pilot_document" %}', {
+        method: 'POST',
+        body: fd,
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCookie('csrftoken') },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            msg.innerHTML = '<span class="text-success">✓ Документ загружен.</span>';
+            document.getElementById('pdocName').value = '';
+            document.getElementById('pdocFile').value = '';
+            document.getElementById('pdocExpiry').value = '';
+            const noDocs = document.getElementById('noPilotDocs');
+            if (noDocs) noDocs.remove();
+
+            let borderColor = '#2a2a35';
+            let expiryLabel = '';
+            if (data.expiry_date) {
+                if (data.is_expired) { borderColor = '#dc3545'; expiryLabel = ` <span class="text-danger small">до ${data.expiry_date} ⚠️ истёк!</span>`; }
+                else if (data.expires_soon) { borderColor = '#ffc107'; expiryLabel = ` <span class="text-warning small">до ${data.expiry_date} ⚠️ скоро истекает</span>`; }
+                else { expiryLabel = ` <span class="text-muted small">до ${data.expiry_date}</span>`; }
+            }
+            const row = document.createElement('div');
+            row.id = 'pdoc_' + data.id;
+            row.className = 'd-flex align-items-center justify-content-between p-2 mb-2 rounded';
+            row.style.cssText = `background:#15151c; border:1px solid ${borderColor};`;
+            row.innerHTML = `<div><span class="text-white fw-bold">${data.name}</span>${expiryLabel} <a href="${data.file_url}" target="_blank" class="text-info small ms-2">📎</a></div>` +
+                `<button type="button" class="btn btn-sm btn-outline-danger" onclick="deletePilotDoc(${data.id})">✕</button>`;
+            document.getElementById('pilotDocsList').appendChild(row);
+        } else {
+            msg.innerHTML = `<span class="text-danger">Ошибка: ${data.error}</span>`;
+        }
+    })
+    .catch(() => { msg.innerHTML = '<span class="text-danger">Ошибка сети.</span>'; });
+}
+
+function deletePilotDoc(id) {
+    if (!confirm('Удалить документ?')) return;
+    fetch(`/accounts/documents/${id}/delete/`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCookie('csrftoken') },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const el = document.getElementById('pdoc_' + id);
+            if (el) el.remove();
+        }
+    });
+}
+</script>
 {% endblock %}
