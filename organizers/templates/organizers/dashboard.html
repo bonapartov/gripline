@@ -181,13 +181,11 @@
                                 </a>
                                 {% endif %}
                                 <!-- Color picker -->
-                                <form method="post" action="{% url 'organizers:championship_set_color' champ.id %}" class="d-inline ms-1" style="vertical-align:middle;">
-                                    {% csrf_token %}
-                                    <input type="color" name="color" value="{{ champ.color|default:'#ffc107' }}"
-                                           onchange="this.form.submit()"
-                                           title="Цвет в календаре"
-                                           style="width:28px; height:28px; padding:1px; border:1px solid #444; border-radius:4px; background:transparent; cursor:pointer; vertical-align:middle;">
-                                </form>
+                                <button type="button" class="btn btn-sm btn-outline-secondary ms-1"
+                                        style="width:28px; height:28px; padding:0; border-radius:4px; background:{{ champ.color|default:'#e63946' }}; border:2px solid #666;"
+                                        title="Цвет в календаре"
+                                        onclick="openColorPicker({{ champ.id }}, '{{ champ.color|default:'#e63946' }}')">
+                                </button>
                             </div>
                         </div>
                         <!-- Статус публикации — нижний правый угол -->
@@ -300,9 +298,69 @@
                         <p class="text-muted small">Создайте чемпионат и добавьте этапы</p>
                     </div>
                 {% endif %}
-                
+
             </div>
         </div>
     </div>
 </div>
+
+<!-- Модал выбора цвета чемпионата -->
+<div class="modal fade" id="colorPickerModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content" style="background:#1a1a25; border:1px solid #2a2a35; color:white;">
+            <div class="modal-header border-secondary py-2">
+                <h6 class="modal-title text-warning mb-0">Цвет в календаре</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex flex-wrap gap-2 justify-content-center" id="colorSwatches"></div>
+            </div>
+            <div class="modal-footer border-secondary py-2">
+                <form method="post" id="colorPickerForm" action="">
+                    {% csrf_token %}
+                    <input type="hidden" name="color" id="colorPickerValue">
+                    <button type="submit" class="btn btn-sm btn-warning">Применить</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.color-swatch {
+    width: 36px; height: 36px; border-radius: 6px;
+    cursor: pointer; border: 3px solid transparent;
+    transition: transform .15s, border-color .15s;
+}
+.color-swatch:hover { transform: scale(1.15); }
+.color-swatch.selected { border-color: #fff; transform: scale(1.15); }
+</style>
+
+<script>
+const PALETTE = [
+    '#e63946', '#ea580c', '#d97706',
+    '#16a34a', '#0891b2', '#2563eb',
+    '#4f46e5', '#7c3aed', '#db2777',
+    '#65a30d', '#0e7490', '#b91c1c',
+];
+
+function openColorPicker(champId, currentColor) {
+    const swatches = document.getElementById('colorSwatches');
+    swatches.innerHTML = PALETTE.map(c => `
+        <div class="color-swatch ${c === currentColor ? 'selected' : ''}"
+             style="background:${c};"
+             onclick="selectColor('${c}', this)"
+             title="${c}"></div>
+    `).join('');
+    document.getElementById('colorPickerValue').value = currentColor;
+    document.getElementById('colorPickerForm').action = `/organizers/championship/${champId}/set-color/`;
+    new bootstrap.Modal(document.getElementById('colorPickerModal')).show();
+}
+
+function selectColor(color, el) {
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('colorPickerValue').value = color;
+}
+</script>
 {% endblock %}
