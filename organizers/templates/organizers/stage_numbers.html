@@ -5,8 +5,8 @@
 .force-width-1500 { max-width:1500px !important; margin:0 auto; padding:0 1rem; }
 .num-cell {
     display: flex; align-items: center; justify-content: center;
-    aspect-ratio: 1; border-radius: 6px; font-weight: bold;
-    font-size: 0.75rem; cursor: default; user-select: none;
+    height: 28px; border-radius: 4px; font-weight: bold;
+    font-size: 0.7rem; cursor: default; user-select: none;
     transition: transform 0.1s;
 }
 .num-cell.clickable { cursor: pointer; }
@@ -15,7 +15,6 @@
 .num-reserved { background: #3a3a45; color: #888; }
 .num-submitted  { background: #ffc107; color: #000; }
 .num-confirmed  { background: #198754; color: #fff; }
-.num-rejected   { background: #dc3545; color: #fff; }
 .num-draft      { background: #0dcaf0; color: #000; }
 .numbers-grid {
     display: grid;
@@ -48,7 +47,6 @@
         <span><span class="legend-box" style="background:#198754"></span> Допущен</span>
         <span><span class="legend-box" style="background:#ffc107"></span> На проверке</span>
         <span><span class="legend-box" style="background:#0dcaf0"></span> Черновик</span>
-        <span><span class="legend-box" style="background:#dc3545"></span> Отклонён</span>
         <span><span class="legend-box" style="background:#3a3a45"></span> Зарезервирован</span>
         <span><span class="legend-box" style="background:#2a2a35; border:1px solid #444"></span> Свободен</span>
     </div>
@@ -61,8 +59,6 @@
                     <div class="num-cell num-confirmed clickable"
                 {% elif cell.app.status == 'submitted' %}
                     <div class="num-cell num-submitted clickable"
-                {% elif cell.app.status == 'rejected' %}
-                    <div class="num-cell num-rejected clickable"
                 {% else %}
                     <div class="num-cell num-draft clickable"
                 {% endif %}

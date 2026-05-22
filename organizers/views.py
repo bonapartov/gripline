@@ -581,11 +581,11 @@ def stage_numbers(request, stage_id):
 
     applications = Application.objects.filter(
         stage=stage, start_number__isnull=False
-    ).exclude(status__in=['cancelled']).select_related('race_class', 'pilot', 'pilot__driver')
+    ).exclude(status__in=['cancelled', 'rejected']).select_related('race_class', 'pilot', 'pilot__driver')
 
-    # Приоритет активной заявки над отклонённой при совпадении номера
+    # Приоритет активной заявки при совпадении номера
     numbers_map = {}
-    STATUS_PRIORITY = {'confirmed': 0, 'submitted': 1, 'draft': 2, 'rejected': 3}
+    STATUS_PRIORITY = {'confirmed': 0, 'submitted': 1, 'draft': 2}
     for app in applications:
         n = app.start_number
         if n not in numbers_map or STATUS_PRIORITY.get(app.status, 9) < STATUS_PRIORITY.get(numbers_map[n].status, 9):
