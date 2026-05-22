@@ -1821,10 +1821,35 @@ class EventCalendarPage(CoderedWebPage):
             import operator
             months = dict(sorted(months.items(), key=operator.itemgetter(0)))
 
-            # Отладка
-            print(f"Календарь: {len(months)} месяцев")
-            for month_key in months.keys():
-                print(f"  {month_key}: {len(months[month_key]['events'])} событий")
+            # Вычисляем CSS стиль для каждого дня с событиями
+            def _day_style(day_events):
+                colors = [e['color'] for e in day_events]
+                n = len(colors)
+                txt = "color: #fff; text-shadow: 1px 1px 3px rgba(0,0,0,0.85); font-weight: bold;"
+                if n == 1:
+                    return f"background-color: {colors[0]}; {txt}"
+                if n == 2:
+                    # Диагональ: снизу-слева вверх-вправо
+                    return f"background: linear-gradient(45deg, {colors[0]} 50%, {colors[1]} 50%); {txt}"
+                # 3+ — секторы окружности (Мерседес/крест/пирог)
+                step = 360.0 / n
+                stops = []
+                sep = "rgba(15,15,15,0.55)"
+                for i, c in enumerate(colors):
+                    s = i * step
+                    e = (i + 1) * step
+                    stops.append(f"{c} {s:.2f}deg {e - 0.8:.2f}deg")
+                    stops.append(f"{sep} {e - 0.8:.2f}deg {e:.2f}deg")
+                conic = f"conic-gradient(from -90deg, {', '.join(stops)})"
+                return f"background: {conic}; border-radius: 50%; {txt}"
+
+            for month_data in months.values():
+                for day, day_events in month_data['events_by_day'].items():
+                    month_data['events_by_day'][day] = {
+                        'events': day_events,
+                        'style': _day_style(day_events),
+                        'count': len(day_events),
+                    }
 
         # ВАЖНО: ВСЕГДА передаем months в контекст, даже если это пустой словарь
         context['months'] = months
