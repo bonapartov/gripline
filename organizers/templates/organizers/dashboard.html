@@ -145,8 +145,8 @@
                                     </div>
                                 {% endif %}
                                 <div>
-                                    <h5 class="text-warning mb-1">{{ champ.title }}</h5>
-                                    <p class="text-white-50 small mb-1">Комиссия: 
+                                    <h5 class="text-warning mb-1">{{ champ.title }}{% if not champ.is_published %}<span class="badge bg-secondary ms-2" style="font-size:0.65rem;">Не опубликован</span>{% endif %}</h5>
+                                    <p class="text-white-50 small mb-1">Комиссия:
                                         {% if champ.commission_percent %}
                                             {{ champ.commission_percent }}%
                                         {% elif champ.organizer.commission_percent %}
@@ -180,6 +180,21 @@
                                     <i class="fas fa-external-link-alt me-1"></i>
                                 </a>
                                 {% endif %}
+                                <!-- Color picker -->
+                                <form method="post" action="{% url 'organizers:championship_set_color' champ.id %}" class="d-inline ms-1" style="vertical-align:middle;">
+                                    {% csrf_token %}
+                                    <input type="color" name="color" value="{{ champ.color|default:'#ffc107' }}"
+                                           onchange="this.form.submit()"
+                                           title="Цвет в календаре"
+                                           style="width:28px; height:28px; padding:1px; border:1px solid #444; border-radius:4px; background:transparent; cursor:pointer; vertical-align:middle;">
+                                </form>
+                                <!-- Publish toggle -->
+                                <form method="post" action="{% url 'organizers:championship_toggle_publish' champ.id %}" class="d-inline ms-1">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm {% if champ.is_published %}btn-outline-success{% else %}btn-outline-secondary{% endif %}" title="{% if champ.is_published %}Опубликован{% else %}Черновик{% endif %}">
+                                        {% if champ.is_published %}<i class="fas fa-eye"></i>{% else %}<i class="fas fa-eye-slash"></i>{% endif %}
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -224,7 +239,7 @@
                     <div class="mb-3 pb-2 border-bottom border-secondary">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <h5 class="text-warning mb-1">{{ stage.title }}</h5>
+                                <h5 class="text-warning mb-1">{{ stage.title }}{% if not stage.is_published %}<span class="badge bg-secondary ms-2" style="font-size:0.65rem;">Не опубликован</span>{% endif %}</h5>
                                 <p class="text-white-50 small mb-1">{{ stage.championship_title }}</p>
                                 <p class="text-white-50 small mb-1">
                                     📅 {{ stage.start_date|date:"d.m.Y H:i" }} — {{ stage.end_date|date:"d.m.Y H:i" }}
@@ -237,6 +252,12 @@
                                 </p>
                             </div>
                             <div>
+								<form method="post" action="{% url 'organizers:stage_toggle_publish' stage.id %}" class="d-inline me-1">
+									{% csrf_token %}
+									<button type="submit" class="btn btn-sm {% if stage.is_published %}btn-outline-success{% else %}btn-outline-secondary{% endif %}" title="{% if stage.is_published %}Опубликован{% else %}Черновик{% endif %}">
+										{% if stage.is_published %}<i class="fas fa-eye"></i>{% else %}<i class="fas fa-eye-slash"></i>{% endif %}
+									</button>
+								</form>
 								{% if stage.wagtail_page %}
 								<a href="{{ stage.wagtail_page.url }}" target="_blank" class="btn btn-sm btn-outline-info">
 									<i class="fas fa-eye me-1"></i>

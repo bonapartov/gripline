@@ -48,6 +48,7 @@ def dashboard(request):
                 'entry_fee': stage.entry_fee,
                 'track': stage.track.name if stage.track else 'не указана',
                 'wagtail_page': stage.wagtail_page,
+                'is_published': stage.is_published,
                 'reg_count': app_qs.exclude(status__in=['cancelled', 'rejected']).count(),
                 'reg_pending': app_qs.filter(status='submitted').count(),
             })
@@ -731,3 +732,31 @@ def stage_finance(request, stage_id):
         'total_rejected_amount': total_rejected_amount,
         'total_apps': len(rows),
     })
+
+
+@login_required
+def championship_toggle_publish(request, pk):
+    championship = get_object_or_404(Championship, pk=pk, organizer__user=request.user)
+    championship.is_published = not championship.is_published
+    championship.save()
+    return redirect('organizers:dashboard')
+
+
+@login_required
+def stage_toggle_publish(request, pk):
+    stage = get_object_or_404(Stage, pk=pk, championship__organizer__user=request.user)
+    stage.is_published = not stage.is_published
+    stage.save()
+    return redirect('organizers:dashboard')
+
+
+@login_required
+def championship_set_color(request, pk):
+    if request.method == 'POST':
+        import re
+        championship = get_object_or_404(Championship, pk=pk, organizer__user=request.user)
+        color = request.POST.get('color', '#ffc107')
+        if re.match(r'^#[0-9a-fA-F]{6}$', color):
+            championship.color = color
+            championship.save()
+    return redirect('organizers:dashboard')

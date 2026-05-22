@@ -36,6 +36,8 @@ class Championship(models.Model):
     currency = models.CharField(max_length=3, default='RUB')
     is_active = models.BooleanField(default=True)
     is_archived = models.BooleanField(default=False)
+    is_published = models.BooleanField(default=True, verbose_name='Опубликован на сайте')
+    color = models.CharField(max_length=7, default='#ffc107', verbose_name='Цвет в календаре')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     wagtail_page = models.OneToOneField('wagtailcore.Page', on_delete=models.SET_NULL, null=True, blank=True, related_name='championship')

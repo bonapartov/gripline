@@ -1713,18 +1713,31 @@ class EventCalendarPage(CoderedWebPage):
         enriched_events = list(unique_events.values())
         enriched_events.sort(key=lambda x: x['start_date'] or x['event'].first_published_at)
 
-        # Добавляем org_stage (Django Stage) для карточек с открытой регистрацией
+        # Добавляем org_stage, фильтруем неопубликованные, добавляем цвет
         try:
-            from organizers.models import Stage as OrgStage
-            open_stages = {
+            from organizers.models import Stage as OrgStage, Championship as OrgChampionship
+            org_stages = {
                 s.wagtail_page_id: s
-                for s in OrgStage.objects.filter(
-                    registration_enabled=True, wagtail_page__isnull=False
-                ).only('id', 'title', 'wagtail_page_id')
+                for s in OrgStage.objects.filter(wagtail_page__isnull=False)
+                    .select_related('championship')
+                    .only('id', 'title', 'wagtail_page_id', 'registration_enabled', 'is_published', 'championship__is_published', 'championship__color')
             }
+            filtered = []
             for ed in enriched_events:
                 stage_page = ed.get('stage')
-                ed['org_stage'] = open_stages.get(stage_page.pk) if stage_page else None
+                org_s = org_stages.get(stage_page.pk) if stage_page else None
+                # фильтр: скрываем если чемпионат или этап не опубликованы
+                if org_s is not None:
+                    if not org_s.is_published or not org_s.championship.is_published:
+                        continue
+                ed['org_stage'] = org_s if (org_s and org_s.registration_enabled) else None
+                # цвет из чемпионата
+                if org_s:
+                    ed['color'] = org_s.championship.color or '#ffc107'
+                else:
+                    ed['color'] = '#ffc107'
+                filtered.append(ed)
+            enriched_events = filtered
         except Exception:
             pass
 
@@ -1799,6 +1812,7 @@ class EventCalendarPage(CoderedWebPage):
                                         'event': event,
                                         'start': occ.start,
                                         'end': occ.end,
+                                        'color': event_data.get('color', '#ffc107'),
                                     })
 
                             current_date += timedelta(days=1)

@@ -24,4 +24,7 @@ urlpatterns = [
     path('stage/<int:stage_id>/numbers/', views.stage_numbers, name='stage_numbers'),
     path('stage/<int:stage_id>/numbers/reassign/', views.reassign_number, name='reassign_number'),
     path('stage/<int:stage_id>/finance/', views.stage_finance, name='stage_finance'),
+    path('championship/<int:pk>/toggle-publish/', views.championship_toggle_publish, name='championship_toggle_publish'),
+    path('stage/<int:pk>/toggle-publish/', views.stage_toggle_publish, name='stage_toggle_publish'),
+    path('championship/<int:pk>/set-color/', views.championship_set_color, name='championship_set_color'),
 ]

@@ -237,7 +237,7 @@
         <div class="col-md-6 col-lg-4">
             {% with stage=event_data.event.get_parent.specific %}
             {% with championship=stage.get_parent.specific %}
-            <div class="event-card">
+            <div class="event-card" style="border-left: 4px solid {{ event_data.color|default:'#ffc107' }};">
 
                 <!-- Фото трассы с ссылкой на чемпионат -->
                 {% if event_data.track and event_data.track.photo %}
@@ -361,11 +361,21 @@
                             {# Проверяем есть ли события в этот день #}
                             {% if month_data.events_by_day and day in month_data.events_by_day %}
                                 {% with day_events=month_data.events_by_day|get_item:day %}
-                                    <div class="calendar-day has-event"
-                                        title="{% for e in day_events %}{{ e.event.title }}{% if not forloop.last %}\n{% endif %}{% endfor %}"
-                                        onclick="location.href='{{ day_events.0.event.get_parent.url }}'">
-                                        {{ day }}
-                                    </div>
+                                    {% if day_events|length == 1 %}
+                                        <div class="calendar-day has-event"
+                                            style="background-color: {{ day_events.0.color|default:'#ffc107' }}; color: #000;"
+                                            title="{{ day_events.0.event.title }}"
+                                            onclick="location.href='{{ day_events.0.event.get_parent.url }}'">
+                                            {{ day }}
+                                        </div>
+                                    {% else %}
+                                        <div class="calendar-day has-event"
+                                            style="background: linear-gradient(to right, {{ day_events.0.color|default:'#ffc107' }} 50%, {{ day_events.1.color|default:'#ffc107' }} 50%); color: #000;"
+                                            title="{% for e in day_events %}{{ e.event.title }}{% if not forloop.last %}, {% endif %}{% endfor %}"
+                                            onclick="location.href='{{ day_events.0.event.get_parent.url }}'">
+                                            {{ day }}
+                                        </div>
+                                    {% endif %}
                                 {% endwith %}
                             {% else %}
                                 <div class="calendar-day">{{ day }}</div>
