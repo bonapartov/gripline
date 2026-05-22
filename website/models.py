@@ -1808,11 +1808,19 @@ class EventCalendarPage(CoderedWebPage):
                                         break
 
                                 if not day_event_already_added:
+                                    org_s = event_data.get('org_stage')
+                                    stage_page = event_data.get('stage')
+                                    champ_page = event_data.get('championship')
                                     months[month_key]['events_by_day'][day].append({
                                         'event': event,
                                         'start': occ.start,
                                         'end': occ.end,
                                         'color': event_data.get('color', '#ffc107'),
+                                        'stage_url': stage_page.url if stage_page else '',
+                                        'champ_title': champ_page.title if champ_page else '',
+                                        'reg_pk': org_s.pk if org_s else None,
+                                        'start_str': occ.start.strftime('%d.%m %H:%M') if occ.start else '',
+                                        'end_str': occ.end.strftime('%d.%m %H:%M') if occ.end else '',
                                     })
 
                             current_date += timedelta(days=1)
@@ -1822,6 +1830,8 @@ class EventCalendarPage(CoderedWebPage):
             months = dict(sorted(months.items(), key=operator.itemgetter(0)))
 
             # Вычисляем CSS стиль для каждого дня с событиями
+            import json as _json
+
             def _day_style(day_events):
                 colors = [e['color'] for e in day_events]
                 n = len(colors)
@@ -1829,9 +1839,7 @@ class EventCalendarPage(CoderedWebPage):
                 if n == 1:
                     return f"background-color: {colors[0]}; {txt}"
                 if n == 2:
-                    # Диагональ: снизу-слева вверх-вправо
                     return f"background: linear-gradient(45deg, {colors[0]} 50%, {colors[1]} 50%); {txt}"
-                # 3+ — секторы окружности (Мерседес/крест/пирог)
                 step = 360.0 / n
                 stops = []
                 sep = "rgba(15,15,15,0.55)"
@@ -1841,14 +1849,25 @@ class EventCalendarPage(CoderedWebPage):
                     stops.append(f"{c} {s:.2f}deg {e - 0.8:.2f}deg")
                     stops.append(f"{sep} {e - 0.8:.2f}deg {e:.2f}deg")
                 conic = f"conic-gradient(from -90deg, {', '.join(stops)})"
-                return f"background: {conic}; border-radius: 50%; {txt}"
+                return f"background: {conic}; {txt}"
 
             for month_data in months.values():
                 for day, day_events in month_data['events_by_day'].items():
+                    meta = [
+                        {
+                            'title': e['event'].title,
+                            'champ': e.get('champ_title', ''),
+                            'stage_url': e.get('stage_url', ''),
+                            'reg_pk': e.get('reg_pk'),
+                            'dates': f"{e.get('start_str','')} — {e.get('end_str','')}",
+                        }
+                        for e in day_events
+                    ]
                     month_data['events_by_day'][day] = {
                         'events': day_events,
                         'style': _day_style(day_events),
                         'count': len(day_events),
+                        'meta_json': _json.dumps(meta, ensure_ascii=False),
                     }
 
         # ВАЖНО: ВСЕГДА передаем months в контекст, даже если это пустой словарь

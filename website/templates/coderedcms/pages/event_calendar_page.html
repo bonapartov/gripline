@@ -363,7 +363,8 @@
                                 {% with day_data=month_data.events_by_day|get_item:day %}
                                     <div class="calendar-day has-event"
                                         style="{{ day_data.style }}"
-                                        title="{% for e in day_data.events %}{{ e.event.title }}{% if not forloop.last %} / {% endif %}{% endfor %}">
+                                        data-events="{{ day_data.meta_json|escape }}"
+                                        onclick="openDayModal(this, {{ day }})">
                                         {{ day }}
                                     </div>
                                 {% endwith %}
@@ -426,4 +427,36 @@
     </div>
 {% endif %}
 </div>
+
+<!-- Модал: события дня (календарь) -->
+<div class="modal fade" id="dayEventsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background:#1a1a25; border:1px solid #2a2a35; color:white;">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-warning" id="dayModalTitle">События</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="dayModalBody"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+function openDayModal(el, day) {
+    const events = JSON.parse(el.dataset.events);
+    document.getElementById('dayModalTitle').textContent = day + ' — мероприятия';
+    document.getElementById('dayModalBody').innerHTML = events.map(e => `
+        <div class="pb-3 mb-3 border-bottom border-secondary">
+            <div class="text-muted small mb-1">${e.champ}</div>
+            <div class="fw-bold text-warning mb-1">${e.title}</div>
+            <div class="text-white-50 small mb-2"><i class="fas fa-calendar me-1"></i>${e.dates}</div>
+            <div class="d-flex gap-2 flex-wrap">
+                ${e.reg_pk ? `<a href="/applications/apply/${e.reg_pk}/" class="btn btn-sm btn-warning"><i class="fas fa-flag-checkered me-1"></i>Подать заявку</a>` : ''}
+                ${e.stage_url ? `<a href="${e.stage_url}" class="btn btn-sm btn-outline-info">Подробнее</a>` : ''}
+            </div>
+        </div>
+    `).join('');
+    new bootstrap.Modal(document.getElementById('dayEventsModal')).show();
+}
+</script>
 {% endblock %}
