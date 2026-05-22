@@ -583,7 +583,13 @@ def stage_numbers(request, stage_id):
         stage=stage, start_number__isnull=False
     ).exclude(status__in=['cancelled']).select_related('race_class', 'pilot', 'pilot__driver')
 
-    numbers_map = {app.start_number: app for app in applications}
+    # Приоритет активной заявки над отклонённой при совпадении номера
+    numbers_map = {}
+    STATUS_PRIORITY = {'confirmed': 0, 'submitted': 1, 'draft': 2, 'rejected': 3}
+    for app in applications:
+        n = app.start_number
+        if n not in numbers_map or STATUS_PRIORITY.get(app.status, 9) < STATUS_PRIORITY.get(numbers_map[n].status, 9):
+            numbers_map[n] = app
 
     if stage.start_number_digits == 2:
         all_numbers = list(range(10, 100))
@@ -653,3 +659,75 @@ def reassign_number(request, stage_id):
     app.start_number = new_number
     app.save()
     return JsonResponse({'success': True, 'new_number': new_number})
+
+
+@login_required
+def stage_finance(request, stage_id):
+    from .models import Stage
+    from applications.models import Application, ApplicationPayment
+    from django.db.models import Sum, Count, Q
+
+    stage = get_object_or_404(Stage, pk=stage_id, championship__organizer__user=request.user)
+
+    apps = Application.objects.filter(stage=stage).exclude(
+        status__in=['cancelled', 'draft']
+    ).select_related('race_class', 'pilot', 'pilot__driver', 'payment').prefetch_related('selected_options')
+
+    # Считаем итог по каждой заявке
+    rows = []
+    total_expected = 0
+    total_confirmed = 0
+    total_pending = 0
+    total_rejected_amount = 0
+
+    for app in apps:
+        options_total = sum(o.price_at_time for o in app.selected_options.all())
+        app_total = app.entry_fee_amount + options_total
+
+        try:
+            pay = app.payment
+            pay_status = pay.status
+            pay_amount = pay.amount
+        except Exception:
+            pay = None
+            pay_status = 'pending'
+            pay_amount = app_total
+
+        rows.append({
+            'app': app,
+            'options_total': options_total,
+            'app_total': app_total,
+            'pay': pay,
+            'pay_status': pay_status,
+            'pay_amount': pay_amount,
+        })
+
+        total_expected += app_total
+        if pay_status == 'verified':
+            total_confirmed += pay_amount
+        elif pay_status in ('pending', 'uploaded'):
+            total_pending += app_total
+        elif pay_status == 'rejected':
+            total_rejected_amount += app_total
+
+    # Сводка по классам
+    by_class = {}
+    for row in rows:
+        cls = row['app'].race_class.name if row['app'].race_class else 'Без класса'
+        if cls not in by_class:
+            by_class[cls] = {'count': 0, 'expected': 0, 'confirmed': 0}
+        by_class[cls]['count'] += 1
+        by_class[cls]['expected'] += row['app_total']
+        if row['pay_status'] == 'verified':
+            by_class[cls]['confirmed'] += row['pay_amount']
+
+    return render(request, 'organizers/stage_finance.html', {
+        'stage': stage,
+        'rows': rows,
+        'by_class': by_class,
+        'total_expected': total_expected,
+        'total_confirmed': total_confirmed,
+        'total_pending': total_pending,
+        'total_rejected_amount': total_rejected_amount,
+        'total_apps': len(rows),
+    })

@@ -23,4 +23,5 @@ urlpatterns = [
     path('registration/<int:registration_id>/action/', views.registration_action, name='registration_action'),
     path('stage/<int:stage_id>/numbers/', views.stage_numbers, name='stage_numbers'),
     path('stage/<int:stage_id>/numbers/reassign/', views.reassign_number, name='reassign_number'),
+    path('stage/<int:stage_id>/finance/', views.stage_finance, name='stage_finance'),
 ]

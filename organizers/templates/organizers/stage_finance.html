@@ -1,0 +1,202 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block content %}
+<style>
+    .force-width-1500 { max-width: 1500px !important; margin: 0 auto; padding: 0 1rem; }
+    .finance-card { background: #15151c; border: 1px solid #2a2a35; border-radius: 8px; padding: 1.25rem; }
+    .summary-table th, .summary-table td { vertical-align: middle; }
+    .detail-table { font-size: 0.85rem; }
+    .detail-table thead th { background: #15151c; color: #adb5bd; font-weight: 600; border-color: #2a2a35; }
+    .detail-table tbody tr:nth-child(odd) { background: rgba(255,255,255,0.02); }
+    .detail-table tbody tr:nth-child(even) { background: transparent; }
+    .detail-table td { border-color: #2a2a35; color: #e0e0e0; }
+    .pay-badge { font-size: 0.72rem; padding: 0.25rem 0.6rem; border-radius: 20px; font-weight: 600; }
+    .section-title { color: #adb5bd; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 0.75rem; }
+</style>
+
+<div class="force-width-1500 my-5 text-white">
+
+    <!-- Breadcrumb -->
+    <div class="mb-4 d-flex gap-3 align-items-center" style="font-size:0.85rem;">
+        <a href="{% url 'organizers:stage_registrations' stage.id %}" class="text-info text-decoration-none">
+            ← Список заявок
+        </a>
+        <span class="text-muted">|</span>
+        <a href="{% url 'organizers:stage_numbers' stage.id %}" class="text-warning text-decoration-none">
+            🔢 Номера
+        </a>
+        <span class="text-muted">|</span>
+        <a href="{% url 'organizers:dashboard' %}" class="text-secondary text-decoration-none">
+            Дашборд
+        </a>
+    </div>
+
+    <!-- Title -->
+    <div class="border-bottom border-secondary pb-3 mb-4">
+        <h1 class="display-6 fw-bold mb-1">💰 Финансовая сводка — {{ stage.title }}</h1>
+        <p class="text-muted mb-0 small">{{ stage.championship.title }} · {{ total_apps }} заявок</p>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert {% if 'error' in message.tags %}alert-danger{% elif 'warning' in message.tags %}alert-warning{% else %}alert-success{% endif %}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- 4 summary cards -->
+    <div class="row g-3 mb-5">
+        <div class="col-6 col-md-3">
+            <div class="finance-card text-center">
+                <div class="section-title">Ожидается</div>
+                <div class="fs-4 fw-bold text-info">{{ total_expected }} ₽</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="finance-card text-center">
+                <div class="section-title">Подтверждено</div>
+                <div class="fs-4 fw-bold text-success">{{ total_confirmed }} ₽</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="finance-card text-center">
+                <div class="section-title">На проверке</div>
+                <div class="fs-4 fw-bold text-warning">{{ total_pending }} ₽</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="finance-card text-center">
+                <div class="section-title">Отклонено</div>
+                <div class="fs-4 fw-bold text-danger">{{ total_rejected_amount }} ₽</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary by class -->
+    {% if by_class %}
+    <div class="finance-card mb-5">
+        <div class="section-title">Сводка по классам</div>
+        <div class="table-responsive">
+            <table class="table table-dark table-sm mb-0 summary-table" style="--bs-table-bg: transparent;">
+                <thead>
+                    <tr class="text-muted" style="font-size:0.8rem;">
+                        <th>Класс</th>
+                        <th>Участников</th>
+                        <th>Ожидается</th>
+                        <th>Подтверждено</th>
+                        <th style="min-width:180px;">Сбор %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cls_name, data in by_class.items %}
+                    {% if data.expected %}
+                        {% with pct=data.confirmed|floatformat:0 %}
+                        <tr>
+                            <td class="text-info fw-bold">{{ cls_name }}</td>
+                            <td>{{ data.count }}</td>
+                            <td>{{ data.expected }} ₽</td>
+                            <td class="text-success">{{ data.confirmed }} ₽</td>
+                            <td>
+                                {% if data.expected > 0 %}
+                                    {% widthratio data.confirmed data.expected 100 as bar_pct %}
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="progress flex-grow-1" style="height:8px; background:#2a2a35;">
+                                            <div class="progress-bar bg-success" style="width:{{ bar_pct }}%;"></div>
+                                        </div>
+                                        <span class="text-success" style="font-size:0.8rem; min-width:38px;">{{ bar_pct }}%</span>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endwith %}
+                    {% else %}
+                        <tr>
+                            <td class="text-info fw-bold">{{ cls_name }}</td>
+                            <td>{{ data.count }}</td>
+                            <td>{{ data.expected }} ₽</td>
+                            <td class="text-success">{{ data.confirmed }} ₽</td>
+                            <td><span class="text-muted">—</span></td>
+                        </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Detail table -->
+    {% if rows %}
+    <div class="finance-card">
+        <div class="section-title">Детализация по заявкам</div>
+        <div class="table-responsive">
+            <table class="table table-dark table-sm mb-0 detail-table" style="--bs-table-bg: transparent;">
+                <thead>
+                    <tr>
+                        <th>Пилот</th>
+                        <th>Класс</th>
+                        <th>Взнос</th>
+                        <th>Опции</th>
+                        <th>Итого</th>
+                        <th>Статус платежа</th>
+                        <th>Квитанция</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td>
+                            {% if row.app.pilot.driver %}
+                            <a href="{{ row.app.pilot.driver.get_absolute_url }}" class="text-info text-decoration-none">{{ row.app.pilot.full_name }}</a>
+                            {% else %}
+                            <span>{{ row.app.pilot.full_name }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">{{ row.app.race_class.name|default:"—" }}</td>
+                        <td>{{ row.app.entry_fee_amount }} ₽</td>
+                        <td>
+                            {% if row.options_total %}
+                            {{ row.options_total }} ₽
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold">{{ row.app_total }} ₽</td>
+                        <td>
+                            {% if row.pay_status == 'verified' %}
+                                <span class="pay-badge badge bg-success">Подтверждено</span>
+                            {% elif row.pay_status == 'uploaded' %}
+                                <span class="pay-badge badge bg-warning text-dark">На проверке</span>
+                            {% elif row.pay_status == 'pending' %}
+                                <span class="pay-badge badge bg-secondary">Ожидается</span>
+                            {% elif row.pay_status == 'rejected' %}
+                                <span class="pay-badge badge bg-danger">Отклонено</span>
+                            {% elif row.pay_status == 'refunded' %}
+                                <span class="pay-badge badge bg-info text-dark">Возврат</span>
+                            {% else %}
+                                <span class="pay-badge badge bg-secondary">{{ row.pay_status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.pay and row.pay.receipt_file %}
+                            <a href="{{ row.pay.receipt_file.url }}" target="_blank" class="text-info text-decoration-none" title="Открыть квитанцию">📎</a>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+        <i class="fas fa-file-invoice-dollar fa-3x mb-3 d-block opacity-25"></i>
+        Заявок для отображения нет
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
