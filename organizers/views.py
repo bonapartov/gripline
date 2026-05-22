@@ -747,6 +747,26 @@ def stage_toggle_publish(request, pk):
     stage = get_object_or_404(Stage, pk=pk, championship__organizer__user=request.user)
     stage.is_published = not stage.is_published
     stage.save()
+
+    # Авто-каскад: обновляем статус чемпионата
+    championship = stage.championship
+    all_stages = championship.stages.all()
+    total = all_stages.count()
+    published_count = all_stages.filter(is_published=True).count()
+
+    if total == 1:
+        # Единственный этап — чемпионат повторяет его статус
+        championship.is_published = stage.is_published
+        championship.save()
+    elif published_count == 0:
+        # Все этапы — черновики → чемпионат тоже черновик
+        championship.is_published = False
+        championship.save()
+    elif not championship.is_published and published_count > 0:
+        # Есть опубликованные этапы → авто-публикуем чемпионат
+        championship.is_published = True
+        championship.save()
+
     return redirect('organizers:dashboard')
 
 

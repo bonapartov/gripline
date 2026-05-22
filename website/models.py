@@ -1715,14 +1715,14 @@ class EventCalendarPage(CoderedWebPage):
 
         # Добавляем org_stage, фильтруем неопубликованные, добавляем цвет
         try:
-            from organizers.models import Stage as OrgStage, Championship as OrgChampionship
+            from organizers.models import Stage as OrgStage
             org_stages = {
                 s.wagtail_page_id: s
                 for s in OrgStage.objects.filter(wagtail_page__isnull=False)
                     .select_related('championship')
-                    .only('id', 'title', 'wagtail_page_id', 'registration_enabled', 'is_published', 'championship__is_published', 'championship__color')
             }
             filtered = []
+            filtered_event_ids = set()
             for ed in enriched_events:
                 stage_page = ed.get('stage')
                 org_s = org_stages.get(stage_page.pk) if stage_page else None
@@ -1731,15 +1731,15 @@ class EventCalendarPage(CoderedWebPage):
                     if not org_s.is_published or not org_s.championship.is_published:
                         continue
                 ed['org_stage'] = org_s if (org_s and org_s.registration_enabled) else None
-                # цвет из чемпионата
-                if org_s:
-                    ed['color'] = org_s.championship.color or '#ffc107'
-                else:
-                    ed['color'] = '#ffc107'
+                ed['color'] = org_s.championship.color or '#ffc107' if org_s else '#ffc107'
                 filtered.append(ed)
+                filtered_event_ids.add(ed['event'].id)
             enriched_events = filtered
-        except Exception:
-            pass
+            # Фильтруем unique_events для календарной сетки
+            unique_events = {k: v for k, v in unique_events.items() if v['event'].id in filtered_event_ids}
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning('Calendar publish filter error: %s', e)
 
         context['enriched_events'] = enriched_events
 
