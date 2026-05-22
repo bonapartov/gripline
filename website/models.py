@@ -1860,6 +1860,7 @@ class EventCalendarPage(CoderedWebPage):
                             'stage_url': e.get('stage_url', ''),
                             'reg_pk': e.get('reg_pk'),
                             'dates': f"{e.get('start_str','')} — {e.get('end_str','')}",
+                            'classes': [g.race_class.name for g in e['event'].race_class_groups.all()],
                         }
                         for e in day_events
                     ]

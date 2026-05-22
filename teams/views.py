@@ -244,7 +244,11 @@ def login_view(request):
         if user is not None:
             if user.is_active:
                 auth_login(request, user)
-                return redirect('teams:dashboard')
+                if hasattr(user, 'organizer_profile'):
+                    return redirect('organizers:dashboard')
+                if TeamManager.objects.filter(user=user).exists():
+                    return redirect('teams:dashboard')
+                return redirect('accounts:profile')
             else:
                 messages.error(request, 'Аккаунт не активирован. Проверьте почту.')
                 return redirect('teams:team_resend_verification')

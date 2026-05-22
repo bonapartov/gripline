@@ -245,7 +245,12 @@ def organizer_login(request):
         if user is not None:
             if user.is_active:
                 login(request, user)
-                return redirect('organizers:dashboard')
+                if hasattr(user, 'organizer_profile'):
+                    return redirect('organizers:dashboard')
+                from teams.models import TeamManager
+                if TeamManager.objects.filter(user=user).exists():
+                    return redirect('teams:dashboard')
+                return redirect('accounts:profile')
             else:
                 messages.error(request, 'Аккаунт не активирован. Проверьте почту.')
                 return redirect('organizers:organizer_resend_verification')

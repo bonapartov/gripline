@@ -412,6 +412,16 @@
 								</span>
 							</div>
 						</div>
+						<!-- Классы гонок -->
+						{% with classes=event_data.event.race_class_groups.all %}
+						{% if classes %}
+						<div class="mt-1 d-flex flex-wrap gap-1">
+							{% for group in classes %}
+							<span class="badge" style="background:#2a2a35; color:#ccc; font-size:0.7rem; border:1px solid #3a3a4a;">{{ group.race_class.name }}</span>
+							{% endfor %}
+						</div>
+						{% endif %}
+						{% endwith %}
 					</div>
                     {% endfor %}
                 </div>
@@ -450,6 +460,7 @@ function openDayModal(el, day) {
             <div class="text-muted small mb-1">${e.champ}</div>
             <div class="fw-bold text-warning mb-1">${e.title}</div>
             <div class="text-white-50 small mb-2"><i class="fas fa-calendar me-1"></i>${e.dates}</div>
+            ${e.classes && e.classes.length ? `<div class="d-flex flex-wrap gap-1 mb-2">${e.classes.map(c => `<span class="badge" style="background:#2a2a35;color:#ccc;font-size:0.7rem;border:1px solid #3a3a4a;">${c}</span>`).join('')}</div>` : ''}
             <div class="d-flex gap-2 flex-wrap">
                 ${e.reg_pk ? `<a href="/applications/apply/${e.reg_pk}/" class="btn btn-sm btn-warning"><i class="fas fa-flag-checkered me-1"></i>Подать заявку</a>` : ''}
                 ${e.stage_url ? `<a href="${e.stage_url}" class="btn btn-sm btn-outline-info">Подробнее</a>` : ''}
