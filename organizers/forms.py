@@ -48,14 +48,14 @@ class StageForm(forms.ModelForm):
             'max_participants', 'start_number_digits',
         ]
         widgets = {
-            'start_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
-            'end_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'start_date': forms.DateTimeInput(format='%Y-%m-%dT%H:%M', attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'end_date': forms.DateTimeInput(format='%Y-%m-%dT%H:%M', attrs={'type': 'datetime-local', 'class': 'form-control'}),
             'title': forms.TextInput(attrs={'class': 'form-control'}),
             'track': forms.Select(attrs={'class': 'form-control'}),
             'entry_fee': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
             'schedule': forms.Textarea(attrs={'rows': 4, 'class': 'form-control', 'placeholder': 'Расписание этапа...'}),
             'registration_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'registration_deadline': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'registration_deadline': forms.DateTimeInput(format='%Y-%m-%dT%H:%M', attrs={'type': 'datetime-local', 'class': 'form-control'}),
             'late_registration_allowed': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'late_registration_fee_multiplier': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1', 'min': '1'}),
             'max_participants': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
