@@ -413,15 +413,13 @@
 							</div>
 						</div>
 						<!-- Классы гонок -->
-						{% with classes=event_data.event.race_class_groups.all %}
-						{% if classes %}
+						{% if event_data.classes %}
 						<div class="mt-1 d-flex flex-wrap gap-1">
-							{% for group in classes %}
-							<span class="badge" style="background:#2a2a35; color:#ccc; font-size:0.7rem; border:1px solid #3a3a4a;">{{ group.race_class.name }}</span>
+							{% for class_name in event_data.classes %}
+							<span class="badge" style="background:#2a2a35; color:#ccc; font-size:0.7rem; border:1px solid #3a3a4a;">{{ class_name }}</span>
 							{% endfor %}
 						</div>
 						{% endif %}
-						{% endwith %}
 					</div>
                     {% endfor %}
                 </div>

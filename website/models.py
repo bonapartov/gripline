@@ -1795,6 +1795,7 @@ class EventCalendarPage(CoderedWebPage):
                                         'event': event,
                                         'start': occ.start,
                                         'end': occ.end,
+                                        'classes': event_data.get('classes', []),
                                     })
 
                                 # Добавляем событие в конкретный день
@@ -1821,6 +1822,7 @@ class EventCalendarPage(CoderedWebPage):
                                         'reg_pk': org_s.pk if org_s else None,
                                         'start_str': occ.start.strftime('%d.%m %H:%M') if occ.start else '',
                                         'end_str': occ.end.strftime('%d.%m %H:%M') if occ.end else '',
+                                        'classes': event_data.get('classes', []),
                                     })
 
                             current_date += timedelta(days=1)
@@ -1860,7 +1862,7 @@ class EventCalendarPage(CoderedWebPage):
                             'stage_url': e.get('stage_url', ''),
                             'reg_pk': e.get('reg_pk'),
                             'dates': f"{e.get('start_str','')} — {e.get('end_str','')}",
-                            'classes': [g.race_class.name for g in e['event'].race_class_groups.all()],
+                            'classes': e.get('classes', []),
                         }
                         for e in day_events
                     ]
