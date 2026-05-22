@@ -19,6 +19,11 @@ urlpatterns = [
     
     path('join/<slug:team_slug>/', views.join_team, name='join_team'),
 
+    # Регистрация пилота на этап от имени команды
+    path('apply/<int:stage_id>/', views.team_apply, name='team_apply'),
+    path('apply/<int:stage_id>/add-driver/', views.team_add_driver, name='team_add_driver'),
+    path('apply/driver-search/', views.team_driver_search, name='team_driver_search'),
+
     # Email verification
     path('verify-email/<uidb64>/<token>/', views.team_verify_email, name='team_verify_email'),
     path('resend-verification/', views.team_resend_verification, name='team_resend_verification'),

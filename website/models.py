@@ -2084,8 +2084,22 @@ class StagePage(CoderedWebPage):
                     context['my_applications'] = Application.objects.filter(
                         stage=org_stage, submitted_by=request.user
                     ).exclude(status='cancelled').select_related('race_class').order_by('-created_at')
+
+                    # Проверяем, является ли пользователь менеджером команды
+                    try:
+                        from teams.models import TeamManager
+                        team_manager = TeamManager.objects.filter(
+                            user=request.user, is_active=True
+                        ).select_related('team').first()
+                        context['user_is_team_manager'] = team_manager is not None
+                        context['team_manager_obj'] = team_manager
+                    except Exception:
+                        context['user_is_team_manager'] = False
+                        context['team_manager_obj'] = None
                 else:
                     context['my_applications'] = []
+                    context['user_is_team_manager'] = False
+                    context['team_manager_obj'] = None
 
                 # Публичный список участников — подтверждённые заявки
                 confirmed = Application.objects.filter(

@@ -760,6 +760,256 @@ def edit_staff(request, staff_id):
 
     return redirect('teams:dashboard')
 
+@login_required
+def team_apply(request, stage_id):
+    """Регистрация пилота команды на этап от имени команды"""
+    from organizers.models import Stage
+    from applications.models import (
+        Application, ApplicationApplicant, ApplicationPilot, ApplicationPayment
+    )
+    from django.http import JsonResponse
+    from decimal import Decimal
+    from django.utils import timezone as tz
+
+    manager = TeamManager.objects.filter(
+        user=request.user, is_active=True
+    ).select_related('team').first()
+
+    if not manager:
+        messages.error(request, 'У вас нет прав управления командой.')
+        return redirect('/')
+
+    stage = get_object_or_404(Stage, pk=stage_id)
+    if not stage.registration_enabled:
+        messages.error(request, 'Регистрация на этот этап закрыта.')
+        return redirect('/')
+
+    team = manager.team
+    memberships = TeamMembership.objects.filter(
+        team=team, is_active=True
+    ).select_related('driver')
+
+    classes = list(stage.championship.race_classes.all())
+    first_class = classes[0] if classes else None
+    available_numbers = stage.get_available_numbers(race_class=first_class)
+
+    # Вычисляем взнос с учётом позднего срока
+    entry_fee = stage.entry_fee
+    if (getattr(stage, 'late_registration_allowed', False)
+            and getattr(stage, 'registration_deadline', None)
+            and tz.now() > stage.registration_deadline):
+        multiplier = getattr(stage, 'late_registration_fee_multiplier', Decimal('1'))
+        entry_fee = entry_fee * multiplier
+
+    # Определяем, кто уже зарегистрирован
+    already_registered_ids = set(
+        Application.objects.filter(
+            stage=stage
+        ).exclude(status='cancelled').values_list('pilot__driver_id', flat=True)
+    )
+
+    # Данные менеджера для автозаполнения представителя
+    user = request.user
+    rep_first_name = user.first_name or ''
+    rep_last_name = user.last_name or ''
+    rep_email = user.email or ''
+    rep_phone = ''
+    try:
+        profile = user.profile
+        rep_phone = getattr(profile, 'phone', '') or ''
+        if not rep_first_name:
+            rep_first_name = getattr(profile, 'first_name', '') or ''
+        if not rep_last_name:
+            rep_last_name = getattr(profile, 'last_name', '') or ''
+    except Exception:
+        pass
+
+    if request.method == 'POST':
+        driver_id = request.POST.get('driver_id')
+        race_class_id = request.POST.get('race_class')
+        start_number = request.POST.get('start_number')
+        post_rep_first = request.POST.get('rep_first_name', rep_first_name).strip()
+        post_rep_last = request.POST.get('rep_last_name', rep_last_name).strip()
+        post_rep_email = request.POST.get('rep_email', rep_email).strip()
+        post_rep_phone = request.POST.get('rep_phone', rep_phone).strip()
+
+        # Валидация
+        errors = []
+        if not driver_id:
+            errors.append('Выберите пилота.')
+        if not race_class_id:
+            errors.append('Выберите класс.')
+        if not start_number:
+            errors.append('Выберите стартовый номер.')
+
+        driver = None
+        if driver_id:
+            membership = memberships.filter(driver_id=driver_id).first()
+            if not membership:
+                errors.append('Выбранный пилот не является членом вашей команды.')
+            else:
+                driver = membership.driver
+
+        chosen_number = None
+        if start_number:
+            try:
+                chosen_number = int(start_number)
+                # Пересчитываем доступные номера для выбранного класса
+                from website.models import RaceClass
+                selected_class = None
+                if race_class_id:
+                    try:
+                        selected_class = RaceClass.objects.get(pk=race_class_id)
+                    except Exception:
+                        pass
+                current_available = stage.get_available_numbers(race_class=selected_class)
+                if chosen_number not in current_available:
+                    errors.append('Выбранный номер уже занят. Выберите другой.')
+            except ValueError:
+                errors.append('Некорректный стартовый номер.')
+
+        if driver and not errors:
+            # Проверяем, нет ли уже активной заявки для этого пилота
+            existing = Application.objects.filter(
+                stage=stage, pilot__driver=driver
+            ).exclude(status='cancelled').first()
+            if existing:
+                errors.append(
+                    f'Пилот {driver.full_name} уже зарегистрирован на этот этап.'
+                )
+
+        if errors:
+            for err in errors:
+                messages.error(request, err)
+        else:
+            # Создаём заявку
+            application = Application.objects.create(
+                stage=stage,
+                submitted_by=request.user,
+                submitted_by_type='team',
+                race_class_id=race_class_id,
+                start_number=chosen_number,
+                status='draft',
+                entry_fee_amount=entry_fee,
+            )
+
+            # Данные пилота из Driver
+            ApplicationPilot.objects.create(
+                application=application,
+                driver=driver,
+                first_name=driver.first_name,
+                last_name=driver.last_name,
+                email='',
+                phone='',
+            )
+
+            # Заявитель — команда
+            ApplicationApplicant.objects.create(
+                application=application,
+                type='team',
+                team=team,
+                name=team.name,
+                rep_first_name=post_rep_first,
+                rep_last_name=post_rep_last,
+                rep_email=post_rep_email,
+                rep_phone=post_rep_phone,
+            )
+
+            # Оплата
+            ApplicationPayment.objects.create(
+                application=application,
+                amount=entry_fee,
+                method='manual',
+                status='pending',
+            )
+
+            messages.success(
+                request,
+                f'Заявка для пилота {driver.full_name} успешно создана!'
+            )
+            return redirect('applications:detail', application_id=application.pk)
+
+    return render(request, 'teams/team_apply.html', {
+        'stage': stage,
+        'team': team,
+        'memberships': memberships,
+        'already_registered_ids': already_registered_ids,
+        'classes': classes,
+        'available_numbers': available_numbers,
+        'entry_fee': entry_fee,
+        'rep_first_name': rep_first_name,
+        'rep_last_name': rep_last_name,
+        'rep_email': rep_email,
+        'rep_phone': rep_phone,
+    })
+
+
+@login_required
+def team_add_driver(request, stage_id):
+    """Добавляет водителя в команду и возвращает на team_apply"""
+    from django.http import JsonResponse
+
+    if request.method != 'POST':
+        return redirect('teams:team_apply', stage_id=stage_id)
+
+    manager = TeamManager.objects.filter(
+        user=request.user, is_active=True
+    ).select_related('team').first()
+
+    if not manager:
+        messages.error(request, 'Нет прав.')
+        return redirect('/')
+
+    driver_id = request.POST.get('driver_id')
+    if not driver_id:
+        messages.error(request, 'Не указан пилот.')
+        return redirect('teams:team_apply', stage_id=stage_id)
+
+    driver = get_object_or_404(Driver, pk=driver_id)
+    team = manager.team
+
+    existing = TeamMembership.objects.filter(driver=driver, team=team).first()
+    if existing:
+        if not existing.is_active:
+            existing.is_active = True
+            existing.left_at = None
+            existing.save()
+            messages.success(request, f'{driver.full_name} снова добавлен в команду.')
+        else:
+            messages.info(request, f'{driver.full_name} уже в команде.')
+    else:
+        TeamMembership.objects.create(
+            driver=driver, team=team,
+            joined_at=timezone.now().date(), is_active=True
+        )
+        messages.success(request, f'{driver.full_name} добавлен в команду.')
+
+    return redirect('teams:team_apply', stage_id=stage_id)
+
+
+def team_driver_search(request):
+    """AJAX-поиск пилотов по имени для добавления в команду"""
+    from django.http import JsonResponse
+
+    q = request.GET.get('q', '').strip()
+    if len(q) < 2:
+        return JsonResponse({'drivers': []})
+
+    drivers = Driver.objects.filter(
+        Q(first_name__icontains=q) | Q(last_name__icontains=q)
+    ).order_by('last_name', 'first_name')[:15]
+
+    data = [
+        {
+            'id': d.id,
+            'full_name': d.full_name,
+            'city': getattr(d, 'city', '') or '',
+        }
+        for d in drivers
+    ]
+    return JsonResponse({'drivers': data})
+
+
 def join_team(request, team_slug):
     """Заявка авторизованного пилота на вступление в команду."""
     from website.models import Team, TeamMembership
@@ -802,3 +1052,151 @@ def join_team(request, team_slug):
         f'Заявка отправлена! Менеджер команды {team.name} рассмотрит её в ближайшее время.'
     )
     return redirect('team_detail', slug=team_slug)
+
+
+@login_required
+def team_apply(request, stage_id):
+    """Регистрация пилота на этап от имени команды."""
+    from organizers.models import Stage
+    from applications.models import Application, ApplicationPilot, ApplicationApplicant, ApplicationPayment
+    from website.models import TeamMembership, Driver
+
+    manager = TeamManager.objects.filter(user=request.user).select_related('team').first()
+    if not manager:
+        messages.error(request, 'У вас нет прав менеджера команды.')
+        return redirect('teams:dashboard')
+
+    stage = get_object_or_404(Stage, pk=stage_id)
+    if not stage.registration_enabled:
+        messages.error(request, 'Регистрация на этот этап закрыта.')
+        return redirect('teams:dashboard')
+
+    team = manager.team
+    members = TeamMembership.objects.filter(team=team, is_active=True).select_related('driver')
+
+    # Помечаем тех кто уже зарегистрирован
+    for m in members:
+        m.already_registered = Application.objects.filter(
+            stage=stage, pilot__driver=m.driver
+        ).exclude(status='cancelled').exists()
+
+    from website.models import RaceClass
+    classes = list(stage.championship.race_classes.all()) if hasattr(stage.championship, 'race_classes') else []
+    if not classes:
+        from organizers.models import Stage as OrgStage
+        classes = list(RaceClass.objects.filter(stageoptions__stage=stage).distinct())
+
+    if request.method == 'POST':
+        driver_id = request.POST.get('driver_id')
+        race_class_id = request.POST.get('race_class')
+        start_number = request.POST.get('start_number')
+
+        if not driver_id:
+            messages.error(request, 'Выберите пилота.')
+        else:
+            driver = get_object_or_404(Driver, pk=driver_id)
+
+            # Проверка дублирования
+            if Application.objects.filter(stage=stage, pilot__driver=driver).exclude(status='cancelled').exists():
+                messages.error(request, f'Пилот {driver.full_name} уже зарегистрирован на этот этап.')
+            else:
+                chosen_number = None
+                if start_number:
+                    try:
+                        chosen_number = int(start_number)
+                    except ValueError:
+                        pass
+
+                entry_fee = stage.entry_fee or 0
+
+                app = Application.objects.create(
+                    stage=stage,
+                    submitted_by=request.user,
+                    submitted_by_type='team',
+                    race_class_id=race_class_id or None,
+                    start_number=chosen_number,
+                    status='draft',
+                    entry_fee_amount=entry_fee,
+                )
+
+                ApplicationPilot.objects.create(
+                    application=app,
+                    driver=driver,
+                    first_name=driver.full_name.split()[1] if len(driver.full_name.split()) > 1 else '',
+                    last_name=driver.full_name.split()[0],
+                    email=driver.user_profile.user.email if hasattr(driver, 'user_profile') and driver.user_profile else '',
+                    phone='',
+                )
+
+                ApplicationApplicant.objects.create(
+                    application=app,
+                    type='team',
+                    team=team,
+                    name=team.name,
+                    rep_first_name=request.POST.get('rep_first_name', ''),
+                    rep_last_name=request.POST.get('rep_last_name', ''),
+                    rep_email=request.POST.get('rep_email', request.user.email),
+                    rep_phone=request.POST.get('rep_phone', ''),
+                )
+
+                ApplicationPayment.objects.create(
+                    application=app,
+                    amount=entry_fee,
+                    status='pending',
+                    method='manual',
+                )
+
+                messages.success(request, f'Заявка для {driver.full_name} создана.')
+                return redirect('applications:detail', application_id=app.pk)
+
+    available_numbers = stage.get_available_numbers()
+
+    return render(request, 'teams/team_apply.html', {
+        'stage': stage,
+        'team': team,
+        'members': members,
+        'classes': classes,
+        'available_numbers': available_numbers,
+        'rep_first_name': request.user.first_name,
+        'rep_last_name': request.user.last_name,
+        'rep_email': request.user.email,
+    })
+
+
+@login_required
+def team_add_driver(request, stage_id):
+    """Добавить пилота в команду и вернуться к регистрации."""
+    from website.models import TeamMembership, Driver
+
+    manager = TeamManager.objects.filter(user=request.user).select_related('team').first()
+    if not manager or request.method != 'POST':
+        return redirect('teams:dashboard')
+
+    driver_id = request.POST.get('driver_id')
+    if driver_id:
+        driver = get_object_or_404(Driver, pk=driver_id)
+        TeamMembership.objects.get_or_create(
+            driver=driver,
+            team=manager.team,
+            defaults={'is_active': True},
+        )
+        obj = TeamMembership.objects.filter(driver=driver, team=manager.team).first()
+        if obj and not obj.is_active:
+            obj.is_active = True
+            obj.save()
+        messages.success(request, f'{driver.full_name} добавлен в команду.')
+
+    return redirect('teams:team_apply', stage_id=stage_id)
+
+
+def team_driver_search(request):
+    """AJAX-поиск пилотов по имени."""
+    from django.http import JsonResponse
+    from website.models import Driver
+
+    q = request.GET.get('q', '').strip()
+    results = []
+    if len(q) >= 2:
+        drivers = Driver.objects.filter(full_name__icontains=q)[:10]
+        results = [{'id': d.pk, 'name': d.full_name} for d in drivers]
+    return JsonResponse({'drivers': results})

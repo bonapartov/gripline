@@ -277,9 +277,17 @@
         {% endif %}
 
         {% if request.user.is_authenticated %}
-        <a href="/applications/apply/{{ org_stage.pk }}/" class="btn btn-warning fw-bold">
-            <i class="fas fa-flag-checkered me-1"></i>Подать заявку
-        </a>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <a href="/applications/apply/{{ org_stage.pk }}/" class="btn btn-warning fw-bold">
+                <i class="fas fa-flag-checkered me-1"></i>Подать заявку
+            </a>
+            {% if user_is_team_manager %}
+            <a href="{% url 'teams:team_apply' org_stage.pk %}" class="btn btn-outline-info fw-bold">
+                <i class="fas fa-users me-1"></i>Зарегистрировать от команды
+                {% if team_manager_obj %}({{ team_manager_obj.team.name }}){% endif %}
+            </a>
+            {% endif %}
+        </div>
         {% else %}
         <a href="/accounts/login/?next=/applications/apply/{{ org_stage.pk }}/" class="btn btn-outline-warning fw-bold">
             <i class="fas fa-sign-in-alt me-1"></i>Войти для подачи заявки

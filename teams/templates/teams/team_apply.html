@@ -1,0 +1,218 @@
+{% extends "teams/base_teams.html" %}
+
+{% block content %}
+<style>
+  .pilot-card { background:#1a1a25; border:1px solid #2a2a35; border-radius:8px; padding:1rem; cursor:pointer; transition:.15s; }
+  .pilot-card:hover:not(.disabled-card) { border-color:#f0c040; }
+  .pilot-card.selected { border-color:#f0c040; background:#22201a; }
+  .pilot-card.disabled-card { opacity:.45; cursor:not-allowed; border-color:#444; }
+  .num-btn { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:6px; font-weight:700; font-size:.9rem; cursor:pointer; border:2px solid transparent; transition:.15s; }
+  .num-btn:hover { transform:scale(1.08); }
+  .num-free { background:#2a2a35; color:#aaa; border-color:#444; }
+  .num-free.selected-num { border-color:#f0c040; background:#33300a; color:#f0c040; }
+  .num-taken { background:#1a2a1a; color:#555; cursor:not-allowed; }
+  .section-label { font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; color:#6c757d; margin-bottom:.5rem; }
+</style>
+
+<div class="container" style="max-width:900px;" class="my-5">
+<div class="my-5 text-white">
+
+  <nav class="mb-4" style="font-size:.85rem;">
+    <a href="{% url 'teams:dashboard' %}" class="text-warning text-decoration-none">← Дашборд команды</a>
+    <span class="text-muted mx-2">/</span>
+    <span class="text-muted">{{ stage.championship.title }}</span>
+    <span class="text-muted mx-2">/</span>
+    <span>{{ stage.title }}</span>
+  </nav>
+
+  <h2 class="fw-bold text-uppercase mb-1" style="font-size:1.4rem;">Регистрация пилота</h2>
+  <p class="text-muted mb-4" style="font-size:.85rem;">{{ stage.title }} · {{ stage.championship.title }}</p>
+
+  {% if messages %}
+    {% for message in messages %}
+    <div class="alert {% if 'error' in message.tags %}alert-danger{% else %}alert-success{% endif %} py-2">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post" id="applyForm">
+    {% csrf_token %}
+    <input type="hidden" name="driver_id" id="selectedDriverId">
+    <input type="hidden" name="start_number" id="selectedNumber">
+
+    <!-- 1. Выбор пилота -->
+    <div class="mb-4">
+      <div class="section-label">1. Выберите пилота</div>
+      <div class="row g-2" id="pilotGrid">
+        {% for m in members %}
+        <div class="col-md-4 col-6">
+          <div class="pilot-card {% if m.already_registered %}disabled-card{% endif %}"
+               onclick="{% if not m.already_registered %}selectPilot({{ m.driver.pk }}, '{{ m.driver.full_name|escapejs }}'){% endif %}"
+               id="pilot-{{ m.driver.pk }}">
+            <div class="fw-bold" style="font-size:.9rem;">{{ m.driver.full_name }}</div>
+            {% if m.already_registered %}
+              <div class="text-danger mt-1" style="font-size:.7rem;">Уже зарегистрирован</div>
+            {% else %}
+              <div class="text-muted mt-1" style="font-size:.7rem;">нажмите для выбора</div>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+
+        <!-- Добавить нового пилота -->
+        <div class="col-md-4 col-6">
+          <div class="pilot-card" style="border-style:dashed; border-color:#444;" onclick="document.getElementById('addDriverSection').style.display='block'; this.style.display='none';">
+            <div class="text-warning fw-bold" style="font-size:.9rem;">+ Добавить пилота</div>
+            <div class="text-muted mt-1" style="font-size:.7rem;">станет участником команды</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Поиск для добавления -->
+      <div id="addDriverSection" style="display:none;" class="mt-3">
+        <div class="row g-2 align-items-end">
+          <div class="col">
+            <input type="text" id="driverSearchInput" class="form-control form-control-sm"
+                   placeholder="Поиск по имени..." oninput="searchDrivers(this.value)">
+          </div>
+          <div class="col-auto">
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+                    onclick="document.getElementById('addDriverSection').style.display='none';">Отмена</button>
+          </div>
+        </div>
+        <div id="driverSearchResults" class="mt-2"></div>
+      </div>
+
+      <div id="selectedPilotBadge" class="mt-2" style="display:none;">
+        <span class="badge bg-warning text-dark fs-6" id="selectedPilotName"></span>
+        <button type="button" class="btn btn-sm btn-link text-muted" onclick="clearPilot()">✕ сбросить</button>
+      </div>
+    </div>
+
+    <!-- 2. Класс -->
+    {% if classes %}
+    <div class="mb-4">
+      <div class="section-label">2. Класс</div>
+      <div class="d-flex flex-wrap gap-2">
+        {% for cls in classes %}
+        <label class="d-flex align-items-center gap-2 px-3 py-2 rounded"
+               style="background:#1a1a25; border:1px solid #2a2a35; cursor:pointer;">
+          <input type="radio" name="race_class" value="{{ cls.pk }}" style="accent-color:#f0c040;">
+          <span>{{ cls.name }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- 3. Стартовый номер -->
+    {% if available_numbers %}
+    <div class="mb-4">
+      <div class="section-label">3. Стартовый номер <span class="text-muted">(необязательно)</span></div>
+      <div class="d-flex flex-wrap gap-1" id="numberGrid">
+        {% for num in available_numbers %}
+        <div class="num-btn num-free" onclick="selectNum({{ num }}, this)" title="{{ num }}">{{ num }}</div>
+        {% endfor %}
+      </div>
+      <div id="selectedNumBadge" class="mt-2 text-muted" style="font-size:.8rem;"></div>
+    </div>
+    {% endif %}
+
+    <!-- 4. Представитель -->
+    <div class="mb-4">
+      <div class="section-label">4. Представитель команды</div>
+      <div class="row g-2">
+        <div class="col-md-3">
+          <label class="section-label">Имя</label>
+          <input type="text" name="rep_first_name" class="form-control form-control-sm"
+                 value="{{ rep_first_name }}">
+        </div>
+        <div class="col-md-3">
+          <label class="section-label">Фамилия</label>
+          <input type="text" name="rep_last_name" class="form-control form-control-sm"
+                 value="{{ rep_last_name }}">
+        </div>
+        <div class="col-md-3">
+          <label class="section-label">Email</label>
+          <input type="email" name="rep_email" class="form-control form-control-sm"
+                 value="{{ rep_email }}">
+        </div>
+        <div class="col-md-3">
+          <label class="section-label">Телефон</label>
+          <input type="text" name="rep_phone" class="form-control form-control-sm" placeholder="+7...">
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-warning fw-bold px-5" onclick="return validateForm()">
+      Зарегистрировать
+    </button>
+  </form>
+
+</div>
+</div>
+
+<!-- Hidden form for adding driver to team -->
+<form id="addMemberForm" method="post" action="{% url 'teams:team_add_driver' stage.id %}">
+  {% csrf_token %}
+  <input type="hidden" name="driver_id" id="addMemberDriverId">
+</form>
+
+<script>
+function selectPilot(id, name) {
+  document.querySelectorAll('.pilot-card:not(.disabled-card)').forEach(c => c.classList.remove('selected'));
+  const card = document.getElementById('pilot-' + id);
+  if (card) card.classList.add('selected');
+  document.getElementById('selectedDriverId').value = id;
+  document.getElementById('selectedPilotName').textContent = name;
+  document.getElementById('selectedPilotBadge').style.display = 'block';
+}
+
+function clearPilot() {
+  document.querySelectorAll('.pilot-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('selectedDriverId').value = '';
+  document.getElementById('selectedPilotBadge').style.display = 'none';
+}
+
+function selectNum(num, el) {
+  document.querySelectorAll('.num-btn').forEach(b => b.classList.remove('selected-num'));
+  el.classList.add('selected-num');
+  document.getElementById('selectedNumber').value = num;
+  document.getElementById('selectedNumBadge').textContent = 'Выбран номер: ' + num;
+}
+
+let searchTimer;
+function searchDrivers(q) {
+  clearTimeout(searchTimer);
+  if (q.length < 2) { document.getElementById('driverSearchResults').innerHTML = ''; return; }
+  searchTimer = setTimeout(() => {
+    fetch('{% url "teams:team_driver_search" %}?q=' + encodeURIComponent(q))
+      .then(r => r.json())
+      .then(data => {
+        const box = document.getElementById('driverSearchResults');
+        if (!data.drivers.length) { box.innerHTML = '<div class="text-muted small">Не найдено</div>'; return; }
+        box.innerHTML = data.drivers.map(d =>
+          `<div class="d-flex justify-content-between align-items-center py-1 border-bottom border-secondary">
+            <span class="text-white small">${d.name}</span>
+            <button type="button" class="btn btn-xs btn-outline-warning" style="font-size:.7rem;padding:2px 8px;"
+                    onclick="addToTeam(${d.id}, '${d.name.replace(/'/g,"\\'")}')">+ В команду</button>
+          </div>`
+        ).join('');
+      });
+  }, 300);
+}
+
+function addToTeam(id, name) {
+  if (!confirm('Добавить ' + name + ' в команду?')) return;
+  document.getElementById('addMemberDriverId').value = id;
+  document.getElementById('addMemberForm').submit();
+}
+
+function validateForm() {
+  if (!document.getElementById('selectedDriverId').value) {
+    alert('Выберите пилота.');
+    return false;
+  }
+  return true;
+}
+</script>
+{% endblock %}
