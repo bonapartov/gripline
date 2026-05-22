@@ -1,0 +1,189 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block content %}
+<style>
+.force-width-1500 { max-width:1500px !important; margin:0 auto; padding:0 1rem; }
+.num-cell {
+    display: flex; align-items: center; justify-content: center;
+    aspect-ratio: 1; border-radius: 6px; font-weight: bold;
+    font-size: 0.75rem; cursor: default; user-select: none;
+    transition: transform 0.1s;
+}
+.num-cell.clickable { cursor: pointer; }
+.num-cell.clickable:hover { transform: scale(1.1); z-index: 1; position: relative; }
+.num-free     { background: #2a2a35; color: #555; }
+.num-reserved { background: #3a3a45; color: #888; }
+.num-submitted  { background: #ffc107; color: #000; }
+.num-confirmed  { background: #198754; color: #fff; }
+.num-rejected   { background: #dc3545; color: #fff; }
+.num-draft      { background: #0dcaf0; color: #000; }
+.numbers-grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 4px;
+}
+.legend-box { width:20px; height:20px; border-radius:4px; display:inline-block; vertical-align:middle; }
+</style>
+
+<div class="force-width-1500 my-4">
+
+    <!-- Навигация -->
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <a href="{% url 'organizers:stage_registrations' stage.id %}" class="btn btn-outline-secondary btn-sm">← Список заявок</a>
+        <a href="{% url 'organizers:dashboard' %}" class="btn btn-outline-secondary btn-sm">Дашборд</a>
+    </div>
+
+    <h3 class="text-warning mb-1">🔢 Сетка стартовых номеров</h3>
+    <p class="text-muted mb-3">{{ stage.title }}</p>
+
+    <!-- Статистика -->
+    <div class="d-flex flex-wrap gap-3 mb-3">
+        <span class="badge bg-secondary fs-6">Всего: {{ total_all }}</span>
+        <span class="badge bg-warning text-dark fs-6">Занято: {{ total_taken }}</span>
+        <span class="badge bg-success fs-6">Свободно: {{ total_free }}</span>
+    </div>
+
+    <!-- Легенда -->
+    <div class="d-flex flex-wrap gap-3 mb-4 small">
+        <span><span class="legend-box" style="background:#198754"></span> Допущен</span>
+        <span><span class="legend-box" style="background:#ffc107"></span> На проверке</span>
+        <span><span class="legend-box" style="background:#0dcaf0"></span> Черновик</span>
+        <span><span class="legend-box" style="background:#dc3545"></span> Отклонён</span>
+        <span><span class="legend-box" style="background:#3a3a45"></span> Зарезервирован</span>
+        <span><span class="legend-box" style="background:#2a2a35; border:1px solid #444"></span> Свободен</span>
+    </div>
+
+    <!-- Сетка -->
+    <div class="numbers-grid">
+        {% for cell in grid_data %}
+            {% if cell.app %}
+                {% if cell.app.status == 'confirmed' %}
+                    <div class="num-cell num-confirmed clickable"
+                {% elif cell.app.status == 'submitted' %}
+                    <div class="num-cell num-submitted clickable"
+                {% elif cell.app.status == 'rejected' %}
+                    <div class="num-cell num-rejected clickable"
+                {% else %}
+                    <div class="num-cell num-draft clickable"
+                {% endif %}
+                    data-app-id="{{ cell.app.id }}"
+                    data-number="{{ cell.number }}"
+                    data-pilot="{% if cell.app.pilot and cell.app.pilot.driver %}{{ cell.app.pilot.driver.full_name }}{% else %}{{ cell.app.pilot.email }}{% endif %}"
+                    data-class="{% if cell.app.race_class %}{{ cell.app.race_class.name }}{% else %}—{% endif %}"
+                    data-status="{{ cell.app.get_status_display }}"
+                    data-fee="{{ cell.app.entry_fee_amount }}"
+                    onclick="showNumberInfo(this)">
+                    {{ cell.number }}
+                </div>
+            {% elif cell.reserved %}
+                <div class="num-cell num-reserved" title="Зарезервирован">{{ cell.number }}</div>
+            {% else %}
+                <div class="num-cell num-free">{{ cell.number }}</div>
+            {% endif %}
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Модал: информация о номере -->
+<div class="modal fade" id="numberModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="background:#1a1a25; border:1px solid #2a2a35; color:white;">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-warning">Номер <span id="mNumber" class="text-white fs-3 fw-bold"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2"><span class="text-muted small">Пилот:</span> <span id="mPilot" class="fw-bold"></span></div>
+                <div class="mb-2"><span class="text-muted small">Класс:</span> <span id="mClass"></span></div>
+                <div class="mb-2"><span class="text-muted small">Статус:</span> <span id="mStatus" class="badge"></span></div>
+                <div class="mb-2"><span class="text-muted small">Взнос:</span> <span id="mFee"></span> ₽</div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+                <button type="button" class="btn btn-warning" onclick="openReassign()">Переназначить номер</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модал: переназначение -->
+<div class="modal fade" id="reassignModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="background:#1a1a25; border:1px solid #2a2a35; color:white;">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-warning">Переназначить номер</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">Пилот: <span id="rPilot" class="text-white"></span></p>
+                <label class="form-label">Новый номер</label>
+                <input type="number" id="rNewNumber" class="form-control"
+                    style="background:#15151c; border:1px solid #2a2a35; color:white;"
+                    min="{% if stage.start_number_digits == 2 %}10{% else %}100{% endif %}"
+                    max="{% if stage.start_number_digits == 2 %}99{% else %}999{% endif %}">
+                <div id="rError" class="text-danger small mt-2"></div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-warning" onclick="doReassign()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentAppId = null;
+
+function getCookie(name) {
+    let v = null;
+    document.cookie.split(';').forEach(c => {
+        c = c.trim();
+        if (c.startsWith(name + '=')) v = decodeURIComponent(c.slice(name.length + 1));
+    });
+    return v;
+}
+
+function showNumberInfo(el) {
+    currentAppId = el.dataset.appId;
+    document.getElementById('mNumber').textContent = el.dataset.number;
+    document.getElementById('mPilot').textContent = el.dataset.pilot;
+    document.getElementById('mClass').textContent = el.dataset.class;
+    document.getElementById('mFee').textContent = el.dataset.fee;
+    const statusEl = document.getElementById('mStatus');
+    statusEl.textContent = el.dataset.status;
+    const statusMap = {
+        'confirmed': 'bg-success', 'submitted': 'bg-warning text-dark',
+        'rejected': 'bg-danger', 'draft': 'bg-info text-dark'
+    };
+    statusEl.className = 'badge ' + (statusMap[el.dataset.status] || 'bg-secondary');
+    new bootstrap.Modal(document.getElementById('numberModal')).show();
+}
+
+function openReassign() {
+    const pilot = document.getElementById('mPilot').textContent;
+    document.getElementById('rPilot').textContent = pilot;
+    document.getElementById('rNewNumber').value = '';
+    document.getElementById('rError').textContent = '';
+    bootstrap.Modal.getInstance(document.getElementById('numberModal')).hide();
+    setTimeout(() => new bootstrap.Modal(document.getElementById('reassignModal')).show(), 300);
+}
+
+function doReassign() {
+    const newNum = document.getElementById('rNewNumber').value;
+    if (!newNum) { document.getElementById('rError').textContent = 'Введите номер'; return; }
+    fetch('{% url "organizers:reassign_number" stage.id %}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `app_id=${currentAppId}&new_number=${newNum}`
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            document.getElementById('rError').textContent = data.error;
+        }
+    });
+}
+</script>
+{% endblock %}

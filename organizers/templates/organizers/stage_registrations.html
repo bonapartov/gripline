@@ -22,9 +22,12 @@
                 {% if pending_count %}<span class="badge bg-warning text-dark ms-2">{{ pending_count }} на рассмотрении</span>{% endif %}
             </p>
         </div>
-        <a href="{% url 'organizers:dashboard' %}" class="btn btn-outline-secondary btn-sm">
-            <i class="fas fa-arrow-left me-1"></i>Назад
-        </a>
+        <div class="d-flex gap-2">
+            <a href="{% url 'organizers:stage_numbers' stage.id %}" class="btn btn-outline-warning btn-sm">🔢 Сетка номеров</a>
+            <a href="{% url 'organizers:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i>Назад
+            </a>
+        </div>
     </div>
 
     {% if messages %}

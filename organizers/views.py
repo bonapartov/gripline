@@ -571,3 +571,85 @@ def registration_action(request, registration_id):
             messages.warning(request, f'Регистрация {reg.user.email} отклонена.')
 
     return redirect('organizers:stage_registrations', stage_id=reg.stage.pk)
+
+@login_required
+def stage_numbers(request, stage_id):
+    from .models import Stage
+    from applications.models import Application
+
+    stage = get_object_or_404(Stage, pk=stage_id, championship__organizer__user=request.user)
+
+    applications = Application.objects.filter(
+        stage=stage, start_number__isnull=False
+    ).exclude(status__in=['cancelled']).select_related('race_class', 'pilot', 'pilot__driver')
+
+    numbers_map = {app.start_number: app for app in applications}
+
+    if stage.start_number_digits == 2:
+        all_numbers = list(range(10, 100))
+    else:
+        all_numbers = list(range(100, 1000))
+
+    reserved = set(stage.reserved_start_numbers or [])
+
+    grid_data = []
+    for n in all_numbers:
+        grid_data.append({
+            'number': n,
+            'app': numbers_map.get(n),
+            'reserved': n in reserved and n not in numbers_map,
+        })
+
+    total_taken = len(numbers_map)
+    total_reserved = len([n for n in reserved if n not in numbers_map])
+    total_free = len(all_numbers) - total_taken - total_reserved
+
+    return render(request, 'organizers/stage_numbers.html', {
+        'stage': stage,
+        'grid_data': grid_data,
+        'total_all': len(all_numbers),
+        'total_taken': total_taken,
+        'total_free': total_free,
+    })
+
+
+@login_required
+def reassign_number(request, stage_id):
+    from django.http import JsonResponse
+    from .models import Stage
+    from applications.models import Application
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+
+    stage = get_object_or_404(Stage, pk=stage_id, championship__organizer__user=request.user)
+
+    app_id = request.POST.get('app_id')
+    new_number = request.POST.get('new_number')
+
+    try:
+        new_number = int(new_number)
+    except (TypeError, ValueError):
+        return JsonResponse({'success': False, 'error': 'Некорректный номер'})
+
+    app = get_object_or_404(Application, pk=app_id, stage=stage)
+
+    taken = set(
+        Application.objects.filter(stage=stage, start_number__isnull=False)
+        .exclude(status__in=['cancelled'])
+        .exclude(pk=app.pk)
+        .values_list('start_number', flat=True)
+    )
+    reserved = set(stage.reserved_start_numbers or [])
+
+    if new_number in taken or new_number in reserved:
+        return JsonResponse({'success': False, 'error': 'Номер занят или зарезервирован'})
+
+    if stage.start_number_digits == 2 and not (10 <= new_number <= 99):
+        return JsonResponse({'success': False, 'error': 'Номер вне диапазона'})
+    if stage.start_number_digits == 3 and not (100 <= new_number <= 999):
+        return JsonResponse({'success': False, 'error': 'Номер вне диапазона'})
+
+    app.start_number = new_number
+    app.save()
+    return JsonResponse({'success': True, 'new_number': new_number})
