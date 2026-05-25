@@ -11,448 +11,262 @@
         padding-right: 1rem !important;
     }
 
-    /* Кинетическая сетка — фоновый паттерн */
-    .gl-kinetic-grid {
-        background-image:
-            linear-gradient(to right, rgba(255,255,255,0.025) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(255,255,255,0.025) 1px, transparent 1px);
-        background-size: 40px 40px;
-    }
-
-    /* Стеклянная карточка */
-    .gl-glass-card {
-        background: rgba(255, 255, 255, 0.04);
-        backdrop-filter: blur(12px);
-        border: 1px solid var(--gl-border-mid);
-    }
-
-    /* Срез угла (chamfer) для первого места */
-    .gl-chamfer-tr {
-        clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
-    }
-
     /* Навигация по классам */
-    .class-nav-strip {
-        background: var(--gl-surface-inset);
-        border: 1px solid var(--gl-border-mid);
-        padding: 4px;
+    .class-nav {
+        background-color: #2a2a35;
+        border-radius: 4px;
+        padding: 0.5rem;
         display: flex;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        gap: 2px;
-        width: fit-content;
-        max-width: 100%;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+        margin-bottom: 2rem;
     }
-    .class-nav-strip::-webkit-scrollbar { display: none; }
-    .class-nav-strip .cls-btn {
-        padding: 0.55rem 1.1rem;
-        font-size: 0.65rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--gl-fg-4);
+    .class-nav .nav-link {
+        color: #adb5bd;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        transition: all 0.2s;
         text-decoration: none;
-        transition: background var(--gl-motion-fast), color var(--gl-motion-fast);
-        white-space: nowrap;
+        border: 2px solid #3a3a45;
+        background-color: transparent;
+    }
+    .class-nav .nav-link:hover {
+        border-color: #ffc107;
+        background-color: #3a3a45;
+        color: white;
+    }
+    .class-nav .nav-link.active {
+        border-color: #ffc107 !important;
+        background-color: transparent !important;
+        color: white !important;
+    }
+
+    /* Таблица */
+    .top-table {
+        background-color: #1a1a25;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .top-table thead tr {
+        border-bottom: 2px solid #ffc107;
+    }
+    .top-table th {
+        background-color: #2a2a35;
+        color: #adb5bd;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+        vertical-align: middle;
+        padding: 0.75rem 1rem;
+    }
+    .top-table td {
+        padding: 0.5rem 1rem;
+        border-bottom: 1px solid #2a2a35;
+        vertical-align: middle;
+    }
+    .top-table tbody tr:hover {
+        background-color: rgba(13, 202, 240, 0.1) !important;
+        transition: 0.3s;
+    }
+
+    /* Бейджи мест */
+    .rank-badge {
+        width: 45px;
+        font-weight: 800;
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.375rem;
+        text-align: center;
+    }
+    .bg-warning { background-color: #ffc107 !important; }
+    .bg-bronze { background-color: #cd7f32 !important; }
+    .bg-silver { background-color: #e0e0e0 !important; color: #212529 !important;}
+    .bg-secondary { background-color: #6c757d !important; }
+    .text-dark { color: #212529 !important; }
+    .text-white { color: #fff !important; }
+
+    /* Фото пилотов */
+    .driver-photo-rect {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 2px solid #2a2a35;
+    }
+    .driver-photo-placeholder {
+        width: 60px;
+        height: 60px;
+        background-color: #6c757d;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #2a2a35;
+    }
+
+    /* Рейтинговый бейдж */
+    .rating-badge {
+        background-color: #28a745;
+        color: #fff;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-weight: bold;
         display: inline-block;
     }
-    .class-nav-strip .cls-btn:hover {
-        background: rgba(255,255,255,0.05);
-        color: var(--gl-fg-2);
+    .rating-low-data {
+        opacity: 0.8;
     }
-    .class-nav-strip .cls-btn.active {
-        background: var(--gl-brand-yellow);
-        color: var(--gl-fg-on-yellow);
-    }
-
-    /* Карточки пьедестала */
-    .podium-card {
-        position: relative;
-        overflow: hidden;
-        transition: transform var(--gl-motion-fast), box-shadow var(--gl-motion-fast);
-    }
-    .podium-card:hover { transform: scale(1.02); }
-
-    .podium-card-1 {
-        border-top: 4px solid var(--gl-brand-yellow);
-        box-shadow: 0 0 50px -12px rgba(255, 193, 7, 0.22);
-    }
-    .podium-card-2 { border-top: 3px solid rgba(255,255,255,0.18); }
-    .podium-card-3 { border-top: 3px solid var(--gl-brand-bronze); }
-
-    /* Фоновый номер позиции */
-    .podium-bg-num {
-        position: absolute;
-        right: -8px;
-        bottom: -16px;
-        font-size: 7.5rem;
-        font-weight: 800;
-        font-style: italic;
-        line-height: 1;
-        color: rgba(255,255,255,0.04);
-        pointer-events: none;
-        user-select: none;
-    }
-    .podium-bg-num-1 {
-        font-size: 9.5rem;
-        color: rgba(255, 193, 7, 0.06);
+    .starts-badge {
+        background-color: #2a2a35;
+        color: #adb5bd;
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        margin-left: 0.25rem;
     }
 
-    /* Аватары (пьедестал) */
-    .podium-avatar {
-        border-radius: 50%;
-        object-fit: cover;
-        border: 2px solid var(--gl-border-mid);
-        display: block;
-        margin: 0 auto;
-    }
-    .podium-avatar-1 {
-        border: 4px solid var(--gl-brand-yellow);
-    }
-    .podium-avatar-placeholder {
-        border-radius: 50%;
-        background: var(--gl-surface-card-hover);
-        border: 2px solid var(--gl-border-mid);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto;
-    }
-
-    /* Бейдж лидера */
-    .champion-badge {
-        position: absolute;
-        top: -10px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: var(--gl-brand-yellow);
-        color: var(--gl-fg-on-yellow);
-        padding: 2px 10px;
-        font-size: 0.55rem;
-        font-weight: 700;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        border-radius: var(--gl-radius-pill);
+    /* Кнопка */
+    .btn-filter {
+        background-color: #ffc107;
+        color: #000 !important;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        font-weight: bold;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        display: inline-block;
+        text-decoration: none;
+        cursor: pointer;
         white-space: nowrap;
     }
-
-    /* Таблица рейтинга */
-    .rating-table-wrap {
-        background: var(--gl-surface-card);
-        border: 1px solid var(--gl-border-mid);
-        overflow: hidden;
-    }
-    .rating-table-wrap table thead th {
-        background: var(--gl-surface-card-hover);
-        color: var(--gl-fg-4);
-        font-size: 0.65rem;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        padding: 1rem 1.25rem;
-        border-bottom: 1px solid var(--gl-border-mid);
-        border-top: none;
-    }
-    .rating-table-wrap table td {
-        padding: 0.8rem 1.25rem;
-        border-bottom: 1px solid var(--gl-border-card);
-        vertical-align: middle;
-        background: transparent;
-    }
-    .rating-table-wrap table tbody tr:hover {
-        background: rgba(255, 193, 7, 0.04) !important;
-    }
-    .rating-table-wrap table tbody tr:hover .row-rank {
-        opacity: 0.7;
-        color: var(--gl-brand-yellow) !important;
+    .btn-filter:hover {
+        background-color: #e0a800;
+        transform: translateY(-2px);
+        color: #000 !important;
+        text-decoration: none;
     }
 
-    /* Номер позиции в таблице */
-    .row-rank {
-        font-size: 1.05rem;
-        font-weight: 800;
-        font-style: italic;
-        color: white;
-        opacity: 0.15;
-        transition: opacity var(--gl-motion-fast), color var(--gl-motion-fast);
-    }
-
-    /* Мини прогресс-бар очков */
-    .pts-bar {
-        width: 56px;
-        height: 3px;
-        background: rgba(255,255,255,0.08);
-        border-radius: 2px;
-        overflow: hidden;
-        margin-top: 4px;
-    }
-    .pts-bar-fill {
-        height: 100%;
-        border-radius: 2px;
-        background: rgba(255,255,255,0.35);
-    }
-    .pts-bar-fill-gold { background: var(--gl-brand-yellow); }
-
-    /* Аватар в таблице */
-    .table-avatar {
-        width: 38px;
-        height: 38px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 1px solid var(--gl-border-mid);
-    }
-    .table-avatar-placeholder {
-        width: 38px;
-        height: 38px;
-        border-radius: 50%;
-        background: var(--gl-surface-card-hover);
-        border: 1px solid var(--gl-border-mid);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    /* Ссылка на методологию */
+    .methodology-link {
+        text-align: right;
+        margin-top: 1rem;
     }
 </style>
 
-<div class="force-width-1500 gl-kinetic-grid py-5 text-white">
-
-    <!-- Заголовок страницы -->
-    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
-        <div>
-            <h1 class="display-4 fw-bold text-uppercase mb-1 fst-italic" style="letter-spacing:-0.02em;">
-                Рейтинг пилотов
-            </h1>
-            <p class="text-muted mb-0" style="max-width:600px; font-size:0.95rem;">
-                Официальный рейтинг GripLine. Данные обновляются после каждого заезда.
-            </p>
-        </div>
-        <a href="/rating-info/" class="btn btn-warning btn-sm fw-bold text-dark px-4" style="text-decoration:none;">
+<div class="force-width-1500 my-5 text-white">
+    <!-- Заголовок -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <h1 class="display-4 fw-bold text-uppercase mb-0">
+            <i class="fas fa-crown me-3 text-warning"></i>Топ пилотов
+        </h1>
+        <a href="/rating-info/" class="btn-filter" style="text-decoration: none;">
             <i class="fas fa-question-circle me-2"></i>Как считается?
         </a>
     </div>
 
     <!-- Навигация по классам -->
-    <div class="mb-5">
-        <div class="class-nav-strip">
-            {% for cls in classes %}
-            <a href="?class={{ cls.id }}"
-               class="cls-btn {% if cls.id == selected_class_id %}active{% endif %}">
-                {{ cls.name }}
-            </a>
-            {% endfor %}
-        </div>
-    </div>
-
-    {% if drivers %}
-
-    <!-- Пьедестал (топ-3) -->
-    <div class="row g-4 align-items-end mb-5">
-
-        {# 2-е место — левая колонка #}
-        <div class="col-12 col-md-4 order-2 order-md-1">
-            {% if drivers.1 %}{% with d=drivers.1 %}
-            <div class="gl-glass-card podium-card podium-card-2 p-4 text-center">
-                <span class="podium-bg-num">2</span>
-
-                {% if d.photo %}
-                    {% image d.photo fill-96x96 as p %}
-                    <img src="{{ p.url }}" class="podium-avatar mb-3"
-                         style="width:96px;height:96px;" alt="{{ d.full_name }}">
-                {% else %}
-                    <div class="podium-avatar-placeholder mb-3" style="width:96px;height:96px;">
-                        <i class="fas fa-user fa-2x text-secondary"></i>
-                    </div>
-                {% endif %}
-
-                <div class="mb-1 text-muted"
-                     style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;">
-                    P2 &bull; {{ d.normalized_rating }} PTS
-                </div>
-                <h3 class="fw-bold text-uppercase mb-3" style="font-size:0.95rem;letter-spacing:0.03em;">
-                    {{ d.full_name }}
-                </h3>
-                <div class="row g-2 pt-3 border-top border-secondary border-opacity-25">
-                    <div class="col-6 text-center">
-                        <div class="text-muted" style="font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;">Старты</div>
-                        <div class="fw-bold font-monospace">{{ d.race_count|default:"0" }}</div>
-                    </div>
-                    <div class="col-6 text-center">
-                        <div class="text-muted" style="font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;">Победы</div>
-                        <div class="fw-bold font-monospace">{{ d.win_count|default:"0" }}</div>
-                    </div>
-                </div>
-            </div>
-            {% endwith %}{% endif %}
-        </div>
-
-        {# 1-е место — центр #}
-        <div class="col-12 col-md-4 order-1 order-md-2">
-            {% with d=drivers.0 %}
-            <div class="gl-glass-card podium-card podium-card-1 gl-chamfer-tr p-5 text-center">
-                <span class="podium-bg-num podium-bg-num-1">1</span>
-
-                <div class="position-relative d-inline-block mb-3">
-                    {% if d.photo %}
-                        {% image d.photo fill-128x128 as p %}
-                        <img src="{{ p.url }}" class="podium-avatar podium-avatar-1"
-                             style="width:128px;height:128px;" alt="{{ d.full_name }}">
-                    {% else %}
-                        <div class="podium-avatar-placeholder" style="width:128px;height:128px;border-color:var(--gl-brand-yellow) !important;">
-                            <i class="fas fa-user fa-3x text-warning"></i>
-                        </div>
-                    {% endif %}
-                    <span class="champion-badge">Лидер</span>
-                </div>
-
-                <div class="text-warning mb-1"
-                     style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;">
-                    P1 &bull; {{ d.normalized_rating }} PTS
-                </div>
-                <h3 class="fw-bold text-uppercase text-warning mb-3" style="font-size:1.05rem;letter-spacing:0.03em;">
-                    {{ d.full_name }}
-                </h3>
-                <div class="row g-2 pt-3 border-top" style="border-color:rgba(255,193,7,0.2)!important;">
-                    <div class="col-6 text-center">
-                        <div class="text-muted" style="font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;">Старты</div>
-                        <div class="fw-bold font-monospace fs-5">{{ d.race_count|default:"0" }}</div>
-                    </div>
-                    <div class="col-6 text-center">
-                        <div class="text-muted" style="font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;">Победы</div>
-                        <div class="fw-bold font-monospace fs-5">{{ d.win_count|default:"0" }}</div>
-                    </div>
-                </div>
-            </div>
-            {% endwith %}
-        </div>
-
-        {# 3-е место — правая колонка #}
-        <div class="col-12 col-md-4 order-3">
-            {% if drivers.2 %}{% with d=drivers.2 %}
-            <div class="gl-glass-card podium-card podium-card-3 p-4 text-center">
-                <span class="podium-bg-num">3</span>
-
-                {% if d.photo %}
-                    {% image d.photo fill-96x96 as p %}
-                    <img src="{{ p.url }}" class="podium-avatar mb-3"
-                         style="width:96px;height:96px;" alt="{{ d.full_name }}">
-                {% else %}
-                    <div class="podium-avatar-placeholder mb-3" style="width:96px;height:96px;">
-                        <i class="fas fa-user fa-2x text-secondary"></i>
-                    </div>
-                {% endif %}
-
-                <div class="mb-1" style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--gl-brand-bronze);">
-                    P3 &bull; {{ d.normalized_rating }} PTS
-                </div>
-                <h3 class="fw-bold text-uppercase mb-3" style="font-size:0.95rem;letter-spacing:0.03em;">
-                    {{ d.full_name }}
-                </h3>
-                <div class="row g-2 pt-3 border-top border-secondary border-opacity-25">
-                    <div class="col-6 text-center">
-                        <div class="text-muted" style="font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;">Старты</div>
-                        <div class="fw-bold font-monospace">{{ d.race_count|default:"0" }}</div>
-                    </div>
-                    <div class="col-6 text-center">
-                        <div class="text-muted" style="font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;">Победы</div>
-                        <div class="fw-bold font-monospace">{{ d.win_count|default:"0" }}</div>
-                    </div>
-                </div>
-            </div>
-            {% endwith %}{% endif %}
-        </div>
-
-    </div>
-    {# /пьедестал #}
-
-    {% endif %}
+    <!-- Навигация по классам -->
+    {% include "includes/class_nav.html" with classes=classes selected_class=selected_class_id base_url="?" %}
 
     <!-- Таблица рейтинга -->
-    <div class="rating-table-wrap">
-        <div class="table-responsive">
-            <table class="table table-dark mb-0">
-                <thead>
-                    <tr>
-                        <th style="width:64px;">Ранг</th>
-                        <th style="width:52px;"></th>
-                        <th>Пилот</th>
-                        <th>Город</th>
-                        <th class="text-center">Старты</th>
-                        <th class="text-center">Победы</th>
-                        <th class="text-center">Подиумы</th>
-                        <th class="text-center">Win%</th>
-                        <th class="text-center" title="Тренд формы: последние 5 vs предыдущие 5 гонок">Тренд</th>
-                        <th class="text-end" style="min-width:110px;">Очки</th>
-                        <th style="width:40px;"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for driver in drivers %}
-                    <tr>
-                        <td><span class="row-rank">{{ driver.rank|stringformat:"02d" }}</span></td>
-                        <td>
-                            {% if driver.photo %}
-                                {% image driver.photo fill-38x38 as dp %}
-                                <img src="{{ dp.url }}" class="table-avatar" alt="{{ driver.full_name }}">
-                            {% else %}
-                                <div class="table-avatar-placeholder">
-                                    <i class="fas fa-user text-secondary" style="font-size:0.7rem;"></i>
-                                </div>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <a href="{{ driver.get_absolute_url }}" class="text-white text-decoration-none fw-bold">
-                                {{ driver.full_name }}
-                            </a>
-                        </td>
-                        <td class="text-secondary small">{{ driver.city|default:"—" }}</td>
-                        <td class="text-center font-monospace small">{{ driver.race_count|default:"0" }}</td>
-                        <td class="text-center font-monospace small">{{ driver.win_count|default:"0" }}</td>
-                        <td class="text-center font-monospace small">{{ driver.podium_count|default:"0" }}</td>
-                        <td class="text-center font-monospace small">{{ driver.win_percentage }}%</td>
-                        <td class="text-center" style="font-size:1rem;">
-                            {% if driver.form_trend == 'up' %}
-                                <span class="text-success" title="На подъёме: последние 5 лучше предыдущих">▲</span>
-                            {% elif driver.form_trend == 'down' %}
-                                <span class="text-danger" title="Спад: последние 5 хуже предыдущих">▼</span>
-                            {% elif driver.form_trend == 'stable' %}
-                                <span class="text-secondary" title="Стабильно">▬</span>
-                            {% else %}
-                                <span class="text-muted" style="font-size:0.75rem;" title="Недостаточно данных">—</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-end">
-                            <span class="fw-bold {% if driver.rank == 1 %}text-warning{% endif %}"
-                                  style="font-size:0.95rem;">{{ driver.normalized_rating }}</span>
-                            <div class="pts-bar ms-auto">
-                                <div class="pts-bar-fill {% if driver.rank == 1 %}pts-bar-fill-gold{% endif %}"
-                                     style="width:{{ driver.normalized_rating }}%;"></div>
+    <div class="top-table">
+        <table class="table table-dark table-hover mb-0">
+            <thead>
+                <tr>
+                    <th class="text-center" style="width: 80px;">Место</th>
+                    <th style="width: 80px;">Фото</th>
+                    <th>Пилот</th>
+                    <th>Город</th>
+                    <th class="text-center">Старты</th>
+                    <th class="text-center">Победы</th>
+                    <th class="text-center">Подиумы</th>
+                    <th class="text-center">Win%</th>
+                    <th class="text-center">Рейтинг</th>
+                    <th class="text-center" style="width: 50px;" title="Тренд формы: сравнение последних 5 гонок с предыдущими 5">Тренд</th>
+                    <th class="text-center" style="width: 40px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for driver in drivers %}
+                <tr>
+                    <td class="text-center">
+                        <span class="rank-badge
+                            {% if driver.rank == 1 %}bg-warning text-dark
+                            {% elif driver.rank == 2 %}bg-silver text-dark
+                            {% elif driver.rank == 3 %}bg-bronze text-white
+                            {% else %}bg-secondary text-white{% endif %}">
+                            {{ driver.rank }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if driver.photo %}
+                            {% image driver.photo fill-60x60 as driver_photo %}
+                            <img src="{{ driver_photo.url }}" class="driver-photo-rect" alt="{{ driver.full_name }}">
+                        {% else %}
+                            <div class="driver-photo-placeholder">
+                                <i class="fas fa-user text-dark"></i>
                             </div>
-                        </td>
-                        <td class="text-center">
-                            {% if driver.starts_in_class < 3 %}
-                                <span title="Мало стартов в этом классе">⚠️</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="11" class="text-center py-5 text-muted">
-                            Нет данных для отображения
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ driver.get_absolute_url }}" class="text-white text-decoration-none fw-bold">
+                            {{ driver.full_name }}
+                        </a>
+                    </td>
+                    <td>{{ driver.city|default:"—" }}</td>
+                    <td class="text-center">
+                        {{ driver.race_count|default:"0" }}
+                    </td>
+                    <td class="text-center">{{ driver.win_count|default:"0" }}</td>
+                    <td class="text-center">{{ driver.podium_count|default:"0" }}</td>
+                    <td class="text-center">{{ driver.win_percentage }}%</td>
+                    <td class="text-center">
+                        <span class="rating-badge {% if driver.starts_in_class < 3 %}rating-low-data{% endif %}"
+                              style="min-width: 65px; display: inline-block; text-align: center;">
+                            {{ driver.normalized_rating }}
+                        </span>
+                    </td>
+
+                    <!-- Тренд формы -->
+                    <td class="text-center" style="font-size: 1.1rem;">
+                        {% if driver.form_trend == 'up' %}
+                            <span class="text-success" title="На подъёме: последние 5 гонок лучше предыдущих">▲</span>
+                        {% elif driver.form_trend == 'down' %}
+                            <span class="text-danger" title="Спад: последние 5 гонок хуже предыдущих">▼</span>
+                        {% elif driver.form_trend == 'stable' %}
+                            <span class="text-secondary" title="Стабильно">▬</span>
+                        {% else %}
+                            <span class="text-muted" style="font-size: 0.75rem;" title="Недостаточно данных">—</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Предупреждение о малом количестве стартов -->
+                    <td class="text-center" style="width: 40px;">
+                        {% if driver.starts_in_class < 3 %}
+                            <span class="warning-icon" title="Мало стартов в этом классе">⚠️</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10" class="text-center p-5 text-muted">
+                        Нет данных для отображения
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 
-    <!-- Пояснение методологии -->
-    <div class="text-end mt-3">
+    <!-- Пояснение про рейтинг -->
+    <div class="methodology-link">
         <small class="text-muted">
             <i class="fas fa-info-circle me-1"></i>
-            Рейтинг рассчитан по модели <span class="badge bg-success">Bradley-Terry</span>
-            с байесовским сглаживанием —
+            Рейтинг рассчитан по модели <span class="badge bg-success">Bradley-Terry</span> с байесовским сглаживанием —
             <a href="/rating-info/" class="text-info">подробнее о методологии</a>
         </small>
     </div>
-
 </div>
 {% endblock %}

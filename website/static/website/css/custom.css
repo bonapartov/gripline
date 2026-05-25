@@ -1,14 +1,7 @@
-/*
- * Gripline — пользовательские стили
- * --------------------------------------------------
- * Все значения цветов берутся из tokens.css через var(--gl-*).
- * НЕ хардкодь hex-значения напрямую — добавляй токен в tokens.css.
- * Комментарии на русском языке.
- */
+/* Add your custom styles here */
 
 
-/* ── Сетка CRX ─────────────────────────────────────────────────────── */
-
+/* Adds a bit of spacing to "Responsive Grid Row" blocks. */
 .crx-grid {
   padding-top: 40px;
   padding-bottom: 40px;
@@ -19,444 +12,196 @@
 }
 
 
-/* ── Навбар ─────────────────────────────────────────────────────────── */
-
+/* Основной фон меню — глубокий темный */
 .navbar {
-  background-color: var(--gl-surface-navbar) !important;
+  background-color: #0e131a !important;
   padding: 0 1rem !important;
-  border-bottom: 2px solid var(--gl-border-soft);
+  border-bottom: 2px solid #222;
 }
 
+/* Настройка логотипа */
 .navbar-brand {
-  font-weight: var(--gl-weight-black);
-  color: var(--gl-brand-yellow-bright) !important;
+  font-weight: 900;
+  color: #ffd400 !important; /* Тот самый желтый цвет */
   text-transform: uppercase;
   font-size: 1.5rem;
   letter-spacing: -1px;
 }
 
+/* Ссылки меню */
 .nav-link {
-  color: var(--gl-fg-1) !important;
-  font-weight: var(--gl-weight-bold);
+  color: #ffffff !important;
+  font-weight: 700;
   text-transform: uppercase;
   font-size: 0.85rem;
   padding: 1.2rem 0.8rem !important;
-  transition: background-color var(--gl-motion-fast);
+  transition: background-color 0.2s;
 }
 
+/* Эффект при наведении — как на оригинале */
 .nav-link:hover {
-  background-color: var(--gl-border-soft);
-  color: var(--gl-brand-yellow-bright) !important;
+  background-color: #222222;
+  color: #ffd400 !important;
 }
 
-/* Активный пункт меню */
+/* Активный пункт меню  */
 .nav-item.active .nav-link,
 .nav-link.active {
-  color: var(--gl-brand-yellow-bright) !important;
+  color: #ffd400 !important;
 }
 
-/* Стрелка выпадающего меню */
+/* Убираем стандартную иконку выпадающего списка и заменяем на маленькую стрелочку */
 .dropdown-toggle::after {
   vertical-align: middle;
   border-top: 0.3em solid;
   border-right: 0.3em solid transparent;
   border-left: 0.3em solid transparent;
 }
-
-/* ── Выпадающее меню (только десктоп) ───────────────────────────────── */
-
+/* Открытие подменю при наведении на десктопах */
 @media (min-width: 992px) {
   .navbar .nav-item.dropdown:hover > .dropdown-menu {
     display: block;
-    margin-top: 0;
+    margin-top: 0; /* Убирает зазор, чтобы меню не закрывалось при переносе курсора */
     opacity: 1;
     visibility: visible;
-    animation: glFadeIn var(--gl-motion-fast);
+    animation: fadeIn 0.2s ease-in;
   }
 
-  @keyframes glFadeIn {
+  /* Плавное появление (опционально) */
+  @keyframes fadeIn {
     from { opacity: 0; transform: translateY(5px); }
-    to   { opacity: 1; transform: translateY(0); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
+  /* Чтобы само меню не исчезало, когда мы ведем курсор вниз */
+  /* Стили для выпадающего меню (фон и границы) */
   .dropdown-menu {
-    background-color: var(--gl-surface-navbar) !important;
-    border: 1px solid var(--gl-border-soft) !important;
-    /* Жёлтая полоска сверху — фирменная деталь навбара */
-    border-top: 3px solid var(--gl-brand-yellow-bright) !important;
-    border-radius: var(--gl-radius-none);
+    background-color: #0e131a !important; /* Цвет как у navbar */
+    border: 1px solid #222 !important;
+    border-top: 3px solid #ffd400 !important; /* Желтая полоска сверху */
+    border-radius: 0;
   }
 
+  /* Цвет текста в пунктах выпадающего меню */
   .dropdown-item {
-    color: var(--gl-fg-2) !important;
-    font-weight: var(--gl-weight-semibold);
+    color: #eceff1 !important;
+    font-weight: 600;
     padding: 0.7rem 1.5rem;
   }
 
+  /* Фон при наведении на пункт в меню */
   .dropdown-item:hover {
-    background-color: var(--gl-surface-card-hover) !important;
-    color: var(--gl-brand-yellow-bright) !important;
+    background-color: #1c2633 !important; /* Чуть светлее при наведении */
+    color: #ffd400 !important;
   }
 }
 
-
-/* ── Фон страницы и базовый текст ───────────────────────────────────── */
-
+/* 1. Фон всего сайта и цвет текста */
 body {
-  background-color: var(--gl-surface-body) !important;
-  color: var(--gl-fg-2) !important;
+  background-color: #15151c !important; /* Очень темный, почти черный */
+  color: #eceff1 !important; /* Светло-серый текст, чтобы не резало глаза */
 }
 
-
-/* ── Карточки ───────────────────────────────────────────────────────── */
-
-/* Стандартная карточка Bootstrap (#1a1a25 — текущий стандарт, НЕ устаревший #171f26) */
+/* 2. Настройка всех карточек (новостей) */
 .card {
-  background-color: var(--gl-surface-card) !important;
-  border: 1px solid var(--gl-border-soft) !important;
-  color: var(--gl-fg-1) !important;
+  background-color: #171f26 !important; /* Чуть светлее фона, чтобы выделить карточку */
+  border: 1px solid #222 !important;
+  color: #ffffff !important;
 }
 
-.card-text,
-.text-muted {
-  color: var(--gl-fg-3) !important;
+.card-text, .text-muted {
+  color: #b0bec5 !important; /* Более мягкий серо-голубой, подходит к #eceff1 */
 }
 
 .card-title a {
-  color: var(--gl-fg-2) !important;
+  color: #eceff1 !important; /* Чтобы заголовки в карточках были основного цвета */
 }
 
 
-/* ── Футер ──────────────────────────────────────────────────────────── */
 
+/* 3. Футер (подвал сайта) */
 footer {
-  background-color: var(--gl-surface-deepest) !important;
-  border-top: 1px solid var(--gl-border-mid);
+  background-color: #000000 !important;
+  border-top: 1px solid #333;
 }
 
-
-/* ── Ссылки ─────────────────────────────────────────────────────────── */
-
+/* 4. Ссылки по всему сайту */
 a {
-  color: var(--gl-brand-yellow-bright);
+  color: #ffd400; /* Желтый акцентный цвет */
 }
 
 a:hover {
-  color: var(--gl-fg-1);
+  color: #ffffff;
   text-decoration: none;
 }
 
-
-/* ── Главная новость ─────────────────────────────────────────────────── */
-
+/* Главная новость */
 .main-article-card h2 {
-  font-weight: var(--gl-weight-extrabold);
+  font-weight: 800;
   text-transform: uppercase;
-  color: var(--gl-fg-2);
+  color: #eceff1; /* Ваш новый основной цвет текста */
 }
 
 .main-article-card .badge {
-  border-radius: var(--gl-radius-none);
-  font-weight: var(--gl-weight-bold);
+  border-radius: 0;
+  font-weight: 700;
   padding: 5px 10px;
 }
 
-/* Ссылки внутри карточек новостей */
-.main-article-card a,
-.side-article-item a {
+/* Ссылки в статьях */
+.main-article-card a, .side-article-item a {
   text-decoration: none;
   color: inherit;
 }
 
-.main-article-card a:hover h2,
-.side-article-item a:hover h6 {
-  color: var(--gl-brand-yellow-bright);
+.main-article-card a:hover h2, .side-article-item a:hover h6 {
+  color: #ffd400; /* Желтый акцент при наведении */
 }
 
-
-/* ── Боковая колонка новостей ────────────────────────────────────────── */
-
+/* Боковая колонка */
 .side-article-item h6 {
-  font-size: var(--gl-text-card-title);
-  font-weight: var(--gl-weight-bold);
+  font-size: 0.95rem;
+  font-weight: 700;
   line-height: 1.2;
 }
 
+/* Общие правки для карточек на темном фоне */
 .side-article-item {
-  border-color: var(--gl-border-mid) !important;
+  border-color: #333 !important;
 }
 
-
-/* ── Изображения ─────────────────────────────────────────────────────── */
-
-/* Обложка в начале статьи */
+/* Cover image в начале статьи */
 .w-100 {
-  border-radius: var(--gl-radius-md) !important;
-  box-shadow: var(--gl-shadow-card) !important;
+  border-radius: 5px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
   margin-bottom: 30px !important;
-  display: block !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
 }
 
 /* Картинки внутри текста */
 .img-fluid {
-  border-radius: var(--gl-radius-md) !important;
-  box-shadow: var(--gl-shadow-image) !important;
+  border-radius: 5px !important;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2) !important;
   margin: 25px 0 !important;
-  display: block !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
 }
 
+/* Для больших картинок в тексте */
 .body-content .img-fluid {
   max-height: 500px;
   object-fit: cover;
 }
 
+/* Центрирование картинок */
+.w-100,
+.img-fluid {
+  display: block !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
 
-/* ── Подписи к картинкам ─────────────────────────────────────────────── */
-
+/* Подписи к картинкам */
 .figure-caption {
-  color: var(--gl-fg-3) !important;
+  color: #b0bec5 !important;
   font-style: italic;
   margin-top: 10px;
   text-align: center;
-}
-
-
-/* ── Кнопки ─────────────────────────────────────────────────────────── */
-
-.btn-outline-success {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 0.25rem !important;
-}
-
-
-/* ── Контейнеры контента ─────────────────────────────────────────────── */
-
-.force-width-1500 {
-  max-width: var(--gl-container-1500) !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-  padding-left: 1rem !important;
-  padding-right: 1rem !important;
-}
-
-
-/* ── Таблицы: подсветка строки при наведении ─────────────────────────── */
-
-.table-hover tbody tr:hover {
-  background-color: var(--gl-cyan-tint-10) !important;
-  transition: background-color var(--gl-motion-medium);
-}
-
-
-/* ── Навигация по классам (фильтр на аналитических страницах) ────────── */
-
-.class-nav {
-  background-color: var(--gl-surface-card-hover);
-  border-radius: var(--gl-radius-sm);
-  padding: 0.5rem;
-  margin-bottom: 2rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: center;
-}
-
-.class-nav .nav-link {
-  color: var(--gl-fg-4) !important;
-  padding: 0.5rem 1rem !important;
-  border-radius: var(--gl-radius-sm) !important;
-  transition: all var(--gl-motion-fast);
-  text-decoration: none;
-  border: 2px solid var(--gl-border-divider);
-  background-color: transparent !important;
-  font-size: 0.85rem;
-  text-transform: none;
-}
-
-.class-nav .nav-link:hover {
-  border-color: var(--gl-brand-yellow) !important;
-  background-color: var(--gl-surface-divider) !important;
-  color: var(--gl-fg-1) !important;
-}
-
-.class-nav .nav-link.active {
-  border-color: var(--gl-brand-yellow) !important;
-  background-color: transparent !important;
-  color: var(--gl-fg-1) !important;
-}
-
-
-/* ── Заголовки аналитических секций ──────────────────────────────────── */
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin: 2rem 0 1rem 0;
-}
-
-.section-title h3 {
-  margin: 0;
-  color: var(--gl-brand-yellow);
-}
-
-
-/* ── Информационный блок с цветной полоской слева ────────────────────── */
-
-.info-box {
-  background-color: var(--gl-surface-card) !important;
-  border: 1px solid var(--gl-border-card) !important;
-  border-left: 4px solid var(--gl-brand-cyan) !important;
-  border-radius: var(--gl-radius-sm);
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-  color: var(--gl-fg-4) !important;
-}
-
-.info-box strong { color: var(--gl-brand-yellow); }
-.info-box > i,
-.info-box .d-flex > i { color: var(--gl-brand-cyan); }
-.info-box ul,
-.info-box p { color: var(--gl-fg-4); margin-bottom: 0.25rem; }
-.info-box li { color: var(--gl-fg-4); }
-
-
-/* ── Пометка-тег рядом с заголовком секции ───────────────────────────── */
-
-.info-tip {
-  background-color: var(--gl-surface-card-hover);
-  border: 1px solid var(--gl-brand-yellow);
-  border-radius: var(--gl-radius-pill);
-  padding: 0.25rem 0.75rem;
-  font-size: var(--gl-text-micro-size);
-  color: var(--gl-brand-yellow);
-  display: inline-block;
-  margin-left: 0.5rem;
-}
-
-
-/* ── Общие компоненты аналитических страниц ──────────────────────────── */
-
-/* Таблица с тепловой картой */
-.matrix-container {
-  background-color: var(--gl-surface-card);
-  border-radius: var(--gl-radius-2xl);
-  padding: 2rem;
-  overflow-x: auto;
-  margin: 0 auto 2rem auto;
-}
-
-.matrix-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 800px;
-}
-
-.matrix-table th {
-  background-color: var(--gl-surface-card-hover);
-  color: var(--gl-brand-yellow);
-  padding: 1rem;
-  font-weight: var(--gl-weight-bold);
-  text-transform: uppercase;
-  font-size: 0.85rem;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.matrix-table td {
-  padding: 0.75rem;
-  text-align: center;
-  border: 1px solid var(--gl-border-card);
-}
-
-.chassis-name {
-  font-weight: var(--gl-weight-bold);
-  color: var(--gl-fg-1);
-  position: sticky;
-  left: 0;
-  background-color: var(--gl-surface-card);
-  z-index: 5;
-}
-
-.heat-cell { cursor: help; }
-.heat-cell:hover { box-shadow: inset 0 0 0 2px var(--gl-brand-yellow); }
-
-/* Мини-бейдж с количеством стартов в ячейке */
-.stats-badge {
-  background-color: var(--gl-surface-card-hover);
-  color: var(--gl-fg-4);
-  padding: 0.15rem 0.4rem;
-  border-radius: var(--gl-radius-sm);
-  font-size: 0.7rem;
-  margin-left: 0.25rem;
-}
-
-/* Непрерывная легенда тепловой карты */
-.legend-continuous {
-  margin-top: 1rem;
-  padding: 1rem;
-  background-color: var(--gl-surface-card-hover);
-  border-radius: var(--gl-radius-lg);
-  margin-bottom: 2rem;
-}
-
-.legend-title {
-  color: var(--gl-brand-yellow);
-  font-weight: var(--gl-weight-bold);
-  margin-bottom: 1rem;
-  text-align: center;
-}
-
-.legend-labels {
-  display: flex;
-  justify-content: space-between;
-  color: var(--gl-fg-4);
-  font-size: 0.85rem;
-  margin-bottom: 1rem;
-}
-
-/* Таблица с влиянием факторов */
-.impact-table {
-  background-color: var(--gl-surface-card);
-  border: 1px solid var(--gl-border-card);
-  border-radius: var(--gl-radius-lg);
-  overflow: hidden;
-  width: 100%;
-  margin-bottom: 2rem;
-}
-
-.impact-table th {
-  background-color: var(--gl-surface-card-hover);
-  color: var(--gl-brand-yellow);
-  padding: 0.75rem;
-  font-size: 0.9rem;
-  text-transform: uppercase;
-}
-
-.impact-table td {
-  padding: 0.75rem;
-  border-bottom: 1px solid var(--gl-border-card);
-  color: var(--gl-fg-1);
-}
-
-/* Карточка со статистическими данными */
-.stats-card {
-  background-color: var(--gl-surface-card);
-  border: 1px solid var(--gl-border-card);
-  border-radius: var(--gl-radius-lg);
-  padding: 1.5rem;
-  height: 100%;
-  transition: border-color var(--gl-motion-fast), transform var(--gl-motion-fast), box-shadow var(--gl-motion-fast);
-}
-
-.stats-card:hover {
-  border-color: var(--gl-brand-yellow);
-  transform: translateY(-3px);
-  box-shadow: var(--gl-shadow-hover);
 }

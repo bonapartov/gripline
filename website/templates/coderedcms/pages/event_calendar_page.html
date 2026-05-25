@@ -2,6 +2,22 @@
 {% load wagtailimages_tags website_tags %}
 
 {% block content %}
+
+<!-- ОТЛАДКА
+<div style="background: #333; color: #ff0; padding: 20px; margin: 20px; border: 2px solid #f00;">
+    <h3>Отладка шаблона</h3>
+    <p>Фильтр get_item загружен:
+        {% filter force_escape %}
+            {% if get_item %}ДА{% else %}НЕТ{% endif %}
+        {% endfilter %}
+    </p>
+    <p>Контекст:</p>
+    <ul>
+        <li>view_mode: {{ view_mode }}</li>
+        <li>months.keys: {{ months.keys|join:", " }}</li>
+        <li>Тип months: {{ months|get_type }}</li>
+    </ul>
+</div>-->
 <style>
     .force-width-1500 {
         max-width: 1500px !important;
@@ -11,642 +27,290 @@
         padding-right: 1rem !important;
     }
 
-    /* ── Герой ── */
-    .hero-event {
-        position: relative;
-        overflow: hidden;
-        border: 1px solid var(--gl-border-mid);
-        background: var(--gl-surface-inset);
-        margin-bottom: 3rem;
+    /* ===== КНОПКИ ПЕРЕКЛЮЧЕНИЯ ВИДА ===== */
+    .view-toggle .btn {
+        border-radius: 0;
     }
-    .hero-event-bg {
-        position: absolute;
-        inset: 0;
-        z-index: 0;
+    .view-toggle .btn:first-child {
+        border-top-left-radius: 6px;
+        border-bottom-left-radius: 6px;
     }
-    .hero-event-bg img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        opacity: 0.35;
-        filter: blur(2px);
-        transform: scale(1.05);
-    }
-    .hero-event-bg::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(to right, var(--gl-surface-body) 35%, rgba(21,21,28,0.6) 100%);
-    }
-    .hero-event-inner {
-        position: relative;
-        z-index: 1;
-        padding: 2.5rem 2rem;
-    }
-    .hero-next-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 4px 12px;
-        background: rgba(255,193,7,0.15);
-        border: 1px solid rgba(255,193,7,0.35);
-        border-radius: 999px;
-        margin-bottom: 1rem;
-    }
-    .hero-next-badge .pulse-dot {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: var(--gl-brand-yellow);
-        animation: pulse-anim 1.6s ease-in-out infinite;
-    }
-    @keyframes pulse-anim {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50%       { opacity: 0.4; transform: scale(0.7); }
-    }
-    .hero-title {
-        font-size: clamp(1.8rem, 4vw, 3.5rem);
-        font-weight: 800;
-        font-style: italic;
-        text-transform: uppercase;
-        letter-spacing: -0.02em;
-        line-height: 1.05;
-        margin-bottom: 1.25rem;
-    }
-    .hero-meta-item {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 0.65rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--gl-fg-3);
-    }
-    .hero-meta-item i { color: var(--gl-brand-yellow); }
-
-    /* chamfer CTA */
-    .chamfer-btn {
-        clip-path: polygon(0 0, 90% 0, 100% 20%, 100% 100%, 0 100%);
-        display: inline-block;
-        padding: 0.75rem 2rem;
-        background: var(--gl-brand-yellow);
-        color: var(--gl-fg-on-yellow);
-        font-size: 0.65rem;
-        font-weight: 700;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        border: none;
-        cursor: pointer;
-        text-decoration: none;
-        transition: box-shadow var(--gl-motion-fast), filter var(--gl-motion-fast);
-    }
-    .chamfer-btn:hover {
-        box-shadow: 0 0 18px rgba(255,193,7,0.4);
-        filter: brightness(1.1);
-        color: var(--gl-fg-on-yellow);
-        text-decoration: none;
-    }
-    .hero-btn-outline {
-        display: inline-block;
-        padding: 0.75rem 2rem;
-        border: 1px solid var(--gl-border-mid);
-        color: var(--gl-fg-2);
-        font-size: 0.65rem;
-        font-weight: 700;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        text-decoration: none;
-        transition: border-color var(--gl-motion-fast), color var(--gl-motion-fast);
-    }
-    .hero-btn-outline:hover {
-        border-color: var(--gl-brand-yellow);
-        color: var(--gl-brand-yellow);
-        text-decoration: none;
+    .view-toggle .btn:last-child {
+        border-top-right-radius: 6px;
+        border-bottom-right-radius: 6px;
     }
 
-    /* ── Фильтр-бар ── */
-    .filter-bar {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-between;
-        align-items: center;
-        gap: 1rem;
-        padding-bottom: 1.5rem;
-        margin-bottom: 2rem;
-        border-bottom: 1px solid var(--gl-border-card);
-    }
-    .filter-pills {
-        display: flex;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        gap: 6px;
-        padding-bottom: 4px;
-    }
-    .filter-pills::-webkit-scrollbar { display: none; }
-    .filter-pill {
+    /* ===== ФИЛЬТРЫ ===== */
+    .filter-btn {
+        border: 1px solid #2a2a35;
+        background-color: #1a1a25;
+        color: #fff;
         padding: 0.4rem 1rem;
-        border-radius: 999px;
-        font-size: 0.6rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
+        font-size: 0.9rem;
+        border-radius: 20px;
+        transition: all 0.2s;
         text-decoration: none;
-        white-space: nowrap;
-        border: 1px solid var(--gl-border-mid);
-        background: var(--gl-surface-card-hover);
-        color: var(--gl-fg-4);
-        transition: background var(--gl-motion-fast), color var(--gl-motion-fast), border-color var(--gl-motion-fast);
-    }
-    .filter-pill:hover {
-        color: var(--gl-fg-2);
-        border-color: var(--gl-brand-yellow);
-        text-decoration: none;
-    }
-    .filter-pill.active {
-        background: var(--gl-brand-yellow);
-        color: var(--gl-fg-on-yellow);
-        border-color: var(--gl-brand-yellow);
-    }
-
-    /* Переключатель вида */
-    .view-toggle {
-        display: flex;
-        background: var(--gl-surface-inset);
-        border: 1px solid var(--gl-border-mid);
-        padding: 3px;
-        gap: 2px;
-    }
-    .view-toggle .vt-btn {
-        padding: 0.35rem 1rem;
-        font-size: 0.6rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        text-decoration: none;
-        color: var(--gl-fg-4);
-        transition: background var(--gl-motion-fast), color var(--gl-motion-fast);
-    }
-    .view-toggle .vt-btn:hover { color: var(--gl-fg-2); text-decoration: none; }
-    .view-toggle .vt-btn.active {
-        background: var(--gl-surface-card-hover);
-        color: var(--gl-brand-yellow);
-    }
-
-    /* ── Карточки событий ── */
-    .event-card-new {
-        position: relative;
-        overflow: hidden;
-        background: rgba(255,255,255,0.03);
-        backdrop-filter: blur(12px);
-        border: 1px solid var(--gl-border-mid);
-        border-left-width: 3px;
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        transition: transform 0.3s cubic-bezier(0.4,0,0.2,1),
-                    border-color 0.3s,
-                    background 0.3s;
-    }
-    .event-card-new:hover {
-        transform: translateY(-4px);
-        border-color: var(--gl-brand-yellow);
-        background: rgba(255,193,7,0.03);
-    }
-    /* Призрачный номер на hover */
-    .event-card-new .ghost-num {
-        position: absolute;
-        right: -8px;
-        top: -10px;
-        font-size: 5.5rem;
-        font-weight: 800;
-        font-style: italic;
-        color: rgba(255,255,255,0.04);
-        line-height: 1;
-        pointer-events: none;
-        user-select: none;
-        opacity: 0;
-        transform: rotate(-12deg);
-        transition: opacity 0.3s;
-    }
-    .event-card-new:hover .ghost-num { opacity: 1; }
-
-    .event-card-body { padding: 1.25rem; flex: 1; display: flex; flex-direction: column; }
-
-    /* Датник */
-    .event-date-box {
-        width: 56px;
-        height: 56px;
-        background: var(--gl-surface-card-hover);
-        border: 1px solid var(--gl-border-mid);
-        border-radius: var(--gl-radius-lg);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-    .event-date-box .date-month {
-        font-size: 0.55rem;
-        font-weight: 700;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        color: var(--gl-brand-yellow);
-        line-height: 1;
-    }
-    .event-date-box .date-day {
-        font-size: 1.3rem;
-        font-weight: 700;
-        color: var(--gl-fg-1);
-        line-height: 1.1;
-    }
-
-    /* Бейдж статуса */
-    .status-badge {
-        padding: 3px 10px;
-        border-radius: 999px;
-        font-size: 0.55rem;
-        font-weight: 700;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        white-space: nowrap;
-    }
-    .status-open {
-        background: rgba(255,193,7,0.12);
-        border: 1px solid rgba(255,193,7,0.3);
-        color: var(--gl-brand-yellow);
-    }
-    .status-soon {
-        background: rgba(255,255,255,0.05);
-        border: 1px solid var(--gl-border-mid);
-        color: var(--gl-fg-4);
-    }
-
-    /* Бейджи классов */
-    .class-chip {
         display: inline-block;
-        padding: 2px 8px;
-        font-size: 0.6rem;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        background: rgba(255,255,255,0.04);
-        border: 1px solid var(--gl-border-mid);
-        color: var(--gl-fg-4);
-        text-decoration: none;
-        transition: background var(--gl-motion-fast), color var(--gl-motion-fast);
     }
-    .class-chip:hover {
-        background: var(--gl-brand-yellow);
-        color: var(--gl-fg-on-yellow);
-        text-decoration: none;
+    .filter-btn:hover {
+        border-color: #ffc107;
+        color: #ffc107;
+    }
+    .filter-btn.active {
+        background-color: #ffc107;
+        color: #1a1a25;
+        border-color: #ffc107;
     }
 
-    /* Кнопка Подробнее */
-    .btn-details {
-        display: block;
+    /* ===== КАРТОЧКИ МЕРОПРИЯТИЙ ===== */
+    .event-card {
+        transition: all 0.2s ease;
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 12px;
+        height: 100%;
+        overflow: hidden;
+    }
+    .event-card:hover {
+        box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        border-color: #ffc107;
+    }
+    .event-card img {
+        height: 200px;
+        object-fit: cover;
+        border-bottom: 1px solid #2a2a35;
         width: 100%;
-        padding: 0.6rem;
-        font-size: 0.6rem;
-        font-weight: 700;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        text-align: center;
-        text-decoration: none;
-        border: 1px solid var(--gl-border-mid);
-        color: var(--gl-fg-4);
-        background: transparent;
-        transition: background var(--gl-motion-fast), color var(--gl-motion-fast), border-color var(--gl-motion-fast);
-        margin-top: auto;
     }
-    .btn-details:hover {
-        background: var(--gl-brand-yellow);
-        color: var(--gl-fg-on-yellow);
-        border-color: var(--gl-brand-yellow);
+    .event-card .card-body {
+        padding: 1.25rem;
+    }
+    .event-card .card-title {
+        color: #fff;
+        font-weight: bold;
+        font-size: 1.3rem;
+        margin-bottom: 0.75rem;
+    }
+    .event-card .card-title a {
+        color: #fff;
         text-decoration: none;
+    }
+    .event-card .card-title a:hover {
+        color: #ffc107;
+    }
+    .event-stage {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #ffc107;
+        line-height: 1.2;
+    }
+    .event-card .card-text {
+        color: #adb5bd;
+        font-size: 0.95rem;
+        margin-bottom: 0.5rem;
+    }
+    .event-card .card-text i {
+        width: 20px;
+        color: #0dcaf0;
+    }
+    .event-card .card-text a {
+        color: #adb5bd;
+        text-decoration: none;
+    }
+    .event-card .card-text a:hover {
+        color: #ffc107;
     }
 
-    /* ── Режим Календарь ── */
-    .cal-month-card {
-        background: rgba(255,255,255,0.03);
-        border: 1px solid var(--gl-border-mid);
+    /* ===== БЕЙДЖИ КЛАССОВ ===== */
+    .class-badge {
+        background-color: #2a2a35;
+        color: #fff;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        margin-right: 0.25rem;
+        margin-bottom: 0.25rem;
+        display: inline-block;
+        transition: all 0.2s;
+    }
+    .class-badge:hover {
+        background-color: #ffc107;
+        color: #1a1a25;
+    }
+
+    /* ===== КАЛЕНДАРЬ ===== */
+    .calendar-month-card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
         padding: 1rem;
         height: 100%;
-        display: flex;
-        flex-direction: column;
     }
-    .cal-month-title {
-        color: var(--gl-brand-yellow);
-        font-size: 0.85rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
+    .calendar-month-title {
+        color: #ffc107;
+        font-size: 1.3rem;
+        font-weight: bold;
         text-align: center;
-        padding-bottom: 0.75rem;
-        margin-bottom: 0.75rem;
-        border-bottom: 1px solid var(--gl-border-card);
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #2a2a35;
     }
-    .cal-weekdays {
+    .calendar-weekdays {
         display: grid;
         grid-template-columns: repeat(7, 1fr);
         text-align: center;
-        font-size: 0.55rem;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        color: var(--gl-brand-cyan);
-        margin-bottom: 4px;
-        text-transform: uppercase;
+        color: #0dcaf0;
+        font-size: 0.8rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
     }
-    .cal-days {
+    .calendar-days {
         display: grid;
         grid-template-columns: repeat(7, 1fr);
         gap: 2px;
     }
-    .cal-day {
+    .calendar-day {
         aspect-ratio: 1;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.75rem;
-        background: var(--gl-surface-card-hover);
-        border-radius: var(--gl-radius-sm);
+        font-size: 0.9rem;
+        background-color: #2a2a35;
+        border-radius: 4px;
         cursor: pointer;
-        transition: background var(--gl-motion-fast);
+        transition: all 0.2s;
     }
-    .cal-day:hover { background: var(--gl-surface-divider); }
-    .cal-day.has-event {
-        background: var(--gl-brand-yellow);
-        color: var(--gl-fg-on-yellow);
-        font-weight: 700;
+    .calendar-day:hover {
+        background-color: #3a3a45;
     }
-    .cal-day.has-event:hover { filter: brightness(1.15); }
-    .cal-day.empty {
-        background: transparent;
+    .calendar-day.has-event {
+        background-color: #ffc107;
+        color: #1a1a25;
+        font-weight: bold;
+    }
+    .calendar-day.has-event:hover {
+        background-color: #ffca2c;
+    }
+    .calendar-day.empty {
+        background-color: transparent;
         cursor: default;
-    }
-    .cal-event-item {
-        padding: 0.5rem 0;
-        border-bottom: 1px solid var(--gl-border-card);
-    }
-    .cal-event-item:last-child { border-bottom: none; }
-    .cal-event-stage {
-        font-size: 0.7rem;
-        font-weight: 700;
-        color: var(--gl-brand-yellow);
-    }
-    .cal-event-champ {
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: var(--gl-fg-2);
-        text-decoration: none;
-    }
-    .cal-event-champ:hover { color: var(--gl-brand-yellow); }
-    .cal-event-dates {
-        font-size: 0.65rem;
-        color: var(--gl-fg-4);
-    }
-
-    /* Модал (переопределяем Bootstrap) */
-    #dayEventsModal .modal-content {
-        background: var(--gl-surface-card);
-        border: 1px solid var(--gl-border-mid);
-        color: var(--gl-fg-2);
-    }
-    #dayEventsModal .modal-header {
-        border-bottom: 1px solid var(--gl-border-card);
-    }
-    #dayEventsModal .modal-title { color: var(--gl-brand-yellow); }
-
-    /* Пустое состояние */
-    .empty-state {
-        background: rgba(255,255,255,0.03);
-        border: 1px solid var(--gl-border-mid);
-        padding: 3rem;
-        text-align: center;
-        color: var(--gl-fg-4);
     }
 </style>
 
-<div class="force-width-1500 py-4 text-white">
+<div class="force-width-1500 my-5 text-white">
+    <!-- Заголовок -->
+    <h1 class="display-4 fw-bold mb-3 text-center text-uppercase">{{ page.hero_title }}</h1>
+    <p class="lead text-muted mb-4 text-center">{{ page.hero_subtitle }}</p>
 
-    <!-- ═══════════════════════ ГЕРОЙ ═══════════════════════ -->
-    {% if enriched_events %}
-    {% with next=enriched_events.0 %}
-    <section class="hero-event mb-5">
-        {% if next.track and next.track.photo %}
-        <div class="hero-event-bg">
-            {% image next.track.photo fill-1400x500 as hero_img %}
-            <img src="{{ hero_img.url }}" alt="{{ next.track.name }}">
-        </div>
-        {% endif %}
-
-        <div class="hero-event-inner">
-            <div class="row align-items-center g-4">
-                <div class="col-lg-7">
-                    <div class="hero-next-badge mb-3">
-                        <span class="pulse-dot"></span>
-                        <span style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--gl-brand-yellow);">
-                            Следующий этап
-                        </span>
-                    </div>
-
-                    <h1 class="hero-title">
-                        {% with stage=next.event.get_parent.specific %}
-                            {% with champ=stage.get_parent.specific %}
-                                {% if champ and champ.title %}{{ champ.title }}<br>{% endif %}
-                            {% endwith %}
-                        {% endwith %}
-                        <span style="color:var(--gl-brand-yellow);">{{ next.event.title }}</span>
-                    </h1>
-
-                    <div class="d-flex flex-wrap gap-4 mb-4">
-                        {% if next.start_date %}
-                        <div class="hero-meta-item">
-                            <i class="fas fa-calendar-alt"></i>
-                            {{ next.start_date|date:"d.m.Y" }}
-                            {% if next.end_date and next.end_date != next.start_date %}
-                                — {{ next.end_date|date:"d.m.Y" }}
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                        {% if next.track %}
-                        <div class="hero-meta-item">
-                            <i class="fas fa-map-marker-alt"></i>
-                            {{ next.track.name }}{% if next.track.city %}, {{ next.track.city }}{% endif %}
-                        </div>
-                        {% endif %}
-                        {% if next.classes %}
-                        <div class="hero-meta-item">
-                            <i class="fas fa-flag-checkered"></i>
-                            {{ next.classes|join:" · " }}
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="d-flex flex-wrap gap-3">
-                        {% if next.org_stage %}
-                        <a href="/applications/apply/{{ next.org_stage.pk }}/" class="chamfer-btn">
-                            <i class="fas fa-flag-checkered me-2"></i>Регистрация
-                        </a>
-                        {% endif %}
-                        {% if next.event_url %}
-                        <a href="{{ next.event_url }}" class="hero-btn-outline">
-                            <i class="fas fa-info-circle me-2"></i>Подробнее
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- Дата-виджет -->
-                <div class="col-lg-5 d-none d-lg-block">
-                    {% if next.start_date %}
-                    <div class="d-flex justify-content-center">
-                        <div style="background:rgba(255,255,255,0.04);border:1px solid var(--gl-border-mid);padding:1.5rem 2.5rem;text-align:center;">
-                            <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gl-brand-yellow);margin-bottom:0.5rem;">
-                                Дата старта
-                            </div>
-                            <div style="font-size:3.5rem;font-weight:800;font-style:italic;line-height:1;color:var(--gl-fg-1);">
-                                {{ next.start_date|date:"d" }}
-                            </div>
-                            <div style="font-size:1rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--gl-fg-3);">
-                                {{ next.start_date|date:"F Y" }}
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </section>
-    {% endwith %}
-    {% endif %}
-
-    <!-- ═══════════════════════ ФИЛЬТР-БАР ═══════════════════════ -->
-    <div class="filter-bar">
-        <!-- Переключатель вида -->
-        <div class="view-toggle">
+    <!-- Панель управления -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+        <!-- Кнопки переключения вида -->
+        <div class="view-toggle btn-group">
             <a href="?view=grid{% if selected_type %}&type={{ selected_type }}{% endif %}"
-               class="vt-btn {% if view_mode == 'grid' %}active{% endif %}">
-                <i class="fas fa-th-large me-1"></i>Сетка
+               class="btn {% if view_mode == 'grid' %}btn-warning{% else %}btn-outline-secondary{% endif %}">
+                <i class="fas fa-th-large me-2"></i>Сетка
             </a>
             <a href="?view=calendar{% if selected_type %}&type={{ selected_type }}{% endif %}"
-               class="vt-btn {% if view_mode == 'calendar' %}active{% endif %}">
-                <i class="fas fa-calendar-alt me-1"></i>Календарь
+               class="btn {% if view_mode == 'calendar' %}btn-warning{% else %}btn-outline-secondary{% endif %}">
+                <i class="fas fa-calendar-alt me-2"></i>Календарь
             </a>
         </div>
 
-        <!-- Фильтры по типу -->
-        <div class="filter-pills">
+        <!-- Фильтры по типу соревнований -->
+        <div class="d-flex flex-wrap gap-2">
             <a href="?{% if view_mode %}view={{ view_mode }}{% endif %}"
-               class="filter-pill {% if not selected_type %}active{% endif %}">
+               class="filter-btn {% if not selected_type %}active{% endif %}">
                 Все
             </a>
             {% for type in competition_types %}
             <a href="?type={{ type.code }}{% if view_mode %}&view={{ view_mode }}{% endif %}"
-               class="filter-pill {% if selected_type == type.code %}active{% endif %}">
+               class="filter-btn {% if selected_type == type.code %}active{% endif %}">
                 {{ type.name }}
             </a>
             {% endfor %}
         </div>
     </div>
 
-    <!-- ═══════════════════════ РЕЖИМ: СЕТКА ═══════════════════════ -->
-    {% if view_mode == 'grid' %}
+    <!-- Режим сетки (карточки) -->
+{% if view_mode == 'grid' %}
     <div class="row g-4">
         {% for event_data in enriched_events %}
         <div class="col-md-6 col-lg-4">
             {% with stage=event_data.event.get_parent.specific %}
             {% with championship=stage.get_parent.specific %}
-            <div class="event-card-new"
-                 style="border-left-color: {{ event_data.color|default:'#ffc107' }};">
+            <div class="event-card" style="border-left: 4px solid {{ event_data.color|default:'#ffc107' }};">
 
-                <!-- Призрачный номер -->
-                <span class="ghost-num">{{ forloop.counter|stringformat:"02d" }}</span>
-
-                <!-- Фото трассы -->
+                <!-- Фото трассы с ссылкой на чемпионат -->
                 {% if event_data.track and event_data.track.photo %}
-                    {% image event_data.track.photo fill-600x220 as track_img %}
-                    <a href="{{ event_data.championship_url|default:event_data.event_url }}">
-                        <img src="{{ track_img.url }}"
-                             style="width:100%;height:160px;object-fit:cover;display:block;border-bottom:1px solid var(--gl-border-mid);"
-                             alt="{{ event_data.track.name }}">
+                    {% image event_data.track.photo fill-600x400 as track_img %}
+                    <a href="{{ event_data.championship_url }}">
+                        <img src="{{ track_img.url }}" class="card-img-top" alt="{{ event_data.track.name }}">
                     </a>
                 {% else %}
-                    <div style="height:80px;background:var(--gl-surface-card-hover);border-bottom:1px solid var(--gl-border-mid);display:flex;align-items:center;justify-content:center;">
-                        <i class="fas fa-flag fa-2x" style="color:var(--gl-border-mid);"></i>
-                    </div>
+                    <a href="{{ event_data.championship_url }}" class="text-decoration-none">
+                        <div class="bg-secondary d-flex align-items-center justify-content-center" style="height: 200px;">
+                            <i class="fas fa-flag fa-3x text-dark"></i>
+                        </div>
+                    </a>
                 {% endif %}
 
-                <div class="event-card-body">
-                    <!-- Шапка: датник + статус -->
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        {% if event_data.start_date %}
-                        <div class="event-date-box">
-                            <span class="date-month">{{ event_data.start_date|date:"M" }}</span>
-                            <span class="date-day">{{ event_data.start_date|date:"j" }}</span>
-                        </div>
-                        {% endif %}
-                        {% if event_data.org_stage %}
-                        <span class="status-badge status-open">OPEN</span>
-                        {% else %}
-                        <span class="status-badge status-soon">COMING SOON</span>
-                        {% endif %}
-                    </div>
-
+                <div class="card-body">
                     <!-- Название чемпионата -->
-                    {% if championship and championship.title %}
-                    <div style="font-size:0.65rem;color:var(--gl-fg-4);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">
-                        <a href="{{ event_data.championship_url }}" class="text-decoration-none"
-                           style="color:inherit;">{{ championship.title }}</a>
-                    </div>
-                    {% endif %}
-
-                    <!-- Название этапа -->
-                    <h3 class="fw-bold mb-2" style="font-size:1rem;line-height:1.25;color:var(--gl-fg-1);">
-                        <a href="{{ event_data.event_url }}" class="text-decoration-none"
-                           style="color:inherit;transition:color var(--gl-motion-fast);"
-                           onmouseenter="this.style.color='var(--gl-brand-yellow)'"
-                           onmouseleave="this.style.color='inherit'">
-                            {{ event_data.event.title }}
-                        </a>
-                    </h3>
-
-                    <!-- Трасса -->
-                    {% if event_data.track %}
-                    <div class="d-flex align-items-center gap-1 mb-3" style="font-size:0.8rem;color:var(--gl-fg-4);">
-                        <i class="fas fa-map-marker-alt" style="font-size:0.7rem;"></i>
-                        {% if event_data.track_url %}
-                            <a href="{{ event_data.track_url }}" class="text-decoration-none" style="color:inherit;">
-                                {{ event_data.track.name }}{% if event_data.track.city %}, {{ event_data.track.city }}{% endif %}
+                    <h5 class="card-title mb-1" style="font-size: 1rem; font-weight: bold;">
+                        {% if championship and championship.title %}
+                            <a href="{{ championship.url }}" class="text-decoration-none" style="color: #fff;">
+                                {{ championship.title }}
                             </a>
                         {% else %}
-                            {{ event_data.track.name }}{% if event_data.track.city %}, {{ event_data.track.city }}{% endif %}
+                            <a href="{{ stage.url }}" class="text-decoration-none" style="color: #fff;">
+                                {{ stage.title }}
+                            </a>
                         {% endif %}
-                    </div>
-                    {% endif %}
+                    </h5>
 
-                    <!-- Классы -->
+                    <!-- Даты и трасса -->
+                    <div class="row">
+                        <div class="col-9">
+                            <p class="card-text mb-1">
+                                <i class="fas fa-calendar-alt"></i>
+                                {{ event_data.start_date|date:"d.m.Y" }} — {{ event_data.end_date|date:"d.m.Y" }}
+                            </p>
+                            {% if event_data.track %}
+                            <p class="card-text">
+                                <i class="fas fa-map-marker-alt"></i>
+                                {% if event_data.track_url %}
+                                    <a href="{{ event_data.track_url }}">
+                                        {{ event_data.track.name }}{% if event_data.track.city %}, {{ event_data.track.city }}{% endif %}
+                                    </a>
+                                {% else %}
+                                    {{ event_data.track.name }}{% if event_data.track.city %}, {{ event_data.track.city }}{% endif %}
+                                {% endif %}
+                            </p>
+                            {% endif %}
+                        </div>
+                        <div class="col-3 d-flex align-items-center justify-content-end">
+                            <div class="event-stage text-end">{{ event_data.event.title }}</div>
+                        </div>
+                    </div>
+
+                    <!-- Классы — ссылки на страницы с результатами -->
                     {% if event_data.classes %}
-                    <div class="d-flex flex-wrap gap-1 mb-3">
+                    <div class="mt-2">
                         {% for class_name in event_data.classes %}
-                        <a href="{{ event_data.event_url }}" class="class-chip">{{ class_name }}</a>
+                            <a href="{{ event_data.event_url }}" class="class-badge text-decoration-none">
+                                {{ class_name }}
+                            </a>
                         {% endfor %}
                     </div>
                     {% endif %}
 
-                    <!-- Регистрация -->
+                    <!-- Кнопка регистрации — только если организатор открыл регистрацию -->
                     {% if event_data.org_stage %}
                     <a href="/applications/apply/{{ event_data.org_stage.pk }}/"
-                       class="chamfer-btn d-block text-center mb-2"
-                       style="font-size:0.6rem;padding:0.5rem 1rem;">
-                        <i class="fas fa-flag-checkered me-1"></i>Регистрация открыта
+                       class="btn btn-warning mt-3 w-100 fw-bold"
+                       style="border-radius:6px;">
+                        🏁 Регистрация открыта — {{ event_data.org_stage.title }}
                     </a>
                     {% endif %}
-
-                    <!-- Подробнее -->
-                    <a href="{{ event_data.event_url }}" class="btn-details mt-auto">
-                        Подробнее
-                    </a>
                 </div>
             </div>
             {% endwith %}
@@ -654,116 +318,130 @@
         </div>
         {% empty %}
         <div class="col-12">
-            <div class="empty-state">
-                <i class="fas fa-calendar-times fa-2x mb-3" style="color:var(--gl-border-mid);"></i>
-                <p class="mb-0">Нет предстоящих мероприятий</p>
+            <div class="card bg-dark border-secondary p-5 text-center">
+                <p class="text-muted m-0">Нет предстоящих мероприятий</p>
             </div>
         </div>
         {% endfor %}
     </div>
-    {% endif %}
+{% endif %}
 
-    <!-- ═══════════════════════ РЕЖИМ: КАЛЕНДАРЬ ═══════════════════════ -->
-    {% if view_mode == 'calendar' %}
+<!-- Режим календаря -->
+{% if view_mode == 'calendar' %}
+    <!-- Сам календарь -->
     <div class="row g-4">
         {% for month_key, month_data in months.items %}
         <div class="col-md-6 col-lg-4">
-            <div class="cal-month-card">
-                <!-- Заголовок месяца -->
-                <div class="cal-month-title">
+            <div class="calendar-month-card d-flex flex-column" style="height: 100%;">
+                <!-- Заголовок месяца (вверху) -->
+                <div class="calendar-month-title">
                     {{ month_data.month_name|month_name_ru }}
-                    <span class="badge ms-2 fw-bold text-dark" style="background:var(--gl-brand-yellow);">
-                        {{ month_data.events|length }}
-                    </span>
+                    <span class="badge bg-warning text-dark ms-2">{{ month_data.events|length }}</span>
                 </div>
 
-                <!-- Сетка дней -->
+                <!-- Календарная сетка -->
                 <div>
-                    <div class="cal-weekdays">
-                        <span>Пн</span><span>Вт</span><span>Ср</span>
-                        <span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+                    <!-- Заголовки дней недели -->
+                    <div class="calendar-weekdays">
+                        <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
                     </div>
-                    <div class="cal-days">
+
+                    <!-- Сетка дней -->
+                    <div class="calendar-days">
                         {% with first_weekday=month_data.first_weekday|default:0 %}
+                            {# Пустые ячейки до первого дня месяца #}
                             {% for i in "1234567"|make_list %}
                                 {% if forloop.counter0 < first_weekday %}
-                                    <div class="cal-day empty"></div>
+                                    <div class="calendar-day empty"></div>
                                 {% endif %}
                             {% endfor %}
                         {% endwith %}
+
                         {% for day in month_data.days %}
+                            {# Проверяем есть ли события в этот день #}
                             {% if month_data.events_by_day and day in month_data.events_by_day %}
                                 {% with day_data=month_data.events_by_day|get_item:day %}
-                                    <div class="cal-day has-event"
-                                         style="{{ day_data.style }}"
-                                         data-events="{{ day_data.meta_json|escape }}"
-                                         onclick="openDayModal(this, {{ day }})">
+                                    <div class="calendar-day has-event"
+                                        style="{{ day_data.style }}"
+                                        data-events="{{ day_data.meta_json|escape }}"
+                                        onclick="openDayModal(this, {{ day }})">
                                         {{ day }}
                                     </div>
                                 {% endwith %}
                             {% else %}
-                                <div class="cal-day">{{ day }}</div>
+                                <div class="calendar-day">{{ day }}</div>
                             {% endif %}
                         {% endfor %}
                     </div>
                 </div>
 
-                <!-- Список событий месяца -->
-                <div class="mt-3" style="flex:1;">
+                <!-- Небольшой отступ перед списком событий -->
+                <div class="mt-3"></div>
+
+                <!-- Список событий (прижат к низу) -->
+                <div class="mt-auto">
                     {% for event_data in month_data.events %}
-                    <div class="cal-event-item">
-                        {% with stage=event_data.event.get_parent.specific %}
-                        {% with championship=stage.get_parent.specific %}
-                        {% if championship and championship.title %}
-                        <div>
-                            <a href="{{ championship.url }}" class="cal-event-champ">
-                                {{ championship.title }}
-                            </a>
-                        </div>
-                        {% endif %}
-                        <div class="d-flex justify-content-between align-items-start">
-                            <span class="cal-event-stage">{{ event_data.event.title }}</span>
-                            <span class="cal-event-dates">
-                                {{ event_data.start|date:"d.m" }}
-                                {% if event_data.end and event_data.end != event_data.start %}
-                                    — {{ event_data.end|date:"d.m" }}
-                                {% endif %}
-                            </span>
-                        </div>
-                        {% endwith %}
-                        {% endwith %}
-                        {% if event_data.classes %}
-                        <div class="d-flex flex-wrap gap-1 mt-1">
-                            {% for class_name in event_data.classes %}
-                            <span class="class-chip" style="font-size:0.55rem;padding:1px 6px;">
-                                {{ class_name }}
-                            </span>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                    </div>
+                    <div class="mb-3 pb-2 border-bottom border-secondary">
+						<!-- Название чемпионата (как в карточках) -->
+						<h5 class="card-title mb-1" style="font-size: 1rem; font-weight: bold;">
+							{% with stage=event_data.event.get_parent.specific %}
+								{% with championship=stage.get_parent.specific %}
+									{% if championship and championship.title %}
+										<a href="{{ championship.url }}" class="text-decoration-none" style="color: #fff;">
+											{{ championship.title }}
+										</a>
+									{% else %}
+										<a href="{{ stage.url }}" class="text-decoration-none" style="color: #fff;">
+											{{ stage.title }}
+										</a>
+									{% endif %}
+								{% endwith %}
+							{% endwith %}
+						</h5>
+						
+						<!-- Название этапа и даты -->
+						<div class="d-flex justify-content-between align-items-start mt-1">
+							<div>
+								<strong class="text-warning">{{ event_data.event.title }}</strong>
+								<span class="text-muted mx-2">|</span>
+								<span class="text-info small">
+									{{ event_data.start|date:"d.m" }}
+									{% if event_data.end and event_data.end != event_data.start %}
+										— {{ event_data.end|date:"d.m" }}
+									{% endif %}
+								</span>
+							</div>
+						</div>
+						<!-- Классы гонок -->
+						{% if event_data.classes %}
+						<div class="mt-1 d-flex flex-wrap gap-1">
+							{% for class_name in event_data.classes %}
+							<span class="badge" style="background:#2a2a35; color:#ccc; font-size:0.7rem; border:1px solid #3a3a4a;">{{ class_name }}</span>
+							{% endfor %}
+						</div>
+						{% endif %}
+					</div>
                     {% endfor %}
                 </div>
             </div>
         </div>
         {% empty %}
         <div class="col-12">
-            <div class="empty-state">
-                <p class="mb-0">Нет предстоящих мероприятий</p>
+            <div class="card bg-dark border-secondary p-5 text-center">
+                <p class="text-muted m-0">Нет предстоящих мероприятий</p>
             </div>
         </div>
         {% endfor %}
     </div>
-    {% endif %}
-
+{% endif %}
 </div>
 
-<!-- ═══════════════════════ МОДАЛ ДНЯ ═══════════════════════ -->
+<!-- Модал: события дня (календарь) -->
 <div class="modal fade" id="dayEventsModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="dayModalTitle">События</h5>
+        <div class="modal-content" style="background:#1a1a25; border:1px solid #2a2a35; color:white;">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-warning" id="dayModalTitle">События</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" id="dayModalBody"></div>
@@ -776,25 +454,14 @@ function openDayModal(el, day) {
     const events = JSON.parse(el.dataset.events);
     document.getElementById('dayModalTitle').textContent = day + ' — мероприятия';
     document.getElementById('dayModalBody').innerHTML = events.map(e => `
-        <div class="pb-3 mb-3 border-bottom" style="border-color:var(--gl-border-card)!important;">
-            <div style="font-size:0.65rem;color:var(--gl-fg-4);margin-bottom:3px;">${e.champ}</div>
-            <div style="font-weight:700;color:var(--gl-brand-yellow);margin-bottom:4px;">${e.title}</div>
-            <div style="font-size:0.75rem;color:var(--gl-fg-4);margin-bottom:8px;">
-                <i class="fas fa-calendar me-1"></i>${e.dates}
-            </div>
-            ${e.classes && e.classes.length
-                ? `<div class="d-flex flex-wrap gap-1 mb-2">${e.classes.map(c =>
-                    `<span style="padding:2px 8px;font-size:0.6rem;background:rgba(255,255,255,0.05);border:1px solid var(--gl-border-mid);color:var(--gl-fg-4);">${c}</span>`
-                  ).join('')}</div>` : ''}
+        <div class="pb-3 mb-3 border-bottom border-secondary">
+            <div class="text-muted small mb-1">${e.champ}</div>
+            <div class="fw-bold text-warning mb-1">${e.title}</div>
+            <div class="text-white-50 small mb-2"><i class="fas fa-calendar me-1"></i>${e.dates}</div>
+            ${e.classes && e.classes.length ? `<div class="d-flex flex-wrap gap-1 mb-2">${e.classes.map(c => `<span class="badge" style="background:#2a2a35;color:#ccc;font-size:0.7rem;border:1px solid #3a3a4a;">${c}</span>`).join('')}</div>` : ''}
             <div class="d-flex gap-2 flex-wrap">
-                ${e.reg_pk
-                    ? `<a href="/applications/apply/${e.reg_pk}/"
-                          style="padding:6px 14px;background:var(--gl-brand-yellow);color:var(--gl-fg-on-yellow);font-size:0.65rem;font-weight:700;text-decoration:none;letter-spacing:0.06em;text-transform:uppercase;">
-                          <i class="fas fa-flag-checkered me-1"></i>Подать заявку</a>` : ''}
-                ${e.stage_url
-                    ? `<a href="${e.stage_url}"
-                          style="padding:6px 14px;border:1px solid var(--gl-border-mid);color:var(--gl-fg-4);font-size:0.65rem;font-weight:700;text-decoration:none;letter-spacing:0.06em;text-transform:uppercase;">
-                          Подробнее</a>` : ''}
+                ${e.reg_pk ? `<a href="/applications/apply/${e.reg_pk}/" class="btn btn-sm btn-warning"><i class="fas fa-flag-checkered me-1"></i>Подать заявку</a>` : ''}
+                ${e.stage_url ? `<a href="${e.stage_url}" class="btn btn-sm btn-outline-info">Подробнее</a>` : ''}
             </div>
         </div>
     `).join('');
