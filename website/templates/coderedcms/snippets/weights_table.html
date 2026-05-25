@@ -3,31 +3,30 @@
 
 <style>
     .weights-table {
-        background-color: #1a1a25;
-        border: 1px solid #2a2a35;
-        border-radius: 8px;
+        background-color: var(--gl-surface-card);
+        border: 1px solid var(--gl-border-card);
+        border-radius: var(--gl-radius-lg);
         overflow: hidden;
         margin: 1.5rem 0;
         width: 100%;
         border-collapse: collapse;
     }
     .weights-table th {
-        background-color: #2a2a35;
-        color: #ffc107 !important;
+        background-color: var(--gl-surface-card-hover);
+        color: var(--gl-brand-yellow) !important;
         padding: 0.75rem;
         font-size: 0.9rem;
         font-weight: bold;
         text-align: left;
-        border-bottom: 2px solid #ffc107;
+        border-bottom: 2px solid var(--gl-brand-yellow);
     }
     .weights-table td {
         padding: 0.75rem;
-        border-bottom: 1px solid #2a2a35;
-        color: #fff !important;
+        border-bottom: 1px solid var(--gl-border-card);
+        color: var(--gl-fg-1) !important;
     }
-    .text-info { color: #0dcaf0 !important; }
     .small-note {
-        color: #6c757d;
+        color: var(--gl-fg-muted);
         font-size: 0.85rem;
         margin-top: 0.5rem;
         text-align: right;
@@ -49,22 +48,22 @@
             <td><span class="text-info">{{ weights.temperature|floatformat:2 }}</span></td>
             <td>
                 {% if weights.temperature == 0 %}
-                    ⏳ Собираем данные — нужно больше гонок при разной температуре
+                    <i class="fas fa-hourglass-half me-1"></i>Собираем данные — нужно больше гонок при разной температуре
                 {% elif weights.temperature < 0.3 %}
                     🍃 Слабое влияние — пилоты стабильны в любую погоду
                 {% elif weights.temperature < 1 %}
                     🌡️ Заметное влияние — жара или холод меняют расстановку сил
                 {% else %}
-                    🔥 Критическое влияние — температура определяет исход гонки
+                    <i class="fas fa-fire me-1 text-warning"></i>Критическое влияние — температура определяет исход гонки
                 {% endif %}
             </td>
         </tr>
         <tr>
-            <td>☔ Осадки</td>
+            <td><i class="fas fa-cloud-rain me-1"></i>Осадки</td>
             <td><span class="text-info">{{ weights.precipitation|floatformat:2 }}</span></td>
             <td>
                 {% if weights.precipitation == 0 %}
-                    ⏳ Ждём дождевых гонок — пока все данные только по сухой трассе
+                    <i class="fas fa-hourglass-half me-1"></i>Ждём дождевых гонок — пока все данные только по сухой трассе
                 {% elif weights.precipitation < 0.3 %}
                     💧 Слабое влияние — пилоты уверенно едут и в дождь
                 {% elif weights.precipitation < 1 %}
@@ -75,7 +74,7 @@
             </td>
         </tr>
         <tr>
-            <td>🛞 Шины</td>
+            <td><i class="fas fa-circle-dot me-1"></i>Шины</td>
             <td><span class="text-info">{{ weights.tyre|floatformat:2 }}</span></td>
             <td>
                 {% if weights.tyre == 0 %}
@@ -83,9 +82,9 @@
                 {% elif weights.tyre < 0.3 %}
                     🔄 Тип шин влияет слабо — пилоты адаптируются
                 {% elif weights.tyre < 1 %}
-                    🏎️ Выбор шин даёт преимущество
+                    <i class="fas fa-gauge-high me-1 text-info"></i>Выбор шин даёт преимущество
                 {% else %}
-                    ⭐ Критическое влияние — правильные шины = победа
+                    <i class="fas fa-star me-1 text-warning"></i>Критическое влияние — правильные шины = победа
                 {% endif %}
             </td>
         </tr>
@@ -98,11 +97,11 @@
                 {% elif weights.track < 0.5 %}
                     🏁 Трасса влияет слабо — пилоты универсальны
                 {% elif weights.track < 2 %}
-                    🎢 У каждой трассы свои особенности
+                    <i class="fas fa-road me-1"></i>У каждой трассы свои особенности
                 {% elif weights.track < 5 %}
                     ⭐ Есть любимые и нелюбимые трассы
                 {% else %}
-                    👑 Трасса — король! На одних пилоты летают, на других едут в хвосте
+                    <i class="fas fa-crown me-1 text-warning"></i>Трасса — король! На одних пилоты летают, на других едут в хвосте
                 {% endif %}
             </td>
         </tr>
@@ -113,7 +112,7 @@
     Данные обновлены: {% if last_update %}{{ last_update|date:"d.m.Y H:i" }}{% else %}—{% endif %}
 </div>
 {% else %}
-<div class="note-box" style="border-left-color: #ffc107;">
-    <p class="text-muted">⏳ Данные о весах пока не рассчитаны. Запустите обновление рейтингов.</p>
+<div class="note-box" style="border-left-color: var(--gl-brand-yellow);">
+    <p class="text-muted"><i class="fas fa-hourglass-half me-1"></i>Данные о весах пока не рассчитаны. Запустите обновление рейтингов.</p>
 </div>
 {% endif %}

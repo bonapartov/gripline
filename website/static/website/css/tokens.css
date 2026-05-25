@@ -1,0 +1,159 @@
+/*
+ * Gripline Design System — токены цветов, типографики, отступов, анимации
+ * -------------------------------------------------------------------------
+ * Единственный источник правды по всем дизайн-константам проекта.
+ * Файл подключается ДО custom.css в base.html.
+ *
+ * Соглашение по именованию: --gl-<роль>-<вариант>
+ * Bootstrap-утилиты (text-warning, bg-dark и т.д.) напрямую отражают эти токены.
+ *
+ * ⚠️ Не редактируй хекс-значения напрямую в шаблонах — только через var(--gl-*).
+ */
+
+:root {
+
+  /* ── Бренд ──────────────────────────────────────────────────────── */
+  --gl-brand-yellow:        #ffc107;  /* основной акцент, text-warning */
+  --gl-brand-yellow-bright: #ffd400;  /* логотип в навбаре, цвет ссылок */
+  --gl-brand-yellow-hover:  #ffca2c;  /* hover в календаре */
+  --gl-brand-cyan:          #0dcaf0;  /* инфо / ссылки / подсветка таблиц */
+  --gl-brand-bronze:        #cd7f32;  /* 3-е место */
+  --gl-brand-red:           #ff0000;  /* только дата в карточке новости */
+
+  /*
+   * Семантический зелёный — НЕ брендовый цвет.
+   * Используется исключительно для смысловых состояний: рост рейтинга,
+   * результат выше среднего, гонка началась («зелёный свет»),
+   * активный чип рейтинга. CTA-кнопки и навигация — только жёлтый.
+   */
+  --gl-signal-green:        #28a745;
+
+  /* Прозрачные оверлеи */
+  --gl-cyan-tint-10:        rgba(13, 202, 240, 0.10);   /* hover строки таблицы */
+  --gl-green-tint-10:       rgba(40, 167, 69, 0.10);    /* стекло: граница «выше среднего» */
+  --gl-black-25:            rgba(0, 0, 0, 0.25);         /* вставка стат-тайла */
+  --gl-shadow-card:         0 10px 30px rgba(0,0,0,0.30);
+  --gl-shadow-hover:        0 8px 20px rgba(0,0,0,0.30);
+  --gl-shadow-image:        0 5px 15px rgba(0,0,0,0.20);
+
+  /* ── Поверхности (от самой тёмной к светлой) ───────────────────── */
+  --gl-surface-deepest:     #000000;  /* футер */
+  --gl-surface-inset:       #0d0d15;  /* блок обратного отсчёта, блок даты в календаре */
+  --gl-surface-navbar:      #0e131a;  /* навбар, выпадающее меню */
+  --gl-surface-body:        #15151c;  /* фон страницы */
+  --gl-surface-card-warm:   #171f26;  /* устаревшие карточки (только legacy-код) */
+  --gl-surface-card:        #1a1a25;  /* стандартная карточка (текущий стандарт) */
+  --gl-surface-card-hover:  #2a2a35;  /* внутренний элемент, hover, фон бейджа */
+  --gl-surface-divider:     #3a3a45;  /* второстепенные разделители */
+
+  /* ── Границы ────────────────────────────────────────────────────── */
+  --gl-border-soft:         #222222;
+  --gl-border-card:         #2a2a35;
+  --gl-border-divider:      #3a3a45;
+  --gl-border-mid:          #333333;
+  --gl-border-yellow:       var(--gl-brand-yellow);
+
+  /* ── Текст / передний план ──────────────────────────────────────── */
+  --gl-fg-1:                #ffffff;  /* заголовок карточки, цифра статистики */
+  --gl-fg-2:                #eceff1;  /* основной текст — чуть мягче чистого белого */
+  --gl-fg-3:                #b0bec5;  /* текст карточки, подпись к фото */
+  --gl-fg-4:                #adb5bd;  /* неактивный пункт класса, вторичный */
+  --gl-fg-muted:            #6c757d;  /* мелкая подпись, .text-muted */
+  --gl-fg-on-yellow:        #1a1a25;  /* текст на жёлтом CTA / чипе */
+  --gl-fg-on-yellow-dark:   #212529;  /* btn-warning text-dark */
+
+  /* ── Сигнальные цвета (состояния интерфейса) ───────────────────── */
+  --gl-signal-danger:       #dc3545;  /* ошибки, отрицательные показатели, спад */
+  --gl-signal-success:      var(--gl-signal-green); /* успех, рост, положительное */
+  --gl-signal-growth:       var(--gl-signal-green); /* ▲ тренд вверх, прирост позиций */
+  --gl-signal-info:         var(--gl-brand-cyan);   /* информационные блоки */
+
+  /* ── Типографика — гарнитуры ────────────────────────────────────── */
+  /*
+   * На продакшне используется системный стек Bootstrap.
+   * Inter Tight + JetBrains Mono — рекомендованная замена для прототипов.
+   * Раскомментируй @import в самом верху файла, если нужны веб-шрифты.
+   */
+  --gl-font-display:        -apple-system, BlinkMacSystemFont, "Segoe UI",
+                            Roboto, "Helvetica Neue", Arial, sans-serif;
+  --gl-font-body:           var(--gl-font-display);
+  --gl-font-mono:           SFMono-Regular, Menlo, Monaco, Consolas,
+                            "Liberation Mono", "Courier New", monospace;
+
+  --gl-weight-regular:      400;
+  --gl-weight-medium:       500;
+  --gl-weight-semibold:     600;
+  --gl-weight-bold:         700;
+  --gl-weight-extrabold:    800;
+  --gl-weight-black:        900;
+
+  --gl-tracking-tight:      -0.05em;  /* заголовок индекса статей */
+  --gl-tracking-normal:     0;
+  --gl-tracking-wide:       0.5px;    /* ссылка-раздел */
+  --gl-tracking-wider:      1px;      /* метка класса, стат-тайл */
+  --gl-tracking-widest:     2px;      /* метка «До старта» */
+  --gl-tracking-billboard:  3px;      /* метка в герое */
+
+  /* ── Размеры текста ─────────────────────────────────────────────── */
+  --gl-text-billboard-size: clamp(2rem, 15cqi, 10rem);
+  --gl-text-billboard-lh:   0.8;
+
+  --gl-text-hero-size:      clamp(1.5rem, 3vw, 2.5rem);
+  --gl-text-hero-lh:        1.1;
+
+  --gl-text-display-size:   3.5rem;   /* display-4 на странице пилота / трассы */
+  --gl-text-display-lh:     1.1;
+
+  --gl-text-section-size:   1.1rem;   /* H2 / .section-title — намеренно маленький */
+  --gl-text-section-lh:     1.3;
+
+  --gl-text-h3-size:        1.5rem;
+  --gl-text-h3-lh:          1.3;
+
+  --gl-text-card-title:     0.95rem;
+  --gl-text-card-title-lh:  1.3;
+
+  --gl-text-body-size:      1rem;
+  --gl-text-body-lh:        1.5;
+
+  --gl-text-small-size:     0.875rem;
+  --gl-text-meta-size:      0.8rem;   /* бейдж класса, трасса в календаре */
+  --gl-text-micro-size:     0.75rem;  /* дата карточки, ссылка-раздел */
+  --gl-text-tiny-size:      0.65rem;  /* метка обратного отсчёта */
+
+  --gl-text-stat-size:      2.5rem;   /* цифра статистики (.display-6) */
+  --gl-text-stat-lh:        1;
+
+  --gl-text-count-size:     2.5rem;   /* цифра обратного отсчёта */
+  --gl-text-count-lh:       1;
+
+  /* ── Шкала отступов (совпадает с Bootstrap m-*/p-*) ────────────── */
+  --gl-space-0:             0;
+  --gl-space-1:             0.25rem;  /* 4px */
+  --gl-space-2:             0.5rem;   /* 8px */
+  --gl-space-3:             1rem;     /* 16px */
+  --gl-space-4:             1.5rem;   /* 24px */
+  --gl-space-5:             3rem;     /* 48px */
+  --gl-space-6:             4rem;     /* 64px */
+
+  /* ── Радиусы скругления ─────────────────────────────────────────── */
+  --gl-radius-none:         0;        /* выпадающее меню, бейдж в навбаре */
+  --gl-radius-xs:           3px;      /* бейдж класса в календаре */
+  --gl-radius-sm:           4px;      /* бейдж класса, день в календаре */
+  --gl-radius-md:           6px;      /* блок даты, переключатель дня */
+  --gl-radius-lg:           8px;      /* карточка, элемент события, панель фильтров */
+  --gl-radius-xl:           10px;     /* фото трассы */
+  --gl-radius-2xl:          12px;     /* герой-секция, карточка события */
+  --gl-radius-pill:         20px;     /* .filter-btn, рейтинговый чип */
+  --gl-radius-full:         9999px;   /* аватары */
+
+  /* ── Максимальная ширина контейнеров ────────────────────────────── */
+  --gl-container-1500:      1500px;   /* .force-width-1500 */
+  --gl-container-1700:      1700px;   /* .force-width-1700 (индекс новостей) */
+  --gl-container-article:   800px;    /* колонка текста статьи */
+
+  /* ── Анимация ───────────────────────────────────────────────────── */
+  --gl-motion-fast:         0.2s ease;
+  --gl-motion-medium:       0.3s ease;
+  --gl-motion-slow-zoom:    0.8s cubic-bezier(0.2, 1, 0.3, 1);
+}

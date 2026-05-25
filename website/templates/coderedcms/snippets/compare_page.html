@@ -3,279 +3,796 @@
 
 {% block content %}
 <style>
-    .force-width-1500 {
-        max-width: 1500px !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
+    /* ── Сброс отступов base.html ── */
+    #content { padding: 0 !important; }
+
+    /* ── Боковая панель ── */
+    .analytics-sidebar {
+        position: fixed;
+        left: 0;
+        top: 60px;
+        width: 240px;
+        height: calc(100vh - 60px);
+        background: var(--gl-surface-inset);
+        border-right: 1px solid var(--gl-border-mid);
+        display: flex;
+        flex-direction: column;
+        padding: 1.5rem 0;
+        z-index: 40;
+        overflow-y: auto;
     }
-    .compare-card {
-        background-color: #1a1a25;
-        border: 1px solid #2a2a35;
-        border-radius: 8px;
-        padding: 1.5rem;
-        height: 100%;
+    .analytics-sidebar .sidebar-brand {
+        padding: 0 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--gl-border-card);
     }
-    .stat-value {
-        font-size: 2rem;
-        font-weight: bold;
-        color: #ffc107;
-    }
-    .stat-label {
-        color: #adb5bd;
-        font-size: 0.9rem;
-        text-transform: uppercase;
-    }
-    .vs-divider {
+    .analytics-sidebar .sidebar-nav-item {
         display: flex;
         align-items: center;
-        justify-content: center;
-        font-size: 2rem;
-        font-weight: bold;
-        color: #ffc107;
-        height: 100%;
+        gap: 0.75rem;
+        padding: 0.7rem 1.25rem;
+        color: var(--gl-fg-4);
+        text-decoration: none;
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        transition: background var(--gl-motion-fast), color var(--gl-motion-fast);
     }
-    .chassis-select {
-        background-color: #15151c;
-        border: 1px solid #2a2a35;
-        color: white;
-        border-radius: 4px;
-        padding: 0.75rem;
+    .analytics-sidebar .sidebar-nav-item:hover {
+        background: rgba(255,255,255,0.04);
+        color: var(--gl-fg-2);
+    }
+    .analytics-sidebar .sidebar-nav-item.active {
+        background: rgba(255,255,255,0.05);
+        border-left: 3px solid var(--gl-brand-yellow);
+        color: var(--gl-brand-yellow);
+        padding-left: calc(1.25rem - 3px);
+    }
+    .analytics-sidebar .sidebar-icon {
+        font-size: 1.1rem;
+        font-family: 'Material Icons', 'Material Symbols Outlined', sans-serif;
+        font-style: normal;
+        width: 20px;
+        flex-shrink: 0;
+        color: inherit;
+    }
+    .sidebar-cta {
+        margin: auto 1.25rem 1rem;
+    }
+    .chamfer-btn {
+        clip-path: polygon(0 0, 88% 0, 100% 14%, 100% 100%, 0 100%);
+        display: inline-block;
         width: 100%;
+        padding: 0.65rem 1rem;
+        background: var(--gl-brand-yellow);
+        color: var(--gl-fg-on-yellow);
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        text-align: center;
+        border: none;
+        cursor: pointer;
+        text-decoration: none;
+        transition: box-shadow var(--gl-motion-fast);
+    }
+    .chamfer-btn:hover {
+        box-shadow: 0 0 16px rgba(255, 193, 7, 0.4);
+        color: var(--gl-fg-on-yellow);
+        text-decoration: none;
+    }
+
+    /* ── Основной контент ── */
+    .analytics-main {
+        margin-left: 240px;
+        padding: 1.5rem 2rem 3rem;
+        min-height: calc(100vh - 60px);
+    }
+
+    /* ── Стеклянная панель ── */
+    .glass-panel {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--gl-border-mid);
+    }
+
+    /* ── Шапка страницы ── */
+    .analytics-page-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--gl-border-card);
+    }
+
+    /* ── Форма выбора шасси ── */
+    .chassis-select {
+        background: var(--gl-surface-card);
+        border: 1px solid var(--gl-border-mid);
+        color: var(--gl-fg-2);
+        padding: 0.6rem 0.75rem;
+        font-size: 0.85rem;
+        width: 100%;
+        transition: border-color var(--gl-motion-fast);
+        appearance: none;
     }
     .chassis-select:focus {
         outline: none;
-        border-color: #ffc107;
+        border-color: var(--gl-brand-yellow);
     }
-    .chassis-logo-small {
-        max-height: 60px;
-        object-fit: contain;
-        margin-bottom: 1rem;
-    }
-    .class-filter {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        justify-content: center;
-        margin: 2rem 0;
-    }
-    .class-filter .btn {
-        padding: 0.5rem 1rem;
-        font-size: 0.9rem;
-        border-radius: 20px;
-    }
-    .btn-outline-class {
-        background-color: transparent;
-        color: #adb5bd;
-        border: 1px solid #2a2a35;
-    }
-    .btn-outline-class:hover {
-        border-color: #ffc107;
-        color: #ffc107;
-    }
-    .btn-class.active {
-        background-color: #ffc107;
-        color: #000;
-        border-color: #ffc107;
-    }
-    .btn-compare-between {
-        background-color: #ffc107;
-        color: #000;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 8px;
-        font-weight: bold;
-        font-size: 1rem;
-        transition: all 0.2s;
-        cursor: pointer;
-        width: 100%;
-        white-space: nowrap;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    }
-    .btn-compare-between:hover {
-        background-color: #e0a800;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-        color: #000;
-    }
-    .form-label {
-        color: #0dcaf0;
-        font-size: 0.85rem;
+    .select-label {
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
-        font-weight: bold;
-        margin-bottom: 0.5rem;
+        color: var(--gl-brand-cyan);
+        margin-bottom: 0.4rem;
         display: block;
+    }
+    .vs-badge {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        font-weight: 800;
+        font-style: italic;
+        color: var(--gl-brand-yellow);
+        padding: 0 0.5rem;
+        padding-top: 1.4rem;
+    }
+
+    /* ── Bento-виджет ── */
+    .widget-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-style: italic;
+        letter-spacing: 0.03em;
+        margin-bottom: 1.25rem;
+        color: var(--gl-fg-2);
+    }
+    .widget-title .w-icon {
+        color: var(--gl-brand-yellow);
+        font-size: 1rem;
+    }
+
+    /* ── Таблица сравнения ── */
+    .compare-stat-table {
+        width: 100%;
+    }
+    .compare-stat-table th {
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--gl-fg-4);
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid var(--gl-border-mid);
+        background: var(--gl-surface-card-hover);
+    }
+    .compare-stat-table td {
+        padding: 0.6rem 0.75rem;
+        border-bottom: 1px solid var(--gl-border-card);
+        font-family: SFMono-Regular, Consolas, "Liberation Mono", monospace;
+        font-size: 0.9rem;
+        vertical-align: middle;
+    }
+    .compare-stat-table .metric-label {
+        font-family: inherit;
+        font-size: 0.75rem;
+        color: var(--gl-fg-4);
+        font-weight: 400;
+    }
+    .stat-winner { color: var(--gl-brand-yellow); font-weight: 700; }
+    .stat-loser  { color: var(--gl-fg-4); }
+
+    /* ── Прогресс-бары метрик ── */
+    .metric-row {
+        margin-bottom: 1.1rem;
+    }
+    .metric-row-header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--gl-fg-4);
+        margin-bottom: 0.35rem;
+    }
+    .metric-bar-wrap {
+        height: 4px;
+        background: rgba(255,255,255,0.07);
+        border-radius: 2px;
+        overflow: hidden;
+    }
+    .metric-bar-fill {
+        height: 100%;
+        border-radius: 2px;
+        background: var(--gl-brand-yellow);
+        transition: width 0.6s ease;
+    }
+    .metric-bar-fill-cyan { background: var(--gl-brand-cyan); }
+
+    /* ── Виджет погоды ── */
+    .weather-stat {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--gl-border-card);
+    }
+    .weather-stat:last-child { border-bottom: none; }
+    .weather-label {
+        font-size: 0.58rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--gl-fg-4);
+        margin-bottom: 0.2rem;
+    }
+    .weather-value {
+        font-size: 1.1rem;
+        font-weight: 700;
+        font-family: SFMono-Regular, Consolas, monospace;
+    }
+
+    /* ── Призрачный номер-фон ── */
+    .ghost-number {
+        position: absolute;
+        right: -8px;
+        bottom: -12px;
+        font-size: 7rem;
+        font-weight: 800;
+        font-style: italic;
+        color: rgba(255,255,255,0.03);
+        line-height: 1;
+        pointer-events: none;
+        user-select: none;
+    }
+
+    /* ── Пустое состояние ── */
+    .empty-state-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+    .analytics-link-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 1.25rem;
+        text-decoration: none;
+        color: var(--gl-fg-2);
+        transition: border-color var(--gl-motion-fast), background var(--gl-motion-fast);
+    }
+    .analytics-link-card:hover {
+        background: rgba(255,255,255,0.04);
+        border-color: var(--gl-brand-yellow) !important;
+        color: var(--gl-fg-1);
+        text-decoration: none;
+    }
+    .analytics-link-card .card-icon {
+        color: var(--gl-brand-yellow);
+        font-size: 1.5rem;
+        line-height: 1;
+    }
+    .analytics-link-card .card-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .analytics-link-card .card-desc {
+        font-size: 0.7rem;
+        color: var(--gl-fg-4);
+    }
+
+    /* ── Навигация по классам (горизонт) ── */
+    .class-strip {
+        background: var(--gl-surface-inset);
+        border: 1px solid var(--gl-border-mid);
+        padding: 3px;
+        display: flex;
+        overflow-x: auto;
+        gap: 2px;
+        width: fit-content;
+        max-width: 100%;
+    }
+    .class-strip::-webkit-scrollbar { display: none; }
+    .class-strip .cls-btn {
+        padding: 0.45rem 0.9rem;
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--gl-fg-4);
+        text-decoration: none;
+        white-space: nowrap;
+        transition: background var(--gl-motion-fast), color var(--gl-motion-fast);
+        display: inline-block;
+    }
+    .class-strip .cls-btn:hover {
+        background: rgba(255,255,255,0.05);
+        color: var(--gl-fg-2);
+    }
+    .class-strip .cls-btn.active {
+        background: var(--gl-brand-yellow);
+        color: var(--gl-fg-on-yellow);
+    }
+
+    /* ── Мобильная адаптация ── */
+    @media (max-width: 768px) {
+        .analytics-sidebar { display: none; }
+        .analytics-main { margin-left: 0; padding: 1rem; }
     }
 </style>
 
-<div class="force-width-1500 my-5 text-white">
-    <h1 class="display-4 fw-bold mb-1 text-uppercase text-center">Сравнение шасси</h1>
-
-    <!-- ЕДИНСТВЕННАЯ ФОРМА -->
-    <form method="get" class="row align-items-end mb-5" id="compareForm">
-        <!-- Первое шасси -->
-        <div class="col-md-5">
-            <label class="form-label">Шасси 1</label>
-            <select name="chassis1" class="chassis-select" id="chassis1">
-                <option value="">-- Выберите первое шасси --</option>
-                {% for chassis in all_chassis %}
-                    <option value="{{ chassis.slug }}" {% if chassis1 and chassis.id == chassis1.id %}selected{% endif %}>
-                        {{ chassis.name }}
-                    </option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <!-- Кнопка Сравнить между списками -->
-        <div class="col-md-2">
-            <button type="submit" form="compareForm" class="btn-compare-between">
-                <i class="fas fa-balance-scale me-2"></i>Сравнить
-            </button>
-        </div>
-
-        <!-- Второе шасси -->
-        <div class="col-md-5">
-            <label class="form-label">Шасси 2</label>
-            <select name="chassis2" class="chassis-select" id="chassis2">
-                <option value="">-- Выберите второе шасси --</option>
-                {% for chassis in all_chassis %}
-                    <option value="{{ chassis.slug }}" {% if chassis2 and chassis.id == chassis2.id %}selected{% endif %}>
-                        {{ chassis.name }}
-                    </option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <!-- Сохраняем выбранный класс -->
-        {% if selected_class %}
-        <input type="hidden" name="class" value="{{ selected_class }}">
-        {% endif %}
-    </form>
-
-    {% if chassis1 and chassis2 %}
-    <!-- Вкладки классов -->
-    {% include "includes/class_nav.html" with classes=classes selected_class=selected_class base_url="?chassis1="|add:chassis1.slug|add:"&chassis2="|add:chassis2.slug %}
-
-    <!-- Результаты сравнения -->
-    <div class="row">
-        <!-- Первое шасси -->
-        <div class="col-md-5">
-            <div class="compare-card">
-                <div class="text-center">
-                    {% if chassis1.logo %}
-                        {% image chassis1.logo original as logo1 %}
-                        <img src="{{ logo1.url }}" class="chassis-logo-small" alt="{{ chassis1.name }}">
-                    {% endif %}
-                    <h2 class="h1 fw-bold text-uppercase mb-4">{{ chassis1.name }}</h2>
-                </div>
-
-                <div class="row g-3">
-                    <div class="col-6">
-                        <div class="stat-value">{{ stats1.total }}</div>
-                        <div class="stat-label">Старты</div>
-                    </div>
-                    <div class="col-6">
-                        <div class="stat-value">{{ stats1.wins }}</div>
-                        <div class="stat-label">Победы</div>
-                    </div>
-                    <div class="col-6">
-                        <div class="stat-value">{{ stats1.podiums }}</div>
-                        <div class="stat-label">Подиумы</div>
-                    </div>
-                    <div class="col-6">
-                        <div class="stat-value">{{ stats1.win_rate }}%</div>
-                        <div class="stat-label">% Побед</div>
-                    </div>
-                    <div class="col-6">
-                        <div class="stat-value">{{ stats1.podium_rate }}%</div>
-                        <div class="stat-label">% Подиумов</div>
-                    </div>
-                    <div class="col-6">
-                        <div class="stat-value">{{ stats1.avg_position }}</div>
-                        <div class="stat-label">Ср. место</div>
-                    </div>
-                </div>
-
-                <div class="mt-4">
-                    <h5 class="text-info border-bottom border-secondary pb-2">По погоде</h5>
-                    <div class="row mt-3">
-                        <div class="col-6">
-                            <div class="stat-label">Сухо</div>
-                            <div class="fw-bold text-white">{{ stats1.dry_wins }}/{{ stats1.dry_total }}</div>
-                            <small class="text-muted">{{ stats1.dry_wins }} побед</small>
-                        </div>
-                        <div class="col-6">
-                            <div class="stat-label">Дождь</div>
-                            <div class="fw-bold text-white">{{ stats1.wet_wins }}/{{ stats1.wet_total }}</div>
-                            <small class="text-muted">{{ stats1.wet_wins }} побед</small>
-                        </div>
-                    </div>
-                </div>
+<!-- Боковая панель -->
+<aside class="analytics-sidebar">
+    <div class="sidebar-brand">
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <div class="d-flex align-items-center justify-content-center"
+                 style="width:36px;height:36px;background:var(--gl-brand-yellow);">
+                <i class="fas fa-chart-bar text-dark" style="font-size:0.9rem;"></i>
             </div>
-        </div>
-
-        <!-- VS разделитель -->
-        <div class="col-md-2">
-            <div class="vs-divider">VS</div>
-        </div>
-
-        <!-- Второе шасси -->
-        <div class="col-md-5">
-            <div class="compare-card">
-                <div class="text-center">
-                    {% if chassis2.logo %}
-                        {% image chassis2.logo original as logo2 %}
-                        <img src="{{ logo2.url }}" class="chassis-logo-small" alt="{{ chassis2.name }}">
-                    {% endif %}
-                    <h2 class="h1 fw-bold text-uppercase mb-4">{{ chassis2.name }}</h2>
+            <div>
+                <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--gl-brand-yellow);">
+                    АНАЛИТИКА
                 </div>
-
-                <div class="row g-3">
-                    <div class="col-6">
-                        <div class="stat-value">{{ stats2.total }}</div>
-                        <div class="stat-label">Старты</div>
-                    </div>
-                    <div class="col-6">
-                        <div class="stat-value">{{ stats2.wins }}</div>
-                        <div class="stat-label">Победы</div>
-                    </div>
-                    <div class="col-6">
-                        <div class="stat-value">{{ stats2.podiums }}</div>
-                        <div class="stat-label">Подиумы</div>
-                    </div>
-                    <div class="col-6">
-                        <div class="stat-value">{{ stats2.win_rate }}%</div>
-                        <div class="stat-label">% Побед</div>
-                    </div>
-                    <div class="col-6">
-                        <div class="stat-value">{{ stats2.podium_rate }}%</div>
-                        <div class="stat-label">% Подиумов</div>
-                    </div>
-                    <div class="col-6">
-                        <div class="stat-value">{{ stats2.avg_position }}</div>
-                        <div class="stat-label">Ср. место</div>
-                    </div>
-                </div>
-
-                <div class="mt-4">
-                    <h5 class="text-info border-bottom border-secondary pb-2">По погоде</h5>
-                    <div class="row mt-3">
-                        <div class="col-6">
-                            <div class="stat-label">Сухо</div>
-                            <div class="fw-bold text-white">{{ stats2.dry_wins }}/{{ stats2.dry_total }}</div>
-                            <small class="text-muted">{{ stats2.dry_wins }} побед</small>
-                        </div>
-                        <div class="col-6">
-                            <div class="stat-label">Дождь</div>
-                            <div class="fw-bold text-white">{{ stats2.wet_wins }}/{{ stats2.wet_total }}</div>
-                            <small class="text-muted">{{ stats2.wet_wins }} побед</small>
-                        </div>
-                    </div>
+                <div style="font-size:0.55rem;color:var(--gl-fg-4);letter-spacing:0.05em;text-transform:uppercase;">
+                    GRIPLINE DATA
                 </div>
             </div>
         </div>
     </div>
+
+    <nav style="flex:1;margin-top:0.5rem;">
+        <a href="{% url 'chassis_track_matrix' %}" class="sidebar-nav-item">
+            <i class="fas fa-th sidebar-icon"></i>
+            Матрица трасс
+        </a>
+        <a href="{% url 'tyre_analysis' %}" class="sidebar-nav-item">
+            <i class="fas fa-circle-notch sidebar-icon"></i>
+            Анализ шин
+        </a>
+        <a href="{% url 'weather_impact' %}" class="sidebar-nav-item">
+            <i class="fas fa-cloud-rain sidebar-icon"></i>
+            Погода
+        </a>
+        <a href="{% url 'weights_table' %}" class="sidebar-nav-item">
+            <i class="fas fa-weight sidebar-icon"></i>
+            Таблица весов
+        </a>
+        <a href="{% url 'compare' %}" class="sidebar-nav-item active">
+            <i class="fas fa-balance-scale sidebar-icon"></i>
+            Сравнение шасси
+        </a>
+        <a href="{% url 'compare_drivers' %}" class="sidebar-nav-item">
+            <i class="fas fa-users sidebar-icon"></i>
+            Сравнение пилотов
+        </a>
+        <a href="{% url 'compare_models' %}" class="sidebar-nav-item">
+            <i class="fas fa-layer-group sidebar-icon"></i>
+            Модели шасси
+        </a>
+    </nav>
+
+    <div class="sidebar-cta">
+        <a href="{% url 'top_drivers' %}" class="chamfer-btn">
+            <i class="fas fa-crown me-2"></i>Рейтинг пилотов
+        </a>
+    </div>
+</aside>
+
+<!-- Основной контент -->
+<div class="analytics-main text-white">
+
+    <!-- Заголовок -->
+    <div class="analytics-page-header">
+        <div>
+            <span style="font-size:0.6rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gl-brand-yellow);">
+                GRIPLINE ANALYTICS
+            </span>
+            <h1 class="display-5 fw-bold text-uppercase fst-italic mb-0" style="letter-spacing:-0.02em;line-height:1.1;">
+                Сравнение шасси
+            </h1>
+        </div>
+        {% if chassis1 and chassis2 %}
+        <div class="glass-panel px-4 py-2" style="border-left:3px solid var(--gl-brand-yellow);">
+            <div style="font-size:0.55rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gl-fg-4);">
+                АКТИВНОЕ СРАВНЕНИЕ
+            </div>
+            <div style="font-size:0.9rem;font-weight:700;color:var(--gl-brand-yellow);">
+                {{ chassis1.name }} <span class="text-muted fw-normal">vs</span> {{ chassis2.name }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Форма выбора шасси -->
+    <form method="get" id="compareForm" class="glass-panel p-4 mb-3">
+        <div class="row align-items-end g-3">
+            <div class="col-md-5">
+                <span class="select-label">Шасси 1</span>
+                <select name="chassis1" class="chassis-select" id="chassis1">
+                    <option value="">— Выберите шасси —</option>
+                    {% for chassis in all_chassis %}
+                        <option value="{{ chassis.slug }}"
+                            {% if chassis1 and chassis.id == chassis1.id %}selected{% endif %}>
+                            {{ chassis.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-center justify-content-center">
+                <div class="vs-badge">VS</div>
+            </div>
+            <div class="col-md-5">
+                <span class="select-label">Шасси 2</span>
+                <select name="chassis2" class="chassis-select" id="chassis2">
+                    <option value="">— Выберите шасси —</option>
+                    {% for chassis in all_chassis %}
+                        <option value="{{ chassis.slug }}"
+                            {% if chassis2 and chassis.id == chassis2.id %}selected{% endif %}>
+                            {{ chassis.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if selected_class %}
+            <input type="hidden" name="class" value="{{ selected_class }}">
+            {% endif %}
+        </div>
+        <div class="d-flex justify-content-end mt-3">
+            <button type="submit" class="chamfer-btn" style="width:auto;padding:0.6rem 2rem;">
+                <i class="fas fa-balance-scale me-2"></i>Сравнить
+            </button>
+        </div>
+    </form>
+
+    {% if chassis1 and chassis2 %}
+
+    <!-- Фильтр по классам -->
+    <div class="mb-4">
+        <div class="class-strip">
+            <a href="?chassis1={{ chassis1.slug }}&chassis2={{ chassis2.slug }}"
+               class="cls-btn {% if not selected_class %}active{% endif %}">Все классы</a>
+            {% for cls in classes %}
+            <a href="?chassis1={{ chassis1.slug }}&chassis2={{ chassis2.slug }}&class={{ cls.id }}"
+               class="cls-btn {% if selected_class == cls.id %}active{% endif %}">{{ cls.name }}</a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Bento grid: главная статистика -->
+    <div class="row g-3 mb-3">
+
+        <!-- Таблица сравнения (8/12) -->
+        <div class="col-lg-8">
+            <div class="glass-panel p-4 h-100 position-relative overflow-hidden">
+                <span class="ghost-number">≠</span>
+                <div class="widget-title">
+                    <i class="fas fa-table w-icon"></i>
+                    Ключевые показатели
+                    <span class="ms-auto" style="font-size:0.55rem;font-weight:400;color:var(--gl-fg-4);font-style:normal;">
+                        {% if selected_class %}по выбранному классу{% else %}все классы{% endif %}
+                    </span>
+                </div>
+                <div class="table-responsive">
+                    <table class="compare-stat-table">
+                        <thead>
+                            <tr>
+                                <th>Показатель</th>
+                                <th class="text-end" style="color:var(--gl-brand-yellow);">
+                                    {{ chassis1.name }}
+                                </th>
+                                <th class="text-end" style="color:var(--gl-brand-cyan);">
+                                    {{ chassis2.name }}
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="metric-label">Старты</td>
+                                <td class="text-end {% if stats1.total >= stats2.total %}stat-winner{% else %}stat-loser{% endif %}">
+                                    {{ stats1.total }}
+                                </td>
+                                <td class="text-end {% if stats2.total >= stats1.total %}stat-winner{% else %}stat-loser{% endif %}"
+                                    style="{% if stats2.total >= stats1.total %}color:var(--gl-brand-cyan)!important;{% endif %}">
+                                    {{ stats2.total }}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="metric-label">Победы</td>
+                                <td class="text-end {% if stats1.wins >= stats2.wins %}stat-winner{% else %}stat-loser{% endif %}">
+                                    {{ stats1.wins }}
+                                </td>
+                                <td class="text-end {% if stats2.wins >= stats1.wins %}stat-winner{% else %}stat-loser{% endif %}"
+                                    style="{% if stats2.wins >= stats1.wins %}color:var(--gl-brand-cyan)!important;{% endif %}">
+                                    {{ stats2.wins }}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="metric-label">Подиумы</td>
+                                <td class="text-end {% if stats1.podiums >= stats2.podiums %}stat-winner{% else %}stat-loser{% endif %}">
+                                    {{ stats1.podiums }}
+                                </td>
+                                <td class="text-end {% if stats2.podiums >= stats1.podiums %}stat-winner{% else %}stat-loser{% endif %}"
+                                    style="{% if stats2.podiums >= stats1.podiums %}color:var(--gl-brand-cyan)!important;{% endif %}">
+                                    {{ stats2.podiums }}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="metric-label">% Побед</td>
+                                <td class="text-end {% if stats1.win_rate >= stats2.win_rate %}stat-winner{% else %}stat-loser{% endif %}">
+                                    {{ stats1.win_rate }}%
+                                </td>
+                                <td class="text-end {% if stats2.win_rate >= stats1.win_rate %}stat-winner{% else %}stat-loser{% endif %}"
+                                    style="{% if stats2.win_rate >= stats1.win_rate %}color:var(--gl-brand-cyan)!important;{% endif %}">
+                                    {{ stats2.win_rate }}%
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="metric-label">% Подиумов</td>
+                                <td class="text-end {% if stats1.podium_rate >= stats2.podium_rate %}stat-winner{% else %}stat-loser{% endif %}">
+                                    {{ stats1.podium_rate }}%
+                                </td>
+                                <td class="text-end {% if stats2.podium_rate >= stats1.podium_rate %}stat-winner{% else %}stat-loser{% endif %}"
+                                    style="{% if stats2.podium_rate >= stats1.podium_rate %}color:var(--gl-brand-cyan)!important;{% endif %}">
+                                    {{ stats2.podium_rate }}%
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="metric-label">Ср. место</td>
+                                <td class="text-end {% if stats1.avg_position <= stats2.avg_position and stats1.total > 0 %}stat-winner{% else %}stat-loser{% endif %}">
+                                    {{ stats1.avg_position }}
+                                </td>
+                                <td class="text-end {% if stats2.avg_position <= stats1.avg_position and stats2.total > 0 %}stat-winner{% else %}stat-loser{% endif %}"
+                                    style="{% if stats2.avg_position <= stats1.avg_position and stats2.total > 0 %}color:var(--gl-brand-cyan)!important;{% endif %}">
+                                    {{ stats2.avg_position }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Виджет погоды (4/12) -->
+        <div class="col-lg-4">
+            <div class="glass-panel p-4 h-100">
+                <div class="widget-title">
+                    <i class="fas fa-cloud-rain w-icon" style="color:var(--gl-brand-cyan);"></i>
+                    По условиям
+                </div>
+
+                <!-- Сухо -->
+                <div class="weather-stat">
+                    <div class="weather-label">Сухая трасса</div>
+                    <div class="d-flex justify-content-between align-items-baseline">
+                        <span class="weather-value text-warning">
+                            {{ stats1.dry_wins }}/{{ stats1.dry_total }}
+                        </span>
+                        <span class="text-muted" style="font-size:0.65rem;">vs</span>
+                        <span class="weather-value" style="color:var(--gl-brand-cyan);">
+                            {{ stats2.dry_wins }}/{{ stats2.dry_total }}
+                        </span>
+                    </div>
+                    <div style="font-size:0.6rem;color:var(--gl-fg-4);margin-top:2px;">
+                        побед / стартов
+                    </div>
+                </div>
+
+                <!-- Дождь -->
+                <div class="weather-stat">
+                    <div class="weather-label">Дождь</div>
+                    <div class="d-flex justify-content-between align-items-baseline">
+                        <span class="weather-value text-warning">
+                            {{ stats1.wet_wins }}/{{ stats1.wet_total }}
+                        </span>
+                        <span class="text-muted" style="font-size:0.65rem;">vs</span>
+                        <span class="weather-value" style="color:var(--gl-brand-cyan);">
+                            {{ stats2.wet_wins }}/{{ stats2.wet_total }}
+                        </span>
+                    </div>
+                    <div style="font-size:0.6rem;color:var(--gl-fg-4);margin-top:2px;">
+                        побед / стартов
+                    </div>
+                </div>
+
+                <!-- Легенда -->
+                <div class="d-flex justify-content-between mt-3 pt-2" style="border-top:1px solid var(--gl-border-card);">
+                    <span style="font-size:0.58rem;font-weight:700;letter-spacing:0.08em;color:var(--gl-brand-yellow);">
+                        ● {{ chassis1.name }}
+                    </span>
+                    <span style="font-size:0.58rem;font-weight:700;letter-spacing:0.08em;color:var(--gl-brand-cyan);">
+                        ● {{ chassis2.name }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Bento grid: прогресс-бары + среднее место -->
+    <div class="row g-3 mb-4">
+
+        <!-- Прогресс-бары эффективности (5/12) -->
+        <div class="col-lg-5">
+            <div class="glass-panel p-4 h-100">
+                <div class="widget-title">
+                    <i class="fas fa-tachometer-alt w-icon"></i>
+                    Эффективность
+                </div>
+
+                <!-- Win rate -->
+                <div class="metric-row">
+                    <div class="metric-row-header">
+                        <span>% Побед</span>
+                        <div class="d-flex gap-3">
+                            <span style="color:var(--gl-brand-yellow);">{{ stats1.win_rate }}%</span>
+                            <span style="color:var(--gl-brand-cyan);">{{ stats2.win_rate }}%</span>
+                        </div>
+                    </div>
+                    <div class="metric-bar-wrap">
+                        <div class="metric-bar-fill" style="width:{{ stats1.win_rate }}%;"></div>
+                    </div>
+                    <div class="metric-bar-wrap mt-1">
+                        <div class="metric-bar-fill metric-bar-fill-cyan" style="width:{{ stats2.win_rate }}%;"></div>
+                    </div>
+                </div>
+
+                <!-- Podium rate -->
+                <div class="metric-row">
+                    <div class="metric-row-header">
+                        <span>% Подиумов</span>
+                        <div class="d-flex gap-3">
+                            <span style="color:var(--gl-brand-yellow);">{{ stats1.podium_rate }}%</span>
+                            <span style="color:var(--gl-brand-cyan);">{{ stats2.podium_rate }}%</span>
+                        </div>
+                    </div>
+                    <div class="metric-bar-wrap">
+                        <div class="metric-bar-fill" style="width:{{ stats1.podium_rate }}%;"></div>
+                    </div>
+                    <div class="metric-bar-wrap mt-1">
+                        <div class="metric-bar-fill metric-bar-fill-cyan" style="width:{{ stats2.podium_rate }}%;"></div>
+                    </div>
+                </div>
+
+                <!-- Dry win rate -->
+                {% if stats1.dry_total or stats2.dry_total %}
+                <div class="metric-row">
+                    <div class="metric-row-header">
+                        <span>Победы в сухую</span>
+                        <div class="d-flex gap-3">
+                            {% if stats1.dry_total %}<span style="color:var(--gl-brand-yellow);">{{ stats1.dry_wins }}/{{ stats1.dry_total }}</span>{% endif %}
+                            {% if stats2.dry_total %}<span style="color:var(--gl-brand-cyan);">{{ stats2.dry_wins }}/{{ stats2.dry_total }}</span>{% endif %}
+                        </div>
+                    </div>
+                    {% if stats1.dry_total %}
+                    <div class="metric-bar-wrap">
+                        <div class="metric-bar-fill" style="width:{% widthratio stats1.dry_wins stats1.dry_total 100 %}%;"></div>
+                    </div>
+                    {% endif %}
+                    {% if stats2.dry_total %}
+                    <div class="metric-bar-wrap mt-1">
+                        <div class="metric-bar-fill metric-bar-fill-cyan" style="width:{% widthratio stats2.dry_wins stats2.dry_total 100 %}%;"></div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Легенда -->
+                <div class="d-flex gap-4 mt-3 pt-2" style="border-top:1px solid var(--gl-border-card);">
+                    <span style="font-size:0.58rem;font-weight:700;color:var(--gl-brand-yellow);">
+                        ▬ {{ chassis1.name }}
+                    </span>
+                    <span style="font-size:0.58rem;font-weight:700;color:var(--gl-brand-cyan);">
+                        ▬ {{ chassis2.name }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ранг-стиль: ключевые метрики (7/12) -->
+        <div class="col-lg-7">
+            <div class="glass-panel p-4 h-100">
+                <div class="widget-title">
+                    <i class="fas fa-medal w-icon"></i>
+                    Детальный рейтинг
+                </div>
+                <div class="d-flex flex-column gap-2">
+
+                    {% for chassis_obj, stats_obj, color in chassis_stats_pairs %}
+                    <div class="d-flex align-items-center gap-3 p-3"
+                         style="background:var(--gl-surface-card);border:1px solid transparent;
+                                transition:border-color 0.2s;"
+                         onmouseenter="this.style.borderColor='var(--gl-border-mid)'"
+                         onmouseleave="this.style.borderColor='transparent'">
+                        <span class="fw-bold fst-italic text-muted"
+                              style="font-size:1.8rem;opacity:0.15;min-width:32px;">
+                            {{ forloop.counter }}
+                        </span>
+                        <div style="flex:1;">
+                            {% if chassis_obj.logo %}
+                                {% image chassis_obj.logo max-40x30 as cl %}
+                                <img src="{{ cl.url }}" style="max-height:28px;max-width:60px;object-fit:contain;margin-bottom:4px;" alt="{{ chassis_obj.name }}">
+                            {% endif %}
+                            <div class="fw-bold text-uppercase" style="font-size:0.85rem;color:{{ color }};">
+                                {{ chassis_obj.name }}
+                            </div>
+                            <div style="font-size:0.6rem;color:var(--gl-fg-4);letter-spacing:0.05em;">
+                                СТАРТЫ: {{ stats_obj.total }} | ПОБЕДЫ: {{ stats_obj.wins }} | ПОДИУМЫ: {{ stats_obj.podiums }}
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <div class="fw-bold" style="font-size:1rem;color:{{ color }};">
+                                {{ stats_obj.win_rate }}%
+                            </div>
+                            <div style="width:80px;height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;margin-top:4px;">
+                                <div style="height:100%;background:{{ color }};width:{{ stats_obj.win_rate }}%;border-radius:2px;"></div>
+                            </div>
+                            <div style="font-size:0.55rem;color:var(--gl-fg-4);margin-top:2px;">WIN RATE</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    {% else %}
+
+    <!-- Пустое состояние: ссылки на другие разделы аналитики -->
+    <div class="glass-panel p-5 text-center mb-4">
+        <i class="fas fa-balance-scale fa-2x text-warning mb-3" style="opacity:0.5;"></i>
+        <h4 class="fw-bold text-uppercase fst-italic mb-2">Выберите два шасси для сравнения</h4>
+        <p class="text-muted mb-0" style="font-size:0.85rem;">
+            Используйте форму выше для выбора шасси и получения детального анализа
+        </p>
+    </div>
+
+    <div class="empty-state-grid">
+        <a href="{% url 'chassis_track_matrix' %}" class="glass-panel analytics-link-card">
+            <span class="card-icon"><i class="fas fa-th"></i></span>
+            <span class="card-title">Матрица трасс</span>
+            <span class="card-desc">Шасси × трасса — тепловая карта результатов</span>
+        </a>
+        <a href="{% url 'tyre_analysis' %}" class="glass-panel analytics-link-card">
+            <span class="card-icon"><i class="fas fa-circle-notch"></i></span>
+            <span class="card-title">Анализ шин</span>
+            <span class="card-desc">Эффективность шасси по типам шин</span>
+        </a>
+        <a href="{% url 'weather_impact' %}" class="glass-panel analytics-link-card">
+            <span class="card-icon"><i class="fas fa-cloud-rain"></i></span>
+            <span class="card-title">Влияние погоды</span>
+            <span class="card-desc">Статистика по погодным условиям</span>
+        </a>
+        <a href="{% url 'compare_drivers' %}" class="glass-panel analytics-link-card">
+            <span class="card-icon"><i class="fas fa-users"></i></span>
+            <span class="card-title">Сравнение пилотов</span>
+            <span class="card-desc">Лицом к лицу: два пилота</span>
+        </a>
+        <a href="{% url 'weights_table' %}" class="glass-panel analytics-link-card">
+            <span class="card-icon"><i class="fas fa-weight"></i></span>
+            <span class="card-title">Таблица весов</span>
+            <span class="card-desc">Весовые ограничения по классам</span>
+        </a>
+        <a href="{% url 'compare_models' %}" class="glass-panel analytics-link-card">
+            <span class="card-icon"><i class="fas fa-layer-group"></i></span>
+            <span class="card-title">Модели шасси</span>
+            <span class="card-desc">Характеристики и сравнение моделей</span>
+        </a>
+    </div>
+
     {% endif %}
+
 </div>
 {% endblock %}
