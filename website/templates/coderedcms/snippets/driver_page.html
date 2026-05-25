@@ -3,27 +3,15 @@
 
 {% block content %}
 <style>
-    /* Единый стандарт ширины */
-    .force-width-1500 {
-        max-width: 1500px !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }
-    /* Стили таблицы из общей стилистики */
-    .table-hover tbody tr:hover {
-        background-color: rgba(13, 202, 240, 0.1) !important;
-        transition: 0.3s;
-    }
+    /* .force-width-1500 и .table-hover — в custom.css */
     .badge { width: 45px; font-weight: 800; }
     .driver-photo {
         object-fit: cover;
-        border-radius: 10px;
+        border-radius: var(--gl-radius-xl);
     }
     .bg-bronze {
-        background-color: #cd7f32 !important;
-        color: white !important;
+        background-color: var(--gl-brand-bronze) !important;
+        color: var(--gl-fg-1) !important;
     }
 </style>
 
@@ -56,7 +44,7 @@
 
 
 
-            <div class="card bg-dark border-secondary p-3 mb-3">
+            <div class="card p-3 mb-3">
                 <h5 class="text-warning border-bottom border-secondary pb-2 mb-3 text-uppercase">Биография</h5>
                 <div class="text-light">
                     {{ driver.bio|safe|default:"Информация о пилоте скоро будет дополнена." }}
@@ -66,7 +54,7 @@
             {# График результатов пилота #}
               <div class="row">
                   <div class="col-12">
-                      <div class="card bg-dark border-secondary p-4">
+                      <div class="card p-4">
                           <h4 class="text-warning border-bottom border-secondary pb-2 mb-4 text-uppercase fw-bold">Прогресс по этапам</h4>
 
                           <div style="height: 200px; position: relative;">
@@ -173,7 +161,7 @@
       <div class="row mb-5">
           <!-- Статистика пилота -->
           <div class="col-12 mb-4">
-              <div class="card bg-dark border-secondary p-4">
+              <div class="card p-4">
                   <h4 class="text-warning border-bottom border-secondary pb-2 mb-4 text-uppercase fw-bold">Статистика пилота</h4>
                   <div class="row text-center g-3">
                       <div class="col">
@@ -212,7 +200,7 @@
 
           <!-- Рейтинг по классам -->
           <div class="col-12">
-              <div class="card bg-dark border-secondary p-4">
+              <div class="card p-4">
                   <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-2 mb-4">
                       <h4 class="text-warning text-uppercase fw-bold mb-0">Рейтинг по классам</h4>
                       <div class="d-flex align-items-center gap-3">
@@ -284,7 +272,7 @@
 
                           <!-- Статистика в классе -->
                           <div class="col-6 col-md-3">
-                              <div class="d-flex flex-column gap-1 h-100 justify-content-center" style="font-size:1rem; border-left:1px solid #2a2a35; padding-left:1rem;">
+                              <div class="d-flex flex-column gap-1 h-100 justify-content-center" style="font-size:1rem; border-left:1px solid var(--gl-border-card); padding-left:1rem;">
                                   <div class="d-flex justify-content-between">
                                       <span class="text-muted">Победы</span>
                                       <span class="text-white fw-bold">{{ cr.wins }} <span class="text-muted fw-normal">({{ cr.win_pct }}%)</span></span>
@@ -302,7 +290,7 @@
 
                           <!-- Соседи -->
                           <div class="col-12 col-md-3">
-                              <div class="d-flex flex-column gap-2 justify-content-center h-100" style="font-size:0.82rem; border-left:1px solid #2a2a35; padding-left:1rem;">
+                              <div class="d-flex flex-column gap-2 justify-content-center h-100" style="font-size:0.82rem; border-left:1px solid var(--gl-border-card); padding-left:1rem;">
                                   {% if cr.driver_above %}
                                   <div class="d-flex justify-content-between align-items-center">
                                       <span>
@@ -354,7 +342,7 @@
 
                               {% if cr.median_win_pct > 0 %}
                               <div class="col-12 col-md">
-                                  <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid {% if cr.win_pct > cr.median_win_pct %}var(--gl-brand-green){% else %}var(--gl-surface-divider){% endif %};">
+                                  <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:var(--gl-black-25); border:1px solid {% if cr.win_pct > cr.median_win_pct %}var(--gl-brand-green){% else %}var(--gl-surface-divider){% endif %};">
                                       <i class="fas fa-trophy text-warning" style="font-size:1.1rem;"></i>
                                       <div>
                                           <div class="text-muted small">% побед vs класс</div>
@@ -369,7 +357,7 @@
 
                               {% if cr.median_podium_pct > 0 %}
                               <div class="col-12 col-md">
-                                  <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid {% if cr.podium_pct > cr.median_podium_pct %}var(--gl-brand-green){% else %}var(--gl-surface-divider){% endif %};">
+                                  <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:var(--gl-black-25); border:1px solid {% if cr.podium_pct > cr.median_podium_pct %}var(--gl-brand-green){% else %}var(--gl-surface-divider){% endif %};">
                                       <i class="fas fa-medal text-warning" style="font-size:1.1rem;"></i>
                                       <div>
                                           <div class="text-muted small">% подиумов vs класс</div>
@@ -384,7 +372,7 @@
 
                               {% if cr.nemesis %}
                               <div class="col-12 col-md">
-                                  <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid var(--gl-signal-danger);">
+                                  <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:var(--gl-black-25); border:1px solid var(--gl-signal-danger);">
                                       <i class="fas fa-user-slash text-danger" style="font-size:1.1rem;"></i>
                                       <div>
                                           <div class="text-muted small">Немезис <span style="font-size:0.7rem;">(чаще впереди в очных стартах)</span></div>
@@ -399,7 +387,7 @@
 
                               {% if cr.victim %}
                               <div class="col-12 col-md">
-                                  <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid var(--gl-brand-cyan);">
+                                  <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:var(--gl-black-25); border:1px solid var(--gl-brand-cyan);">
                                       <i class="fas fa-shield-halved text-info" style="font-size:1.1rem;"></i>
                                       <div>
                                           <div class="text-muted small">Уверенно против <span style="font-size:0.7rem;">(чаще впереди в очных стартах)</span></div>
@@ -428,7 +416,7 @@
 	  <!-- Периоды выступлений по классам -->
 		
 			<div class="col-12">
-				<div class="card bg-dark border-secondary p-4">
+				<div class="card p-4">
 					<h4 class="text-warning border-bottom border-secondary pb-2 mb-4 text-uppercase fw-bold">Периоды выступлений по классам</h4>
 					
 					<div class="row g-3">

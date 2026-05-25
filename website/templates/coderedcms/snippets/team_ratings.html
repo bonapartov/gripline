@@ -3,32 +3,22 @@
 
 {% block content %}
 <style>
-    .force-width-1500 {
-        max-width: 1500px !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }
-    .table-hover tbody tr:hover {
-        background-color: rgba(13, 202, 240, 0.1) !important;
-        transition: 0.3s;
-    }
+    /* .force-width-1500 и .table-hover — в custom.css */
     .team-logo-sm {
         width: 48px;
         height: 48px;
         object-fit: contain;
-        background: #111;
-        border-radius: 6px;
-        border: 1px solid #2a2a35;
+        background: var(--gl-surface-inset);
+        border-radius: var(--gl-radius-md);
+        border: 1px solid var(--gl-border-card);
         padding: 4px;
     }
     .team-logo-placeholder {
         width: 48px;
         height: 48px;
-        background: #1a1a25;
-        border-radius: 6px;
-        border: 1px solid #2a2a35;
+        background: var(--gl-surface-card);
+        border-radius: var(--gl-radius-md);
+        border: 1px solid var(--gl-border-card);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -43,22 +33,22 @@
     .score-bar {
         height: 100%;
         border-radius: 3px;
-        background: linear-gradient(90deg, #0dcaf0, #0d6efd);
+        background: linear-gradient(90deg, var(--gl-brand-cyan), var(--gl-brand-yellow));
     }
     .class-pill {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        background: rgba(13,202,240,0.08);
+        background: var(--gl-cyan-tint-10);
         border: 1px solid rgba(13,202,240,0.2);
-        border-radius: 20px;
+        border-radius: var(--gl-radius-pill);
         padding: 2px 10px;
         font-size: 0.78rem;
         white-space: nowrap;
     }
     .accordion-button {
         background: transparent !important;
-        color: #adb5bd !important;
+        color: var(--gl-fg-4) !important;
         border: none !important;
         box-shadow: none !important;
         padding: 0.4rem 0.75rem;
@@ -68,13 +58,13 @@
         filter: invert(1);
     }
     .accordion-collapse {
-        background: rgba(0,0,0,0.3);
+        background: var(--gl-black-25);
     }
 </style>
 
 <div class="force-width-1500 my-5 text-white">
 
-    <div class="d-flex justify-content-between align-items-center border-bottom border-primary pb-3 mb-5">
+    <div class="d-flex justify-content-between align-items-center border-bottom border-warning pb-3 mb-5">
         <div>
             <h1 class="display-5 fw-bold text-uppercase mb-1">Командный рейтинг</h1>
             <p class="text-muted mb-0 small">Средний нормализованный BT-рейтинг активных пилотов команды по всем классам</p>
@@ -87,7 +77,7 @@
     {% if team_rows %}
     <div class="d-flex flex-column gap-3">
         {% for row in team_rows %}
-        <div class="card bg-dark border-secondary p-0 overflow-hidden">
+        <div class="card p-0 overflow-hidden">
             <div class="p-3">
                 <div class="row align-items-center g-3">
 
@@ -160,7 +150,7 @@
 
             <!-- Раскрывающийся список пилотов по классам -->
             <div class="collapse" id="team-{{ row.team.id }}-drivers">
-                <div class="border-top border-secondary px-4 py-3">
+                <div class="px-4 py-3" style="border-top:1px solid var(--gl-border-card);">
                     {% for cls in row.classes %}
                     <div class="mb-3">
                         <div class="text-info text-uppercase small fw-bold mb-2">{{ cls.name }}</div>
@@ -168,12 +158,12 @@
                             {% for item in cls.drivers %}
                             <a href="{{ item.driver.get_absolute_url }}"
                                class="d-flex align-items-center gap-2 text-decoration-none px-3 py-2 rounded-2"
-                               style="background:rgba(0,0,0,0.3); border:1px solid #2a2a35; min-width:180px;">
+                               style="background:var(--gl-black-25); border:1px solid var(--gl-border-card); min-width:180px;">
                                 {% if item.driver.photo %}
                                     {% image item.driver.photo fill-36x36 as dphoto %}
-                                    <img src="{{ dphoto.url }}" style="width:36px;height:36px;object-fit:cover;border-radius:50%;border:1px solid #3a3a45;">
+                                    <img src="{{ dphoto.url }}" style="width:36px;height:36px;object-fit:cover;border-radius:50%;border:1px solid var(--gl-border-divider);">
                                 {% else %}
-                                    <div style="width:36px;height:36px;background:#1a1a25;border-radius:50%;border:1px solid #3a3a45;display:flex;align-items:center;justify-content:center;">
+                                    <div style="width:36px;height:36px;background:var(--gl-surface-card);border-radius:50%;border:1px solid var(--gl-border-divider);display:flex;align-items:center;justify-content:center;">
                                         <i class="fas fa-user text-muted small"></i>
                                     </div>
                                 {% endif %}

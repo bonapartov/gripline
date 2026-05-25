@@ -3,57 +3,20 @@
 
 {% block content %}
 <style>
-    .force-width-1500 {
-        max-width: 1500px !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }
+    /* .force-width-1500 и .class-nav — в custom.css */
 
-    /* Навигация по классам */
-    .class-nav {
-        background-color: #2a2a35;
-        border-radius: 4px;
-        padding: 0.5rem;
-        margin-bottom: 2rem;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        justify-content: center;
-    }
-    .class-nav .nav-link {
-        color: #adb5bd;
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
-        transition: all 0.2s;
-        text-decoration: none;
-        border: 2px solid #3a3a45;
-        background-color: transparent;
-    }
-    .class-nav .nav-link:hover {
-        border-color: #ffc107;
-        background-color: #3a3a45;
-        color: white;
-    }
-    .class-nav .nav-link.active {
-        border-color: #ffc107 !important;
-        background-color: transparent !important;
-        color: white !important;
-    }
-
-    /* Таблица */
+    /* Таблица сравнения моделей */
     .compare-table {
-        background-color: #1a1a25;
-        border-radius: 10px;
+        background-color: var(--gl-surface-card);
+        border-radius: var(--gl-radius-xl);
         overflow: hidden;
     }
     .compare-table thead tr {
-        border-bottom: 2px solid #ffc107;
+        border-bottom: 2px solid var(--gl-brand-yellow);
     }
     .compare-table th {
-        background-color: #2a2a35;
-        color: #adb5bd;
+        background-color: var(--gl-surface-card-hover);
+        color: var(--gl-fg-4);
         text-transform: uppercase;
         font-size: 0.85rem;
         letter-spacing: 0.5px;
@@ -62,12 +25,8 @@
     }
     .compare-table td {
         padding: 0.75rem 1rem;
-        border-bottom: 1px solid #2a2a35;
+        border-bottom: 1px solid var(--gl-border-card);
         vertical-align: middle;
-    }
-    .compare-table tbody tr:hover {
-        background-color: rgba(13, 202, 240, 0.1) !important;
-        transition: 0.3s;
     }
 
     /* Фото пилотов */
@@ -75,71 +34,68 @@
         width: 60px;
         height: 60px;
         object-fit: cover;
-        border-radius: 8px;
-        border: 2px solid #2a2a35;
+        border-radius: var(--gl-radius-lg);
+        border: 2px solid var(--gl-border-card);
     }
     .driver-photo-placeholder {
         width: 60px;
         height: 60px;
-        background-color: #6c757d;
-        border-radius: 8px;
+        background-color: var(--gl-fg-muted);
+        border-radius: var(--gl-radius-lg);
         display: flex;
         align-items: center;
         justify-content: center;
-        border: 2px solid #2a2a35;
+        border: 2px solid var(--gl-border-card);
     }
 
     /* Рейтинговые бейджи */
     .rating-badge {
-        background-color: #ffc107;
-        color: #000;
+        background-color: var(--gl-brand-yellow);
+        color: var(--gl-fg-on-yellow-dark);
         padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-weight: bold;
+        border-radius: var(--gl-radius-pill);
+        font-weight: var(--gl-weight-bold);
         display: inline-block;
     }
     .rating-badge.bt {
-        background-color: #0dcaf0;
-    }
-    .rating-badge.pr {
-        background-color: #ffc107;
+        background-color: var(--gl-brand-cyan);
     }
     .diff-positive {
-        color: #28a745;
-        font-weight: bold;
+        color: var(--gl-signal-success);
+        font-weight: var(--gl-weight-bold);
     }
     .diff-negative {
-        color: #dc3545;
-        font-weight: bold;
+        color: var(--gl-signal-danger);
+        font-weight: var(--gl-weight-bold);
     }
     .starts-badge {
-        background-color: #2a2a35;
-        color: #adb5bd;
+        background-color: var(--gl-surface-card-hover);
+        color: var(--gl-fg-4);
         padding: 0.15rem 0.4rem;
-        border-radius: 4px;
+        border-radius: var(--gl-radius-sm);
         font-size: 0.7rem;
         margin-left: 0.25rem;
     }
 
-    /* Кнопка */
+    /* CTA-кнопка */
     .btn-filter {
-        background-color: #ffc107;
-        color: #000 !important;
+        background-color: var(--gl-brand-yellow);
+        color: var(--gl-fg-on-yellow-dark) !important;
         border: none;
         padding: 0.5rem 1rem;
-        border-radius: 4px;
-        font-weight: bold;
+        border-radius: var(--gl-radius-sm);
+        font-weight: var(--gl-weight-bold);
         font-size: 0.9rem;
-        transition: all 0.2s;
+        transition: all var(--gl-motion-fast);
         display: inline-block;
         text-decoration: none;
         cursor: pointer;
         white-space: nowrap;
     }
     .btn-filter:hover {
-        background-color: #e0a800;
+        background-color: var(--gl-brand-yellow-hover);
         transform: translateY(-2px);
-        color: #000 !important;
+        color: var(--gl-fg-on-yellow-dark) !important;
         text-decoration: none;
     }
 </style>

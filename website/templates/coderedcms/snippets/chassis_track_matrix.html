@@ -4,73 +4,14 @@
 
 {% block content %}
 <style>
-    .force-width-1500 {
-        max-width: 1500px !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }
+    /* .force-width-1500, .matrix-container, .matrix-table, .chassis-name,
+       .heat-cell, .stats-badge, .legend-continuous, .legend-title,
+       .legend-labels — в custom.css */
 
-    .matrix-container {
-        background-color: #1a1a25;
-        border-radius: 10px;
-        padding: 2rem;
-        overflow-x: auto;
-        margin: 0 auto;
-    }
-
-    .matrix-table {
-        width: 100%;
-        border-collapse: collapse;
-        min-width: 800px;
-    }
-
-    .matrix-table th {
-        background-color: #2a2a35;
-        color: #ffc107;
-        padding: 1rem;
-        font-weight: bold;
-        text-transform: uppercase;
-        font-size: 0.85rem;
-        position: sticky;
-        top: 0;
-        z-index: 10;
-    }
-
-    .matrix-table td {
-        padding: 0.75rem;
-        text-align: center;
-        border: 1px solid #2a2a35;
-    }
-
-    .matrix-table tr:hover td {
-        /* Убираем синий фон */
-        background-color: transparent;
-    }
-
-    .heat-cell:hover {
-        box-shadow: inset 0 0 0 2px #ffc107;  /* Жёлтая обводка */
-    }
-
-    .chassis-name {
-        font-weight: bold;
-        color: #fff;
-        position: sticky;
-        left: 0;
-        background-color: #1a1a25;
-        z-index: 5;
-    }
-
-    .heat-cell {
-        cursor: help;
-    }
-
-    /* Тепловая карта - градиент от 1% до 100% */
     .win-rate-no-data,
     .win-rate-0 {
-        background-color: transparent;  /* Полностью прозрачный фон */
-        color: #6c757d;
+        background-color: transparent;
+        color: var(--gl-fg-muted);
     }
     .win-rate-1 { background-color: rgba(255, 193, 7, 0.02); }
     .win-rate-2 { background-color: rgba(255, 193, 7, 0.04); }
@@ -123,66 +64,14 @@
     .win-rate-49 { background-color: rgba(255, 193, 7, 0.98); }
     .win-rate-50 { background-color: rgba(255, 193, 7, 1.0); }
 
-    .heat-cell:hover {
-        box-shadow: inset 0 0 0 2px #ffc107;
-    }
-
-    .tooltip-info {
-        background: #2a2a35;
-        color: #fff;
-        padding: 0.5rem;
-        border-radius: 4px;
-        font-size: 0.9rem;
-    }
-
-    /* Непрерывная легенда */
-    .legend-continuous {
-        margin-top: 2rem;
-        padding: 1rem;
-        background-color: #2a2a35;
-        border-radius: 8px;
-    }
-
-    .legend-title {
-        color: #ffc107;
-        font-weight: bold;
-        margin-bottom: 1rem;
-        text-align: center;
-    }
-
-    .gradient-bar {
-        height: 30px;
-        width: 100%;
-        background: linear-gradient(90deg,
-            rgba(255,193,7,0.1) 0%,
-            rgba(255,193,7,0.2) 10%,
-            rgba(255,193,7,0.3) 20%,
-            rgba(255,193,7,0.4) 30%,
-            rgba(255,193,7,0.5) 40%,
-            rgba(255,193,7,0.6) 50%,
-            rgba(255,193,7,0.7) 60%,
-            rgba(255,193,7,0.8) 70%,
-            rgba(255,193,7,0.9) 80%,
-            rgba(255,193,7,1.0) 90%);
-        border-radius: 4px;
-        margin-bottom: 0.5rem;
-    }
-
-    .legend-labels {
-        display: flex;
-        justify-content: space-between;
-        color: #adb5bd;
-        font-size: 0.85rem;
-        margin-bottom: 1rem;
-    }
-
+    /* Блок «нет данных» в легенде */
     .legend-no-data {
         display: flex;
         align-items: center;
         gap: 1rem;
         padding: 0.5rem;
-        background-color: #1a1a25;
-        border-radius: 4px;
+        background-color: var(--gl-surface-card);
+        border-radius: var(--gl-radius-sm);
         margin-top: 1rem;
     }
 
@@ -190,34 +79,21 @@
         width: 30px;
         height: 30px;
         background-color: rgba(42, 42, 53, 0.5);
-        border-radius: 4px;
+        border-radius: var(--gl-radius-sm);
     }
 
-    .stats-badge {
-        background-color: #2a2a35;
-        color: #adb5bd;
-        padding: 0.15rem 0.4rem;
-        border-radius: 4px;
-        font-size: 0.7rem;
-        margin-left: 0.25rem;
-    }
-
+    /* Футер матрицы с пояснением */
     .info-footer {
         margin-top: 2rem;
         padding: 1rem;
-        background-color: #1a1a25;
-        border-radius: 8px;
-        border-left: 4px solid #0dcaf0;
+        background-color: var(--gl-surface-card);
+        border-radius: var(--gl-radius-lg);
+        border-left: 4px solid var(--gl-brand-cyan);
         display: flex;
         justify-content: space-between;
         align-items: center;
         flex-wrap: wrap;
         gap: 1rem;
-    }
-
-    .info-footer .text-muted {
-        color: #adb5bd !important;
-        margin: 0;
     }
 </style>
 
@@ -230,7 +106,7 @@
     {% include "includes/class_nav.html" with classes=classes selected_class=selected_class base_url="?" %}
 
     <!-- Подсказка о кликабельности -->
-    <div class="alert alert-info bg-opacity-10 border-info mb-4" style="background-color: #1a3a4a; color: #9ec5fe;">
+    <div class="alert mb-4" style="background-color: var(--gl-surface-card); border: 1px solid var(--gl-brand-cyan); color: var(--gl-brand-cyan);">
         <i class="fas fa-info-circle me-2"></i>
         <strong>Кликните на любую ячейку</strong> — откроется подробная статистика по шасси на этой трассе: топ-пилоты и последние гонки.
     </div>
@@ -342,8 +218,8 @@
     </div>
 
     <!-- Пояснение методологии -->
-    <div class="mt-5" style="background-color: #1a1a25; border-radius: 8px; padding: 1.5rem;">
-        <h5 class="text-info border-bottom border-secondary pb-2 mb-3">📊 Как работает матрица?</h5>
+    <div class="mt-5" style="background-color: var(--gl-surface-card); border-radius: var(--gl-radius-lg); padding: 1.5rem;">
+        <h5 class="text-warning pb-2 mb-3" style="border-bottom:1px solid var(--gl-border-card);">📊 Как работает матрица?</h5>
 
         <div class="row">
             <div class="col-md-8">
@@ -351,9 +227,9 @@
                     <strong class="text-white">Кликните на любую ячейку</strong> — откроется подробная статистика по этому шасси на этой трассе:
                 </p>
                 <ul class="text-muted">
-                    <li>🔸 <span class="text-white">🏆 Топ-5 пилотов</span> — кто чаще всего побеждал на этом сочетании</li>
-                    <li>🔸 <span class="text-white">📅 Последние гонки</span> — детальные результаты с датами и очками</li>
-                    <li>🔸 <span class="text-white">📊 Общая статистика</span> — количество стартов, побед и процент побед</li>
+                    <li><i class="fas fa-circle-dot me-1 text-warning"></i><span class="text-white">Топ-5 пилотов</span> — кто чаще всего побеждал на этом сочетании</li>
+                    <li><i class="fas fa-circle-dot me-1 text-warning"></i><span class="text-white">Последние гонки</span> — детальные результаты с датами и очками</li>
+                    <li><i class="fas fa-circle-dot me-1 text-warning"></i><span class="text-white">Общая статистика</span> — количество стартов, побед и процент побед</li>
                 </ul>
                 <p class="text-muted mt-3">
                     <strong class="text-white">Цвет ячейки</strong> показывает процент побед:
@@ -368,7 +244,7 @@
                 </p>
             </div>
             <div class="col-md-4">
-                <div style="background-color: #2a2a35; border-radius: 8px; padding: 1rem;">
+                <div style="background-color: var(--gl-surface-card-hover); border-radius: var(--gl-radius-lg); padding: 1rem;">
                     <p class="text-white mb-2"><i class="fas fa-calculator text-warning me-2"></i>Формула:</p>
                     <p class="text-muted small mb-2">
                         Win Rate = (Победы / Всего гонок) × 100%
@@ -519,7 +395,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                         </div>
 
-                        <h6 class="text-info mt-3 mb-2">🏆 Топ-5 пилотов</h6>
+                        <h6 class="text-info mt-3 mb-2"><i class="fas fa-trophy me-2"></i>Топ-5 пилотов</h6>
                         <div class="table-responsive">
                             <table class="table table-dark table-sm">
                                 <thead>

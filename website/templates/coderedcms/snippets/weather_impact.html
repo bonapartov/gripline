@@ -11,158 +11,59 @@
         padding-right: 1rem !important;
     }
 
-    /* Навигация по классам */
-    .class-nav {
-        background-color: #2a2a35;
-        border-radius: 4px;
-        padding: 0.5rem;
-        margin-bottom: 2rem;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        justify-content: center;
-    }
-    .class-nav .nav-link {
-        color: #adb5bd;
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
-        transition: all 0.2s;
-        text-decoration: none;
-        border: 2px solid #3a3a45;
-        background-color: transparent;
-    }
-    .class-nav .nav-link:hover {
-        border-color: #ffc107;
-        background-color: #3a3a45;
-        color: white;
-    }
-    .class-nav .nav-link.active {
-        border-color: #ffc107 !important;
-        background-color: transparent !important;
-        color: white !important;
-    }
+    /* .force-width-1500, .class-nav, .impact-table, .stats-card,
+       .info-box, .info-tip, .section-title — в custom.css */
 
-    /* Карточки */
-    .stats-card {
-        background-color: #1a1a25;
-        border: 1px solid #2a2a35;
-        border-radius: 8px;
-        padding: 1.5rem;
-        height: 100%;
-    }
+    /* Данные: цифра внутри stats-card */
     .stats-card h3 {
-        color: #ffc107;
+        color: var(--gl-brand-yellow);
         font-size: 2rem;
-        font-weight: bold;
+        font-weight: var(--gl-weight-bold);
     }
     .stats-card .label {
-        color: #adb5bd;
+        color: var(--gl-fg-4);
         text-transform: uppercase;
         font-size: 0.9rem;
     }
 
-    /* График */
+    /* Контейнер графика */
     .chart-container {
-        background-color: #1a1a25;
-        border: 1px solid #2a2a35;
-        border-radius: 8px;
+        background-color: var(--gl-surface-card);
+        border: 1px solid var(--gl-border-card);
+        border-radius: var(--gl-radius-lg);
         padding: 1.5rem;
         height: 400px;
         margin-bottom: 2rem;
     }
 
-    /* Таблицы */
-    .impact-table {
-        background-color: #1a1a25;
-        border: 1px solid #2a2a35;
-        border-radius: 8px;
-        overflow: hidden;
-        width: 100%;
-    }
-    .impact-table th {
-        background-color: #2a2a35;
-        color: #ffc107;
-        padding: 0.75rem;
-        font-size: 0.9rem;
-        text-transform: uppercase;
-    }
-    .impact-table td {
-        padding: 0.75rem;
-        border-bottom: 1px solid #2a2a35;
-        color: #fff;
-    }
-    .impact-table tr:hover {
-        background-color: rgba(13, 202, 240, 0.1);
-    }
-    .badge-dry { background-color: #ffc107; color: #000; padding: 0.25rem 0.5rem; border-radius: 4px; }
-    .badge-wet { background-color: #0dcaf0; color: #000; padding: 0.25rem 0.5rem; border-radius: 4px; }
-    .badge-neutral { background-color: #6c757d; color: #fff; padding: 0.25rem 0.5rem; border-radius: 4px; }
-    .diff-positive { color: #28a745; font-weight: bold; }
-    .diff-negative { color: #dc3545; font-weight: bold; }
+    /* Бейджи погодных условий */
+    .badge-dry     { background-color: var(--gl-brand-yellow); color: var(--gl-fg-on-yellow-dark); padding: 0.25rem 0.5rem; border-radius: var(--gl-radius-sm); }
+    .badge-wet     { background-color: var(--gl-brand-cyan);   color: var(--gl-fg-on-yellow-dark); padding: 0.25rem 0.5rem; border-radius: var(--gl-radius-sm); }
+    .badge-neutral { background-color: var(--gl-fg-muted);     color: var(--gl-fg-1);              padding: 0.25rem 0.5rem; border-radius: var(--gl-radius-sm); }
+    .diff-positive { color: var(--gl-signal-success); font-weight: var(--gl-weight-bold); }
+    .diff-negative { color: var(--gl-signal-danger);  font-weight: var(--gl-weight-bold); }
 
-    /* Информационные блоки в едином стиле сайта */
-    .info-box {
-        background-color: #1a1a25 !important;  /* Тот же фон, что у карточек */
-        border: 1px solid #2a2a35 !important;
-        border-left: 4px solid #0dcaf0 !important;  /* Яркая полоска слева как в других блоках */
-        border-radius: 4px;
-        padding: 1rem;
-        margin-bottom: 1.5rem;
-        color: #adb5bd !important;  /* Стандартный цвет текста */
-    }
-    .info-box strong {
-        color: #ffc107;  /* Желтый для акцентов */
-    }
-    .info-box i {
-        color: #0dcaf0;  /* Голубой для иконок */
-    }
-    .info-box ul,
-    .info-box p {
-        color: #adb5bd;
-        margin-bottom: 0.25rem;
-    }
-    .info-box li {
-        color: #adb5bd;
-    }
-    .info-tip {
-        background-color: #2a2a35;
-        border: 1px solid #ffc107;
-        border-radius: 20px;
-        padding: 0.25rem 0.75rem;
-        font-size: 0.8rem;
-        color: #ffc107;
-        display: inline-block;
-        margin-left: 0.5rem;
-    }
-
+    /* Селектор шасси */
     .chassis-selector {
-        background-color: #2a2a35;
-        border: 1px solid #3a3a45;
-        color: white;
+        background-color: var(--gl-surface-card-hover);
+        border: 1px solid var(--gl-border-divider);
+        color: var(--gl-fg-1);
         padding: 0.5rem;
-        border-radius: 4px;
+        border-radius: var(--gl-radius-sm);
         margin-bottom: 1rem;
         width: 300px;
     }
     .chassis-selector:focus {
         outline: none;
-        border-color: #ffc107;
+        border-color: var(--gl-brand-yellow);
     }
+
+    /* Столбик сезонности */
     .month-bar {
         display: inline-block;
         height: 20px;
-        background-color: #0dcaf0;
-        border-radius: 4px;
-    }
-    .section-title {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin: 2rem 0 1rem 0;
-    }
-    .section-title h3 {
-        margin: 0;
-        color: #ffc107;
+        background-color: var(--gl-brand-cyan);
+        border-radius: var(--gl-radius-sm);
     }
 </style>
 
@@ -339,7 +240,7 @@
 
     <!-- Анализ по трассам -->
     <div class="section-title">
-        <h3>🏎️ Трассы и дождь</h3>
+        <h3><i class="fas fa-cloud-rain me-2 text-info"></i>Трассы и дождь</h3>
         <span class="info-tip">рейтинг "мокрости"</span>
     </div>
 
@@ -379,7 +280,7 @@
                     <td class="text-center">
                         <div class="d-flex align-items-center gap-2">
                             <span>{{ item.wet_percentage }}%</span>
-                            <div class="progress" style="width: 100px; height: 8px; background-color: #2a2a35;">
+                            <div class="progress" style="width: 100px; height: 8px; background-color: var(--gl-surface-card-hover);">
                                 <div class="progress-bar bg-info" style="width: {{ item.wet_percentage }}%;"></div>
                             </div>
                         </div>
@@ -423,7 +324,7 @@
             <div class="col-3 col-md-1 text-center mb-3">
                 <div class="small text-info">{{ month.month_name }}</div>
                 <div class="h4 text-warning">{{ month.wet_percentage }}%</div>
-                <div class="progress" style="height: 60px; width: 20px; margin: 0 auto; background-color: #2a2a35; transform: rotate(180deg);">
+                <div class="progress" style="height: 60px; width: 20px; margin: 0 auto; background-color: var(--gl-surface-card-hover); transform: rotate(180deg);">
                     <div class="progress-bar bg-info" style="height: {{ month.wet_percentage }}%; width: 100%;"></div>
                 </div>
                 <small class="text-muted">{{ month.wet }}/{{ month.total }}</small>
@@ -434,7 +335,7 @@
 
     <!-- Какое шасси лучше в дождь -->
     <div class="section-title">
-        <h3>🏎️ Шасси в дождь</h3>
+        <h3><i class="fas fa-car me-2 text-info"></i>Шасси в дождь</h3>
         <span class="info-tip">сравнение</span>
     </div>
 
@@ -539,7 +440,7 @@
         <div class="d-flex">
             <i class="fas fa-lightbulb fa-2x text-warning me-3"></i>
             <div>
-                <h5 class="text-warning mb-2">💡 Как использовать эти данные?</h5>
+                <h5 class="text-warning mb-2"><i class="fas fa-circle-info me-2"></i>Как использовать эти данные?</h5>
                 <ul class="mb-0">
                     <li><strong>Перед гонкой:</strong> Посмотрите прогноз погоды и выберите шасси, которое лучше работает в этих условиях</li>
                     <li><strong>При выборе пилота:</strong> Если ожидается дождь, обратите внимание на пилотов с отрицательной разницей</li>
