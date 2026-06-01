@@ -1,0 +1,321 @@
+{% extends "coderedcms/pages/article_index_page.html" %}
+{% load wagtailcore_tags wagtailimages_tags %}
+{% load wagtailcore_tags wagtailimages_tags website_tags %}
+
+{% block content %}
+
+<style>
+    .force-width-1700 {
+        max-width: 1700px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    .two-columns {
+        display: flex;
+        gap: 2rem;
+        align-items: flex-start;
+    }
+
+    .filters-sidebar {
+        width: 240px;
+        flex-shrink: 0;
+        position: sticky;
+        align-self: flex-start;
+        top: 80px;
+    }
+
+    .filter-bar {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 1rem;
+    }
+
+    .filter-group { margin-bottom: 1rem; }
+    .filter-group:last-child { margin-bottom: 0; }
+    .filter-group h5 {
+        color: #0dcaf0;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-bottom: 0.75rem;
+        text-align: center;
+    }
+
+    .filter-btn {
+        display: block;
+        width: 100%;
+        padding: 0.5rem 0.8rem;
+        background-color: #2a2a35;
+        border: 1px solid #3a3a45;
+        border-radius: 8px;
+        color: #adb5bd;
+        font-size: 0.8rem;
+        text-decoration: none;
+        transition: all 0.2s;
+        text-align: center;
+        box-sizing: border-box;
+    }
+
+    .filter-btn:hover,
+    .filter-btn.active {
+        background-color: #ffc107;
+        border-color: #ffc107;
+        color: #1a1a25;
+    }
+
+    .filter-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .clear-filters { margin-top: 0.5rem; }
+    .clear-filters a { color: #0dcaf0; font-size: 0.75rem; text-decoration: none; }
+    .clear-filters a:hover { color: #ffc107; }
+
+    .content-main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .site-title-dynamic {
+        font-size: clamp(2rem, 15cqi, 10rem);
+        font-weight: 900;
+        text-transform: uppercase;
+        text-align: center;
+        line-height: 0.8;
+        letter-spacing: -0.05em;
+        margin-bottom: 40px;
+    }
+
+    /* === СЕТКА 3 В РЯД === */
+    .tech-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        margin-bottom: 50px;
+    }
+
+    .tech-card {
+        background: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 10px;
+        overflow: hidden;
+        transition: transform 0.2s, border-color 0.2s;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .tech-card:hover {
+        transform: translateY(-3px);
+        border-color: #ffc107;
+    }
+
+    .tech-card a {
+        text-decoration: none;
+        color: inherit;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .tech-card-image {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        display: block;
+    }
+
+    .tech-card-no-image {
+        width: 100%;
+        height: 200px;
+        background: #2a2a35;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #555;
+        font-size: 0.85rem;
+    }
+
+    .tech-card-body {
+        padding: 1rem 1.25rem 1.25rem;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .tech-card-meta {
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .tech-card-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #fff;
+        line-height: 1.4;
+        margin: 0;
+    }
+
+    .tech-card:hover .tech-card-title {
+        color: #ffc107;
+    }
+
+    @media (max-width: 1100px) {
+        .tech-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+        .two-columns { flex-direction: column; }
+        .filters-sidebar { width: 100%; position: static; margin-bottom: 1.5rem; }
+        .tech-grid { grid-template-columns: 1fr; }
+    }
+
+    .pagination-container { visibility: hidden; height: 0; }
+</style>
+
+<div class="force-width-1700 mt-8">
+    <h1 class="site-title-dynamic">{{ page.title }}</h1>
+
+    {% if classifiers_data %}
+    <div class="two-columns">
+
+        <!-- ЛЕВАЯ КОЛОНКА: Фильтры -->
+        <div class="filters-sidebar">
+            <div class="filter-bar">
+                {% for classifier, terms in classifiers_data.items %}
+                <div class="filter-group">
+                    <h5>{{ classifier.name }}</h5>
+                    <div class="filter-buttons">
+                        <a href="?{% for key, value in active_filters.items %}{% if key != classifier.slug %}{{ key }}={{ value }}&{% endif %}{% endfor %}"
+                           class="filter-btn {% if not active_filters|get_item:classifier.slug %}active{% endif %}">
+                            Все
+                        </a>
+                        {% for term in terms %}
+                        <a href="?{{ classifier.slug }}={{ term.slug }}{% for key, value in active_filters.items %}{% if key != classifier.slug %}&{{ key }}={{ value }}{% endif %}{% endfor %}"
+                           class="filter-btn {% if active_filters|get_item:classifier.slug == term.slug %}active{% endif %}">
+                            {{ term.name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% if active_filters %}
+                <div class="clear-filters text-end">
+                    <a href=".">✕ Сбросить все фильтры</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ПРАВАЯ КОЛОНКА: Сетка статей -->
+        <div class="content-main">
+            <div class="tech-grid" id="post-wrapper">
+                {% for post in articles %}
+                <article class="tech-card">
+                    <a href="{% pageurl post %}">
+                        {% if post.specific.cover_image %}
+                            {% image post.specific.cover_image fill-600x400 as img %}
+                            <img class="tech-card-image" src="{{ img.url }}" alt="{{ post.title }}">
+                        {% elif post.specific.image %}
+                            {% image post.specific.image fill-600x400 as img %}
+                            <img class="tech-card-image" src="{{ img.url }}" alt="{{ post.title }}">
+                        {% else %}
+                            <div class="tech-card-no-image">Нет обложки</div>
+                        {% endif %}
+                        <div class="tech-card-body">
+                            <div class="tech-card-meta">
+                                {% if post.specific.seo_published_at %}
+                                    {{ post.specific.seo_published_at|date:"d.m.Y" }}
+                                {% else %}
+                                    {{ post.first_published_at|date:"d.m.Y" }}
+                                {% endif %}
+                            </div>
+                            <h2 class="tech-card-title">{{ post.title }}</h2>
+                        </div>
+                    </a>
+                </article>
+                {% empty %}
+                <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #666;">
+                    <p>Пока нет статей.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+    {% else %}
+    <!-- Без фильтров — только сетка -->
+    <div class="tech-grid" id="post-wrapper">
+        {% for post in articles %}
+        <article class="tech-card">
+            <a href="{% pageurl post %}">
+                {% if post.specific.cover_image %}
+                    {% image post.specific.cover_image fill-600x400 as img %}
+                    <img class="tech-card-image" src="{{ img.url }}" alt="{{ post.title }}">
+                {% elif post.specific.image %}
+                    {% image post.specific.image fill-600x400 as img %}
+                    <img class="tech-card-image" src="{{ img.url }}" alt="{{ post.title }}">
+                {% else %}
+                    <div class="tech-card-no-image">Нет обложки</div>
+                {% endif %}
+                <div class="tech-card-body">
+                    <div class="tech-card-meta">
+                        {% if post.specific.seo_published_at %}
+                            {{ post.specific.seo_published_at|date:"d.m.Y" }}
+                        {% else %}
+                            {{ post.first_published_at|date:"d.m.Y" }}
+                        {% endif %}
+                    </div>
+                    <h2 class="tech-card-title">{{ post.title }}</h2>
+                </div>
+            </a>
+        </article>
+        {% empty %}
+        <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #666;">
+            <p>Пока нет статей.</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if page.paginator and page.paginator.num_pages > 1 %}
+    <div class="pagination-container">
+        <a href="?page={{ page.next_page_number }}" id="next-page-link">Следующая страница</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    let wrapper = document.querySelector('#post-wrapper');
+    let nextLink = document.querySelector('#next-page-link');
+    let loading = false;
+    if (!nextLink) return;
+    window.onscroll = function() {
+        if (loading) return;
+        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
+            loading = true;
+            fetch(nextLink.href)
+                .then(r => r.text())
+                .then(data => {
+                    let doc = new DOMParser().parseFromString(data, 'text/html');
+                    doc.querySelectorAll('.tech-grid .tech-card').forEach(c => wrapper.appendChild(c.cloneNode(true)));
+                    let nl = doc.querySelector('#next-page-link');
+                    if (nl) { nextLink.href = nl.href; } else { nextLink = null; }
+                    loading = false;
+                })
+                .catch(() => { loading = false; });
+        }
+    };
+});
+</script>
+
+{% endblock %}
