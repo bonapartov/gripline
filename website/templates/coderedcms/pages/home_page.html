@@ -13,20 +13,45 @@
 
     /* ===== HERO ===== */
     .hero-section {
-        background: linear-gradient(135deg, #0d0d15 0%, #1a1a25 50%, #0d0d15 100%);
-        border: 1px solid #2a2a35;
         border-radius: 12px;
-        padding: 3rem 2rem;
         margin-bottom: 3rem;
         position: relative;
         overflow: hidden;
+        min-height: 380px;
+        display: flex;
+        align-items: stretch;
     }
-    .hero-section::before {
-        content: '';
+    .hero-bg {
         position: absolute;
-        top: 0; left: 0; right: 0;
-        height: 3px;
-        background: linear-gradient(90deg, #ffc107, #0dcaf0, #ffc107);
+        inset: 0;
+        background-size: cover;
+        background-position: center;
+        background-color: #0d0d15;
+    }
+    .hero-bg-gradient {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to right,
+            rgba(10,10,18,1) 0%,
+            rgba(10,10,18,0.97) 35%,
+            rgba(10,10,18,0.7) 60%,
+            rgba(10,10,18,0) 100%
+        );
+    }
+    .hero-content {
+        position: relative;
+        z-index: 2;
+        padding: 3rem 2rem;
+        width: 100%;
+    }
+    @media (max-width: 768px) {
+        .hero-section { min-height: auto; }
+        .hero-bg-gradient {
+            background: linear-gradient(to bottom,
+                rgba(10,10,18,0.85) 0%,
+                rgba(10,10,18,0.95) 100%
+            );
+        }
     }
     .hero-label {
         font-size: 0.75rem;
@@ -338,57 +363,44 @@
 	<!-- ===== БЛОК 1: HERO ===== -->
 	{% if next_event %}
 	<div class="hero-section">
-		<div class="row align-items-center">
-			<div class="col-lg-7 mb-4 mb-lg-0">
-				<!-- ЗАГОЛОВОК В ЗАВИСИМОСТИ ОТ ДАТЫ -->
-				{% if next_event.start > now %}
-					<div class="hero-label">
-						<i class="fas fa-flag-checkered me-2"></i>Ближайшее мероприятие
+
+		<!-- Фон: фото этапа если есть, иначе тёмный -->
+		<div class="hero-bg"
+			{% if next_event.event.cover_image %}
+				{% image next_event.event.cover_image fill-1400x500 as hero_img %}
+				style="background-image: url('{{ hero_img.url }}');"
+			{% endif %}
+		></div>
+		<div class="hero-bg-gradient"></div>
+
+		<div class="hero-content">
+			<div class="row align-items-center" style="min-height: 320px;">
+
+				<!-- ЛЕВАЯ КОЛОНКА: весь текст -->
+				<div class="col-lg-6 col-xl-5">
+
+					{% if next_event.start > now %}
+						<div class="hero-label">
+							<i class="fas fa-flag-checkered me-2"></i>Ближайшее мероприятие
+						</div>
+					{% else %}
+						<div class="hero-label">
+							<i class="fas fa-play me-2"></i>Мероприятие началось
+						</div>
+					{% endif %}
+
+					<h2 class="hero-title">{{ next_event.event.title }}</h2>
+
+					{% if next_event.championship %}
+					<div class="hero-championship">
+						<i class="fas fa-trophy me-2"></i>
+						<a href="{{ next_event.championship.url }}">{{ next_event.championship.title }}</a>
 					</div>
-				{% else %}
-					<div class="hero-label">
-						<i class="fas fa-play me-2"></i>Мероприятие началось
-					</div>
-				{% endif %}
+					{% endif %}
 
-				<h2 class="hero-title">{{ next_event.event.title }}</h2>
-
-				{% if next_event.championship %}
-				<div class="hero-championship">
-					<i class="fas fa-trophy me-2"></i>
-					<a href="{{ next_event.championship.url }}">{{ next_event.championship.title }}</a>
-				</div>
-				{% endif %}
-
-				{% if next_event.track %}
-				<div class="mb-3">
-					<i class="fas fa-map-marker-alt me-2 text-info"></i>
-					<a href="{{ next_event.track.get_absolute_url }}" class="text-info text-decoration-none">
-						{{ next_event.track.name }}
-						{% if next_event.track.city %} · {{ next_event.track.city }}{% endif %}
-					</a>
-				</div>
-				{% endif %}
-
-				<!-- СООБЩЕНИЕ, ЕСЛИ СОБЫТИЕ УЖЕ НАЧАЛОСЬ -->
-				{% if next_event.start <= now %}
-				<div class="countdown-started">🏁 Событие уже идёт!</div>
-				{% endif %}
-
-				{% if next_event.classes %}
-				<div>
-					{% for class_name in next_event.classes %}
-						<span class="hero-class-badge">{{ class_name }}</span>
-					{% endfor %}
-				</div>
-				{% endif %}
-			</div>
-
-			<div class="col-lg-5 text-center">
-				<!-- СЧЁТЧИК ПОКАЗЫВАЕМ ТОЛЬКО ДЛЯ БУДУЩИХ СОБЫТИЙ -->
-				{% if next_event.start > now %}
-					<div class="mb-2 text-secondary small text-uppercase" style="letter-spacing: 2px;">До старта</div>
-					<div class="countdown-wrapper justify-content-center" id="countdown"
+					<!-- Счётчик -->
+					{% if next_event.start > now %}
+					<div class="countdown-wrapper mb-3" id="countdown"
 						 data-target="{{ next_event.start|date:'c' }}">
 						<div class="countdown-unit">
 							<div class="countdown-value" id="cd-days">--</div>
@@ -407,15 +419,34 @@
 							<div class="countdown-label">секунд</div>
 						</div>
 					</div>
-				{% endif %}
+					{% else %}
+					<div class="countdown-started mb-3">🏁 Событие уже идёт!</div>
+					{% endif %}
 
-				{% if next_event.championship %}
-				<div class="mt-3">
-					<a href="{{ next_event.url }}" class="btn btn-warning fw-bold text-dark px-4">
+					{% if next_event.championship %}
+					<a href="{{ next_event.url }}" class="btn btn-warning fw-bold text-dark px-4 mb-3">
 						Подробнее
 					</a>
+					{% endif %}
+
+					{% if next_event.track %}
+					<div class="mt-2">
+						<i class="fas fa-map-marker-alt me-2 text-info"></i>
+						<a href="{{ next_event.track.get_absolute_url }}" class="text-info text-decoration-none">
+							{{ next_event.track.name }}{% if next_event.track.city %} · {{ next_event.track.city }}{% endif %}
+						</a>
+					</div>
+					{% endif %}
+
+					{% if next_event.classes %}
+					<div class="mt-2">
+						{% for class_name in next_event.classes %}
+							<span class="hero-class-badge">{{ class_name }}</span>
+						{% endfor %}
+					</div>
+					{% endif %}
+
 				</div>
-				{% endif %}
 			</div>
 		</div>
 	</div>
