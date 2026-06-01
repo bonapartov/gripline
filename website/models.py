@@ -114,7 +114,7 @@ class TechArticleIndexPage(CoderedArticleIndexPage):
 
     def get_context(self, request):
         context = super().get_context(request)
-        articles = ArticlePage.objects.child_of(self).live().order_by('-date_display')
+        articles = ArticlePage.objects.child_of(self).live().order_by('-first_published_at')
         classifiers_data = self._get_section_classifiers()
         active_filters = {}
         for classifier, terms in classifiers_data.items():
