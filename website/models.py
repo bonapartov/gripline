@@ -112,6 +112,9 @@ class TechArticleIndexPage(CoderedArticleIndexPage):
     subpage_types = ["website.ArticlePage"]
     template = "coderedcms/pages/tech_article_index_page.html"
 
+    def get_index_children(self):
+        return ArticlePage.objects.child_of(self).live().order_by('-first_published_at')
+
     def get_context(self, request):
         context = super().get_context(request)
         articles = ArticlePage.objects.child_of(self).live().order_by('-first_published_at')
