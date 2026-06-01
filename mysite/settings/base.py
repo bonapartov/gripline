@@ -35,6 +35,7 @@ LOCALE_PATHS = [
 
 INSTALLED_APPS = [
     'wagtail_modeladmin',
+    'wagtailmarkdown',
     'organizers.apps.OrganizersConfig',
     'applications.apps.ApplicationsConfig',
     # This project

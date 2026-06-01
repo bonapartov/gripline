@@ -28,6 +28,9 @@ from django import forms
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 from django.http import HttpResponse
+from wagtail.fields import StreamField
+from coderedcms.blocks import CONTENT_STREAMBLOCKS
+from wagtailmarkdown.blocks import MarkdownBlock
 
 # ---------- СТРАНИЦЫ (PAGES) ----------
 
@@ -37,6 +40,13 @@ class ArticlePage(CoderedArticlePage):
         ordering = ["-first_published_at"]
     parent_page_types = ["website.ArticleIndexPage"]
     template = "coderedcms/pages/article_page.html"
+
+    body = StreamField(
+        CONTENT_STREAMBLOCKS + [("markdown", MarkdownBlock(icon="code"))],
+        null=True,
+        blank=True,
+        use_json_field=True,
+    )
 
 class ArticleIndexPage(CoderedArticleIndexPage):
     class Meta:
