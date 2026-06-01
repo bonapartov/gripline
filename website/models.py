@@ -2016,7 +2016,11 @@ class HomePage(CoderedWebPage):
         context['next_event'] = next_event
 
         # --- БЛОК 2: Последние новости ---
-        context['latest_articles'] = ArticlePage.objects.live().filter(
+        news_sections = ArticleIndexPage.objects.live()
+        news_articles = ArticlePage.objects.none()
+        for section in news_sections:
+            news_articles = news_articles | ArticlePage.objects.child_of(section).live()
+        context['latest_articles'] = news_articles.filter(
             date_display__isnull=False
         ).order_by('-date_display')[:12]
 
