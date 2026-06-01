@@ -84,13 +84,14 @@ class ArticleIndexPage(CoderedArticleIndexPage):
         return context
     
     def get_classifiers_data(self):
-        """Возвращает словарь классификаторов и их терминов, используемых в статьях"""
+        """Возвращает словарь классификаторов и их терминов, используемых в статьях этой секции"""
         from coderedcms.models import ClassifierTerm
-        
-        # Получаем все термины, привязанные к живым статьям
+
+        section_ids = ArticlePage.objects.child_of(self).live().values_list('id', flat=True)
+
         used_terms = ClassifierTerm.objects.filter(
+            coderedpage__id__in=section_ids,
             coderedpage__live=True,
-            
         ).distinct().select_related('classifier')
         
         # Группируем по классификаторам
