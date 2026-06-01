@@ -58,8 +58,8 @@ class ArticleIndexPage(CoderedArticleIndexPage):
     def get_context(self, request):
         context = super().get_context(request)
         
-        # Получаем все статьи
-        articles = ArticlePage.objects.live().order_by('-date_display')
+        # Получаем статьи только этой секции (дочерние страницы)
+        articles = ArticlePage.objects.child_of(self).live().order_by('-date_display')
         
         # Получаем данные классификаторов
         classifiers_data = self.get_classifiers_data()
