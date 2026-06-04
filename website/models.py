@@ -1988,40 +1988,53 @@ class HomePage(CoderedWebPage):
 
         top_drivers = []
         if selected_class_id:
-            import json
-            drivers = Driver.objects.exclude(ensemble_by_class={})
-            for driver in drivers:
-                # ensemble_by_class может быть строкой или dict
-                ebc = driver.ensemble_by_class
-                if isinstance(ebc, str):
+            import json, statistics as _stats
+            from datetime import date as _date
+            class_key = str(selected_class_id)
+            _as = AnalyticsSettings.get()
+            all_drivers = Driver.objects.exclude(rating_by_class={}).exclude(rating_by_class__isnull=True)
+            candidates = []
+            for driver in all_drivers:
+                rbc = driver.rating_by_class
+                if isinstance(rbc, str):
                     try:
-                        ebc = json.loads(ebc)
-                    except:
-                        ebc = {}
-                ensemble_data = ebc.get(str(selected_class_id), {})
-                if not ensemble_data:
+                        rbc = json.loads(rbc)
+                    except Exception:
+                        rbc = {}
+                bt_data = rbc.get(class_key, {})
+                if not bt_data:
                     continue
-                results = RaceResult.objects.filter(
-                    driver=driver, group__race_class_id=selected_class_id
-                )
-                race_count = results.count()
-                win_count = results.filter(position=1).count()
-                driver.rating_score = ensemble_data.get('score', 0)
-                driver.race_count = race_count
-                driver.win_count = win_count
-                driver.win_percentage = round(win_count / race_count * 100, 1) if race_count > 0 else 0
-                top_drivers.append(driver)
 
-            top_drivers.sort(key=lambda x: x.rating_score, reverse=True)
-            top_drivers = top_drivers[:5]
+                # Skip drivers inactive in this class beyond threshold
+                last_race_str = bt_data.get('last_race_date')
+                if last_race_str:
+                    try:
+                        last_race = _date.fromisoformat(last_race_str)
+                        if (_date.today() - last_race).days > _as.inactive_threshold_days:
+                            continue
+                    except (ValueError, TypeError):
+                        pass
 
-            if top_drivers:
-                max_r = top_drivers[0].rating_score
-                min_r = top_drivers[-1].rating_score
-                rng = max_r - min_r if max_r > min_r else 1
-                for i, d in enumerate(top_drivers, 1):
+                results = RaceResult.objects.filter(driver=driver, group__race_class_id=selected_class_id)
+                driver.race_count = results.count()
+                driver.win_count = results.filter(position=1).count()
+                driver._bt_score = bt_data.get('score', 0)
+                driver._starts = bt_data.get('starts', 0)
+                candidates.append(driver)
+
+            if candidates:
+                mu = _stats.median(d._bt_score for d in candidates)
+                C = 15
+                for d in candidates:
+                    d._smoothed = (d._starts * d._bt_score + C * mu) / (d._starts + C)
+                candidates.sort(key=lambda x: x._smoothed, reverse=True)
+                min_s = candidates[-1]._smoothed
+                max_s = candidates[0]._smoothed
+                rng = max_s - min_s if max_s > min_s else 1
+                for i, d in enumerate(candidates, 1):
                     d.rank = i
-                    d.normalized_rating = round((d.rating_score - min_r) / rng * 100, 1)
+                    d.normalized_rating = round((d._smoothed - min_s) / rng * 100, 1)
+                top_drivers = candidates[:5]
 
         context['top_drivers'] = top_drivers
         context['classes'] = classes

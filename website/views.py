@@ -1074,10 +1074,11 @@ def top_drivers_view(request):
     """
     import json
     import statistics
+    from datetime import date, timedelta
 
     current_site = Site.find_for_request(request)
 
-    from .models import Driver, RaceClass, RaceResult
+    from .models import Driver, RaceClass, RaceResult, AnalyticsSettings
 
     class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
                    'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 32+']
@@ -1089,6 +1090,8 @@ def top_drivers_view(request):
         selected_class_id = int(selected_class_id)
     else:
         selected_class_id = classes[0].id if classes else None
+
+    analytics_settings = AnalyticsSettings.get()
 
     # Пилоты с BT-рейтингом (чистый Bradley-Terry, без PageRank)
     drivers = Driver.objects.exclude(rating_by_class={}).order_by('last_name')
@@ -1110,6 +1113,16 @@ def top_drivers_view(request):
         bt_data = rbc.get(class_key, {})
         if not bt_data:
             continue
+
+        # Hide drivers inactive in this class beyond threshold
+        last_race_str = bt_data.get('last_race_date')
+        if last_race_str:
+            try:
+                last_race = date.fromisoformat(last_race_str)
+                if (date.today() - last_race).days > analytics_settings.inactive_threshold_days:
+                    continue
+            except (ValueError, TypeError):
+                pass
 
         bt_score = bt_data.get('score', 0)
         starts = bt_data.get('starts', 0)
@@ -1982,6 +1995,87 @@ def drivers_api(request):
         ]
     }
     return JsonResponse(data)
+
+
+def home_top_drivers_api(request):
+    """AJAX endpoint: топ пилотов по классу для главной страницы."""
+    import json, statistics as _stats
+    from datetime import date as _date
+    from .models import Driver, RaceResult, AnalyticsSettings
+
+    class_id = request.GET.get('class')
+    if not class_id or not class_id.isdigit():
+        return JsonResponse({'drivers': []})
+    class_id = int(class_id)
+    class_key = str(class_id)
+
+    _as = AnalyticsSettings.get()
+
+    all_drivers = Driver.objects.exclude(rating_by_class={}).exclude(rating_by_class__isnull=True)
+    candidates = []
+    for driver in all_drivers:
+        rbc = driver.rating_by_class
+        if isinstance(rbc, str):
+            try:
+                rbc = json.loads(rbc)
+            except Exception:
+                rbc = {}
+        bt_data = rbc.get(class_key, {})
+        if not bt_data:
+            continue
+
+        # Skip drivers inactive in this class beyond threshold
+        last_race_str = bt_data.get('last_race_date')
+        if last_race_str:
+            try:
+                last_race = _date.fromisoformat(last_race_str)
+                if (_date.today() - last_race).days > _as.inactive_threshold_days:
+                    continue
+            except (ValueError, TypeError):
+                pass
+
+        results = RaceResult.objects.filter(driver=driver, group__race_class_id=class_id)
+        driver.race_count = results.count()
+        driver.win_count = results.filter(position=1).count()
+        driver._bt_score = bt_data.get('score', 0)
+        driver._starts = bt_data.get('starts', 0)
+        candidates.append(driver)
+
+    if not candidates:
+        return JsonResponse({'drivers': []})
+
+    mu = _stats.median(d._bt_score for d in candidates)
+    C = 15
+    for d in candidates:
+        d._smoothed = (d._starts * d._bt_score + C * mu) / (d._starts + C)
+    candidates.sort(key=lambda x: x._smoothed, reverse=True)
+    min_s = candidates[-1]._smoothed
+    max_s = candidates[0]._smoothed
+    rng = max_s - min_s if max_s > min_s else 1
+    for i, d in enumerate(candidates, 1):
+        d.rank = i
+        d.normalized_rating = round((d._smoothed - min_s) / rng * 100, 1)
+    top_drivers = candidates[:5]
+
+    result = []
+    for d in top_drivers:
+        photo_url = None
+        if d.photo:
+            from wagtail.images.shortcuts import get_rendition_or_not_found
+            rendition = get_rendition_or_not_found(d.photo, 'fill-52x52')
+            photo_url = rendition.url
+        result.append({
+            'rank': d.rank,
+            'full_name': d.full_name,
+            'url': d.get_absolute_url(),
+            'photo_url': photo_url,
+            'race_count': d.race_count,
+            'win_count': d.win_count,
+            'normalized_rating': d.normalized_rating,
+        })
+
+    return JsonResponse({'drivers': result})
+
 
 def team_ratings_view(request):
     """Командный рейтинг — агрегация BT-рейтингов пилотов по командам."""

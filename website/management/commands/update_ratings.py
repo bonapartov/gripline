@@ -207,6 +207,16 @@ class Command(BaseCommand):
             ratings = model.get_all_ratings()
             bt_ratings[race_class.id] = ratings
 
+            # Last race date per driver in this class
+            driver_last_dates = {}
+            for did, dgroup in df_class.groupby('driver_id'):
+                dates = dgroup['date'].dropna()
+                if len(dates) > 0:
+                    last = max(dates)
+                    if hasattr(last, 'date'):
+                        last = last.date()
+                    driver_last_dates[did] = str(last)
+
             with transaction.atomic():
                 for driver_id, score in ratings.items():
                     driver_starts = len(df_class[df_class['driver_id'] == driver_id])
@@ -218,7 +228,8 @@ class Command(BaseCommand):
                     driver.rating_by_class[str(race_class.id)] = {
                         'score': float(score),
                         'starts': driver_starts,
-                        'updated': timezone.now().isoformat()
+                        'updated': timezone.now().isoformat(),
+                        'last_race_date': driver_last_dates.get(driver_id),
                     }
                     driver.save()
 
