@@ -38,7 +38,7 @@ class ArticlePage(CoderedArticlePage):
     class Meta:
         verbose_name = "Article"
         ordering = ["-first_published_at"]
-    parent_page_types = ["website.ArticleIndexPage"]
+    parent_page_types = ["website.ArticleIndexPage", "website.TechArticleIndexPage"]
     template = "coderedcms/pages/article_page.html"
 
     body = StreamField(
@@ -103,6 +103,51 @@ class ArticleIndexPage(CoderedArticleIndexPage):
                 classifiers_dict[classifier].append(term)
         
         return classifiers_dict
+
+class TechArticleIndexPage(CoderedArticleIndexPage):
+    class Meta:
+        verbose_name = "Матчасть (индекс)"
+    subpage_types = ["website.ArticlePage"]
+    template = "coderedcms/pages/tech_article_index_page.html"
+
+    def get_index_children(self):
+        return ArticlePage.objects.child_of(self).live().order_by('-first_published_at')
+
+    def get_context(self, request):
+        context = super().get_context(request)
+        articles = ArticlePage.objects.child_of(self).live().order_by('-first_published_at')
+        classifiers_data = self._get_section_classifiers()
+        active_filters = {}
+        for classifier, terms in classifiers_data.items():
+            classifier_slug = classifier.slug
+            filter_value = request.GET.get(classifier_slug)
+            if filter_value:
+                active_filters[classifier_slug] = filter_value
+                articles = articles.filter(
+                    classifier_terms__slug=filter_value,
+                    classifier_terms__classifier__slug=classifier_slug
+                )
+        context['articles'] = articles
+        context['classifiers_data'] = classifiers_data
+        context['active_filters'] = active_filters
+        return context
+
+    def _get_section_classifiers(self):
+        from coderedcms.models import ClassifierTerm
+        section_ids = ArticlePage.objects.child_of(self).live().values_list('id', flat=True)
+        used_terms = ClassifierTerm.objects.filter(
+            coderedpage__id__in=section_ids,
+            coderedpage__live=True,
+        ).distinct().select_related('classifier')
+        classifiers_dict = {}
+        for term in used_terms:
+            classifier = term.classifier
+            if classifier not in classifiers_dict:
+                classifiers_dict[classifier] = []
+            if term not in classifiers_dict[classifier]:
+                classifiers_dict[classifier].append(term)
+        return classifiers_dict
+
 
 class EventPage(CoderedEventPage):
     class Meta:
