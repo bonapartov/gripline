@@ -534,6 +534,35 @@
     </div>
 </div>
 
+{% if latest_tech_articles %}
+<div class="mb-4" style="max-width:1700px; margin-left:auto; margin-right:auto; padding-left:1rem; padding-right:1rem;">
+    <div class="section-header">
+        <h2 class="section-title"><i class="fas fa-wrench me-2 text-warning"></i>Матчасть</h2>
+        <a href="/matchast/" class="section-link">Все статьи →</a>
+    </div>
+    <div class="news-grid">
+        {% for article in latest_tech_articles %}
+        <a href="{{ article.url }}" class="news-card">
+            {% if article.cover_image %}
+                {% image article.cover_image fill-400x220 as img %}
+                <img src="{{ img.url }}" class="news-card-img" alt="{{ article.title }}">
+            {% else %}
+                <div class="news-card-img-placeholder">
+                    <i class="fas fa-wrench fa-2x text-secondary"></i>
+                </div>
+            {% endif %}
+            <div class="news-card-body">
+                <div class="news-card-date">
+                    {{ article.first_published_at|date:"d E Y" }}
+                </div>
+                <p class="news-card-title">{{ article.title }}</p>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <!-- Счётчик обратного отсчёта -->
 <script>
 (function() {

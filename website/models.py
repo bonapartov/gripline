@@ -2021,10 +2021,18 @@ class HomePage(CoderedWebPage):
         
         context['next_event'] = next_event
 
-        # --- БЛОК 2: Последние новости ---
-        context['latest_articles'] = ArticlePage.objects.live().filter(
-            date_display__isnull=False
-        ).order_by('-date_display')[:12]
+        # --- БЛОК 2: Последние новости (без статей матчасти) ---
+        tech_index = TechArticleIndexPage.objects.live().first()
+        if tech_index:
+            context['latest_articles'] = ArticlePage.objects.live().not_child_of(tech_index).filter(
+                date_display__isnull=False
+            ).order_by('-date_display')[:12]
+            context['latest_tech_articles'] = ArticlePage.objects.child_of(tech_index).live().order_by('-first_published_at')[:8]
+        else:
+            context['latest_articles'] = ArticlePage.objects.live().filter(
+                date_display__isnull=False
+            ).order_by('-date_display')[:12]
+            context['latest_tech_articles'] = []
 
         # --- БЛОК 3: Топ пилотов ---
         class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
