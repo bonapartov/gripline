@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Management-команда для обновления рейтингов пилотов и шасси.
-Запуск: python manage.py update_ratings [--alpha 0.1] [--damping 0.85] [--model bt|pr|ensemble|context|all]
+Запуск: python manage.py update_ratings [--entity driver|chassis|all] [--model bt|pr|ensemble|context|all]
+Параметры модели (alpha, damping, lambda и др.) берутся из AnalyticsSettings в БД.
+Все параметры можно переопределить через CLI-флаги для разового тестирования.
 """
 
 from django.core.management.base import BaseCommand
