@@ -169,7 +169,7 @@ def driver_detail_view(request, slug):
             import json
             try:
                 prbc = json.loads(prbc)
-            except:
+            except (json.JSONDecodeError, ValueError, TypeError):
                 prbc = {}
         if prbc:
             first_class = list(prbc.values())[0]
@@ -181,7 +181,7 @@ def driver_detail_view(request, slug):
             import json
             try:
                 ebc = json.loads(ebc)
-            except:
+            except (json.JSONDecodeError, ValueError, TypeError):
                 ebc = {}
         if ebc:
             first_class = list(ebc.values())[0]
@@ -193,7 +193,7 @@ def driver_detail_view(request, slug):
             import json
             try:
                 cbc = json.loads(cbc)
-            except:
+            except (json.JSONDecodeError, ValueError, TypeError):
                 cbc = {}
         if cbc:
             first_class = list(cbc.values())[0]
@@ -1103,6 +1103,19 @@ def top_drivers_view(request):
 
     result_drivers = []
 
+    if selected_class_id:
+        from django.db.models import Count, Q
+        stats_qs = RaceResult.objects.filter(
+            group__race_class_id=selected_class_id,
+        ).values('driver_id').annotate(
+            race_count=Count('id'),
+            win_count=Count('id', filter=Q(position=1)),
+            podium_count=Count('id', filter=Q(position__in=[1, 2, 3])),
+        )
+        stats_by_driver = {s['driver_id']: s for s in stats_qs}
+    else:
+        stats_by_driver = {}
+
     for driver in drivers:
         if not selected_class_id:
             continue
@@ -1112,7 +1125,7 @@ def top_drivers_view(request):
         if isinstance(rbc, str):
             try:
                 rbc = json.loads(rbc)
-            except Exception:
+            except (json.JSONDecodeError, ValueError, TypeError):
                 rbc = {}
 
         bt_data = rbc.get(class_key, {})
@@ -1132,13 +1145,10 @@ def top_drivers_view(request):
         bt_score = bt_data.get('score', 0)
         starts = bt_data.get('starts', 0)
 
-        results = RaceResult.objects.filter(
-            driver=driver,
-            group__race_class_id=selected_class_id,
-        )
-        race_count = results.count()
-        win_count = results.filter(position=1).count()
-        podium_count = results.filter(position__in=[1, 2, 3]).count()
+        s = stats_by_driver.get(driver.id, {})
+        race_count = s.get('race_count', 0)
+        win_count = s.get('win_count', 0)
+        podium_count = s.get('podium_count', 0)
         win_percentage = round(win_count / race_count * 100, 1) if race_count > 0 else 0
 
         driver.race_count = race_count
@@ -2546,9 +2556,10 @@ def ads_list(request):
 
 def ads_detail(request, ad_id):
     """Детальная страница объявления"""
+    from django.db.models import F
     ad = get_object_or_404(Ad, id=ad_id, is_active=True)
-    ad.views_count += 1
-    ad.save()
+    Ad.objects.filter(id=ad_id).update(views_count=F('views_count') + 1)
+    ad.refresh_from_db(fields=['views_count'])
     return render(request, 'website/ads_detail.html', {'ad': ad})
 
 

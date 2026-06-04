@@ -2051,16 +2051,29 @@ class HomePage(CoderedWebPage):
         if selected_class_id:
             import json, statistics as _stats
             from datetime import date as _date
+            from django.db.models import Count, Q
             class_key = str(selected_class_id)
             _as = AnalyticsSettings.get()
             all_drivers = Driver.objects.exclude(rating_by_class={}).exclude(rating_by_class__isnull=True)
+
+            # Один запрос для всех статистик по классу
+            race_stats = {
+                s['driver_id']: s
+                for s in RaceResult.objects.filter(
+                    group__race_class_id=selected_class_id
+                ).values('driver_id').annotate(
+                    race_count=Count('id'),
+                    win_count=Count('id', filter=Q(position=1)),
+                )
+            }
+
             candidates = []
             for driver in all_drivers:
                 rbc = driver.rating_by_class
                 if isinstance(rbc, str):
                     try:
                         rbc = json.loads(rbc)
-                    except Exception:
+                    except (json.JSONDecodeError, ValueError, TypeError):
                         rbc = {}
                 bt_data = rbc.get(class_key, {})
                 if not bt_data:
@@ -2076,9 +2089,9 @@ class HomePage(CoderedWebPage):
                     except (ValueError, TypeError):
                         pass
 
-                results = RaceResult.objects.filter(driver=driver, group__race_class_id=selected_class_id)
-                driver.race_count = results.count()
-                driver.win_count = results.filter(position=1).count()
+                s = race_stats.get(driver.id, {})
+                driver.race_count = s.get('race_count', 0)
+                driver.win_count = s.get('win_count', 0)
                 driver._bt_score = bt_data.get('score', 0)
                 driver._starts = bt_data.get('starts', 0)
                 candidates.append(driver)
