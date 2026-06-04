@@ -447,12 +447,19 @@ class Command(BaseCommand):
         self.stdout.write(f"    Обновлено {len(ratings)} шасси")
 
     def _create_class_comparisons(self, df_class, entity_type, settings):
-        """Создает парные сравнения для одного класса с temporal decay."""
+        """Создает парные сравнения для одного класса с temporal decay.
+
+        Пилоты, отсутствовавшие на заезде, получают виртуальное последнее место
+        и проигрывают всем участникам — рейтинг падает при каждом пропущенном этапе.
+        """
         import math
         from datetime import date as date_type
 
         today = date_type.today()
         comparisons = []
+
+        # Все пилоты, когда-либо выступавшие в этом классе
+        all_entity_ids = set(df_class[f'{entity_type}_id'].unique())
 
         for group_id, group in df_class.groupby('group_id'):
             if len(group) < 2:
@@ -471,6 +478,7 @@ class Command(BaseCommand):
                 lam = settings.lambda_inactive if is_inactive else settings.lambda_active
                 temporal_weight = math.exp(-lam * days / 365)
 
+            # Реальные парные сравнения между участниками
             for i, row_i in group.iterrows():
                 for j, row_j in group.iterrows():
                     if i == j:
@@ -491,6 +499,25 @@ class Command(BaseCommand):
                         'entity_2_id': loser_id,
                         'winner_id': winner_id,
                         'loser_id': loser_id,
+                        'weight': weight,
+                        'group_id': group_id,
+                    })
+
+            # Виртуальные поражения для отсутствовавших пилотов:
+            # каждый участник заезда обгоняет каждого отсутствующего
+            participants = set(group[f'{entity_type}_id'].values)
+            absent_ids = all_entity_ids - participants
+            last_position = group['position'].max()
+
+            for absent_id in absent_ids:
+                for _, row in group.iterrows():
+                    position_diff = (last_position + 1) - row['position']
+                    weight = (1.0 / (1.0 + position_diff)) * temporal_weight
+                    comparisons.append({
+                        'entity_1_id': row[f'{entity_type}_id'],
+                        'entity_2_id': absent_id,
+                        'winner_id': row[f'{entity_type}_id'],
+                        'loser_id': absent_id,
                         'weight': weight,
                         'group_id': group_id,
                     })
