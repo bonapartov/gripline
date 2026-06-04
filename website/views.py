@@ -871,6 +871,15 @@ def compare_view(request):
         chassis2 = get_object_or_404(Chassis, slug=chassis2_slug)
         stats2 = get_chassis_stats(chassis2, class_id)
 
+    # Пары (шасси, стат, цвет) для виджета детального рейтинга
+    chassis_stats_pairs = []
+    if chassis1 and stats1:
+        chassis_stats_pairs.append((chassis1, stats1, '#ffc107'))
+    if chassis2 and stats2:
+        chassis_stats_pairs.append((chassis2, stats2, '#0dcaf0'))
+    if chassis_stats_pairs:
+        chassis_stats_pairs.sort(key=lambda x: x[1]['win_rate'], reverse=True)
+
     context = {
         'all_chassis': all_chassis,
         'chassis1': chassis1,
@@ -879,6 +888,7 @@ def compare_view(request):
         'stats2': stats2,
         'classes': classes,
         'selected_class': class_id,
+        'chassis_stats_pairs': chassis_stats_pairs,
         'site': current_site,
         'page': None,
     }
