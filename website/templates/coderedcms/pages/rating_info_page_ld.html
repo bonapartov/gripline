@@ -367,15 +367,6 @@
 
         <div class="info-box">
             <i class="fas fa-info-circle text-info me-2"></i>
-            <strong>Сколько гонок берётся в расчёт?</strong>
-            В модель включаются <strong>все гонки за всё время</strong> — без ограничений по дате.
-            Старые результаты не удаляются, а постепенно теряют вес согласно формуле затухания выше.
-            Класс включается в расчёт только при наличии не менее
-            <strong id="info-min-races">5 гонок</strong> в нём.
-        </div>
-
-        <div class="info-box">
-            <i class="fas fa-info-circle text-info me-2"></i>
             <strong>Смена класса или длительный перерыв:</strong>
             Если пилот не стартовал более <span id="info-threshold">180</span> дней,
             он переходит в режим «неактивный» — его исторические результаты затухают
@@ -570,14 +561,6 @@
 </div>
 
 <script>
-function declRace(n) {
-    const m10 = n % 10, m100 = n % 100;
-    if (m100 >= 11 && m100 <= 19) return n + ' гонок';
-    if (m10 === 1) return n + ' гонка';
-    if (m10 >= 2 && m10 <= 4) return n + ' гонки';
-    return n + ' гонок';
-}
-
 fetch('/api/rating-stats/')
     .then(r => r.json())
     .then(data => {
@@ -605,9 +588,6 @@ fetch('/api/rating-stats/')
 
         const minStarts = s.min_starts_display ?? 3;
         document.getElementById('min-starts-text').textContent = minStarts;
-
-        const minRaces = s.min_races_per_class ?? 5;
-        document.getElementById('info-min-races').textContent = declRace(minRaces);
 
         document.getElementById('th-lambda-active').textContent = s.lambda_active ?? '0.8';
         document.getElementById('th-lambda-inactive').textContent = s.lambda_inactive ?? '2.0';
