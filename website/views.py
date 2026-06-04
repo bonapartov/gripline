@@ -2694,6 +2694,7 @@ def rating_stats_api(request):
             'bt_alpha': settings.bt_alpha,
             'pagerank_damping': settings.pagerank_damping,
             'trend_window': settings.trend_window,
+            'min_races_per_class': settings.min_races_per_class,
         },
     }
     return JsonResponse(data)
