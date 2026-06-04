@@ -845,12 +845,17 @@ def get_chassis_stats(chassis, class_id=None):
         'wet_total': wet_results.count(),
         'avg_position': round(results.aggregate(avg=Avg('position'))['avg'] or 0, 2),
     }
-def _compute_form_trend(driver_id, class_id, window=5):
+def _compute_form_trend(driver_id, class_id, window=None):
     """
-    Сравнивает последние 5 гонок с предыдущими 5 по нормализованной позиции.
+    Сравнивает последние N гонок с предыдущими N по нормализованной позиции.
     Возвращает 'up', 'down', 'stable' или None (мало данных).
+    N берётся из AnalyticsSettings.trend_window.
     """
     from django.db.models import Count
+    from .models import AnalyticsSettings
+
+    if window is None:
+        window = AnalyticsSettings.get().trend_window
 
     rows = list(
         RaceResult.objects.filter(
@@ -2688,6 +2693,7 @@ def rating_stats_api(request):
             'min_starts_display': settings.min_starts_display,
             'bt_alpha': settings.bt_alpha,
             'pagerank_damping': settings.pagerank_damping,
+            'trend_window': settings.trend_window,
         },
     }
     return JsonResponse(data)

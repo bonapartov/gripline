@@ -352,8 +352,8 @@
             <thead>
                 <tr>
                     <th>Давность гонки</th>
-                    <th>Вес (λ=0.8, активный)</th>
-                    <th>Вес (λ=2.0, неактивный)</th>
+                    <th>Вес (λ=<span id="th-lambda-active">0.8</span>, активный)</th>
+                    <th>Вес (λ=<span id="th-lambda-inactive">2.0</span>, неактивный)</th>
                 </tr>
             </thead>
             <tbody>
@@ -453,14 +453,14 @@
         <p>
             Где <strong>N</strong> — число участников. 1-е место из 20 пилотов
             даёт 100, 1-е место из 4 — тоже 100, но 10-е из 20 даёт 47,
-            а 10-е из 11 — лишь 9. Затем сравниваем средние за последние 5 и предыдущие 5 гонок:
+            а 10-е из 11 — лишь 9. Затем сравниваем средние за последние <span id="trend-window-text">5</span> и предыдущие <span id="trend-window-text2">5</span> гонок:
         </p>
 
         <div class="trend-demo">
             <div class="trend-item">
                 <div class="trend-arrow text-success">▲</div>
                 <div style="color:var(--gl-signal-success); font-weight:bold;">На подъёме</div>
-                <div class="trend-label">Последние 5 лучше<br>предыдущих 5 на 10%+</div>
+                <div class="trend-label">Последние <span class="tw">5</span> лучше<br>предыдущих <span class="tw">5</span> на 10%+</div>
             </div>
             <div class="trend-item">
                 <div class="trend-arrow text-secondary">▬</div>
@@ -470,12 +470,12 @@
             <div class="trend-item">
                 <div class="trend-arrow text-danger">▼</div>
                 <div style="color:var(--gl-signal-danger); font-weight:bold;">Спад</div>
-                <div class="trend-label">Последние 5 хуже<br>предыдущих 5 на 10%+</div>
+                <div class="trend-label">Последние <span class="tw">5</span> хуже<br>предыдущих <span class="tw">5</span> на 10%+</div>
             </div>
             <div class="trend-item">
                 <div class="trend-arrow text-muted" style="font-size:1.2rem;">—</div>
                 <div style="color:var(--gl-fg-muted); font-weight:bold;">Нет данных</div>
-                <div class="trend-label">Менее 6 гонок<br>в классе</div>
+                <div class="trend-label">Менее <span id="trend-min-races">6</span> гонок<br>в классе</div>
             </div>
         </div>
 
@@ -539,7 +539,7 @@
             <li>Обучаем модель Брэдли-Терри с Lasso-регуляризацией (α = <span id="algo-alpha">0.1</span>)</li>
             <li>Применяем байесовское сглаживание C=15: новички тянутся к медиане класса</li>
             <li>Нормируем в шкалу 0–100 внутри каждого класса</li>
-            <li>Рассчитываем тренд формы ▲/▬/▼ по последним 10 гонкам</li>
+            <li>Рассчитываем тренд формы ▲/▬/▼ по последним <span id="trend-window-total">10</span> гонкам (<span id="trend-window-algo">5</span>+<span id="trend-window-algo2">5</span>)</li>
             <li>Помечаем ⚠️ пилотов с малым числом стартов</li>
         </ul>
 
@@ -588,6 +588,18 @@ fetch('/api/rating-stats/')
 
         const minStarts = s.min_starts_display ?? 3;
         document.getElementById('min-starts-text').textContent = minStarts;
+
+        document.getElementById('th-lambda-active').textContent = s.lambda_active ?? '0.8';
+        document.getElementById('th-lambda-inactive').textContent = s.lambda_inactive ?? '2.0';
+
+        const tw = s.trend_window ?? 5;
+        document.getElementById('trend-window-text').textContent = tw;
+        document.getElementById('trend-window-text2').textContent = tw;
+        document.querySelectorAll('.tw').forEach(el => el.textContent = tw);
+        document.getElementById('trend-min-races').textContent = tw + 1;
+        document.getElementById('trend-window-total').textContent = tw * 2;
+        document.getElementById('trend-window-algo').textContent = tw;
+        document.getElementById('trend-window-algo2').textContent = tw;
     })
     .catch(() => {
         document.getElementById('last-update').textContent = '—';

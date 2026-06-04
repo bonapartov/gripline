@@ -1398,6 +1398,14 @@ class AnalyticsSettings(models.Model):
         verbose_name="Мин. общих пилотов для ансамбля",
         help_text="Минимальное число общих пилотов между BT и PageRank для построения ансамбля.",
     )
+    trend_window = models.IntegerField(
+        default=5,
+        verbose_name="Окно тренда формы (гонок)",
+        help_text=(
+            "Число гонок для расчёта тренда. Сравниваются последние N и предыдущие N гонок. "
+            "Минимум стартов для показа тренда = N+1."
+        ),
+    )
 
     updated_at = models.DateTimeField(auto_now=True)
 
