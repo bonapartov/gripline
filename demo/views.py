@@ -1,7 +1,11 @@
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.contrib.auth import login
 from django.contrib import messages
 from .models import DemoSlot
+
+
+def choose_role(request):
+    return render(request, 'demo/choose_role.html')
 
 REDIRECT_MAP = {
     'organizer': 'organizers:dashboard',
