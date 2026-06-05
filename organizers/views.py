@@ -315,6 +315,50 @@ def organizer_resend_verification(request):
             messages.error(request, 'Пользователь с таким email не найден или уже активирован.')
     return render(request, 'organizers/verification_resend.html')
 
+
+def _sync_event_pages_for_new_classes(championship):
+    """Создаёт EventPages для классов, добавленных в чемпионат после создания этапов."""
+    from django.utils.text import slugify
+    from website.models import EventPage, EventOccurrence, RaceClassResultGroup, RaceClass
+
+    current_class_ids = set(championship.race_classes.values_list('id', flat=True))
+
+    for stage in championship.stages.all():
+        if not stage.wagtail_page:
+            continue
+        stage_page = stage.wagtail_page.specific
+        existing_class_ids = set(
+            RaceClassResultGroup.objects.filter(
+                page__in=EventPage.objects.child_of(stage_page)
+            ).values_list('race_class_id', flat=True)
+        )
+        for class_id in current_class_ids - existing_class_ids:
+            race_class = RaceClass.objects.get(id=class_id)
+            base_slug = slugify(f"{stage.title}-{race_class.name}")
+            slug = base_slug
+            counter = 1
+            while EventPage.objects.filter(slug=slug).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            event_page = EventPage(
+                title=stage.title,
+                admin_title=f"{stage.title} - {race_class.name}",
+                slug=slug,
+                track=stage.track,
+            )
+            stage_page.add_child(instance=event_page)
+            event_page.save_revision().publish()
+            EventOccurrence.objects.create(
+                event=event_page,
+                start=stage.start_date,
+                end=stage.end_date,
+            )
+            RaceClassResultGroup.objects.create(
+                page=event_page,
+                race_class=race_class,
+            )
+
+
 @login_required
 def championship_edit(request, pk):
     championship = get_object_or_404(Championship, pk=pk, organizer__user=request.user)
@@ -336,6 +380,9 @@ def championship_edit(request, pk):
                 championship.race_classes.set(form.cleaned_data['race_classes'])
             else:
                 championship.race_classes.clear()
+
+            # Создаём EventPages для новых классов в существующих этапах
+            _sync_event_pages_for_new_classes(championship)
 
             # Обновляем шины
             new_tyre_mode = form.cleaned_data.get('tyre_mode', Championship.TYRE_MODE_ALL)
