@@ -781,6 +781,7 @@ class TeamMembership(models.Model):
     """Связь пилота с командой с датами"""
     driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name='team_memberships')
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='memberships')
+    race_class = models.ForeignKey('RaceClass', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Класс')
     joined_at = models.DateField("Дата присоединения", auto_now_add=True)
     left_at = models.DateField("Дата ухода", null=True, blank=True)
     is_active = models.BooleanField("Активен", default=True)

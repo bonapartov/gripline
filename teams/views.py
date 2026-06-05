@@ -367,6 +367,7 @@ def dashboard(request):
         ).distinct().order_by('last_name')
 
         driver_classes = []
+        drivers_with_results = set()
 
         for driver in drivers:
             six_months_ago = timezone.now() - timedelta(days=180)
@@ -385,8 +386,22 @@ def dashboard(request):
                     'class_name': item['group__race_class__name'],
                     'last_date': item['last_date'],
                 })
+                drivers_with_results.add(driver.id)
 
         driver_classes.sort(key=lambda x: x['last_date'], reverse=True)
+
+        # Добавляем пилотов без результатов — по классу из членства
+        from website.models import TeamMembership as TM
+        from django.utils import timezone as tz
+        for driver in drivers:
+            if driver.id not in drivers_with_results:
+                membership = TM.objects.filter(driver=driver, team=team, is_active=True).select_related('race_class').first()
+                class_name = membership.race_class.name if membership and membership.race_class else '—'
+                driver_classes.append({
+                    'driver': driver,
+                    'class_name': class_name,
+                    'last_date': tz.now(),
+                })
 
         pending_requests = TeamJoinRequest.objects.filter(
             team=team,

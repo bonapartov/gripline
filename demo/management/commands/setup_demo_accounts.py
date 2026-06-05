@@ -186,7 +186,7 @@ class Command(BaseCommand):
         from accounts.models import UserProfile
 
         self.stdout.write('Команды...')
-        race_classes = list(RaceClass.objects.all())
+        race_classes = list(RaceClass.objects.all()[:4])
 
         for i in range(1, SLOT_COUNT + 1):
             email = f'demo_team_{i}@email.ru'
@@ -207,15 +207,15 @@ class Command(BaseCommand):
                 defaults={'role': 'captain', 'is_active': True},
             )
 
-            # Добавляем 4 пилота из демо-пилотов (с разными классами)
+            # Добавляем 4 пилота с разными классами
             if pilot_drivers:
-                selected = pilot_drivers[(i - 1) * 4 % len(pilot_drivers):(i - 1) * 4 % len(pilot_drivers) + 4]
-                if len(selected) < 4:
-                    selected = (pilot_drivers * 2)[:(4)]
-                for driver in selected:
+                offset = (i - 1) * 4 % max(len(pilot_drivers), 1)
+                pool = (pilot_drivers * 2)[offset:offset + 4]
+                for j, driver in enumerate(pool):
+                    assigned_class = race_classes[j % len(race_classes)] if race_classes else None
                     TeamMembership.objects.get_or_create(
                         driver=driver, team=team,
-                        defaults={'is_active': True},
+                        defaults={'is_active': True, 'race_class': assigned_class},
                     )
 
             # Сотрудники команды
