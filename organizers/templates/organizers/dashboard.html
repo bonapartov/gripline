@@ -149,22 +149,29 @@
                                 {% endif %}
                                 <div>
                                     <h5 class="text-warning mb-1">{{ champ.title }}</h5>
-                                    <p class="text-white-50 small mb-1">Комиссия:
-                                        {% if champ.commission_percent %}
-                                            {{ champ.commission_percent }}%
-                                        {% elif champ.organizer.commission_percent %}
-                                            {{ champ.organizer.commission_percent }}%
-                                        {% else %}
-                                            {{ default_commission }}%
-                                        {% endif %}
-                                    </p>
                                     {% if champ.competition_types.all %}
-                                        <p class="text-white-50 small mb-1">
-                                            Тип:
-                                            {% for ct in champ.competition_types.all %}
-                                                <span class="badge bg-info text-dark">{{ ct.name }}</span>
-                                            {% endfor %}
+                                    <p class="text-white-50 small mb-1">
+                                        {% for ct in champ.competition_types.all %}<span class="badge bg-info text-dark me-1">{{ ct.name }}</span>{% endfor %}
+                                    </p>
+                                    {% endif %}
+                                    {% if champ.race_classes.all %}
+                                    <p class="text-white-50 small mb-1">
+                                        <span class="text-white-50">Классы:</span>
+                                        {% for rc in champ.race_classes.all %}<span class="badge bg-secondary me-1">{{ rc.name }}</span>{% endfor %}
+                                    </p>
+                                    {% else %}
+                                    <p class="small mb-1"><span class="badge bg-danger">⚠ Классы не указаны</span></p>
+                                    {% endif %}
+                                    {% if champ.tyre_mode == 'per_stage' %}
+                                    <p class="text-white-50 small mb-1">🏎 Шины: <span class="badge bg-secondary">на каждый этап отдельно</span></p>
+                                    {% else %}
+                                        {% if champ.default_tyres.all %}
+                                        <p class="text-white-50 small mb-1">🏎 Шины:
+                                            {% for t in champ.default_tyres.all %}<span class="badge bg-secondary me-1">{{ t.name }}</span>{% endfor %}
                                         </p>
+                                        {% else %}
+                                        <p class="small mb-1"><span class="badge bg-danger">⚠ Шины не указаны</span></p>
+                                        {% endif %}
                                     {% endif %}
                                 </div>
                             </div>
@@ -217,6 +224,28 @@
                                 <h6 class="text-warning mb-1"><i class="fas fa-flag-checkered me-1 text-muted" style="font-size:0.75rem;"></i>{{ stage.title }}</h6>
                                 <p class="text-white-50 small mb-1">📅 {{ stage.start_date|date:"d.m.Y H:i" }} — {{ stage.end_date|date:"d.m.Y H:i" }}</p>
                                 <p class="text-white-50 small mb-1">🏁 {{ stage.track }} &nbsp;·&nbsp; 💰 {{ stage.entry_fee }} ₽</p>
+                                <p class="text-white-50 small mb-1">
+                                    {% if stage.registration_enabled %}
+                                        <span class="badge bg-success">Регистрация открыта</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Регистрация закрыта</span>
+                                    {% endif %}
+                                    {% if stage.registration_deadline %}
+                                        <span class="text-white-50 ms-1">до {{ stage.registration_deadline|date:"d.m.Y H:i" }}</span>
+                                    {% endif %}
+                                    {% if stage.max_participants %}
+                                        &nbsp;·&nbsp; макс. {{ stage.max_participants }} чел.
+                                    {% endif %}
+                                </p>
+                                {% if stage.championship_tyre_mode == 'per_stage' %}
+                                <p class="text-white-50 small mb-1">🏎
+                                    {% if stage.stage_tyres %}
+                                        {% for t in stage.stage_tyres %}<span class="badge bg-secondary me-1">{{ t }}</span>{% endfor %}
+                                    {% else %}
+                                        <span class="badge bg-danger">⚠ Шины не указаны</span>
+                                    {% endif %}
+                                </p>
+                                {% endif %}
                                 <p class="text-white-50 small mb-0">
                                     👥 Регистраций: <strong class="text-info">{{ stage.reg_count }}</strong>
                                     {% if stage.reg_pending %}<span class="badge bg-warning text-dark ms-1">{{ stage.reg_pending }} новых</span>{% endif %}

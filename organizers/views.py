@@ -43,6 +43,7 @@ def dashboard(request):
                 'title': stage.title,
                 'championship_title': champ.title,
                 'championship_id': champ.id,
+                'championship_tyre_mode': champ.tyre_mode,
                 'start_date': stage.start_date,
                 'end_date': stage.end_date,
                 'entry_fee': stage.entry_fee,
@@ -51,6 +52,10 @@ def dashboard(request):
                 'is_published': stage.is_published,
                 'reg_count': app_qs.exclude(status__in=['cancelled', 'rejected']).count(),
                 'reg_pending': app_qs.filter(status='submitted').count(),
+                'registration_enabled': stage.registration_enabled,
+                'registration_deadline': stage.registration_deadline,
+                'max_participants': stage.max_participants,
+                'stage_tyres': list(stage.stage_tyres.values_list('name', flat=True)),
             })
     
     # Сортируем этапы по дате начала
