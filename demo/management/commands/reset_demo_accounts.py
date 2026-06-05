@@ -55,7 +55,7 @@ class Command(BaseCommand):
         slots = DemoSlot.objects.filter(slot_type='pilot').select_related('user')
         count = 0
         for slot in slots:
-            n = Application.objects.filter(applicant__user=slot.user).delete()[0]
+            n = Application.objects.filter(submitted_by=slot.user).delete()[0]
             count += n
         self.stdout.write(f'  Удалено заявок пилотов: {count}')
 
@@ -68,7 +68,7 @@ class Command(BaseCommand):
         for slot in slots:
             from teams.models import TeamManager
             for tm in TeamManager.objects.filter(user=slot.user):
-                n = Application.objects.filter(team=tm.team).delete()[0]
+                n = Application.objects.filter(submitted_by=slot.user).delete()[0]
                 count += n
         self.stdout.write(f'  Удалено заявок команд: {count}')
 
