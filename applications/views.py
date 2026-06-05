@@ -75,7 +75,7 @@ def apply(request, stage_id):
     available_numbers = stage.get_available_numbers(race_class=first_class)
     teams = list(Team.objects.values_list('name', flat=True).order_by('name'))
     chassis_list = list(Chassis.objects.values_list('name', flat=True).order_by('name'))
-    default_tyre = stage.championship.default_tyre
+    default_tyres = stage.championship.default_tyres.all()
 
     if request.method == 'POST':
         pilot_form = PilotForm(request.POST, prefix='pilot')
@@ -221,7 +221,7 @@ def apply(request, stage_id):
         'mechanic_form': mechanic_form,
         'teams': teams,
         'chassis_list': chassis_list,
-        'default_tyre': default_tyre,
+        'default_tyres': default_tyres,
         'first_class_id': first_class.id if first_class else '',
     })
 

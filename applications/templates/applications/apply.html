@@ -148,9 +148,9 @@
                 <div class="col-md-4"><label>Двигатель 2 №</label>{{ kart_form.engine_2 }}</div>
                 <div class="col-md-4">
                     <label>Шины</label>
-                    {% if default_tyre %}
+                    {% if default_tyres %}
                     <input type="text" name="{{ kart_form.tires.html_name }}" class="form-control"
-                           value="{{ default_tyre.name }}" readonly style="opacity:0.7; cursor:default;">
+                           value="{% for t in default_tyres %}{{ t.name }}{% if not forloop.last %}, {% endif %}{% endfor %}" readonly style="opacity:0.7; cursor:default;">
                     <div class="text-muted small mt-1">Определено организатором</div>
                     {% else %}
                     {{ kart_form.tires }}

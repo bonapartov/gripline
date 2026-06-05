@@ -18,17 +18,16 @@ class ChampionshipForm(forms.ModelForm):
         label="Классы гонок"
     )
     
-    default_tyre = forms.ModelChoiceField(
+    default_tyres = forms.ModelMultipleChoiceField(
         queryset=Tyre.objects.all(),
-        widget=forms.Select(attrs={'class': 'form-select'}),
+        widget=forms.CheckboxSelectMultiple,
         required=False,
-        label="Шины по умолчанию",
-        empty_label="— не указаны —",
+        label="Разрешённые шины",
     )
-    
+
     class Meta:
         model = Championship
-        fields = ['title', 'budget', 'competition_types', 'race_classes', 'default_tyre']
+        fields = ['title', 'budget', 'competition_types', 'race_classes', 'default_tyres']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Название чемпионата'}),
             'budget': forms.Textarea(attrs={'rows': 3, 'class': 'form-control', 'placeholder': 'Опишите чемпионат...'}),

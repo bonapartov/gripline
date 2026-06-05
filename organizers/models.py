@@ -54,12 +54,10 @@ class Championship(models.Model):
         help_text="Классы, которые участвуют в чемпионате"
     )
     
-    default_tyre = models.ForeignKey(
+    default_tyres = models.ManyToManyField(
         'website.Tyre',
-        on_delete=models.SET_NULL,
-        null=True,
         blank=True,
-        help_text="Шина по умолчанию для всех классов"
+        help_text="Разрешённые шины для чемпионата"
     )
 
     def save(self, *args, **kwargs):
@@ -240,9 +238,7 @@ def sync_wagtail_stage(sender, instance, created, **kwargs):
                 race_class=race_class,
             )
             
-            if instance.championship.default_tyre:
-                group.tyre = instance.championship.default_tyre
-                group.save()
+            # default_tyres is now M2M — auto-assignment of a single tyre removed
     else:
         # РЕДАКТИРОВАНИЕ
         if instance.wagtail_page:

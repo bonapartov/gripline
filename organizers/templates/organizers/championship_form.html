@@ -100,9 +100,11 @@
                 </div>
                 
                 <div class="mb-3">
-                    <label class="form-label text-info">Шины по умолчанию</label>
-                    {{ form.default_tyre }}
-                    <small class="text-muted">Будут использоваться для всех классов, если не указано иное</small>
+                    <label class="form-label text-info">Разрешённые шины</label>
+                    <div class="checkbox-container">
+                        {{ form.default_tyres }}
+                    </div>
+                    <small class="text-muted">Шины, разрешённые на этапах чемпионата (видно участникам)</small>
                 </div>
                 
                 <button type="submit" class="btn btn-warning w-100 py-2">Сохранить чемпионат</button>

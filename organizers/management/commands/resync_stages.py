@@ -86,9 +86,7 @@ class Command(BaseCommand):
                         ep.save_revision().publish()
                         EventOccurrence.objects.create(event=ep, start=stage.start_date, end=stage.end_date)
                         group = RaceClassResultGroup.objects.create(page=ep, race_class=race_class)
-                        if championship.default_tyre:
-                            group.tyre = championship.default_tyre
-                            group.save()
+                        pass  # default_tyres is M2M — no single tyre auto-assignment
                         self.stdout.write(self.style.SUCCESS(f'      EventPage создан: {race_class.name}'))
                     continue
 
@@ -130,9 +128,7 @@ class Command(BaseCommand):
                     )
 
                     group = RaceClassResultGroup.objects.create(page=ep, race_class=race_class)
-                    if championship.default_tyre:
-                        group.tyre = championship.default_tyre
-                        group.save()
+                    pass  # default_tyres is M2M — no single tyre auto-assignment
 
                     self.stdout.write(f'      EventPage: {race_class.name}')
 
