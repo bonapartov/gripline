@@ -1,11 +1,14 @@
 from django.shortcuts import redirect, render
 from django.contrib.auth import login
 from django.contrib import messages
+from django.http import HttpResponseRedirect
+from django.urls import reverse
 from .models import DemoSlot
 
 
 def choose_role(request):
     return render(request, 'demo/choose_role.html')
+
 
 REDIRECT_MAP = {
     'organizer': 'organizers:dashboard',
@@ -37,7 +40,8 @@ def demo_login(request, slot_type):
 
     free_slot.occupy()
     user = free_slot.user
-    user.backend = 'django.contrib.auth.backends.ModelBackend'
-    login(request, user)
 
-    return redirect(REDIRECT_MAP[slot_type])
+    login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+    request.session.save()
+
+    return HttpResponseRedirect(reverse(REDIRECT_MAP[slot_type]))
