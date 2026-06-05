@@ -205,6 +205,11 @@ class OrganizerSettings(models.Model):
     support_email = models.EmailField(default="support@gripline.ru")
     terms_text = models.TextField(blank=True, default="")
     refund_policy = models.TextField(blank=True, default="")
+    payments_enabled = models.BooleanField(
+        default=False,
+        verbose_name="Оплата включена",
+        help_text="Показывать блоки оплаты, комиссий и финансов в ЛК организатора"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
