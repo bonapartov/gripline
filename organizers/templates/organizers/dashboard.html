@@ -1,4 +1,5 @@
 {% extends "coderedcms/pages/web_page.html" %}
+{% load organizer_tags %}
 
 {% block content %}
 <style>
@@ -206,9 +207,10 @@
                     </div>
 
                     <!-- Этапы чемпионата -->
-                    {% for stage in stages %}{% if stage.championship_id == champ.id %}{% if forloop.first %}
-                    <div class="text-muted small mt-2 mb-1" style="margin-left: 2rem;">Этапы</div>
-                    {% endif %}
+                    {% with champ_stages=stages_by_champ|dict_get:champ.id %}
+                    {% if champ_stages %}
+                    <div class="text-white-50 mt-3 mb-2" style="margin-left: 2rem; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.03em;">Этапы</div>
+                    {% for stage in champ_stages %}
                     <div class="mb-2 pb-2 border-bottom border-secondary" style="margin-left: 2rem; border-left: 2px solid #2a2a35; padding-left: 1rem;">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
@@ -254,7 +256,8 @@
                             </form>
                         </div>
                     </div>
-                    {% endif %}{% endfor %}
+                    {% endfor %}
+                    {% endif %}{% endwith %}
 
                     <!-- Модальное окно подтверждения удаления -->
                     <div class="modal fade" id="deleteModal{{ champ.id }}" tabindex="-1">

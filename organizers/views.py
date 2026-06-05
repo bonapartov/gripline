@@ -55,7 +55,12 @@ def dashboard(request):
     
     # Сортируем этапы по дате начала
     stages.sort(key=lambda x: x['start_date'] or datetime.min)
-    
+
+    # Группируем этапы по чемпионату для шаблона
+    stages_by_champ = {}
+    for s in stages:
+        stages_by_champ.setdefault(s['championship_id'], []).append(s)
+
     # Получаем глобальные настройки
     settings_obj = OrganizerSettings.objects.first()
     default_commission = settings_obj.commission_default if settings_obj else 10
@@ -77,6 +82,7 @@ def dashboard(request):
     return render(request, 'organizers/dashboard.html', {
         'championships': championships,
         'stages': stages,
+        'stages_by_champ': stages_by_champ,
         'default_commission': default_commission,
         'default_payer': default_payer,
         'organizer_commission': organizer_commission,
