@@ -9,16 +9,16 @@
         border-radius: 12px;
         padding: 2rem;
         text-align: center;
-        transition: border-color 0.2s, transform 0.2s;
+        transition: border-color 0.2s;
     }
-    .role-card:hover { border-color: #ffc107; transform: translateY(-3px); }
+    .role-card:hover { border-color: #ffc107; }
     .role-icon { font-size: 3rem; margin-bottom: 1rem; display: block; }
     .role-title { color: #ffc107; font-weight: bold; font-size: 1.3rem; text-transform: uppercase; margin-bottom: 0.5rem; }
     .role-desc { color: #adb5bd; font-size: 0.9rem; margin-bottom: 1.5rem; min-height: 3rem; }
     .btn-enter { background: #ffc107; color: #000; border: none; padding: 0.65rem 1.5rem; font-weight: bold; border-radius: 6px; width: 100%; cursor: pointer; text-decoration: none; display: block; margin-bottom: 0.75rem; transition: background 0.2s; }
     .btn-enter:hover { background: #e0a800; color: #000; }
-    .btn-demo { background: transparent; color: #0dcaf0; border: 1px solid #0dcaf0; padding: 0.6rem 1.5rem; font-weight: 600; border-radius: 6px; width: 100%; cursor: pointer; text-decoration: none; display: block; font-size: 0.9rem; transition: all 0.2s; }
-    .btn-demo:hover { background: rgba(13,202,240,0.1); color: #0dcaf0; }
+    .btn-demo { background: transparent; color: #ffc107; border: 1px solid #ffc107; padding: 0.6rem 1.5rem; font-weight: 600; border-radius: 6px; width: 100%; cursor: pointer; text-decoration: none; display: block; font-size: 0.9rem; }
+    .btn-demo:hover { color: #ffc107; }
     .demo-note { color: #6c757d; font-size: 0.75rem; margin-top: 0.4rem; }
 </style>
 
@@ -38,7 +38,7 @@
                 <div class="role-desc">Просматривайте свой профиль, рейтинг и историю участий в соревнованиях</div>
                 <div class="mt-auto">
                     <a href="{% url 'accounts:login' %}" class="btn-enter">Войти как пилот</a>
-                    <a href="{% url 'demo:demo_login' 'pilot' %}" class="btn-demo">🎯 Демо вход</a>
+                    <a href="{% url 'demo:demo_login' 'pilot' %}" class="btn-demo">Демо вход</a>
                     <p class="demo-note">Доступ на 2 часа, без регистрации</p>
                 </div>
             </div>
@@ -52,7 +52,7 @@
                 <div class="role-desc">Управляйте составом команды, пилотами и участием в чемпионатах</div>
                 <div class="mt-auto">
                     <a href="{% url 'teams:login' %}" class="btn-enter">Войти как команда</a>
-                    <a href="{% url 'demo:demo_login' 'team' %}" class="btn-demo">🎯 Демо вход</a>
+                    <a href="{% url 'demo:demo_login' 'team' %}" class="btn-demo">Демо вход</a>
                     <p class="demo-note">Доступ на 2 часа, без регистрации</p>
                 </div>
             </div>
@@ -66,7 +66,7 @@
                 <div class="role-desc">Создавайте мероприятия, управляйте этапами, регистрациями и финансами</div>
                 <div class="mt-auto">
                     <a href="{% url 'organizers:login' %}" class="btn-enter">Войти как организатор</a>
-                    <a href="{% url 'demo:demo_login' 'organizer' %}" class="btn-demo">🎯 Демо вход</a>
+                    <a href="{% url 'demo:demo_login' 'organizer' %}" class="btn-demo">Демо вход</a>
                     <p class="demo-note">Доступ на 2 часа, без регистрации</p>
                 </div>
             </div>
