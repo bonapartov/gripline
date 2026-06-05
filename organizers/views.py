@@ -134,6 +134,9 @@ def championship_create(request):
             if form.cleaned_data.get('race_classes'):
                 championship.race_classes.set(form.cleaned_data['race_classes'])
 
+            # Сохраняем шины
+            championship.default_tyres.set(form.cleaned_data.get('default_tyres') or [])
+
             # Обработка фото
             if 'cover_image' in request.FILES:
                 from wagtail.images.models import Image as WagtailImage
@@ -327,7 +330,10 @@ def championship_edit(request, pk):
                 championship.race_classes.set(form.cleaned_data['race_classes'])
             else:
                 championship.race_classes.clear()
-            
+
+            # Обновляем шины
+            championship.default_tyres.set(form.cleaned_data.get('default_tyres') or [])
+
             # Обработка cover_image
             if 'cover_image' in request.FILES:
                 from wagtail.images.models import Image as WagtailImage
