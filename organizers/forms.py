@@ -27,9 +27,10 @@ class ChampionshipForm(forms.ModelForm):
 
     class Meta:
         model = Championship
-        fields = ['title', 'budget', 'competition_types', 'race_classes', 'tyre_mode', 'default_tyres']
+        fields = ['title', 'budget', 'competition_types', 'race_classes', 'tyre_mode', 'default_tyres', 'registration_mode']
         widgets = {
             'tyre_mode': forms.RadioSelect,
+            'registration_mode': forms.RadioSelect,
         }
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Название чемпионата'}),

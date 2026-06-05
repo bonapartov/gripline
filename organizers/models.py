@@ -60,6 +60,19 @@ class Championship(models.Model):
         help_text="Разрешённые шины для чемпионата"
     )
 
+    REG_MODE_ALL = 'all'
+    REG_MODE_PER_STAGE = 'per_stage'
+    REG_MODE_CHOICES = [
+        (REG_MODE_PER_STAGE, 'Настройки для каждого этапа отдельно'),
+        (REG_MODE_ALL, 'Общие настройки для всех этапов'),
+    ]
+    registration_mode = models.CharField(
+        max_length=20,
+        choices=REG_MODE_CHOICES,
+        default=REG_MODE_PER_STAGE,
+        verbose_name='Режим настроек регистрации',
+    )
+
     TYRE_MODE_ALL = 'all'
     TYRE_MODE_PER_STAGE = 'per_stage'
     TYRE_MODE_CHOICES = [
@@ -259,6 +272,22 @@ def sync_wagtail_stage(sender, instance, created, **kwargs):
             )
             
             # default_tyres is now M2M — auto-assignment of a single tyre removed
+
+            # Копируем документы и опции с чемпионата если registration_mode='all'
+            if instance.championship.registration_mode == Championship.REG_MODE_ALL:
+                from applications.models import ChampionshipDocument, ChampionshipOption, StageDocument, StageOption
+                for doc in instance.championship.championship_documents.all():
+                    StageDocument.objects.create(
+                        stage=instance, name=doc.name, description=doc.description,
+                        required=doc.required, minors_only=doc.minors_only,
+                        has_expiry_date=doc.has_expiry_date, order=doc.order,
+                    )
+                for opt in instance.championship.championship_options.all():
+                    StageOption.objects.create(
+                        stage=instance, name=opt.name, description=opt.description,
+                        price=opt.price, is_mandatory=opt.is_mandatory,
+                        is_active=opt.is_active, order=opt.order,
+                    )
     else:
         # РЕДАКТИРОВАНИЕ
         if instance.wagtail_page:

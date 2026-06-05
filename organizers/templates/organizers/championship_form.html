@@ -100,6 +100,20 @@
                 </div>
                 
                 <div class="mb-3">
+                    <label class="form-label text-info">Настройки регистрации</label>
+                    <div class="d-flex flex-column gap-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="registration_mode" id="reg_mode_per_stage" value="per_stage" {% if form.instance.registration_mode != 'all' %}checked{% endif %}>
+                            <label class="form-check-label text-white" for="reg_mode_per_stage">Настройки для каждого этапа отдельно</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="registration_mode" id="reg_mode_all" value="all" {% if form.instance.registration_mode == 'all' %}checked{% endif %}>
+                            <label class="form-check-label text-white" for="reg_mode_all">Общие настройки для всех этапов</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
                     <label class="form-label text-info">Назначение шин</label>
                     <div class="d-flex flex-column gap-2">
                         <div class="form-check">

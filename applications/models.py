@@ -287,6 +287,48 @@ class ApplicationDocument(models.Model):
         return f"{self.stage_document.name} — {self.get_status_display()}"
 
 
+class ChampionshipDocument(models.Model):
+    """Шаблонный документ чемпионата — копируется в этапы при registration_mode='all'"""
+    championship = models.ForeignKey(
+        'organizers.Championship', on_delete=models.CASCADE, related_name='championship_documents'
+    )
+    name = models.CharField(max_length=255, verbose_name='Название документа')
+    description = models.TextField(blank=True, verbose_name='Пояснение')
+    required = models.BooleanField(default=True, verbose_name='Обязательный')
+    minors_only = models.BooleanField(default=False, verbose_name='Только для несовершеннолетних')
+    has_expiry_date = models.BooleanField(default=False, verbose_name='Есть срок действия')
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order']
+        verbose_name = 'Документ чемпионата'
+        verbose_name_plural = 'Документы чемпионата'
+
+    def __str__(self):
+        return self.name
+
+
+class ChampionshipOption(models.Model):
+    """Шаблонная опция чемпионата — копируется в этапы при registration_mode='all'"""
+    championship = models.ForeignKey(
+        'organizers.Championship', on_delete=models.CASCADE, related_name='championship_options'
+    )
+    name = models.CharField(max_length=255, verbose_name='Название')
+    description = models.TextField(blank=True, verbose_name='Описание')
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Цена (₽)')
+    is_mandatory = models.BooleanField(default=False, verbose_name='Обязательная')
+    is_active = models.BooleanField(default=True, verbose_name='Доступна')
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order']
+        verbose_name = 'Опция чемпионата'
+        verbose_name_plural = 'Опции чемпионата'
+
+    def __str__(self):
+        return f"{self.name} — {self.price} ₽"
+
+
 class StageOption(models.Model):
     """Дополнительная опция для этапа (слики, дождевая резина, транспондер и т.д.)"""
 

@@ -460,6 +460,99 @@ def championship_delete(request, pk):
     messages.success(request, f'Чемпионат "{title}" удалён!')
     return redirect('organizers:dashboard')
 
+
+@login_required
+def championship_reg_settings(request, pk):
+    """Общие настройки регистрации чемпионата (документы и опции для всех этапов)."""
+    from applications.models import ChampionshipDocument, ChampionshipOption, StageDocument, StageOption
+    from .forms import StageDocumentForm, StageOptionForm
+
+    championship = get_object_or_404(Championship, pk=pk, organizer__user=request.user)
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'add_document':
+            form = StageDocumentForm(request.POST)
+            if form.is_valid():
+                doc = ChampionshipDocument.objects.create(
+                    championship=championship,
+                    name=form.cleaned_data['name'],
+                    description=form.cleaned_data.get('description', ''),
+                    required=form.cleaned_data.get('required', True),
+                    minors_only=form.cleaned_data.get('minors_only', False),
+                    has_expiry_date=form.cleaned_data.get('has_expiry_date', False),
+                    order=championship.championship_documents.count(),
+                )
+                _sync_championship_docs_to_stages(championship)
+                messages.success(request, f'Документ «{doc.name}» добавлен.')
+
+        elif action == 'delete_document':
+            ChampionshipDocument.objects.filter(id=request.POST.get('doc_id'), championship=championship).delete()
+            _sync_championship_docs_to_stages(championship)
+            messages.success(request, 'Документ удалён.')
+
+        elif action == 'add_option':
+            form = StageOptionForm(request.POST)
+            if form.is_valid():
+                opt = ChampionshipOption.objects.create(
+                    championship=championship,
+                    name=form.cleaned_data['name'],
+                    description=form.cleaned_data.get('description', ''),
+                    price=form.cleaned_data.get('price', 0),
+                    is_mandatory=form.cleaned_data.get('is_mandatory', False),
+                    is_active=form.cleaned_data.get('is_active', True),
+                    order=championship.championship_options.count(),
+                )
+                _sync_championship_opts_to_stages(championship)
+                messages.success(request, f'Опция «{opt.name}» добавлена.')
+
+        elif action == 'delete_option':
+            ChampionshipOption.objects.filter(id=request.POST.get('option_id'), championship=championship).delete()
+            _sync_championship_opts_to_stages(championship)
+            messages.success(request, 'Опция удалена.')
+
+        return redirect('organizers:championship_reg_settings', pk=championship.pk)
+
+    return render(request, 'organizers/championship_reg_settings.html', {
+        'championship': championship,
+        'documents': championship.championship_documents.all(),
+        'options': championship.championship_options.all(),
+        'document_form': StageDocumentForm(),
+        'option_form': StageOptionForm(),
+    })
+
+
+def _sync_championship_docs_to_stages(championship):
+    """Синхронизирует документы чемпионата со всеми будущими этапами."""
+    from django.utils import timezone
+    from applications.models import ChampionshipDocument, StageDocument
+    future_stages = championship.stages.filter(start_date__gt=timezone.now())
+    for stage in future_stages:
+        stage.required_documents.all().delete()
+        for doc in championship.championship_documents.all():
+            StageDocument.objects.create(
+                stage=stage, name=doc.name, description=doc.description,
+                required=doc.required, minors_only=doc.minors_only,
+                has_expiry_date=doc.has_expiry_date, order=doc.order,
+            )
+
+
+def _sync_championship_opts_to_stages(championship):
+    """Синхронизирует опции чемпионата со всеми будущими этапами."""
+    from django.utils import timezone
+    from applications.models import ChampionshipOption, StageOption
+    future_stages = championship.stages.filter(start_date__gt=timezone.now())
+    for stage in future_stages:
+        stage.options.all().delete()
+        for opt in championship.championship_options.all():
+            StageOption.objects.create(
+                stage=stage, name=opt.name, description=opt.description,
+                price=opt.price, is_mandatory=opt.is_mandatory,
+                is_active=opt.is_active, order=opt.order,
+            )
+
+
 @login_required
 def stage_edit(request, pk):
     from django.utils import timezone
