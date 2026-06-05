@@ -462,19 +462,43 @@ def championship_delete(request, pk):
 
 @login_required
 def stage_edit(request, pk):
+    from django.utils import timezone
     stage = get_object_or_404(Stage, pk=pk, championship__organizer__user=request.user)
-    
+    stage_started = stage.start_date <= timezone.now()
+
+    LOCKED_FIELDS = ['title', 'start_date', 'end_date', 'track', 'entry_fee', 'schedule', 'stage_tyres']
+
     if request.method == 'POST':
-        form = StageForm(request.POST, instance=stage)
+        if stage_started:
+            # Подменяем POST-данные: для заблокированных полей берём значения из БД
+            post_data = request.POST.copy()
+            for field in LOCKED_FIELDS:
+                if field in post_data:
+                    del post_data[field]
+            form = StageForm(post_data, instance=stage)
+        else:
+            form = StageForm(request.POST, instance=stage)
+
         if form.is_valid():
             stage = form.save()
-            stage.stage_tyres.set(form.cleaned_data.get('stage_tyres') or [])
+            if not stage_started:
+                stage.stage_tyres.set(form.cleaned_data.get('stage_tyres') or [])
             messages.success(request, f'Этап "{stage.title}" обновлён!')
             return redirect('organizers:dashboard')
     else:
         form = StageForm(instance=stage)
+        if stage_started:
+            for field in LOCKED_FIELDS:
+                if field in form.fields:
+                    form.fields[field].widget.attrs['disabled'] = True
+                    form.fields[field].required = False
 
-    return render(request, 'organizers/stage_form.html', {'form': form, 'championship': stage.championship, 'stage': stage})
+    return render(request, 'organizers/stage_form.html', {
+        'form': form,
+        'championship': stage.championship,
+        'stage': stage,
+        'stage_started': stage_started,
+    })
     
 
 
@@ -496,7 +520,9 @@ def stage_settings(request, pk):
     from .forms import StageDocumentForm, StageOptionForm
     from applications.models import StageDocument, StageOption
 
+    from django.utils import timezone
     stage = get_object_or_404(Stage, pk=pk, championship__organizer__user=request.user)
+    stage_started = stage.start_date <= timezone.now()
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -512,8 +538,11 @@ def stage_settings(request, pk):
             return redirect('organizers:stage_settings', pk=stage.id)
 
         if action == 'delete_document':
-            StageDocument.objects.filter(id=request.POST.get('doc_id'), stage=stage).delete()
-            messages.success(request, 'Документ удалён.')
+            if stage_started:
+                messages.error(request, 'Нельзя удалять документы после начала этапа.')
+            else:
+                StageDocument.objects.filter(id=request.POST.get('doc_id'), stage=stage).delete()
+                messages.success(request, 'Документ удалён.')
             return redirect('organizers:stage_settings', pk=stage.id)
 
         if action == 'add_option':
@@ -550,6 +579,7 @@ def stage_settings(request, pk):
         'document_form': StageDocumentForm(),
         'option_form': StageOptionForm(),
         'reserved_str': ', '.join(str(n) for n in (stage.reserved_start_numbers or [])),
+        'stage_started': stage_started,
     })
 
 

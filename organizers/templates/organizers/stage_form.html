@@ -45,6 +45,12 @@
             <h1 class="text-warning mb-0">{% if stage %}Редактирование этапа{% else %}Создание этапа{% endif %} для "{{ championship.title }}"</h1>
         </div>
         <div class="card-body">
+            {% if stage_started %}
+            <div class="alert alert-warning mb-4">
+                <i class="fas fa-lock me-2"></i><strong>Этап начался.</strong>
+                Название, даты, трасса, взнос и шины заблокированы. Доступно редактирование настроек регистрации.
+            </div>
+            {% endif %}
             <form method="post">
                 {% csrf_token %}
                 
