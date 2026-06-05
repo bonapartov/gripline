@@ -46,10 +46,12 @@
         margin-bottom: 1.5rem;
     }
     .left-column {
-        flex: 1;
+        flex: 0 0 30%;
+        max-width: 30%;
     }
     .right-column {
         flex: 1;
+        min-width: 0;
     }
     @media (max-width: 768px) {
         .two-columns {
@@ -202,7 +204,56 @@
                             </form>
                         </div>
                     </div>
-                    
+
+                    <!-- Этапы чемпионата -->
+                    {% for stage in stages %}{% if stage.championship_id == champ.id %}
+                    <div class="mb-2 pb-2 border-bottom border-secondary" style="margin-left: 2rem; border-left: 2px solid #2a2a35; padding-left: 1rem;">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="text-warning mb-1"><i class="fas fa-flag-checkered me-1 text-muted" style="font-size:0.75rem;"></i>{{ stage.title }}</h6>
+                                <p class="text-white-50 small mb-1">📅 {{ stage.start_date|date:"d.m.Y H:i" }} — {{ stage.end_date|date:"d.m.Y H:i" }}</p>
+                                <p class="text-white-50 small mb-1">🏁 {{ stage.track }} &nbsp;·&nbsp; 💰 {{ stage.entry_fee }} ₽</p>
+                                <p class="text-white-50 small mb-0">
+                                    👥 Регистраций: <strong class="text-info">{{ stage.reg_count }}</strong>
+                                    {% if stage.reg_pending %}<span class="badge bg-warning text-dark ms-1">{{ stage.reg_pending }} новых</span>{% endif %}
+                                </p>
+                            </div>
+                            <div class="d-flex flex-wrap gap-1 ms-2">
+                                {% if stage.wagtail_page %}
+                                <a href="{{ stage.wagtail_page.url }}" target="_blank" class="btn btn-sm btn-outline-info" title="Открыть">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'organizers:stage_registrations' stage.id %}" class="btn btn-sm btn-outline-primary" title="Регистрации">
+                                    <i class="fas fa-users"></i>
+                                </a>
+                                <a href="{% url 'organizers:stage_settings' stage.id %}" class="btn btn-sm btn-outline-info" title="Настройки">
+                                    <i class="fas fa-cog"></i>
+                                </a>
+                                <a href="{% url 'organizers:stage_edit' stage.id %}" class="btn btn-sm btn-outline-warning" title="Редактировать">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'organizers:stage_delete' stage.id %}" class="btn btn-sm btn-outline-danger" title="Удалить"
+                                   onclick="return confirm('Удалить этап «{{ stage.title }}»? Все данные будут потеряны.');">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-end mt-1">
+                            <form method="post" action="{% url 'organizers:stage_toggle_publish' stage.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm {% if stage.is_published %}btn-success{% else %}btn-secondary{% endif %}" style="min-width:120px;">
+                                    {% if stage.is_published %}
+                                        <i class="fas fa-eye me-1"></i>Опубликован
+                                    {% else %}
+                                        <i class="fas fa-eye-slash me-1"></i>Черновик
+                                    {% endif %}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endif %}{% endfor %}
+
                     <!-- Модальное окно подтверждения удаления -->
                     <div class="modal fade" id="deleteModal{{ champ.id }}" tabindex="-1">
                         <div class="modal-dialog">
@@ -231,74 +282,6 @@
                         </a>
                     </div>
                 {% endif %}
-            </div>
-            <!-- Блок этапов -->
-            <div class="info-card">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h3 class="text-info mb-0">Этапы</h3>
-                </div>
-                
-                {% if stages %}
-                    {% for stage in stages %}
-                    <div class="mb-3 pb-2 border-bottom border-secondary">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <h5 class="text-warning mb-1">{{ stage.title }}</h5>
-                                <p class="text-white-50 small mb-1">{{ stage.championship_title }}</p>
-                                <p class="text-white-50 small mb-1">
-                                    📅 {{ stage.start_date|date:"d.m.Y H:i" }} — {{ stage.end_date|date:"d.m.Y H:i" }}
-                                </p>
-                                <p class="text-white-50 small mb-1">🏁 Трасса: {{ stage.track }}</p>
-                                <p class="text-white-50 small mb-1">💰 Стартовый взнос: {{ stage.entry_fee }} ₽</p>
-                                <p class="text-white-50 small mb-0">
-                                    👥 Регистраций: <strong class="text-info">{{ stage.reg_count }}</strong>
-                                    {% if stage.reg_pending %}<span class="badge bg-warning text-dark ms-1">{{ stage.reg_pending }} новых</span>{% endif %}
-                                </p>
-                            </div>
-                            <div>
-								{% if stage.wagtail_page %}
-								<a href="{{ stage.wagtail_page.url }}" target="_blank" class="btn btn-sm btn-outline-info">
-									<i class="fas fa-eye me-1"></i>
-								</a>
-								{% endif %}
-								<a href="{% url 'organizers:stage_registrations' stage.id %}" class="btn btn-sm btn-outline-primary" title="Регистрации">
-									<i class="fas fa-users"></i>
-								</a>
-								<a href="{% url 'organizers:stage_settings' stage.id %}" class="btn btn-sm btn-outline-info" title="Настройки регистрации">
-									<i class="fas fa-cog"></i>
-								</a>
-								<a href="{% url 'organizers:stage_edit' stage.id %}" class="btn btn-sm btn-outline-warning">
-									<i class="fas fa-edit"></i>
-								</a>
-								<a href="{% url 'organizers:stage_delete' stage.id %}"
-								   class="btn btn-sm btn-outline-danger"
-								   onclick="return confirm('Удалить этап «{{ stage.title }}»? Все данные будут потеряны.');">
-									<i class="fas fa-trash"></i>
-								</a>
-							</div>
-                        </div>
-                        <!-- Статус публикации — нижний правый угол -->
-                        <div class="d-flex justify-content-end mt-2">
-                            <form method="post" action="{% url 'organizers:stage_toggle_publish' stage.id %}">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-sm {% if stage.is_published %}btn-success{% else %}btn-secondary{% endif %}" style="min-width:140px;">
-                                    {% if stage.is_published %}
-                                        <i class="fas fa-eye me-1"></i>Опубликован
-                                    {% else %}
-                                        <i class="fas fa-eye-slash me-1"></i>Черновик
-                                    {% endif %}
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="text-center py-3">
-                        <p class="text-muted mb-0">У вас пока нет этапов.</p>
-                        <p class="text-muted small">Создайте чемпионат и добавьте этапы</p>
-                    </div>
-                {% endif %}
-
             </div>
         </div>
     </div>
