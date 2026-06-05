@@ -27,7 +27,10 @@ class ChampionshipForm(forms.ModelForm):
 
     class Meta:
         model = Championship
-        fields = ['title', 'budget', 'competition_types', 'race_classes', 'default_tyres']
+        fields = ['title', 'budget', 'competition_types', 'race_classes', 'tyre_mode', 'default_tyres']
+        widgets = {
+            'tyre_mode': forms.RadioSelect,
+        }
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Название чемпионата'}),
             'budget': forms.Textarea(attrs={'rows': 3, 'class': 'form-control', 'placeholder': 'Опишите чемпионат...'}),
@@ -38,13 +41,20 @@ class ChampionshipForm(forms.ModelForm):
         }
 
 class StageForm(forms.ModelForm):
+    stage_tyres = forms.ModelMultipleChoiceField(
+        queryset=Tyre.objects.all(),
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label="Шины для этапа",
+    )
+
     class Meta:
         model = Stage
         fields = [
             'title', 'start_date', 'end_date', 'track', 'entry_fee', 'schedule',
             'registration_enabled', 'registration_deadline',
             'late_registration_allowed', 'late_registration_fee_multiplier',
-            'max_participants', 'start_number_digits',
+            'max_participants', 'start_number_digits', 'stage_tyres',
         ]
         widgets = {
             'start_date': forms.DateTimeInput(format='%Y-%m-%dT%H:%M', attrs={'type': 'datetime-local', 'class': 'form-control'}),

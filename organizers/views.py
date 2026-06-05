@@ -198,7 +198,8 @@ def stage_create(request, championship_id):
             stage = form.save(commit=False)
             stage.championship = championship
             stage.save()  # Сигнал сам создаст StagePage и EventPage
-            
+            stage.stage_tyres.set(form.cleaned_data.get('stage_tyres') or [])
+
             messages.success(request, f'Этап "{stage.title}" создан!')
             return redirect('organizers:dashboard')
         else:
@@ -332,7 +333,20 @@ def championship_edit(request, pk):
                 championship.race_classes.clear()
 
             # Обновляем шины
-            championship.default_tyres.set(form.cleaned_data.get('default_tyres') or [])
+            new_tyre_mode = form.cleaned_data.get('tyre_mode', Championship.TYRE_MODE_ALL)
+            old_tyre_mode = Championship.objects.get(pk=championship.pk).tyre_mode if championship.pk else None
+
+            if new_tyre_mode == Championship.TYRE_MODE_PER_STAGE:
+                # Сбрасываем шины чемпионата
+                championship.default_tyres.clear()
+                # Если переключились с 'all' — предупреждаем
+                if old_tyre_mode == Championship.TYRE_MODE_ALL:
+                    from datetime import date
+                    future_stages = championship.stages.filter(end_date__date__gte=date.today())
+                    if future_stages.exists():
+                        messages.warning(request, f'Выберите шины для этапов в «{championship.title}»')
+            else:
+                championship.default_tyres.set(form.cleaned_data.get('default_tyres') or [])
 
             # Обработка cover_image
             if 'cover_image' in request.FILES:
@@ -388,6 +402,7 @@ def stage_edit(request, pk):
         form = StageForm(request.POST, instance=stage)
         if form.is_valid():
             stage = form.save()
+            stage.stage_tyres.set(form.cleaned_data.get('stage_tyres') or [])
             messages.success(request, f'Этап "{stage.title}" обновлён!')
             return redirect('organizers:dashboard')
     else:

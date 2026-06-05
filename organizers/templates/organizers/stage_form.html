@@ -119,6 +119,17 @@
                     {{ form.start_number_digits }}
                 </div>
 
+                {% if championship.tyre_mode == 'per_stage' %}
+                <hr style="border-color:#2a2a35;">
+                <h5 class="text-info text-uppercase mb-3" style="font-size:0.9rem;">Шины для этапа</h5>
+                <div class="mb-3">
+                    <div class="checkbox-container">
+                        {{ form.stage_tyres }}
+                    </div>
+                    <small class="text-muted">Шины, разрешённые на этом этапе (видно участникам)</small>
+                </div>
+                {% endif %}
+
                 {% if stage %}
                 <div class="alert alert-secondary small">
                     Документы, доп. опции и зарезервированные номера настраиваются на

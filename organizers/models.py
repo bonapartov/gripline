@@ -53,11 +53,24 @@ class Championship(models.Model):
         blank=True,
         help_text="Классы, которые участвуют в чемпионате"
     )
-    
+
     default_tyres = models.ManyToManyField(
         'website.Tyre',
         blank=True,
         help_text="Разрешённые шины для чемпионата"
+    )
+
+    TYRE_MODE_ALL = 'all'
+    TYRE_MODE_PER_STAGE = 'per_stage'
+    TYRE_MODE_CHOICES = [
+        (TYRE_MODE_ALL, 'Одни шины для всех этапов'),
+        (TYRE_MODE_PER_STAGE, 'Шины на каждый этап отдельно'),
+    ]
+    tyre_mode = models.CharField(
+        max_length=20,
+        choices=TYRE_MODE_CHOICES,
+        default=TYRE_MODE_ALL,
+        verbose_name='Режим назначения шин',
     )
 
     def save(self, *args, **kwargs):
@@ -91,6 +104,13 @@ class Stage(models.Model):
         verbose_name='Множитель позднего взноса'
     )
     max_participants = models.PositiveIntegerField(null=True, blank=True, verbose_name='Макс. участников')
+
+    stage_tyres = models.ManyToManyField(
+        'website.Tyre',
+        blank=True,
+        help_text="Шины для этого этапа (если в чемпионате режим 'per_stage')",
+        related_name='stages',
+    )
 
     # Стартовые номера
     start_number_digits = models.PositiveIntegerField(
