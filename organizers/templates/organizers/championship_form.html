@@ -102,12 +102,14 @@
                 <div class="mb-3">
                     <label class="form-label text-info">Назначение шин</label>
                     <div class="d-flex flex-column gap-2">
-                        {% for radio in form.tyre_mode %}
                         <div class="form-check">
-                            {{ radio.tag }}
-                            <label class="form-check-label text-white" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                            <input class="form-check-input" type="radio" name="tyre_mode" id="tyre_mode_all" value="all" {% if form.instance.tyre_mode != 'per_stage' %}checked{% endif %}>
+                            <label class="form-check-label text-white" for="tyre_mode_all">Одни шины для всех этапов</label>
                         </div>
-                        {% endfor %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="tyre_mode" id="tyre_mode_per_stage" value="per_stage" {% if form.instance.tyre_mode == 'per_stage' %}checked{% endif %}>
+                            <label class="form-check-label text-white" for="tyre_mode_per_stage">Шины на каждый этап отдельно</label>
+                        </div>
                     </div>
                 </div>
 
