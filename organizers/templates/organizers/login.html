@@ -46,6 +46,12 @@
         <div class="auth-links">
             Нет аккаунта? <a href="{% url 'organizers:register' %}">Зарегистрироваться</a>
         </div>
+        <div class="mt-3 pt-3 border-top" style="border-color:#2a2a35!important; text-align:center;">
+            <p class="text-muted small mb-2">Хотите посмотреть как работает ЛК?</p>
+            <a href="{% url 'demo:demo_login' 'organizer' %}" class="btn btn-outline-info btn-sm w-100">
+                🎯 Демо вход → Попробовать без регистрации
+            </a>
+        </div>
     </div>
 </div>
 {% endblock %}

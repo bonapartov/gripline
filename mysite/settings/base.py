@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'wagtailmarkdown',
     'organizers.apps.OrganizersConfig',
     'applications.apps.ApplicationsConfig',
+    'demo.apps.DemoConfig',
     # This project
     "website.apps.WebsiteConfig",
     # Wagtail CRX (CodeRed Extensions)

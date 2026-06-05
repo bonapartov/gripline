@@ -23,6 +23,7 @@ urlpatterns = [
     path('api/rating-stats/', rating_stats_api, name='rating_stats_api'),
     path('organizers/', include('organizers.urls')),
     path('applications/', include('applications.urls')),
+    path('demo/', include('demo.urls')),
     path("django-admin/", admin.site.urls),
 
     # accounts URLS - САМЫЕ ПЕРВЫЕ, ДО ВСЕГО

@@ -37,6 +37,7 @@ class Championship(models.Model):
     is_active = models.BooleanField(default=True)
     is_archived = models.BooleanField(default=False)
     is_published = models.BooleanField(default=True, verbose_name='Опубликован на сайте')
+    is_demo = models.BooleanField(default=False, verbose_name='Демо-мероприятие', help_text='Не публикуется на сайте и не попадает в рейтинг')
     color = models.CharField(max_length=7, default='#ffc107', verbose_name='Цвет в календаре')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -230,6 +231,9 @@ def sync_wagtail_stage(sender, instance, created, **kwargs):
     """Создаёт или обновляет StagePage и EventPage для этапа"""
     from website.models import StagePage, EventPage, EventOccurrence, RaceClassResultGroup
     
+    if instance.championship.is_demo:
+        return
+
     parent_page = instance.championship.wagtail_page
     if not parent_page:
         return
