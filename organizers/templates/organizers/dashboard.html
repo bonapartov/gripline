@@ -70,11 +70,25 @@
 
     <!-- Две колонки -->
     <div class="two-columns">
-        <!-- Левая колонка: Условия обслуживания (только если оплата включена) -->
-        {% if payments_enabled %}
+        <!-- Левая колонка: контакты поддержки + условия оплаты (если включена) -->
         <div class="left-column">
             <div class="info-card">
-                <h3 class="text-info mb-3 text-center">Условия обслуживания</h3>
+                <h3 class="text-info mb-3 text-center">Поддержка</h3>
+
+                <div class="info-row">
+                    <span class="info-label">Телефон поддержки:</span>
+                    <span class="info-value">{{ support_phone|default:"не указан" }}</span>
+                </div>
+
+                <div class="info-row">
+                    <span class="info-label">Email поддержки:</span>
+                    <span class="info-value">{{ support_email }}</span>
+                </div>
+
+                {% if payments_enabled %}
+                <hr class="border-secondary my-3">
+
+                <h5 class="text-info mb-3 text-center">Условия оплаты</h5>
 
                 <div class="info-row">
                     <span class="info-label">Комиссия платформы:</span>
@@ -102,16 +116,6 @@
                     </span>
                 </div>
 
-                <div class="info-row">
-                    <span class="info-label">Телефон поддержки:</span>
-                    <span class="info-value">{{ support_phone|default:"не указан" }}</span>
-                </div>
-
-                <div class="info-row">
-                    <span class="info-label">Email поддержки:</span>
-                    <span class="info-value">{{ support_email }}</span>
-                </div>
-
                 {% if terms_text %}
                 <div class="mt-3">
                     <div class="info-label">Условия использования:</div>
@@ -122,12 +126,12 @@
                 <div class="commission-note">
                     <i class="fas fa-info-circle"></i> Комиссия применяется ко всем чемпионатам автоматически. <br>Для изменения условий обратитесь к администратору.
                 </div>
+                {% endif %}
             </div>
         </div>
-        {% endif %}
 
         <!-- Правая колонка: Мои чемпионаты -->
-        <div class="{% if payments_enabled %}right-column{% else %}w-100{% endif %}">
+        <div class="right-column">
             <div class="info-card">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h3 class="text-info mb-0">Мои мероприятия</h3>
