@@ -316,23 +316,35 @@ def organizer_resend_verification(request):
     return render(request, 'organizers/verification_resend.html')
 
 
-def _sync_event_pages_for_new_classes(championship):
-    """Создаёт EventPages для классов, добавленных в чемпионат после создания этапов."""
+def _sync_event_pages_for_classes(championship, old_class_ids, new_class_ids):
+    """Создаёт EventPages для новых классов и удаляет для убранных."""
     from django.utils.text import slugify
     from website.models import EventPage, EventOccurrence, RaceClassResultGroup, RaceClass
 
-    current_class_ids = set(championship.race_classes.values_list('id', flat=True))
+    added = new_class_ids - old_class_ids
+    removed = old_class_ids - new_class_ids
 
     for stage in championship.stages.all():
         if not stage.wagtail_page:
             continue
         stage_page = stage.wagtail_page.specific
+
+        # Удаляем EventPages для убранных классов
+        if removed:
+            groups_to_delete = RaceClassResultGroup.objects.filter(
+                page__in=EventPage.objects.child_of(stage_page),
+                race_class_id__in=removed,
+            )
+            for group in groups_to_delete:
+                group.page.delete()
+
+        # Создаём EventPages для новых классов
         existing_class_ids = set(
             RaceClassResultGroup.objects.filter(
                 page__in=EventPage.objects.child_of(stage_page)
             ).values_list('race_class_id', flat=True)
         )
-        for class_id in current_class_ids - existing_class_ids:
+        for class_id in added - existing_class_ids:
             race_class = RaceClass.objects.get(id=class_id)
             base_slug = slugify(f"{stage.title}-{race_class.name}")
             slug = base_slug
@@ -376,13 +388,15 @@ def championship_edit(request, pk):
                 championship.competition_types.clear()
 
             # Обновляем классы
+            old_class_ids = set(championship.race_classes.values_list('id', flat=True))
             if form.cleaned_data.get('race_classes'):
                 championship.race_classes.set(form.cleaned_data['race_classes'])
             else:
                 championship.race_classes.clear()
+            new_class_ids = set(championship.race_classes.values_list('id', flat=True))
 
-            # Создаём EventPages для новых классов в существующих этапах
-            _sync_event_pages_for_new_classes(championship)
+            # Синхронизируем EventPages: создаём новые, удаляем убранные классы
+            _sync_event_pages_for_classes(championship, old_class_ids, new_class_ids)
 
             # Обновляем шины
             new_tyre_mode = form.cleaned_data.get('tyre_mode', Championship.TYRE_MODE_ALL)
