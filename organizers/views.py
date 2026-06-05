@@ -55,7 +55,7 @@ def dashboard(request):
                 'registration_enabled': stage.registration_enabled,
                 'registration_deadline': stage.registration_deadline,
                 'max_participants': stage.max_participants,
-                'stage_tyres': list(stage.stage_tyres.values_list('name', flat=True)),
+                'stage_tyres': [str(t) for t in stage.stage_tyres.select_related('brand', 'type').all()],
             })
     
     # Сортируем этапы по дате начала

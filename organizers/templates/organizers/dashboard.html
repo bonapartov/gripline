@@ -167,7 +167,7 @@
                                     {% else %}
                                         {% if champ.default_tyres.all %}
                                         <p class="text-white-50 small mb-1">🏎 Шины:
-                                            {% for t in champ.default_tyres.all %}<span class="badge bg-secondary me-1">{{ t.name }}</span>{% endfor %}
+                                            {% for t in champ.default_tyres.all %}<span class="badge bg-secondary me-1">{{ t }}</span>{% endfor %}
                                         </p>
                                         {% else %}
                                         <p class="small mb-1"><span class="badge bg-danger">⚠ Шины не указаны</span></p>
