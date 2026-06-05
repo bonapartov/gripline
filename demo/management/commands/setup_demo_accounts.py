@@ -6,6 +6,7 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.utils.text import slugify
 from datetime import timedelta
 
 
@@ -219,15 +220,17 @@ class Command(BaseCommand):
 
             # Сотрудники команды
             if not TeamStaffMembership.objects.filter(team=team).exists():
+                from unidecode import unidecode
                 for staff_name, position in STAFF_ROLES:
-                    slug = f'demo-team-{i}-{position.lower().replace(" ", "-")[:20]}'
+                    pos_slug = slugify(unidecode(position))[:20]
+                    slug = f'demo-team-{i}-{pos_slug}'
                     counter = 1
                     while TeamStaff.objects.filter(slug=slug).exists():
-                        slug = f'demo-team-{i}-{position.lower().replace(" ", "-")[:15]}-{counter}'
+                        slug = f'demo-team-{i}-{pos_slug[:15]}-{counter}'
                         counter += 1
                     staff = TeamStaff(
                         first_name=staff_name,
-                        last_name=f'Команды {i}',
+                        last_name=f'Team {i}',
                         slug=slug,
                         position=position,
                         live=True,

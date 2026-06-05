@@ -30,20 +30,6 @@
 
     <div class="row g-4 justify-content-center" style="max-width:960px; margin:0 auto;">
 
-        <!-- Организатор -->
-        <div class="col-12 col-md-4">
-            <div class="role-card h-100 d-flex flex-column">
-                <span class="role-icon">🏆</span>
-                <div class="role-title">Организатор</div>
-                <div class="role-desc">Создавайте мероприятия, управляйте этапами, регистрациями и финансами</div>
-                <div class="mt-auto">
-                    <a href="{% url 'organizers:login' %}" class="btn-enter">Войти как организатор</a>
-                    <a href="{% url 'demo:demo_login' 'organizer' %}" class="btn-demo">🎯 Демо вход</a>
-                    <p class="demo-note">Доступ на 2 часа, без регистрации</p>
-                </div>
-            </div>
-        </div>
-
         <!-- Пилот -->
         <div class="col-12 col-md-4">
             <div class="role-card h-100 d-flex flex-column">
@@ -71,6 +57,22 @@
                 </div>
             </div>
         </div>
+
+        <!-- Организатор -->
+        <div class="col-12 col-md-4">
+            <div class="role-card h-100 d-flex flex-column">
+                <span class="role-icon">🏆</span>
+                <div class="role-title">Организатор</div>
+                <div class="role-desc">Создавайте мероприятия, управляйте этапами, регистрациями и финансами</div>
+                <div class="mt-auto">
+                    <a href="{% url 'organizers:login' %}" class="btn-enter">Войти как организатор</a>
+                    <a href="{% url 'demo:demo_login' 'organizer' %}" class="btn-demo">🎯 Демо вход</a>
+                    <p class="demo-note">Доступ на 2 часа, без регистрации</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
 
     </div>
 </div>
