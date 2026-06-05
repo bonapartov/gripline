@@ -83,7 +83,8 @@ def dashboard(request):
     support_phone = settings_obj.support_phone if settings_obj else ""
     support_email = settings_obj.support_email if settings_obj else ""
     terms_text = settings_obj.terms_text if settings_obj else ""
-    
+    payments_enabled = settings_obj.payments_enabled if settings_obj else False
+
     return render(request, 'organizers/dashboard.html', {
         'championships': championships,
         'stages': stages,
@@ -97,6 +98,7 @@ def dashboard(request):
         'support_phone': support_phone,
         'support_email': support_email,
         'terms_text': terms_text,
+        'payments_enabled': payments_enabled,
     })
 
 @login_required
@@ -764,11 +766,15 @@ def stage_registrations(request, stage_id):
         cls_name = app.race_class.name if app.race_class else 'Без класса'
         by_class.setdefault(cls_name, []).append(app)
 
+    settings_obj = OrganizerSettings.objects.first()
+    payments_enabled = settings_obj.payments_enabled if settings_obj else False
+
     return render(request, 'organizers/stage_registrations.html', {
         'stage': stage,
         'by_class': by_class,
         'total': applications.count(),
         'pending_count': applications.filter(status='submitted').count(),
+        'payments_enabled': payments_enabled,
     })
 
 
@@ -888,6 +894,11 @@ def stage_finance(request, stage_id):
     from .models import Stage
     from applications.models import Application, ApplicationPayment
     from django.db.models import Sum, Count, Q
+
+    settings_obj = OrganizerSettings.objects.first()
+    if not (settings_obj and settings_obj.payments_enabled):
+        messages.error(request, 'Финансовый модуль отключён.')
+        return redirect('organizers:dashboard')
 
     stage = get_object_or_404(Stage, pk=stage_id, championship__organizer__user=request.user)
 

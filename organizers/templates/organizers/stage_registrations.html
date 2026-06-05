@@ -24,7 +24,7 @@
         </div>
         <div class="d-flex gap-2">
             <a href="{% url 'organizers:stage_numbers' stage.id %}" class="btn btn-outline-warning btn-sm">🔢 Сетка номеров</a>
-            <a href="{% url 'organizers:stage_finance' stage.id %}" class="btn btn-outline-success btn-sm">💰 Финансы</a>
+            {% if payments_enabled %}<a href="{% url 'organizers:stage_finance' stage.id %}" class="btn btn-outline-success btn-sm">💰 Финансы</a>{% endif %}
             <a href="{% url 'organizers:dashboard' %}" class="btn btn-outline-secondary btn-sm">
                 <i class="fas fa-arrow-left me-1"></i>Назад
             </a>
