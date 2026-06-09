@@ -14,6 +14,51 @@
 
 {% block custom_scripts %}
 <script src="{% static 'website/js/custom.js' %}"></script>
+<script>
+(function() {
+    if (!localStorage.getItem('gl_cookies_accepted')) {
+        var banner = document.createElement('div');
+        banner.id = 'gl-cookie-banner';
+        banner.innerHTML = '<span>Для корректной работы сайта мы обрабатываем файлы cookies.</span><button onclick="document.getElementById(\'gl-cookie-banner\').remove();localStorage.setItem(\'gl_cookies_accepted\',\'1\')">Принять</button>';
+        document.body.appendChild(banner);
+    }
+})();
+</script>
+<style>
+#gl-cookie-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    background: #1a1a25;
+    border-top: 1px solid #333;
+    padding: 0.75rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.85rem;
+    color: #b0bec5;
+}
+#gl-cookie-banner button {
+    flex-shrink: 0;
+    background: #ffc107;
+    color: #1a1a25;
+    border: none;
+    border-radius: 6px;
+    padding: 0.4rem 1.2rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+#gl-cookie-banner button:hover {
+    background: #ffca2c;
+}
+@media (max-width: 575px) {
+    #gl-cookie-banner { flex-direction: column; align-items: flex-start; }
+}
+</style>
 <script type="text/javascript">
     (function(m,e,t,r,i,k,a){
         m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
