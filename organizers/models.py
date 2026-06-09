@@ -245,13 +245,16 @@ def sync_wagtail_stage(sender, instance, created, **kwargs):
             start_date=instance.start_date,
             end_date=instance.end_date,
             track=instance.track,
+            live=False,
         )
         parent_page.add_child(instance=wagtail_stage)
-        wagtail_stage.save_revision().publish()
-        
+        revision = wagtail_stage.save_revision()
+        if instance.is_published:
+            revision.publish()
+
         instance.wagtail_page = wagtail_stage
         instance.save()
-        
+
         for race_class in instance.championship.race_classes.all():
             base_slug = slugify(f"{instance.title}-{race_class.name}")
             slug = base_slug
@@ -259,15 +262,18 @@ def sync_wagtail_stage(sender, instance, created, **kwargs):
             while EventPage.objects.filter(slug=slug).exists():
                 slug = f"{base_slug}-{counter}"
                 counter += 1
-            
+
             event_page = EventPage(
                 title=instance.title,
                 admin_title=f"{instance.title} - {race_class.name}",
                 slug=slug,
                 track=instance.track,
+                live=False,
             )
             wagtail_stage.add_child(instance=event_page)
-            event_page.save_revision().publish()
+            revision = event_page.save_revision()
+            if instance.is_published:
+                revision.publish()
             
             EventOccurrence.objects.create(
                 event=event_page,
@@ -305,17 +311,25 @@ def sync_wagtail_stage(sender, instance, created, **kwargs):
             stage_page.start_date = instance.start_date
             stage_page.end_date = instance.end_date
             stage_page.track = instance.track
-            stage_page.save_revision().publish()
-            
-            for event_page in EventPage.objects.child_of(stage_page).live():
+            revision = stage_page.save_revision()
+            if instance.is_published:
+                revision.publish()
+            elif stage_page.live:
+                stage_page.unpublish()
+
+            for event_page in EventPage.objects.child_of(stage_page):
                 event_page.title = instance.title
                 if event_page.admin_title:
                     parts = event_page.admin_title.split(' - ')
                     if len(parts) > 1:
                         event_page.admin_title = f"{instance.title} - {parts[1]}"
                 event_page.track = instance.track
-                event_page.save_revision().publish()
-                
+                revision = event_page.save_revision()
+                if instance.is_published:
+                    revision.publish()
+                elif event_page.live:
+                    event_page.unpublish()
+
                 if event_page.occurrences.exists():
                     occurrence = event_page.occurrences.first()
                     occurrence.start = instance.start_date
