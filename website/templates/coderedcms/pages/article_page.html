@@ -169,7 +169,7 @@
     <div style="margin: 3rem auto; padding: 2rem 0; max-width: 1500px !important; width: 100% !important;">
       <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
         {% if prev_page %}
-        <div style="flex: 1; min-width: 500px;">
+        <div style="flex: 1; min-width: min(500px, 100%);">
           <a href="{% pageurl prev_page %}" style="text-decoration: none; color: inherit;">
             <div style="background: var(--gl-surface-card); border: 1px solid var(--gl-border-card); border-radius: var(--gl-radius-lg); overflow: hidden; box-shadow: var(--gl-shadow-card); transition: transform var(--gl-motion-medium); height: 100%;">
               {% if prev_page.specific.cover_image %}
@@ -186,7 +186,7 @@
         {% endif %}
 
         {% if next_page %}
-        <div style="flex: 1; min-width: 500px;">
+        <div style="flex: 1; min-width: min(500px, 100%);">
           <a href="{% pageurl next_page %}" style="text-decoration: none; color: inherit;">
             <div style="background: var(--gl-surface-card); border: 1px solid var(--gl-border-card); border-radius: var(--gl-radius-lg); overflow: hidden; box-shadow: var(--gl-shadow-card); transition: transform var(--gl-motion-medium); height: 100%;">
               {% if next_page.specific.cover_image %}
