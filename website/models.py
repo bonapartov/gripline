@@ -1975,13 +1975,21 @@ class HomePage(CoderedWebPage):
         from django.utils import timezone
         from datetime import timedelta
 
-        # Используем московское время для всех сравнений        
+        # Используем московское время для всех сравнений
         now = timezone.localtime()
         context['now'] = now
         next_event = None  # <--- ВАЖНО: инициализируем переменную
-        
+
+        # ID страниц этапов, скрытых организатором (is_published=False)
+        from organizers.models import Stage as OrgStage
+        _draft_stage_page_ids = OrgStage.objects.filter(
+            is_published=False, wagtail_page__isnull=False
+        ).values_list('wagtail_page_id', flat=True)
+
         # 1. Сначала ищем StagePage, который идёт ПРЯМО СЕЙЧАС (start <= now <= end)
-        current_stages = StagePage.objects.live().filter(
+        current_stages = StagePage.objects.live().exclude(
+            id__in=_draft_stage_page_ids
+        ).filter(
             start_date__lte=now,
             end_date__gte=now
         ).distinct().select_related('track')
@@ -2002,7 +2010,9 @@ class HomePage(CoderedWebPage):
         
         # 2. Если текущего нет — ищем ближайший БУДУЩИЙ StagePage
         if not next_event:
-            upcoming_stages = StagePage.objects.live().filter(
+            upcoming_stages = StagePage.objects.live().exclude(
+                id__in=_draft_stage_page_ids
+            ).filter(
                 start_date__gt=now
             ).order_by('start_date').distinct().select_related('track')
             
@@ -2116,7 +2126,9 @@ class HomePage(CoderedWebPage):
         context['selected_class_id'] = selected_class_id
 
         # --- БЛОК 4: Ближайшие события (календарь) ---
-        upcoming_stages_raw = StagePage.objects.live().filter(
+        upcoming_stages_raw = StagePage.objects.live().exclude(
+            id__in=_draft_stage_page_ids
+        ).filter(
             start_date__gt=now
         ).order_by('start_date').distinct().select_related('track')
         
