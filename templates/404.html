@@ -1,0 +1,157 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 — Трасса потеряна | Gripline</title>
+    <link rel="stylesheet" href="{% static 'website/css/tokens.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--gl-surface-body);
+            color: var(--gl-fg-2);
+            font-family: var(--gl-font-display);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+        }
+
+        .page-404 {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            max-width: 780px;
+            width: 100%;
+        }
+
+        .page-404__logo {
+            font-size: 1.4rem;
+            font-weight: 900;
+            letter-spacing: 0.05em;
+            color: var(--gl-brand-yellow);
+            text-decoration: none;
+            margin-bottom: 2.5rem;
+            display: inline-block;
+        }
+
+        .page-404__image {
+            width: 100%;
+            max-width: 680px;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 2rem;
+            box-shadow: var(--gl-shadow-card);
+        }
+
+        .page-404__image img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .page-404__code {
+            font-size: 5rem;
+            font-weight: 900;
+            color: var(--gl-brand-yellow);
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-404__title {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--gl-fg-1);
+            margin-bottom: 0.75rem;
+        }
+
+        .page-404__subtitle {
+            font-size: 1rem;
+            color: var(--gl-fg-3);
+            margin-bottom: 2rem;
+        }
+
+        .page-404__actions {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn-primary-gl {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--gl-brand-yellow);
+            color: var(--gl-fg-on-yellow);
+            font-weight: 700;
+            font-size: 0.95rem;
+            text-decoration: none;
+            padding: 0.65rem 1.5rem;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .btn-primary-gl:hover {
+            background: var(--gl-brand-yellow-hover);
+            color: var(--gl-fg-on-yellow);
+        }
+
+        .btn-outline-gl {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: transparent;
+            color: var(--gl-fg-2);
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-decoration: none;
+            padding: 0.65rem 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--gl-border-divider);
+            transition: border-color 0.2s, color 0.2s;
+        }
+
+        .btn-outline-gl:hover {
+            border-color: var(--gl-fg-3);
+            color: var(--gl-fg-1);
+        }
+
+        @media (max-width: 575px) {
+            .page-404__code { font-size: 3.5rem; }
+            .page-404__title { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-404">
+        <a href="/" class="page-404__logo">GRIPLINE</a>
+
+        <div class="page-404__image">
+            <img src="{% static 'website/img/404.jpg' %}" alt="404 — трасса потеряна">
+        </div>
+
+        <div class="page-404__code">404</div>
+        <h1 class="page-404__title">Ой, трасса потеряна!</h1>
+        <p class="page-404__subtitle">Страница не найдена — возможно, её переехал карт или она никогда не существовала.</p>
+
+        <div class="page-404__actions">
+            <a href="/" class="btn-primary-gl">
+                <i class="fas fa-home"></i> На главную
+            </a>
+            <a href="/top/drivers/" class="btn-outline-gl">
+                <i class="fas fa-trophy"></i> Рейтинг
+            </a>
+            <a href="/event_calendar/" class="btn-outline-gl">
+                <i class="fas fa-calendar-alt"></i> Календарь
+            </a>
+        </div>
+    </div>
+</body>
+</html>
