@@ -12,13 +12,16 @@ from django.conf import settings
 from django.db.models import Q
 from .forms import RegistrationForm, DriverProfileForm, SocialLinkFormSet
 from website.models import Driver
-from .models import DriverClaim, PilotDocument
+from .models import DriverClaim, PilotDocument, YandexSocialAuth, SocialAuthSettings
 from wagtail.images.models import Image
 from django.utils import timezone
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.admin.views.decorators import staff_member_required
 import json
+import secrets
+import urllib.parse
+import urllib.request as urllib_request
 
 
 def send_admin_notification(claim_type, claim_data):
@@ -548,3 +551,225 @@ def delete_pilot_document(request, doc_id):
     doc.file.delete(save=False)
     doc.delete()
     return JsonResponse({'success': True})
+
+
+# ─── Яндекс OAuth ────────────────────────────────────────────────────────────
+
+_YANDEX_CALLBACK_URI = 'https://gripline.ru/accounts/yandex/callback/'
+
+
+def _redirect_by_role(user):
+    if hasattr(user, 'organizer_profile'):
+        return redirect('organizers:dashboard')
+    from teams.models import TeamManager
+    if TeamManager.objects.filter(user=user).exists():
+        return redirect('teams:dashboard')
+    return redirect('accounts:profile')
+
+
+def yandex_login(request):
+    settings_obj = SocialAuthSettings.get()
+    if not settings_obj.yandex_enabled:
+        messages.error(request, 'Вход через Яндекс временно недоступен.')
+        return redirect('accounts:login')
+    state = secrets.token_urlsafe(16)
+    request.session['yandex_oauth_state'] = state
+    params = {
+        'response_type': 'code',
+        'client_id': settings_obj.yandex_client_id,
+        'redirect_uri': _YANDEX_CALLBACK_URI,
+        'state': state,
+        'scope': 'login:email login:info',
+        'force_confirm': 'no',
+    }
+    return redirect('https://oauth.yandex.ru/authorize?' + urllib.parse.urlencode(params))
+
+
+def yandex_callback(request):
+    state = request.GET.get('state', '')
+    if state != request.session.pop('yandex_oauth_state', None):
+        messages.error(request, 'Ошибка безопасности. Попробуйте снова.')
+        return redirect('accounts:login')
+
+    code = request.GET.get('code')
+    if request.GET.get('error') or not code:
+        messages.error(request, 'Вход через Яндекс отменён.')
+        return redirect('accounts:login')
+
+    settings_obj = SocialAuthSettings.get()
+
+    try:
+        token_data = urllib.parse.urlencode({
+            'grant_type': 'authorization_code',
+            'code': code,
+            'client_id': settings_obj.yandex_client_id,
+            'client_secret': settings_obj.yandex_client_secret,
+        }).encode()
+        req = urllib_request.Request('https://oauth.yandex.ru/token', data=token_data, method='POST')
+        with urllib_request.urlopen(req, timeout=10) as resp:
+            token_response = json.loads(resp.read())
+        access_token = token_response.get('access_token')
+        if not access_token:
+            raise ValueError('no access_token')
+    except Exception:
+        messages.error(request, 'Ошибка получения токена от Яндекса.')
+        return redirect('accounts:login')
+
+    try:
+        info_req = urllib_request.Request(
+            'https://login.yandex.ru/info?format=json',
+            headers={'Authorization': f'OAuth {access_token}'},
+        )
+        with urllib_request.urlopen(info_req, timeout=10) as resp:
+            ya = json.loads(resp.read())
+    except Exception:
+        messages.error(request, 'Ошибка получения данных от Яндекса.')
+        return redirect('accounts:login')
+
+    yandex_uid = str(ya.get('id', ''))
+    yandex_login_name = ya.get('login', '')
+    emails = ya.get('emails', [])
+    yandex_email = ya.get('default_email') or (emails[0] if emails else '')
+    first_name = ya.get('first_name', '')
+    last_name = ya.get('last_name', '')
+
+    if not yandex_uid or not yandex_email:
+        messages.error(request, 'Не удалось получить данные аккаунта от Яндекса.')
+        return redirect('accounts:login')
+
+    # Шаг 1: ищем по yandex_uid
+    try:
+        social_auth = YandexSocialAuth.objects.get(yandex_uid=yandex_uid)
+        user = social_auth.user
+        user.backend = 'django.contrib.auth.backends.ModelBackend'
+        login(request, user)
+        return _redirect_by_role(user)
+    except YandexSocialAuth.DoesNotExist:
+        pass
+
+    # Шаг 2: ищем существующего User по email
+    try:
+        user = User.objects.get(email__iexact=yandex_email)
+        YandexSocialAuth.objects.create(user=user, yandex_uid=yandex_uid, yandex_login=yandex_login_name)
+        if not user.is_active:
+            user.is_active = True
+            user.save()
+        user.backend = 'django.contrib.auth.backends.ModelBackend'
+        login(request, user)
+        return _redirect_by_role(user)
+    except User.DoesNotExist:
+        pass
+
+    # Шаг 3: новый пользователь — создаём и редиректим на выбор роли
+    username = yandex_email
+    counter = 1
+    while User.objects.filter(username=username).exists():
+        username = f'{yandex_email}_{counter}'
+        counter += 1
+    user = User.objects.create_user(
+        username=username,
+        email=yandex_email,
+        first_name=first_name,
+        last_name=last_name,
+        password=None,
+    )
+    YandexSocialAuth.objects.create(user=user, yandex_uid=yandex_uid, yandex_login=yandex_login_name)
+    request.session['yandex_first_name'] = first_name
+    request.session['yandex_last_name'] = last_name
+    request.session['yandex_onboarding'] = True
+    user.backend = 'django.contrib.auth.backends.ModelBackend'
+    login(request, user)
+    return redirect('accounts:yandex_choose_role')
+
+
+@login_required
+def yandex_choose_role(request):
+    if not request.session.get('yandex_onboarding'):
+        return _redirect_by_role(request.user)
+    return render(request, 'accounts/yandex_choose_role.html')
+
+
+@login_required
+def yandex_pilot_onboarding(request):
+    if not request.session.get('yandex_onboarding'):
+        return redirect('accounts:profile')
+    first_name = request.session.get('yandex_first_name', request.user.first_name)
+    last_name = request.session.get('yandex_last_name', request.user.last_name)
+    drivers = Driver.objects.filter(first_name__iexact=first_name, last_name__iexact=last_name)
+    if drivers.exists():
+        request.session['found_drivers'] = [
+            {'id': d.id, 'name': d.full_name, 'city': d.city or ''}
+            for d in drivers
+        ]
+        request.session['user_id'] = request.user.id
+        request.session['first_name'] = first_name
+        request.session['last_name'] = last_name
+        request.session['city'] = ''
+        for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
+            request.session.pop(key, None)
+        return redirect('accounts:select_driver')
+    DriverClaim.objects.create(
+        user=request.user,
+        requested_first_name=first_name,
+        requested_last_name=last_name,
+        status='pending',
+    )
+    send_admin_notification('пилотом', {
+        'user_email': request.user.email,
+        'first_name': first_name,
+        'last_name': last_name,
+        'city': '',
+        'driver_name': 'новый пилот',
+    })
+    for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
+        request.session.pop(key, None)
+    messages.success(request, 'Аккаунт пилота создан! Ожидайте привязки к профилю.')
+    return redirect('accounts:profile')
+
+
+@login_required
+def yandex_team_onboarding(request):
+    if not request.session.get('yandex_onboarding'):
+        return redirect('teams:dashboard')
+    if request.method == 'POST':
+        from teams.models import Team, TeamClaim
+        from teams.views import send_team_admin_notification
+        team_name = request.POST.get('team_name', '').strip()
+        if not team_name:
+            messages.error(request, 'Введите название команды.')
+            return render(request, 'accounts/yandex_team_onboarding.html')
+        teams_qs = Team.objects.filter(name__icontains=team_name)
+        if teams_qs.exists():
+            request.session['found_teams'] = [{'id': t.id, 'name': t.name} for t in teams_qs]
+            request.session['user_id'] = request.user.id
+            request.session['requested_team_name'] = team_name
+            for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
+                request.session.pop(key, None)
+            return redirect('teams:select_team')
+        from teams.models import TeamClaim as TC
+        TC.objects.create(user=request.user, requested_team_name=team_name, status='pending')
+        send_team_admin_notification({'user_email': request.user.email, 'team_name': team_name})
+        for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
+            request.session.pop(key, None)
+        messages.success(request, 'Заявка на команду отправлена администратору. После одобрения вы получите доступ к кабинету команды.')
+        return redirect('accounts:profile')
+    return render(request, 'accounts/yandex_team_onboarding.html')
+
+
+@login_required
+def yandex_organizer_onboarding(request):
+    if not request.session.get('yandex_onboarding'):
+        return redirect('organizers:dashboard')
+    if request.method == 'POST':
+        from organizers.models import OrganizerProfile
+        phone = request.POST.get('phone', '').strip()
+        telegram = request.POST.get('telegram', '').strip()
+        OrganizerProfile.objects.get_or_create(
+            user=request.user,
+            defaults={'phone': phone, 'telegram': telegram},
+        )
+        for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
+            request.session.pop(key, None)
+        messages.success(request, 'Профиль организатора создан!')
+        return redirect('organizers:dashboard')
+    return render(request, 'accounts/yandex_organizer_onboarding.html')

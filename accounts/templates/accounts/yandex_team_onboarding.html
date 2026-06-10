@@ -1,0 +1,39 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block content %}
+<style>
+    .force-width-1500 { max-width: 1500px !important; margin: 0 auto; padding: 0 1rem; }
+    .onboarding-container { max-width: 600px; margin: 3rem auto; padding: 2rem; background-color: #1a1a25; border: 1px solid #2a2a35; border-radius: 8px; }
+    .onboarding-title { color: #ffc107; text-align: center; margin-bottom: 0.5rem; text-transform: uppercase; font-weight: bold; font-size: 1.75rem; }
+    .onboarding-sub { color: #adb5bd; text-align: center; margin-bottom: 2rem; font-size: 0.9rem; }
+    .form-group { margin-bottom: 1.5rem; }
+    .form-label { color: #0dcaf0; font-size: 0.85rem; text-transform: uppercase; font-weight: bold; margin-bottom: 0.5rem; display: block; }
+    .form-control { background-color: #15151c !important; border: 1px solid #2a2a35 !important; color: white !important; border-radius: 4px; padding: 0.75rem; width: 100%; }
+    .form-control:focus { border-color: #ffc107 !important; outline: none; }
+    .btn-submit { background-color: #ffc107; color: #000; border: none; padding: 0.75rem 2rem; font-weight: bold; border-radius: 4px; cursor: pointer; width: 100%; }
+    .btn-submit:hover { background-color: #e0a800; }
+    .error-message { background-color: #dc3545; color: white; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem; }
+</style>
+
+<div class="force-width-1500 my-5">
+    <div class="onboarding-container">
+        <h1 class="onboarding-title">Команда</h1>
+        <p class="onboarding-sub">Укажите название команды — мы найдём её в базе или создадим заявку на новую</p>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="error-message">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label">Название команды</label>
+                <input type="text" name="team_name" class="form-control" required placeholder="Например: Speed Racing">
+            </div>
+            <button type="submit" class="btn-submit">Продолжить</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

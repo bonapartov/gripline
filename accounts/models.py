@@ -70,6 +70,31 @@ class UserProfile(models.Model):
         return (date.today() - self.birth_date).days / 365.25 < 18
 
 
+class YandexSocialAuth(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='yandex_auth')
+    yandex_uid = models.CharField(max_length=64, unique=True)
+    yandex_login = models.CharField(max_length=128)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Яндекс аккаунт"
+        verbose_name_plural = "Яндекс аккаунты"
+
+
+class SocialAuthSettings(models.Model):
+    yandex_enabled = models.BooleanField("Вход через Яндекс", default=False)
+    yandex_client_id = models.CharField("Client ID", max_length=200, blank=True)
+    yandex_client_secret = models.CharField("Client Secret", max_length=200, blank=True)
+
+    class Meta:
+        verbose_name = "Авторизация на сайте"
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
 class PilotDocument(models.Model):
     """Личное хранилище документов пилота (паспорт, лицензия и т.д.)"""
     profile = models.ForeignKey(

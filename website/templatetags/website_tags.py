@@ -136,3 +136,12 @@ def month_name_ru(date_value):
         return f"{months_ru[month_num]} {year}"
 
     return str(date_value)
+
+
+@register.simple_tag
+def get_social_auth_settings():
+    try:
+        from accounts.models import SocialAuthSettings
+        return SocialAuthSettings.get()
+    except Exception:
+        return None

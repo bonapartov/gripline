@@ -21,4 +21,12 @@ urlpatterns = [
     path('verify-email/<uidb64>/<token>/', views.verify_email, name='verify_email'),
     path('resend-verification/', views.resend_verification, name='resend_verification'),
     path('verification-sent/', views.verification_sent, name='verification_sent'),
+
+    # Yandex OAuth
+    path('yandex/login/', views.yandex_login, name='yandex_login'),
+    path('yandex/callback/', views.yandex_callback, name='yandex_callback'),
+    path('yandex/choose-role/', views.yandex_choose_role, name='yandex_choose_role'),
+    path('yandex/onboarding/pilot/', views.yandex_pilot_onboarding, name='yandex_pilot_onboarding'),
+    path('yandex/onboarding/team/', views.yandex_team_onboarding, name='yandex_team_onboarding'),
+    path('yandex/onboarding/organizer/', views.yandex_organizer_onboarding, name='yandex_organizer_onboarding'),
 ]
