@@ -573,6 +573,24 @@ def _redirect_by_role(user, request=None):
     has_team = TeamManager.objects.filter(user=user, is_active=True).exists()
     has_driver_approved = DriverClaim.objects.filter(user=user, status='approved').exists()
 
+    # Добавление второй роли: пользователь уже имеет роль, но хочет добавить новую
+    if request is not None:
+        yandex_role = request.session.get('yandex_role')
+        has_pending_driver = DriverClaim.objects.filter(user=user, status='pending').exists()
+        has_pending_team = TeamClaim.objects.filter(user=user, status='pending').exists()
+        if yandex_role == 'pilot' and not has_driver_approved and not has_pending_driver:
+            request.session['yandex_onboarding'] = True
+            if not request.session.get('yandex_first_name'):
+                request.session['yandex_first_name'] = user.first_name
+                request.session['yandex_last_name'] = user.last_name
+            return redirect('accounts:yandex_pilot_onboarding')
+        if yandex_role == 'team' and not has_team and not has_pending_team:
+            request.session['yandex_onboarding'] = True
+            if not request.session.get('yandex_first_name'):
+                request.session['yandex_first_name'] = user.first_name
+                request.session['yandex_last_name'] = user.last_name
+            return redirect('accounts:yandex_team_onboarding')
+
     # Мультироль: одобренный пилот + активный менеджер команды
     if has_driver_approved and has_team:
         if request is not None:
