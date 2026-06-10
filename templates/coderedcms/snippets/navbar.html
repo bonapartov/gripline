@@ -35,13 +35,25 @@
           <div class="text-end">
             <div class="small text-muted">Вы вошли как</div>
             {% if user.profile.driver %}
-              <div class="text-warning fw-bold small">
-                <i class="fas fa-helmet-safety me-1"></i>{{ user.profile.driver.full_name|truncatechars:20 }}
-              </div>
+              {% if user.team_managers.exists and request.session.active_role == 'team' %}
+                <div class="text-warning fw-bold small">
+                  <i class="fas fa-users me-1"></i>{{ user.team_managers.first.team.name|truncatechars:20 }}
+                </div>
+              {% else %}
+                <div class="text-warning fw-bold small">
+                  <i class="fas fa-helmet-safety me-1"></i>{{ user.profile.driver.full_name|truncatechars:20 }}
+                </div>
+              {% endif %}
             {% elif user.team_managers.exists %}
-              <div class="text-warning fw-bold small">
-                <i class="fas fa-users me-1"></i>{{ user.team_managers.first.team.name|truncatechars:20 }}
-              </div>
+              {% if request.session.active_role == 'pilot' %}
+                <div class="text-warning fw-bold small">
+                  <i class="fas fa-helmet-safety me-1"></i>{{ user.first_name }} {{ user.last_name|truncatechars:15 }}
+                </div>
+              {% else %}
+                <div class="text-warning fw-bold small">
+                  <i class="fas fa-users me-1"></i>{{ user.team_managers.first.team.name|truncatechars:20 }}
+                </div>
+              {% endif %}
             {% elif user.organizer_profile %}
               <div class="text-warning fw-bold small">
                 <i class="fas fa-trophy me-1"></i>{{ user.email|truncatechars:20 }}
@@ -54,7 +66,7 @@
           </div>
           {% if user.organizer_profile %}
             <a href="{% url 'organizers:dashboard' %}" class="btn btn-sm btn-outline-success">Личный кабинет</a>
-          {% elif user.team_managers.exists %}
+          {% elif user.team_managers.exists and request.session.active_role != 'pilot' %}
             <a href="{% url 'teams:dashboard' %}" class="btn btn-sm btn-outline-success">Личный кабинет</a>
           {% else %}
             <a href="{% url 'accounts:profile' %}" class="btn btn-sm btn-outline-success">Личный кабинет</a>

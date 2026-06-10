@@ -826,6 +826,7 @@ def yandex_pilot_onboarding(request):
             })
             for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
                 request.session.pop(key, None)
+            request.session['active_role'] = 'pilot'
             messages.success(request, 'Заявка на привязку профиля отправлена. Ожидайте подтверждения.')
             return redirect('accounts:profile')
 
@@ -864,6 +865,7 @@ def yandex_pilot_onboarding(request):
             })
             for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
                 request.session.pop(key, None)
+            request.session['active_role'] = 'pilot'
             messages.success(request, 'Профиль создан, появится в рейтингах после первого этапа.')
             return redirect('accounts:profile')
 
@@ -905,6 +907,7 @@ def yandex_team_onboarding(request):
             send_team_admin_notification({'user_email': request.user.email, 'team_name': team.name})
             for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
                 request.session.pop(key, None)
+            request.session['active_role'] = 'team'
             messages.success(request, 'Заявка отправлена, ожидайте подтверждения.')
             return redirect('teams:dashboard')
 
@@ -926,6 +929,7 @@ def yandex_team_onboarding(request):
             send_team_admin_notification({'user_email': request.user.email, 'team_name': team_name})
             for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
                 request.session.pop(key, None)
+            request.session['active_role'] = 'team'
             messages.success(request, 'Команда создана, появится на сайте после проверки.')
             return redirect('teams:dashboard')
 
