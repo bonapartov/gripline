@@ -25,9 +25,7 @@ urlpatterns = [
     # Yandex OAuth
     path('yandex/login/', views.yandex_login, name='yandex_login'),
     path('yandex/callback/', views.yandex_callback, name='yandex_callback'),
-    path('yandex/choose-role/', views.yandex_choose_role, name='yandex_choose_role'),
     path('yandex/onboarding/pilot/', views.yandex_pilot_onboarding, name='yandex_pilot_onboarding'),
     path('yandex/onboarding/team/', views.yandex_team_onboarding, name='yandex_team_onboarding'),
     path('yandex/onboarding/organizer/', views.yandex_organizer_onboarding, name='yandex_organizer_onboarding'),
-    path('yandex/claim-sent/', views.yandex_claim_sent, name='yandex_claim_sent'),
 ]

@@ -561,17 +561,35 @@ def delete_pilot_document(request, doc_id):
 _YANDEX_CALLBACK_URI = 'https://gripline.ru/accounts/yandex/callback/'
 
 
-def _redirect_by_role(user):
-    if hasattr(user, 'organizer_profile'):
-        return redirect('organizers:dashboard')
+def _redirect_by_role(user, request=None):
     from teams.models import TeamManager
-    if TeamManager.objects.filter(user=user).exists():
+    has_organizer = hasattr(user, 'organizer_profile')
+    has_team = TeamManager.objects.filter(user=user, is_active=True).exists()
+    has_driver_approved = DriverClaim.objects.filter(user=user, status='approved').exists()
+
+    if has_organizer:
+        return redirect('organizers:dashboard')
+    if has_team:
         return redirect('teams:dashboard')
-    if DriverClaim.objects.filter(user=user).exists():
+    if has_driver_approved:
         return redirect('accounts:profile')
-    # Нет ни одной роли — отправляем на выбор роли
-    if YandexSocialAuth.objects.filter(user=user).exists():
-        return redirect('accounts:yandex_choose_role')
+
+    # Pending-заявки — отправляем на профиль где будет inline-статус
+    if DriverClaim.objects.filter(user=user, status='pending').exists():
+        return redirect('accounts:profile')
+    from teams.models import TeamClaim
+    if TeamClaim.objects.filter(user=user, status='pending').exists():
+        return redirect('teams:dashboard')
+
+    # Нет ни одной роли — онбординг по роли из сессии
+    if request is not None:
+        role = request.session.get('yandex_role', 'pilot')
+        url_map = {
+            'pilot': 'accounts:yandex_pilot_onboarding',
+            'team': 'accounts:yandex_team_onboarding',
+            'organizer': 'accounts:yandex_organizer_onboarding',
+        }
+        return redirect(url_map.get(role, 'accounts:yandex_pilot_onboarding'))
     return redirect('accounts:profile')
 
 
@@ -580,6 +598,10 @@ def yandex_login(request):
     if not settings_obj.yandex_enabled:
         messages.error(request, 'Вход через Яндекс временно недоступен.')
         return redirect('accounts:login')
+    role = request.GET.get('role', 'pilot')
+    if role not in ('pilot', 'team', 'organizer'):
+        role = 'pilot'
+    request.session['yandex_role'] = role
     state = secrets.token_urlsafe(16)
     request.session['yandex_oauth_state'] = state
     params = {
@@ -651,7 +673,7 @@ def yandex_callback(request):
         user = social_auth.user
         user.backend = 'django.contrib.auth.backends.ModelBackend'
         login(request, user)
-        return _redirect_by_role(user)
+        return _redirect_by_role(user, request)
     except YandexSocialAuth.DoesNotExist:
         pass
 
@@ -664,11 +686,11 @@ def yandex_callback(request):
             user.save()
         user.backend = 'django.contrib.auth.backends.ModelBackend'
         login(request, user)
-        return _redirect_by_role(user)
+        return _redirect_by_role(user, request)
     except User.DoesNotExist:
         pass
 
-    # Шаг 3: новый пользователь — создаём и редиректим на выбор роли
+    # Шаг 3: новый пользователь — создаём и направляем на онбординг по роли
     username = yandex_email
     counter = 1
     while User.objects.filter(username=username).exists():
@@ -681,18 +703,15 @@ def yandex_callback(request):
         last_name=last_name,
         password=None,
     )
+    user.set_unusable_password()
+    user.save()
     YandexSocialAuth.objects.create(user=user, yandex_uid=yandex_uid, yandex_login=yandex_login_name)
     request.session['yandex_first_name'] = first_name
     request.session['yandex_last_name'] = last_name
     request.session['yandex_onboarding'] = True
     user.backend = 'django.contrib.auth.backends.ModelBackend'
     login(request, user)
-    return redirect('accounts:yandex_choose_role')
-
-
-@login_required
-def yandex_choose_role(request):
-    return render(request, 'accounts/yandex_choose_role.html')
+    return _redirect_by_role(user, request)
 
 
 @login_required
@@ -757,13 +776,9 @@ def yandex_team_onboarding(request):
         send_team_admin_notification({'user_email': request.user.email, 'team_name': team_name})
         for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
             request.session.pop(key, None)
-        return redirect('accounts:yandex_claim_sent')
+        messages.success(request, 'Заявка на управление командой отправлена. Ожидайте подтверждения.')
+        return redirect('teams:dashboard')
     return render(request, 'accounts/yandex_team_onboarding.html')
-
-
-@login_required
-def yandex_claim_sent(request):
-    return render(request, 'accounts/yandex_claim_sent.html')
 
 
 @login_required
