@@ -52,7 +52,7 @@ def _effective_entry_fee(stage):
     return fee
 
 
-@login_required
+@login_required(login_url='/choose-role/')
 def apply(request, stage_id):
     """Подача заявки на этап — универсальная для пилота/команды/организатора"""
     stage = get_object_or_404(Stage, pk=stage_id)
