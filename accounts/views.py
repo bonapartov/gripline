@@ -408,7 +408,7 @@ def profile(request):
                 is_published=True,
                 championship__is_published=True,
                 wagtail_page__isnull=False,
-                date_end__gte=timezone.now().date(),
+                end_date__gte=timezone.now(),
             ).exists()
             my_applications = Application.objects.filter(
                 submitted_by=request.user
