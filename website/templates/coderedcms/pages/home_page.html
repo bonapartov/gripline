@@ -432,7 +432,7 @@
             {% for article in latest_articles %}
             <a href="{{ article.url }}" class="news-card">
                 {% if article.cover_image %}
-                    {% image article.cover_image fill-400x220 as img %}
+                    {% image article.cover_image width-400 as img %}
                     <img src="{{ img.url }}" class="news-card-img" alt="{{ article.title }}">
                 {% else %}
                     <div class="news-card-img-placeholder">
@@ -544,7 +544,7 @@
         {% for article in latest_tech_articles %}
         <a href="{{ article.url }}" class="news-card">
             {% if article.cover_image %}
-                {% image article.cover_image fill-400x220 as img %}
+                {% image article.cover_image width-400 as img %}
                 <img src="{{ img.url }}" class="news-card-img" alt="{{ article.title }}">
             {% else %}
                 <div class="news-card-img-placeholder">
