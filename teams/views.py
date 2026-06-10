@@ -413,7 +413,19 @@ def dashboard(request):
             status='pending'
         ).select_related('driver')
 
-        all_drivers = Driver.objects.all().order_by('last_name')
+        # Определяем демо-команду по email менеджера
+        is_demo_team = request.user.email.startswith('demo_team_')
+        from accounts.models import DriverClaim
+        if is_demo_team:
+            demo_driver_ids = DriverClaim.objects.filter(
+                user__email__startswith='demo_pilot_', status='approved'
+            ).values_list('driver_id', flat=True)
+            all_drivers = Driver.objects.filter(id__in=demo_driver_ids).order_by('last_name')
+        else:
+            demo_driver_ids = DriverClaim.objects.filter(
+                user__email__startswith='demo_pilot_'
+            ).values_list('driver_id', flat=True)
+            all_drivers = Driver.objects.exclude(id__in=demo_driver_ids).order_by('last_name')
 
         form = TeamForm(instance=team)
         formset = TeamSocialLinkFormSet(instance=team)
@@ -569,6 +581,16 @@ def invite_driver(request):
     claim = DriverClaim.objects.filter(driver=driver, status='approved').first()
     if not claim:
         messages.error(request, f'{driver.full_name} не зарегистрирован на сайте — отправить приглашение невозможно.')
+        return redirect('teams:dashboard')
+
+    # Демо-фильтрация
+    is_demo_team = request.user.email.startswith('demo_team_')
+    is_demo_pilot = claim.user.email.startswith('demo_pilot_')
+    if is_demo_team and not is_demo_pilot:
+        messages.error(request, 'Демо-команда может приглашать только демо-пилотов.')
+        return redirect('teams:dashboard')
+    if not is_demo_team and is_demo_pilot:
+        messages.error(request, 'Нельзя приглашать демо-пилотов в реальную команду.')
         return redirect('teams:dashboard')
 
     # Проверяем уже существующее приглашение
