@@ -567,6 +567,11 @@ def _redirect_by_role(user):
     from teams.models import TeamManager
     if TeamManager.objects.filter(user=user).exists():
         return redirect('teams:dashboard')
+    if DriverClaim.objects.filter(user=user).exists():
+        return redirect('accounts:profile')
+    # Нет ни одной роли — отправляем на выбор роли
+    if YandexSocialAuth.objects.filter(user=user).exists():
+        return redirect('accounts:yandex_choose_role')
     return redirect('accounts:profile')
 
 
