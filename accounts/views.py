@@ -541,6 +541,7 @@ def upload_pilot_document(request):
         return JsonResponse({'error': 'Профиль не найден'}, status=404)
 
     name = request.POST.get('name', '').strip()
+    doc_number = request.POST.get('doc_number', '').strip()
     file = request.FILES.get('file')
     expiry_date = request.POST.get('expiry_date') or None
 
@@ -550,6 +551,7 @@ def upload_pilot_document(request):
     doc = PilotDocument.objects.create(
         profile=profile,
         name=name,
+        doc_number=doc_number,
         file=file,
         expiry_date=expiry_date,
     )
@@ -557,6 +559,7 @@ def upload_pilot_document(request):
         'success': True,
         'id': doc.id,
         'name': doc.name,
+        'doc_number': doc.doc_number,
         'file_url': doc.file.url,
         'expiry_date': doc.expiry_date.strftime('%d.%m.%Y') if doc.expiry_date else '',
         'is_expired': doc.is_expired,

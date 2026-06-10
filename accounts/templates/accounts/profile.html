@@ -340,6 +340,9 @@
                      style="background:#15151c; border:1px solid {% if doc.is_expired %}#dc3545{% elif doc.expires_soon %}#ffc107{% else %}#2a2a35{% endif %};">
                     <div>
                         <span class="text-white fw-bold">{{ doc.name }}</span>
+                        {% if doc.doc_number %}
+                        <span class="ms-2 small text-muted"># {{ doc.doc_number }}</span>
+                        {% endif %}
                         {% if doc.expiry_date %}
                         <span class="ms-2 small {% if doc.is_expired %}text-danger{% elif doc.expires_soon %}text-warning{% else %}text-muted{% endif %}">
                             до {{ doc.expiry_date|date:"d.m.Y" }}
@@ -358,11 +361,15 @@
                 <!-- Форма загрузки нового документа -->
                 <div class="mt-3 p-3 rounded" style="border:1px dashed #2a2a35;">
                     <div class="row g-2">
-                        <div class="col-md-4">
-                            <label class="text-muted" style="font-size:0.75rem;">Название</label>
-                            <input type="text" id="pdocName" class="form-control form-control-sm" placeholder="Напр. Паспорт" maxlength="200">
-                        </div>
                         <div class="col-md-3">
+                            <label class="text-muted" style="font-size:0.75rem;">Название документа</label>
+                            <input type="text" id="pdocName" class="form-control form-control-sm" placeholder="Например Лицензия" maxlength="200">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="text-muted" style="font-size:0.75rem;">Номер документа (необяз.)</label>
+                            <input type="text" id="pdocNumber" class="form-control form-control-sm" placeholder="Напр. 123456" maxlength="100">
+                        </div>
+                        <div class="col-md-2">
                             <label class="text-muted" style="font-size:0.75rem;">Срок действия (необяз.)</label>
                             <input type="date" id="pdocExpiry" class="form-control form-control-sm">
                         </div>
@@ -452,6 +459,7 @@ function getCookie(name) {
 
 function uploadPilotDoc() {
     const name = document.getElementById('pdocName').value.trim();
+    const number = document.getElementById('pdocNumber').value.trim();
     const file = document.getElementById('pdocFile').files[0];
     const expiry = document.getElementById('pdocExpiry').value;
     const msg = document.getElementById('pdocMsg');
@@ -464,6 +472,7 @@ function uploadPilotDoc() {
     const fd = new FormData();
     fd.append('name', name);
     fd.append('file', file);
+    if (number) fd.append('doc_number', number);
     if (expiry) fd.append('expiry_date', expiry);
 
     fetch('{% url "accounts:upload_pilot_document" %}', {
@@ -476,6 +485,7 @@ function uploadPilotDoc() {
         if (data.success) {
             msg.innerHTML = '<span class="text-success">✓ Документ загружен.</span>';
             document.getElementById('pdocName').value = '';
+            document.getElementById('pdocNumber').value = '';
             document.getElementById('pdocFile').value = '';
             document.getElementById('pdocExpiry').value = '';
             const noDocs = document.getElementById('noPilotDocs');

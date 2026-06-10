@@ -112,6 +112,7 @@ class PilotDocument(models.Model):
         related_name='documents', verbose_name='Профиль'
     )
     name = models.CharField('Название документа', max_length=200)
+    doc_number = models.CharField('Номер документа', max_length=100, blank=True)
     file = models.FileField('Файл', upload_to='pilot_documents/')
     expiry_date = models.DateField('Срок действия', null=True, blank=True)
     uploaded_at = models.DateTimeField('Загружен', auto_now_add=True)
