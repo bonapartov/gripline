@@ -159,6 +159,8 @@
             <button type="submit" class="btn-register">Зарегистрироваться</button>
         </form>
 
+        {% include 'accounts/_social_auth_buttons.html' with role='pilot' %}
+
         <div class="auth-links">
             Уже есть аккаунт? <a href="{% url 'accounts:login' %}">Войти</a>
         </div>

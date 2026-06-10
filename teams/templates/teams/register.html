@@ -295,6 +295,8 @@
         function checkMatch(){const p1=document.getElementById('id_password1').value;const p2=document.getElementById('id_password2').value;const h=document.getElementById('match-hint');if(!p2.length){h.style.display='none';return;}h.style.display='block';if(p1===p2){h.textContent='✓ Пароли совпадают';h.style.color='#28a745';}else{h.textContent='✗ Пароли не совпадают';h.style.color='#dc3545';}}
         </script>
 
+        {% include 'accounts/_social_auth_buttons.html' with role='team' %}
+
         <div class="auth-links">
             Уже есть аккаунт команды? <a href="{% url 'teams:login' %}">Войти</a>
         </div>
