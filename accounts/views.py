@@ -692,8 +692,6 @@ def yandex_callback(request):
 
 @login_required
 def yandex_choose_role(request):
-    if not request.session.get('yandex_onboarding'):
-        return _redirect_by_role(request.user)
     return render(request, 'accounts/yandex_choose_role.html')
 
 
