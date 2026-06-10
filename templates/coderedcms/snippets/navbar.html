@@ -42,24 +42,31 @@
               <div class="text-warning fw-bold small">
                 <i class="fas fa-users me-1"></i>{{ user.team_managers.first.team.name|truncatechars:20 }}
               </div>
+            {% elif user.organizer_profile %}
+              <div class="text-warning fw-bold small">
+                <i class="fas fa-trophy me-1"></i>{{ user.email|truncatechars:20 }}
+              </div>
             {% else %}
               <div class="text-warning fw-bold small">
-                <a href="{% url 'accounts:profile' %}" class="text-warning text-decoration-none">
-                  {{ user.email|truncatechars:20 }}
-                </a>
+                <i class="fas fa-user me-1"></i>{{ user.email|truncatechars:20 }}
               </div>
             {% endif %}
           </div>
+          {% if user.organizer_profile %}
+            <a href="{% url 'organizers:dashboard' %}" class="btn btn-sm btn-outline-success">Личный кабинет</a>
+          {% elif user.team_managers.exists %}
+            <a href="{% url 'teams:dashboard' %}" class="btn btn-sm btn-outline-success">Личный кабинет</a>
+          {% else %}
+            <a href="{% url 'accounts:profile' %}" class="btn btn-sm btn-outline-success">Личный кабинет</a>
+          {% endif %}
           <a href="{% url 'accounts:logout' %}" class="btn btn-sm btn-outline-danger" title="Выйти">
             <i class="fas fa-sign-out-alt"></i>
           </a>
         {% else %}
-          <div class="text-muted small">Не авторизован</div>
+          <a href="/choose-role/" class="btn btn-outline-success bg-transparent d-flex align-items-center gap-1" style="border-color: #28a745; color: #28a745;">
+            <span>Вход</span>
+          </a>
         {% endif %}
-        
-        <a href="/choose-role/" class="btn btn-outline-success bg-transparent d-flex align-items-center gap-1" style="border-color: #28a745; color: #28a745;>
-            <span class="">Вход</span>
-        </a>        
       </div>
     </div>
   </div>
