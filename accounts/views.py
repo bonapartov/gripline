@@ -543,7 +543,15 @@ def upload_pilot_document(request):
     name = request.POST.get('name', '').strip()
     doc_number = request.POST.get('doc_number', '').strip()
     file = request.FILES.get('file')
-    expiry_date = request.POST.get('expiry_date') or None
+    expiry_date_str = request.POST.get('expiry_date') or None
+
+    expiry_date = None
+    if expiry_date_str:
+        from datetime import datetime as dt
+        try:
+            expiry_date = dt.strptime(expiry_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            expiry_date = None
 
     if not name or not file:
         return JsonResponse({'error': 'Название и файл обязательны'}, status=400)
@@ -562,7 +570,7 @@ def upload_pilot_document(request):
             'name': doc.name,
             'doc_number': doc.doc_number,
             'file_url': doc.file.url,
-            'expiry_date': doc.expiry_date.strftime('%d.%m.%Y') if doc.expiry_date else '',
+            'expiry_date': expiry_date.strftime('%d.%m.%Y') if expiry_date else '',
             'is_expired': doc.is_expired,
             'expires_soon': doc.expires_soon,
         })
