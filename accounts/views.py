@@ -548,23 +548,27 @@ def upload_pilot_document(request):
     if not name or not file:
         return JsonResponse({'error': 'Название и файл обязательны'}, status=400)
 
-    doc = PilotDocument.objects.create(
-        profile=profile,
-        name=name,
-        doc_number=doc_number,
-        file=file,
-        expiry_date=expiry_date,
-    )
-    return JsonResponse({
-        'success': True,
-        'id': doc.id,
-        'name': doc.name,
-        'doc_number': doc.doc_number,
-        'file_url': doc.file.url,
-        'expiry_date': doc.expiry_date.strftime('%d.%m.%Y') if doc.expiry_date else '',
-        'is_expired': doc.is_expired,
-        'expires_soon': doc.expires_soon,
-    })
+    try:
+        doc = PilotDocument.objects.create(
+            profile=profile,
+            name=name,
+            doc_number=doc_number,
+            file=file,
+            expiry_date=expiry_date,
+        )
+        return JsonResponse({
+            'success': True,
+            'id': doc.id,
+            'name': doc.name,
+            'doc_number': doc.doc_number,
+            'file_url': doc.file.url,
+            'expiry_date': doc.expiry_date.strftime('%d.%m.%Y') if doc.expiry_date else '',
+            'is_expired': doc.is_expired,
+            'expires_soon': doc.expires_soon,
+        })
+    except Exception as e:
+        import traceback
+        return JsonResponse({'error': f'{type(e).__name__}: {e}', 'trace': traceback.format_exc()}, status=500)
 
 
 @login_required
