@@ -47,7 +47,7 @@ Email пользователя: {claim_data.get('user_email')}
         message,
         settings.DEFAULT_FROM_EMAIL,
         ['gripline.ru@yandex.ru'],
-        fail_silently=False,
+        fail_silently=True,
     )
 
 
