@@ -20,8 +20,8 @@
     }
 
     .team-logo-wrapper {
-        width: 200px;
-        height: 200px;
+        width: 300px;
+        height: 300px;
         margin: 0 auto 1rem auto;
         border-radius: 12px;
         overflow: hidden;
@@ -290,7 +290,7 @@
             <div class="col-md-4 text-center">
                 <div class="team-logo-wrapper mx-auto">
                     {% if team.logo %}
-                        {% image team.logo fill-200x200 as team_logo %}
+                        {% image team.logo fill-300x300 as team_logo %}
                         <img src="{{ team_logo.url }}" alt="{{ team.name }}">
                     {% else %}
                         <div class="team-logo-placeholder">
