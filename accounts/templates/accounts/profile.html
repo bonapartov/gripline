@@ -252,7 +252,7 @@
                     <i class="fas fa-map-marker-alt me-1"></i>
                     {{ driver.city|default:"Город не указан" }}
                 </div>
-                <p class="text-muted small mt-3">Имя и город можно изменить только через администратора</p>
+                <p class="text-muted small mt-3">ФИО можно изменить только через администратора</p>
             </div>
         </div>
 
@@ -399,6 +399,14 @@
                             <div class="text-danger small mt-1">{{ form.photo_file.errors }}</div>
                         {% endif %}
                         <div class="text-muted small mt-1">Рекомендуемый размер не менее: 300x300 пикселей<br>Загружайте пожалуйста реальные фото.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Город</label>
+                        {{ form.city }}
+                        {% if form.city.errors %}
+                            <div class="text-danger small mt-1">{{ form.city.errors }}</div>
+                        {% endif %}
                     </div>
 
                     <div class="mb-4">

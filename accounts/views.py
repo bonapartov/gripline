@@ -389,6 +389,12 @@ def profile(request):
                     driver.save()
                     formset.save()
 
+                    # Синхронизируем city в UserProfile
+                    user_profile = getattr(request.user, 'profile', None)
+                    if user_profile and driver.city is not None:
+                        user_profile.city = driver.city
+                        user_profile.save(update_fields=['city'])
+
                     messages.success(request, 'Профиль обновлён')
                     return redirect('accounts:profile')
             else:

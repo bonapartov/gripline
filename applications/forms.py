@@ -107,6 +107,15 @@ def prefill_from_profile(user):
     profile = getattr(user, 'profile', None)
     driver = profile.driver if profile else None
 
+    # Если profile.driver не привязан — ищем через подтверждённую заявку
+    if not driver:
+        from accounts.models import DriverClaim
+        claim = DriverClaim.objects.filter(
+            user=user, status='approved'
+        ).order_by('-created_at').first()
+        if claim and claim.driver:
+            driver = claim.driver
+
     # Имя/фамилия — из Driver, иначе из User
     if driver:
         initial_pilot['first_name'] = driver.first_name

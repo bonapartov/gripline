@@ -31,8 +31,9 @@ class DriverProfileForm(forms.ModelForm):
 
     class Meta:
         model = Driver
-        fields = ['biography']  # Убираем photo из полей
+        fields = ['city', 'biography']
         widgets = {
+            'city': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Москва'}),
             'biography': forms.Textarea(attrs={'rows': 5, 'class': 'form-control'}),
         }
 
