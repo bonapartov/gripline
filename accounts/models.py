@@ -65,6 +65,12 @@ class UserProfile(models.Model):
     default_engine = models.CharField("Двигатель", max_length=100, blank=True)
     default_transponder = models.CharField("Номер транспондера AMB", max_length=50, blank=True)
 
+    birth_date_public = models.BooleanField(
+        "Публиковать дату рождения",
+        default=False,
+        help_text="Показывать дату рождения в публичной карточке пилота на сайте"
+    )
+
     @property
     def is_minor(self):
         if not self.birth_date:

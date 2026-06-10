@@ -368,18 +368,17 @@ def profile(request):
         if claim.driver:
             driver = claim.driver
 
+            profile = getattr(request.user, 'profile', None)
+
             if request.method == 'POST':
-                form = DriverProfileForm(request.POST, request.FILES, instance=driver)
+                form = DriverProfileForm(request.POST, request.FILES, instance=driver, profile=profile)
                 formset = SocialLinkFormSet(request.POST, instance=driver)
 
                 if form.is_valid() and formset.is_valid():
-                    # Сохраняем основную информацию
                     driver = form.save(commit=False)
 
-                    # Обрабатываем фото отдельно
                     if 'photo_file' in request.FILES:
                         photo_file = request.FILES['photo_file']
-                        # Создаем объект Image Wagtail
                         wagtail_image = Image.objects.create(
                             title=f"{driver.full_name} - фото профиля",
                             file=photo_file
@@ -389,19 +388,25 @@ def profile(request):
                     driver.save()
                     formset.save()
 
-                    # Синхронизируем city в UserProfile
-                    user_profile = getattr(request.user, 'profile', None)
-                    if user_profile and driver.city is not None:
-                        user_profile.city = driver.city
-                        user_profile.save(update_fields=['city'])
+                    # Сохраняем поля UserProfile
+                    if profile:
+                        if driver.city is not None:
+                            profile.city = driver.city
+                        # Отчество — только если ещё не было заполнено
+                        new_middle = form.cleaned_data.get('middle_name', '').strip()
+                        if new_middle and not profile.middle_name:
+                            profile.middle_name = new_middle
+                        # Дата рождения и галочка публикации
+                        profile.birth_date = form.cleaned_data.get('birth_date')
+                        profile.birth_date_public = form.cleaned_data.get('birth_date_public', False)
+                        profile.save()
 
                     messages.success(request, 'Профиль обновлён')
                     return redirect('accounts:profile')
             else:
-                form = DriverProfileForm(instance=driver)
+                form = DriverProfileForm(instance=driver, profile=profile)
                 formset = SocialLinkFormSet(instance=driver)
 
-            profile = getattr(request.user, 'profile', None)
             pilot_docs = profile.documents.all() if profile else []
             from teams.models import TeamInvitation
             from organizers.models import Stage as OrgStage

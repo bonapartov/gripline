@@ -28,6 +28,18 @@ class DriverProfileForm(forms.ModelForm):
         widget=forms.FileInput(attrs={'class': 'form-control'}),
         label='Фото профиля'
     )
+    middle_name = forms.CharField(
+        max_length=100, required=False, label='Отчество',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Иванович'})
+    )
+    birth_date = forms.DateField(
+        required=False, label='Дата рождения',
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d')
+    )
+    birth_date_public = forms.BooleanField(
+        required=False,
+        label='Публиковать дату рождения в карточке пилота на сайте'
+    )
 
     class Meta:
         model = Driver
@@ -38,10 +50,17 @@ class DriverProfileForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        profile = kwargs.pop('profile', None)
         super().__init__(*args, **kwargs)
-        # Если у пилота уже есть фото, показываем его название
         if self.instance and self.instance.photo:
             self.fields['photo_file'].help_text = f'Текущее фото: {self.instance.photo.title}'
+        if profile:
+            self.fields['middle_name'].initial = profile.middle_name
+            self.fields['birth_date'].initial = profile.birth_date
+            self.fields['birth_date_public'].initial = profile.birth_date_public
+            # Отчество заблокировано если уже заполнено
+            if profile.middle_name:
+                self.fields['middle_name'].widget.attrs['readonly'] = True
 
 class RegistrationForm(UserCreationForm):
     email = forms.EmailField(required=True, label="Email")

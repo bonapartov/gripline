@@ -244,6 +244,8 @@ def driver_detail_view(request, slug):
 
     class_ratings = _get_driver_class_ratings(driver)
 
+    driver_profile = driver.userprofile_set.filter(birth_date_public=True).first()
+
     return render(request, "coderedcms/snippets/driver_page.html", {
         "driver": driver,
         "object": driver,
@@ -262,6 +264,7 @@ def driver_detail_view(request, slug):
         "last_update": last_update,
         "driver_class_periods": driver_class_periods,
         "class_ratings": class_ratings,
+        "driver_profile": driver_profile,
     })
 
 def team_detail_view(request, slug):

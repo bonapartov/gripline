@@ -65,6 +65,15 @@ def apply(request, stage_id):
     submitted_by_type = 'pilot'
     if hasattr(request.user, 'organizer_profile'):
         submitted_by_type = 'organizer'
+    else:
+        # Только подтверждённые пилоты могут подавать заявки
+        from accounts.models import DriverClaim
+        is_confirmed_pilot = DriverClaim.objects.filter(
+            user=request.user, status='approved'
+        ).exists()
+        if not is_confirmed_pilot:
+            messages.error(request, 'Для подачи заявки необходим подтверждённый аккаунт пилота.')
+            return redirect('accounts:profile')
 
     from website.models import Team, Chassis, RaceClass
     stage_options = stage.options.filter(is_active=True)
@@ -205,6 +214,11 @@ def apply(request, stage_id):
     else:
         initial = prefill_from_profile(request.user)
         pilot_form = PilotForm(prefix='pilot', initial=initial['pilot'])
+        # ФИО заблокированы для подтверждённых пилотов
+        from accounts.models import DriverClaim as _DC
+        if _DC.objects.filter(user=request.user, status='approved').exists():
+            pilot_form.fields['first_name'].widget.attrs['readonly'] = True
+            pilot_form.fields['last_name'].widget.attrs['readonly'] = True
         applicant_form = ApplicantForm(prefix='applicant')
         kart_form = KartForm(prefix='kart', initial=initial['kart'])
         mechanic_form = MechanicForm(prefix='mechanic')

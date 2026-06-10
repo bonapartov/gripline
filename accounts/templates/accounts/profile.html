@@ -252,7 +252,6 @@
                     <i class="fas fa-map-marker-alt me-1"></i>
                     {{ driver.city|default:"Город не указан" }}
                 </div>
-                <p class="text-muted small mt-3">ФИО можно изменить только через администратора</p>
             </div>
         </div>
 
@@ -332,7 +331,7 @@
             <!-- Мои документы -->
             <div class="profile-card mb-4">
                 <h4 class="text-warning border-bottom border-secondary pb-2 mb-3">Мои документы</h4>
-                <p class="text-muted small mb-3">Загрузите документы один раз — они автоматически подставятся при регистрации на этап.</p>
+                <p class="text-muted small mb-3">Загрузите документы один раз — они автоматически подставятся при регистрации на этап. Документы не публикуются на сайте и необходимы только для регистрации на соревнования.</p>
 
                 <div id="pilotDocsList">
                 {% for doc in pilot_docs %}
@@ -399,6 +398,45 @@
                             <div class="text-danger small mt-1">{{ form.photo_file.errors }}</div>
                         {% endif %}
                         <div class="text-muted small mt-1">Рекомендуемый размер не менее: 300x300 пикселей<br>Загружайте пожалуйста реальные фото.</div>
+                    </div>
+
+                    <h4 class="text-warning border-bottom border-secondary pb-2 mb-4 mt-4">ФИО</h4>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Фамилия</label>
+                            <input type="text" class="form-control" value="{{ driver.last_name }}" readonly>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Имя</label>
+                            <input type="text" class="form-control" value="{{ driver.first_name }}" readonly>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Отчество</label>
+                            {{ form.middle_name }}
+                            {% if form.middle_name.errors %}
+                                <div class="text-danger small mt-1">{{ form.middle_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <p class="text-muted small mb-4">ФИО можно изменить только через администратора сайта</p>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">Дата рождения</label>
+                            {{ form.birth_date }}
+                            {% if form.birth_date.errors %}
+                                <div class="text-danger small mt-1">{{ form.birth_date.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end pb-2">
+                            <div class="form-check">
+                                {{ form.birth_date_public }}
+                                <label class="form-check-label text-muted small ms-2" for="{{ form.birth_date_public.id_for_label }}">
+                                    Публиковать на сайте в карточке пилота
+                                </label>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mb-4">
