@@ -398,9 +398,20 @@ def profile(request):
             profile = getattr(request.user, 'profile', None)
             pilot_docs = profile.documents.all() if profile else []
             from teams.models import TeamInvitation
+            from organizers.models import Stage as OrgStage
+            from applications.models import Application
             pending_invitations = TeamInvitation.objects.filter(
                 driver=driver, status='pending'
             ).select_related('team', 'race_class')
+            has_registrable_stages = OrgStage.objects.filter(
+                registration_enabled=True,
+                is_published=True,
+                championship__is_published=True,
+                wagtail_page__isnull=False,
+            ).exists()
+            my_applications = Application.objects.filter(
+                submitted_by=request.user
+            ).select_related('stage', 'stage__championship', 'race_class').order_by('-created_at')[:10]
             return render(request, 'accounts/profile.html', {
                 'driver': driver,
                 'claim': claim,
@@ -408,6 +419,8 @@ def profile(request):
                 'formset': formset,
                 'pilot_docs': pilot_docs,
                 'pending_invitations': pending_invitations,
+                'has_registrable_stages': has_registrable_stages,
+                'my_applications': my_applications,
             })
         else:
             messages.warning(request, 'Ваша заявка ещё не подтверждена администратором.')

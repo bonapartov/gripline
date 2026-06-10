@@ -525,11 +525,11 @@
     <div class="filter-bar">
         <!-- Переключатель вида -->
         <div class="view-toggle">
-            <a href="?view=grid{% if selected_type %}&type={{ selected_type }}{% endif %}"
+            <a href="?view=grid{% if selected_type %}&type={{ selected_type }}{% endif %}{% if register_mode %}&register=1{% endif %}"
                class="vt-btn {% if view_mode == 'grid' %}active{% endif %}">
                 <i class="fas fa-th-large me-1"></i>Сетка
             </a>
-            <a href="?view=calendar{% if selected_type %}&type={{ selected_type }}{% endif %}"
+            <a href="?view=calendar{% if selected_type %}&type={{ selected_type }}{% endif %}{% if register_mode %}&register=1{% endif %}"
                class="vt-btn {% if view_mode == 'calendar' %}active{% endif %}">
                 <i class="fas fa-calendar-alt me-1"></i>Календарь
             </a>
@@ -537,12 +537,12 @@
 
         <!-- Фильтры по типу -->
         <div class="filter-pills">
-            <a href="?{% if view_mode %}view={{ view_mode }}{% endif %}"
+            <a href="?{% if view_mode %}view={{ view_mode }}{% endif %}{% if register_mode %}&register=1{% endif %}"
                class="filter-pill {% if not selected_type %}active{% endif %}">
                 Все
             </a>
             {% for type in competition_types %}
-            <a href="?type={{ type.code }}{% if view_mode %}&view={{ view_mode }}{% endif %}"
+            <a href="?type={{ type.code }}{% if view_mode %}&view={{ view_mode }}{% endif %}{% if register_mode %}&register=1{% endif %}"
                class="filter-pill {% if selected_type == type.code %}active{% endif %}">
                 {{ type.name }}
             </a>
@@ -656,7 +656,12 @@
         <div class="col-12">
             <div class="empty-state">
                 <i class="fas fa-calendar-times fa-2x mb-3" style="color:var(--gl-border-mid);"></i>
+                {% if register_mode %}
+                <p class="mb-0">Нет мероприятий, открытых для регистрации</p>
+                <p class="small mt-2" style="color:var(--gl-fg-4);">Регистрация на некоторые соревнования проводится непосредственно через организатора</p>
+                {% else %}
                 <p class="mb-0">Нет предстоящих мероприятий</p>
+                {% endif %}
             </div>
         </div>
         {% endfor %}
