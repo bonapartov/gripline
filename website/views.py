@@ -342,7 +342,23 @@ def team_detail_view(request, slug):
     class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
                    'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 Masters',
                    'Rotax Max DD2 32+']
-    sorted_driver_classes = dict(sorted(driver_classes.items(), 
+
+    # Добавляем пилотов без результатов (есть race_class в TeamMembership)
+    drivers_with_results_ids = {
+        d['driver'].id
+        for drivers_list in driver_classes.values()
+        for d in drivers_list
+    }
+    for driver in team_drivers:
+        if driver.id not in drivers_with_results_ids:
+            membership = driver.team_memberships.filter(team=team, is_active=True).select_related('race_class').first()
+            if membership and membership.race_class:
+                cls = membership.race_class.name
+                if cls not in driver_classes:
+                    driver_classes[cls] = []
+                driver_classes[cls].append({'driver': driver, 'period': '—'})
+
+    sorted_driver_classes = dict(sorted(driver_classes.items(),
                                         key=lambda x: class_order.index(x[0]) if x[0] in class_order else 999))
     # Получаем активных сотрудников команды
     staff_members = TeamStaff.objects.filter(
