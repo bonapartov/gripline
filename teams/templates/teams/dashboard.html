@@ -346,6 +346,13 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label class="form-label">Фото руководителя</label>
+                                {% if team.manager_photo %}
+                                <div class="mb-2">
+                                    {% image team.manager_photo fill-120x120 as mgr_photo %}
+                                    <img src="{{ mgr_photo.url }}" alt="Фото руководителя"
+                                         style="width:120px;height:120px;object-fit:cover;border-radius:8px;border:2px solid #2a2a35;">
+                                </div>
+                                {% endif %}
                                 {{ form.manager_photo_upload }}
                                 <div class="text-muted small mt-1">Рекомендуемый размер: 300x300 пикселей</div>
                                 {% if team.manager_photo %}
