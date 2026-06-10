@@ -1719,9 +1719,6 @@ class EventCalendarPage(CoderedWebPage):
         view_mode = request.GET.get('view', 'grid')
         context['view_mode'] = view_mode
 
-        # Режим регистрации: показывать только этапы с открытой регистрацией
-        register_mode = request.GET.get('register') == '1'
-        context['register_mode'] = register_mode
 
         # Получаем ТЕКУЩУЮ дату по московскому времени
         today = timezone.localtime().date()
@@ -1808,10 +1805,6 @@ class EventCalendarPage(CoderedWebPage):
         except Exception as e:
             import logging
             logging.getLogger(__name__).warning('Calendar publish filter error: %s', e)
-
-        # В режиме регистрации показываем только этапы с открытой регистрацией
-        if register_mode:
-            enriched_events = [e for e in enriched_events if e.get('org_stage')]
 
         context['enriched_events'] = enriched_events
 

@@ -403,11 +403,12 @@ def profile(request):
             pending_invitations = TeamInvitation.objects.filter(
                 driver=driver, status='pending'
             ).select_related('team', 'race_class')
+            from django.utils import timezone
             has_registrable_stages = OrgStage.objects.filter(
-                registration_enabled=True,
                 is_published=True,
                 championship__is_published=True,
                 wagtail_page__isnull=False,
+                date_end__gte=timezone.now().date(),
             ).exists()
             my_applications = Application.objects.filter(
                 submitted_by=request.user
