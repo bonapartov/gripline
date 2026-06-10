@@ -412,6 +412,8 @@ def profile(request):
         pending = DriverClaim.objects.filter(user=request.user, status='pending').first()
         if pending:
             return render(request, 'accounts/profile_pending.html', {'claim': pending})
+        if YandexSocialAuth.objects.filter(user=request.user).exists():
+            return _redirect_by_role(request.user, request)
         messages.warning(request, 'У вас нет активной заявки. Зарегистрируйтесь как пилот.')
         return redirect('accounts:register')
 
@@ -599,6 +601,11 @@ def _redirect_by_role(user, request=None):
     # Нет ни одной роли — онбординг по роли из сессии
     if request is not None:
         role = request.session.get('yandex_role', 'pilot')
+        # Разрешаем повторный онбординг (например после удаления заявки в админке)
+        request.session['yandex_onboarding'] = True
+        if not request.session.get('yandex_first_name'):
+            request.session['yandex_first_name'] = user.first_name
+            request.session['yandex_last_name'] = user.last_name
         url_map = {
             'pilot': 'accounts:yandex_pilot_onboarding',
             'team': 'accounts:yandex_team_onboarding',
@@ -761,7 +768,8 @@ def yandex_search_teams(request):
 
 @login_required
 def yandex_pilot_onboarding(request):
-    if not request.session.get('yandex_onboarding'):
+    has_claim = DriverClaim.objects.filter(user=request.user).exists()
+    if not request.session.get('yandex_onboarding') and has_claim:
         return redirect('accounts:profile')
 
     first_name = request.session.get('yandex_first_name', request.user.first_name)
@@ -849,7 +857,9 @@ def yandex_pilot_onboarding(request):
 
 @login_required
 def yandex_team_onboarding(request):
-    if not request.session.get('yandex_onboarding'):
+    from teams.models import TeamClaim as _TC
+    has_claim = _TC.objects.filter(user=request.user).exists()
+    if not request.session.get('yandex_onboarding') and has_claim:
         return redirect('teams:dashboard')
 
     if request.method == 'POST':
@@ -906,7 +916,9 @@ def yandex_team_onboarding(request):
 
 @login_required
 def yandex_organizer_onboarding(request):
-    if not request.session.get('yandex_onboarding'):
+    from organizers.models import OrganizerProfile as _OP
+    has_profile = _OP.objects.filter(user=request.user).exists()
+    if not request.session.get('yandex_onboarding') and has_profile:
         return redirect('organizers:dashboard')
     if request.method == 'POST':
         from organizers.models import OrganizerProfile
