@@ -248,6 +248,39 @@
         <!-- Правая колонка - формы -->
         <div class="col-md-8 col-lg-9">
 
+            <!-- Приглашения в команду -->
+            {% if pending_invitations %}
+            <div class="profile-card mb-4">
+                <h4 class="text-warning border-bottom border-secondary pb-2 mb-3">
+                    <i class="fas fa-envelope me-2"></i>Приглашения в команду
+                    <span class="badge bg-warning text-dark ms-2">{{ pending_invitations|length }}</span>
+                </h4>
+                {% for inv in pending_invitations %}
+                <div class="d-flex align-items-center justify-content-between gap-3 p-3 mb-2 rounded" style="background:#0d0d14;border:1px solid #2a2a35;">
+                    <div>
+                        <div class="fw-bold text-white">
+                            <a href="/teams/{{ inv.team.slug }}/" class="text-warning text-decoration-none">{{ inv.team.name }}</a>
+                        </div>
+                        {% if inv.race_class %}
+                        <div class="small text-info mt-1"><i class="fas fa-flag me-1"></i>{{ inv.race_class.name }}</div>
+                        {% endif %}
+                        <div class="small text-muted mt-1">{{ inv.created_at|date:"d.m.Y" }}</div>
+                    </div>
+                    <div class="d-flex gap-2 flex-shrink-0">
+                        <form method="post" action="{% url 'teams:accept_invitation' inv.pk %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-success"><i class="fas fa-check me-1"></i>Принять</button>
+                        </form>
+                        <form method="post" action="{% url 'teams:decline_invitation' inv.pk %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="fas fa-times me-1"></i>Отклонить</button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
             <!-- Мои документы -->
             <div class="profile-card mb-4">
                 <h4 class="text-warning border-bottom border-secondary pb-2 mb-3">Мои документы</h4>

@@ -397,12 +397,17 @@ def profile(request):
 
             profile = getattr(request.user, 'profile', None)
             pilot_docs = profile.documents.all() if profile else []
+            from teams.models import TeamInvitation
+            pending_invitations = TeamInvitation.objects.filter(
+                driver=driver, status='pending'
+            ).select_related('team', 'race_class')
             return render(request, 'accounts/profile.html', {
                 'driver': driver,
                 'claim': claim,
                 'form': form,
                 'formset': formset,
                 'pilot_docs': pilot_docs,
+                'pending_invitations': pending_invitations,
             })
         else:
             messages.warning(request, 'Ваша заявка ещё не подтверждена администратором.')

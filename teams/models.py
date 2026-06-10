@@ -108,3 +108,31 @@ class TeamJoinRequest(models.Model):
         verbose_name = "Заявка на вступление"
         verbose_name_plural = "Заявки на вступление"
         unique_together = ['driver', 'team']  # Чтобы не спамили
+
+
+class TeamInvitation(models.Model):
+    """Приглашение пилота в команду от менеджера"""
+    STATUS_CHOICES = [
+        ('pending', 'Ожидает ответа'),
+        ('accepted', 'Принято'),
+        ('declined', 'Отклонено'),
+    ]
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='invitations', verbose_name="Команда")
+    driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name='team_invitations', verbose_name="Пилот")
+    race_class = models.ForeignKey(
+        'website.RaceClass', on_delete=models.SET_NULL, null=True, blank=True,
+        verbose_name="Класс"
+    )
+    invited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='sent_invitations', verbose_name="Пригласил")
+    status = models.CharField("Статус", max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField("Дата приглашения", auto_now_add=True)
+    responded_at = models.DateTimeField("Дата ответа", null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.team.name} → {self.driver.full_name} ({self.get_status_display()})"
+
+    class Meta:
+        verbose_name = "Приглашение в команду"
+        verbose_name_plural = "Приглашения в команду"
+        unique_together = ['driver', 'team']
