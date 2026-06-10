@@ -9,8 +9,9 @@
     .search-input:focus { outline: none; border-color: #ffc107; }
     .search-input::placeholder { color: #6c757d; }
     .results-list { list-style: none; padding: 0; margin: 0.75rem 0 0; max-height: 280px; overflow-y: auto; }
-    .result-item { background: #12121c; border: 1px solid #2a2a35; border-radius: 6px; padding: 0.65rem 1rem; margin-bottom: 0.4rem; display: flex; justify-content: space-between; align-items: center; color: #fff; transition: border-color 0.15s; }
+    .result-item { background: #12121c; border: 1px solid #2a2a35; border-radius: 6px; padding: 0.65rem 1rem; margin-bottom: 0.4rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: #fff; transition: border-color 0.15s; }
     .result-item:hover { border-color: #ffc107; }
+    .result-city { color: #6c757d; font-size: 0.85rem; }
     .btn-select { background: #ffc107; color: #000; font-weight: bold; border: none; border-radius: 4px; padding: 0.3rem 0.8rem; font-size: 0.85rem; cursor: pointer; }
     .btn-notfound { background: transparent; border: 1px solid #2a2a35; color: #adb5bd; border-radius: 6px; padding: 0.6rem 1.2rem; margin-top: 1.25rem; cursor: pointer; font-size: 0.9rem; width: 100%; transition: border-color 0.15s; }
     .btn-notfound:hover { border-color: #ffc107; color: #fff; }
@@ -25,8 +26,8 @@
 
 <div class="force-width-1500 my-5">
 <div class="onboarding-box">
-    <div class="onboarding-title">🔧 Привязка к команде</div>
-    <div class="onboarding-sub">Найдите свою команду в базе или создайте новую</div>
+    <div class="onboarding-title">🏁 Привязка профиля пилота</div>
+    <div class="onboarding-sub">Найдите себя в базе или создайте новый профиль</div>
 
     {% if messages %}
     {% for msg in messages %}
@@ -34,40 +35,44 @@
     {% endfor %}
     {% endif %}
 
-    <label class="form-label">Поиск команды по названию</label>
-    <input type="text" id="teamSearch" class="search-input" placeholder="Начните вводить название команды..." autocomplete="off">
+    <label class="form-label">Поиск по имени или фамилии</label>
+    <input type="text" id="driverSearch" class="search-input" placeholder="Начните вводить имя или фамилию..." autocomplete="off">
     <ul class="results-list" id="resultsList"></ul>
-    <div class="no-results" id="noResults">Команды не найдены</div>
+    <div class="no-results" id="noResults">Пилоты не найдены</div>
 
+    <!-- Форма выбора существующего -->
     <form method="post" id="selectForm">
         {% csrf_token %}
         <input type="hidden" name="action" value="select">
-        <input type="hidden" name="team_id" id="selectedTeamId">
+        <input type="hidden" name="driver_id" id="selectedDriverId">
     </form>
 
-    <button type="button" class="btn-notfound" id="btnNotFound">Нет моей команды — создать новую</button>
+    <button type="button" class="btn-notfound" id="btnNotFound">Меня нет в базе — создать новый профиль</button>
 
+    <!-- Форма нового пилота -->
     <div class="new-form {% if show_new_form %}show{% endif %}" id="newForm">
-        <div style="color:#ffc107;font-weight:bold;margin-bottom:1rem;">Новая команда</div>
-        <form method="post">
+        <div style="color:#ffc107;font-weight:bold;margin-bottom:1rem;">Новый профиль пилота</div>
+        <form method="post" id="newPilotForm">
             {% csrf_token %}
             <input type="hidden" name="action" value="new">
-            <label class="form-label">Название команды *</label>
-            <input type="text" name="team_name" class="form-control-dark" required placeholder="Например: Team Karting Pro">
-            <label class="form-label">Город</label>
-            <input type="text" name="city" class="form-control-dark" placeholder="Москва">
-            <button type="submit" class="btn-submit">Создать команду и отправить заявку</button>
+            <label class="form-label">Имя *</label>
+            <input type="text" name="first_name" class="form-control-dark" value="{{ first_name }}" required>
+            <label class="form-label">Фамилия *</label>
+            <input type="text" name="last_name" class="form-control-dark" value="{{ last_name }}" required>
+            <label class="form-label">Год рождения</label>
+            <input type="number" name="birth_year" class="form-control-dark" placeholder="1995" min="1950" max="2020">
+            <button type="submit" class="btn-submit">Создать профиль и отправить заявку</button>
         </form>
     </div>
 </div>
 </div>
 
 <script>
-const searchInput = document.getElementById('teamSearch');
+const searchInput = document.getElementById('driverSearch');
 const resultsList = document.getElementById('resultsList');
 const noResults = document.getElementById('noResults');
+const selectedDriverId = document.getElementById('selectedDriverId');
 const selectForm = document.getElementById('selectForm');
-const selectedTeamId = document.getElementById('selectedTeamId');
 const btnNotFound = document.getElementById('btnNotFound');
 const newForm = document.getElementById('newForm');
 
@@ -82,7 +87,7 @@ searchInput.addEventListener('input', function() {
         return;
     }
     searchTimer = setTimeout(() => {
-        fetch('{% url "accounts:yandex_search_teams" %}?q=' + encodeURIComponent(q))
+        fetch('{% url "accounts:yandex_search_drivers" %}?q=' + encodeURIComponent(q))
             .then(r => r.json())
             .then(data => {
                 resultsList.innerHTML = '';
@@ -91,12 +96,12 @@ searchInput.addEventListener('input', function() {
                     return;
                 }
                 noResults.style.display = 'none';
-                data.results.forEach(t => {
+                data.results.forEach(d => {
                     const li = document.createElement('li');
                     li.className = 'result-item';
-                    li.innerHTML = `<span>${t.name}</span><button type="button" class="btn-select" data-id="${t.id}">Это моя команда</button>`;
+                    li.innerHTML = `<span>${d.name}${d.city ? ' <span class="result-city">· ' + d.city + '</span>' : ''}</span><button type="button" class="btn-select" data-id="${d.id}">Это я</button>`;
                     li.querySelector('.btn-select').addEventListener('click', () => {
-                        selectedTeamId.value = t.id;
+                        selectedDriverId.value = d.id;
                         selectForm.submit();
                     });
                     resultsList.appendChild(li);
@@ -107,7 +112,7 @@ searchInput.addEventListener('input', function() {
 
 btnNotFound.addEventListener('click', () => {
     newForm.classList.toggle('show');
-    btnNotFound.textContent = newForm.classList.contains('show') ? '← Назад к поиску' : 'Нет моей команды — создать новую';
+    btnNotFound.textContent = newForm.classList.contains('show') ? '← Назад к поиску' : 'Меня нет в базе — создать новый профиль';
 });
 </script>
 {% endblock %}

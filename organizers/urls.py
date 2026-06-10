@@ -28,4 +28,5 @@ urlpatterns = [
     path('championship/<int:pk>/toggle-publish/', views.championship_toggle_publish, name='championship_toggle_publish'),
     path('stage/<int:pk>/toggle-publish/', views.stage_toggle_publish, name='stage_toggle_publish'),
     path('championship/<int:pk>/set-color/', views.championship_set_color, name='championship_set_color'),
+    path('pending/', views.organizer_pending, name='pending'),
 ]

@@ -406,12 +406,12 @@ def profile(request):
             })
         else:
             messages.warning(request, 'Ваша заявка ещё не подтверждена администратором.')
-            return render(request, 'accounts/profile_pending.html')
+            return render(request, 'accounts/profile_pending.html', {'claim': claim})
 
     except DriverClaim.DoesNotExist:
         pending = DriverClaim.objects.filter(user=request.user, status='pending').first()
         if pending:
-            return render(request, 'accounts/profile_pending.html')
+            return render(request, 'accounts/profile_pending.html', {'claim': pending})
         messages.warning(request, 'У вас нет активной заявки. Зарегистрируйтесь как пилот.')
         return redirect('accounts:register')
 
@@ -562,22 +562,37 @@ _YANDEX_CALLBACK_URI = 'https://gripline.ru/accounts/yandex/callback/'
 
 
 def _redirect_by_role(user, request=None):
-    from teams.models import TeamManager
-    has_organizer = hasattr(user, 'organizer_profile')
+    from teams.models import TeamManager, TeamClaim
+    from organizers.models import OrganizerProfile as OrgProfile
+
+    org = getattr(user, 'organizer_profile', None)
+    has_organizer_active = org is not None and org.status == 'active'
+    has_organizer_pending = org is not None and org.status == 'pending'
     has_team = TeamManager.objects.filter(user=user, is_active=True).exists()
     has_driver_approved = DriverClaim.objects.filter(user=user, status='approved').exists()
 
-    if has_organizer:
+    # Мультироль: одобренный пилот + активный менеджер команды
+    if has_driver_approved and has_team:
+        if request is not None:
+            active_role = request.session.get('active_role')
+            if active_role == 'team':
+                return redirect('teams:dashboard')
+            if active_role == 'pilot':
+                return redirect('accounts:profile')
+        return redirect('accounts:yandex_role_switch')
+
+    if has_organizer_active:
         return redirect('organizers:dashboard')
     if has_team:
         return redirect('teams:dashboard')
     if has_driver_approved:
         return redirect('accounts:profile')
 
-    # Pending-заявки — отправляем на профиль где будет inline-статус
+    # Pending-заявки
+    if has_organizer_pending:
+        return redirect('organizers:pending')
     if DriverClaim.objects.filter(user=user, status='pending').exists():
         return redirect('accounts:profile')
-    from teams.models import TeamClaim
     if TeamClaim.objects.filter(user=user, status='pending').exists():
         return redirect('teams:dashboard')
 
@@ -714,70 +729,178 @@ def yandex_callback(request):
     return _redirect_by_role(user, request)
 
 
+def yandex_search_drivers(request):
+    """AJAX: поиск Driver по имени/фамилии"""
+    q = request.GET.get('q', '').strip()
+    if len(q) < 2:
+        return JsonResponse({'results': []})
+    from django.db.models import Q as DQ
+    drivers = Driver.objects.filter(
+        DQ(first_name__icontains=q) | DQ(last_name__icontains=q)
+    ).values('id', 'first_name', 'last_name', 'city')[:20]
+    results = [
+        {
+            'id': d['id'],
+            'name': f"{d['first_name']} {d['last_name']}",
+            'city': d['city'] or '',
+        }
+        for d in drivers
+    ]
+    return JsonResponse({'results': results})
+
+
+def yandex_search_teams(request):
+    """AJAX: поиск Team по названию"""
+    from website.models import Team as WebTeam
+    q = request.GET.get('q', '').strip()
+    if len(q) < 2:
+        return JsonResponse({'results': []})
+    teams = WebTeam.objects.filter(name__icontains=q).values('id', 'name')[:20]
+    return JsonResponse({'results': list(teams)})
+
+
 @login_required
 def yandex_pilot_onboarding(request):
     if not request.session.get('yandex_onboarding'):
         return redirect('accounts:profile')
+
     first_name = request.session.get('yandex_first_name', request.user.first_name)
     last_name = request.session.get('yandex_last_name', request.user.last_name)
-    drivers = Driver.objects.filter(first_name__iexact=first_name, last_name__iexact=last_name)
-    if drivers.exists():
-        request.session['found_drivers'] = [
-            {'id': d.id, 'name': d.full_name, 'city': d.city or ''}
-            for d in drivers
-        ]
-        request.session['user_id'] = request.user.id
-        request.session['first_name'] = first_name
-        request.session['last_name'] = last_name
-        request.session['city'] = ''
-        for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
-            request.session.pop(key, None)
-        return redirect('accounts:select_driver')
-    DriverClaim.objects.create(
-        user=request.user,
-        requested_first_name=first_name,
-        requested_last_name=last_name,
-        status='pending',
-    )
-    send_admin_notification('пилотом', {
-        'user_email': request.user.email,
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'select':
+            driver_id = request.POST.get('driver_id')
+            try:
+                driver = Driver.objects.get(pk=driver_id)
+            except Driver.DoesNotExist:
+                messages.error(request, 'Пилот не найден.')
+                return render(request, 'accounts/yandex_pilot_onboarding.html', {
+                    'first_name': first_name, 'last_name': last_name,
+                })
+            if DriverClaim.objects.filter(driver=driver, status='approved').exists():
+                messages.error(request, 'Этот профиль уже привязан к другому аккаунту. Обратитесь к администратору.')
+                return render(request, 'accounts/yandex_pilot_onboarding.html', {
+                    'first_name': first_name, 'last_name': last_name,
+                })
+            DriverClaim.objects.create(
+                user=request.user,
+                driver=driver,
+                requested_first_name=driver.first_name,
+                requested_last_name=driver.last_name,
+                status='pending',
+            )
+            send_admin_notification('пилотом', {
+                'user_email': request.user.email,
+                'first_name': driver.first_name,
+                'last_name': driver.last_name,
+                'city': driver.city or '',
+                'driver_name': driver.first_name + ' ' + driver.last_name,
+            })
+            for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
+                request.session.pop(key, None)
+            messages.success(request, 'Заявка на привязку профиля отправлена. Ожидайте подтверждения.')
+            return redirect('accounts:profile')
+
+        elif action == 'new':
+            fn = request.POST.get('first_name', first_name).strip()
+            ln = request.POST.get('last_name', last_name).strip()
+            birth_year = request.POST.get('birth_year', '').strip()
+            if not fn or not ln:
+                messages.error(request, 'Введите имя и фамилию.')
+                return render(request, 'accounts/yandex_pilot_onboarding.html', {
+                    'first_name': first_name, 'last_name': last_name, 'show_new_form': True,
+                })
+            from django.utils.text import slugify as dslugify
+            import uuid
+            base_slug = dslugify(f"{fn}-{ln}", allow_unicode=True) or str(uuid.uuid4())[:8]
+            slug = base_slug
+            counter = 1
+            while Driver.objects.filter(slug=slug).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            driver = Driver(first_name=fn, last_name=ln, slug=slug)
+            driver.save()
+            DriverClaim.objects.create(
+                user=request.user,
+                driver=driver,
+                requested_first_name=fn,
+                requested_last_name=ln,
+                status='pending',
+            )
+            send_admin_notification('пилотом', {
+                'user_email': request.user.email,
+                'first_name': fn,
+                'last_name': ln,
+                'city': '',
+                'driver_name': f'{fn} {ln} (новый)',
+            })
+            for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
+                request.session.pop(key, None)
+            messages.success(request, 'Профиль создан, появится в рейтингах после первого этапа.')
+            return redirect('accounts:profile')
+
+    return render(request, 'accounts/yandex_pilot_onboarding.html', {
         'first_name': first_name,
         'last_name': last_name,
-        'city': '',
-        'driver_name': 'новый пилот',
     })
-    for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
-        request.session.pop(key, None)
-    messages.success(request, 'Аккаунт пилота создан! Ожидайте привязки к профилю.')
-    return redirect('accounts:profile')
 
 
 @login_required
 def yandex_team_onboarding(request):
     if not request.session.get('yandex_onboarding'):
         return redirect('teams:dashboard')
+
     if request.method == 'POST':
-        from teams.models import Team, TeamClaim
+        from website.models import Team as WebTeam
+        from teams.models import TeamClaim as TC, TeamManager as TM
         from teams.views import send_team_admin_notification
-        team_name = request.POST.get('team_name', '').strip()
-        if not team_name:
-            messages.error(request, 'Введите название команды.')
-            return render(request, 'accounts/yandex_team_onboarding.html')
-        teams_qs = Team.objects.filter(name__icontains=team_name)
-        if teams_qs.exists():
-            request.session['found_teams'] = [{'id': t.id, 'name': t.name} for t in teams_qs]
-            request.session['user_id'] = request.user.id
-            request.session['requested_team_name'] = team_name
+        action = request.POST.get('action')
+
+        if action == 'select':
+            team_id = request.POST.get('team_id')
+            try:
+                team = WebTeam.objects.get(pk=team_id)
+            except WebTeam.DoesNotExist:
+                messages.error(request, 'Команда не найдена.')
+                return render(request, 'accounts/yandex_team_onboarding.html')
+            if TM.objects.filter(team=team, is_active=True).exists():
+                messages.error(request, 'У этой команды уже есть менеджер. Обратитесь к администратору.')
+                return render(request, 'accounts/yandex_team_onboarding.html')
+            TC.objects.create(
+                user=request.user,
+                team=team,
+                requested_team_name=team.name,
+                status='pending',
+            )
+            send_team_admin_notification({'user_email': request.user.email, 'team_name': team.name})
             for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
                 request.session.pop(key, None)
-            return redirect('teams:select_team')
-        from teams.models import TeamClaim as TC
-        TC.objects.create(user=request.user, requested_team_name=team_name, status='pending')
-        send_team_admin_notification({'user_email': request.user.email, 'team_name': team_name})
-        for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
-            request.session.pop(key, None)
-        messages.success(request, 'Заявка на управление командой отправлена. Ожидайте подтверждения.')
-        return redirect('teams:dashboard')
+            messages.success(request, 'Заявка отправлена, ожидайте подтверждения.')
+            return redirect('teams:dashboard')
+
+        elif action == 'new':
+            team_name = request.POST.get('team_name', '').strip()
+            city = request.POST.get('city', '').strip()
+            if not team_name:
+                messages.error(request, 'Введите название команды.')
+                return render(request, 'accounts/yandex_team_onboarding.html', {'show_new_form': True})
+            team = WebTeam(name=team_name)
+            team.save()
+            TM.objects.create(user=request.user, team=team, role='manager', is_active=True)
+            TC.objects.create(
+                user=request.user,
+                team=team,
+                requested_team_name=team_name,
+                status='pending',
+            )
+            send_team_admin_notification({'user_email': request.user.email, 'team_name': team_name})
+            for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
+                request.session.pop(key, None)
+            messages.success(request, 'Команда создана, появится на сайте после проверки.')
+            return redirect('teams:dashboard')
+
     return render(request, 'accounts/yandex_team_onboarding.html')
 
 
@@ -791,10 +914,22 @@ def yandex_organizer_onboarding(request):
         telegram = request.POST.get('telegram', '').strip()
         OrganizerProfile.objects.get_or_create(
             user=request.user,
-            defaults={'phone': phone, 'telegram': telegram},
+            defaults={'phone': phone, 'telegram': telegram, 'status': 'pending'},
         )
         for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
             request.session.pop(key, None)
-        messages.success(request, 'Профиль организатора создан!')
-        return redirect('organizers:dashboard')
+        return redirect('organizers:pending')
     return render(request, 'accounts/yandex_organizer_onboarding.html')
+
+
+@login_required
+def yandex_role_switch(request):
+    """Страница выбора роли при мультироли (пилот + менеджер команды)"""
+    if request.method == 'POST':
+        role = request.POST.get('role')
+        if role in ('pilot', 'team'):
+            request.session['active_role'] = role
+        if role == 'team':
+            return redirect('teams:dashboard')
+        return redirect('accounts:profile')
+    return render(request, 'accounts/yandex_role_switch.html')

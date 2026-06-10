@@ -1,0 +1,32 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% block content %}
+<style>
+    .force-width-1500 { max-width: 1500px !important; margin: 0 auto; padding: 0 1rem; }
+    .role-switch-box { max-width: 560px; margin: 4rem auto; padding: 2.5rem 2rem; background: #1a1a25; border: 1px solid #2a2a35; border-radius: 12px; text-align: center; }
+    .role-switch-title { color: #ffc107; font-size: 1.5rem; font-weight: bold; margin-bottom: 0.5rem; }
+    .role-switch-sub { color: #adb5bd; font-size: 0.9rem; margin-bottom: 2rem; }
+    .role-btn { display: block; width: 100%; background: #12121c; border: 1px solid #2a2a35; color: #fff; border-radius: 8px; padding: 1rem 1.5rem; margin-bottom: 1rem; cursor: pointer; text-align: left; font-size: 1rem; transition: border-color 0.15s; }
+    .role-btn:hover { border-color: #ffc107; }
+    .role-btn .role-icon { font-size: 1.5rem; margin-right: 0.75rem; }
+    .role-btn .role-label { font-weight: bold; }
+    .role-btn .role-desc { font-size: 0.85rem; color: #adb5bd; display: block; margin-top: 0.2rem; margin-left: 2.25rem; }
+</style>
+
+<div class="force-width-1500 my-5">
+<div class="role-switch-box">
+    <div class="role-switch-title">Войти как...</div>
+    <div class="role-switch-sub">У вас несколько ролей. Выберите с какой открыть сессию.</div>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" name="role" value="pilot" class="role-btn">
+            <span class="role-icon">🏁</span><span class="role-label">Пилот</span>
+            <span class="role-desc">Личный кабинет, рейтинги, история участий</span>
+        </button>
+        <button type="submit" name="role" value="team" class="role-btn">
+            <span class="role-icon">🔧</span><span class="role-label">Менеджер команды</span>
+            <span class="role-desc">Управление составом, участие в чемпионатах</span>
+        </button>
+    </form>
+</div>
+</div>
+{% endblock %}

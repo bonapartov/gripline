@@ -28,4 +28,7 @@ urlpatterns = [
     path('yandex/onboarding/pilot/', views.yandex_pilot_onboarding, name='yandex_pilot_onboarding'),
     path('yandex/onboarding/team/', views.yandex_team_onboarding, name='yandex_team_onboarding'),
     path('yandex/onboarding/organizer/', views.yandex_organizer_onboarding, name='yandex_organizer_onboarding'),
+    path('yandex/role-switch/', views.yandex_role_switch, name='yandex_role_switch'),
+    path('yandex/search-drivers/', views.yandex_search_drivers, name='yandex_search_drivers'),
+    path('yandex/search-teams/', views.yandex_search_teams, name='yandex_search_teams'),
 ]

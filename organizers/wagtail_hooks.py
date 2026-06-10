@@ -6,9 +6,14 @@ class OrganizerProfileAdmin(ModelAdmin):
     model = OrganizerProfile
     menu_label = "Организаторы"
     menu_icon = "user"
-    list_display = ('user', 'phone', 'telegram', 'created_at')
+    list_display = ('user_email', 'phone', 'telegram', 'status', 'created_at')
     search_fields = ('user__email', 'user__first_name', 'user__last_name', 'phone')
-    list_filter = ('created_at',)
+    list_filter = ('status', 'created_at')
+    ordering = ('-created_at',)
+
+    def user_email(self, obj):
+        return obj.user.email
+    user_email.short_description = 'Email'
 
 
 class ChampionshipAdmin(ModelAdmin):

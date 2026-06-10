@@ -23,11 +23,26 @@ from django.utils.text import slugify
 import time
 
 @login_required
+def organizer_pending(request):
+    """Страница ожидания активации аккаунта организатора"""
+    org = getattr(request.user, 'organizer_profile', None)
+    if org and org.status == 'active':
+        return redirect('organizers:dashboard')
+    return render(request, 'organizers/pending.html')
+
+
+@login_required
 def dashboard(request):
     try:
         profile = request.user.organizer_profile
     except OrganizerProfile.DoesNotExist:
         messages.error(request, 'У вас нет прав организатора.')
+        return redirect('/')
+
+    if profile.status == 'pending':
+        return redirect('organizers:pending')
+    if profile.status == 'rejected':
+        messages.error(request, 'Ваша заявка организатора была отклонена.')
         return redirect('/')
     
     championships = Championship.objects.filter(organizer=profile)

@@ -356,6 +356,11 @@ def dashboard(request):
         ).select_related('team').first()
 
         if not manager:
+            # Проверяем есть ли pending-заявка
+            from .models import TeamClaim as TC
+            pending = TC.objects.filter(user=request.user, status='pending').first()
+            if pending:
+                return render(request, 'teams/pending.html', {'claim': pending})
             messages.error(request, 'У вас нет прав на управление командой')
             return redirect('/')
 

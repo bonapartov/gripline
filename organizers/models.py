@@ -7,11 +7,18 @@ from wagtail.models import Page
 from django.utils.text import slugify
 
 class OrganizerProfile(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Ожидает активации'),
+        ('active', 'Активен'),
+        ('rejected', 'Отклонён'),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='organizer_profile')
     photo = models.ForeignKey('wagtailimages.Image', on_delete=models.SET_NULL, null=True, blank=True)
     phone = models.CharField(max_length=30, blank=True)
     telegram = models.CharField(max_length=100, blank=True)
     website = models.URLField(blank=True)
+    status = models.CharField("Статус", max_length=20, choices=STATUS_CHOICES, default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     commission_percent = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Оставьте пустым для использования глобальной комиссии")
