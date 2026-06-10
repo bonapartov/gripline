@@ -425,7 +425,10 @@ def dashboard(request):
             if form.is_valid() and formset.is_valid():
                 team = form.save()
 
-                if 'logo_upload' in request.FILES:
+                if request.POST.get('delete_logo') == 'true':
+                    team.logo = None
+                    team.save()
+                elif 'logo_upload' in request.FILES:
                     logo_image = Image.objects.create(
                         title=f"Логотип {team.name}",
                         file=request.FILES['logo_upload']
@@ -433,7 +436,10 @@ def dashboard(request):
                     team.logo = logo_image
                     team.save()
 
-                if 'manager_photo_upload' in request.FILES:
+                if request.POST.get('delete_manager_photo') == 'true':
+                    team.manager_photo = None
+                    team.save()
+                elif 'manager_photo_upload' in request.FILES:
                     photo_image = Image.objects.create(
                         title=f"Фото руководителя {team.manager_name or team.name}",
                         file=request.FILES['manager_photo_upload']
