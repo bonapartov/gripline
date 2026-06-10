@@ -1,6 +1,5 @@
 from wagtail_modeladmin.options import (ModelAdmin, ModelAdminGroup, modeladmin_register)
 from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings
-from accounts.models import SocialAuthSettings
 from wagtail import hooks
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -132,17 +131,6 @@ class AnalyticsGroup(ModelAdminGroup):
     menu_icon = 'fa-bar-chart'
     items = (AnalyticsSettingsAdmin,)
 
-class SocialAuthSettingsAdmin(ModelAdmin):
-    model = SocialAuthSettings
-    menu_label = 'Авторизация на сайте'
-    menu_icon = 'key'
-    list_display = ('yandex_enabled', 'yandex_client_id')
-
-class SettingsGroup(ModelAdminGroup):
-    menu_label = 'Настройки'
-    menu_icon = 'cog'
-    items = (SocialAuthSettingsAdmin,)
-
 # Регистрируем группы
 modeladmin_register(PilotsGroup)
 modeladmin_register(TeamsGroup)
@@ -150,7 +138,6 @@ modeladmin_register(EquipmentGroup)
 modeladmin_register(TyresGroup)
 modeladmin_register(TracksGroup)
 modeladmin_register(AnalyticsGroup)
-modeladmin_register(SettingsGroup)
 
 @hooks.register('register_admin_urls')
 def register_import_urls():

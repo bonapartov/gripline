@@ -39,6 +39,8 @@ class Migration(migrations.Migration):
             ],
             options={
                 'verbose_name': 'Авторизация на сайте',
+                'bases': ('wagtail.contrib.settings.models.BaseGenericSetting',),
             },
+            bases=('wagtail.contrib.settings.models.BaseGenericSetting',),
         ),
     ]

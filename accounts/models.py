@@ -2,6 +2,9 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from website.models import Driver
+from wagtail.contrib.settings.models import BaseGenericSetting
+from wagtail.admin.panels import FieldPanel
+from wagtail.contrib.settings.registry import register_setting
 
 class UserProfile(models.Model):
     """Расширение стандартной модели User"""
@@ -81,10 +84,17 @@ class YandexSocialAuth(models.Model):
         verbose_name_plural = "Яндекс аккаунты"
 
 
-class SocialAuthSettings(models.Model):
+@register_setting
+class SocialAuthSettings(BaseGenericSetting):
     yandex_enabled = models.BooleanField("Вход через Яндекс", default=False)
     yandex_client_id = models.CharField("Client ID", max_length=200, blank=True)
     yandex_client_secret = models.CharField("Client Secret", max_length=200, blank=True)
+
+    panels = [
+        FieldPanel('yandex_enabled'),
+        FieldPanel('yandex_client_id'),
+        FieldPanel('yandex_client_secret'),
+    ]
 
     class Meta:
         verbose_name = "Авторизация на сайте"
