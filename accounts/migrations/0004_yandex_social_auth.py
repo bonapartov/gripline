@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import migrations, models
 import django.db.models.deletion
+from wagtail.contrib.settings.models import BaseGenericSetting
 
 
 class Migration(migrations.Migration):
@@ -39,8 +40,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'verbose_name': 'Авторизация на сайте',
-                'bases': ('wagtail.contrib.settings.models.BaseGenericSetting',),
             },
-            bases=('wagtail.contrib.settings.models.BaseGenericSetting',),
+            bases=(BaseGenericSetting,),
         ),
     ]
