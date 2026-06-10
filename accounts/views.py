@@ -409,6 +409,9 @@ def profile(request):
             return render(request, 'accounts/profile_pending.html')
 
     except DriverClaim.DoesNotExist:
+        pending = DriverClaim.objects.filter(user=request.user, status='pending').first()
+        if pending:
+            return render(request, 'accounts/profile_pending.html')
         messages.warning(request, 'У вас нет активной заявки. Зарегистрируйтесь как пилот.')
         return redirect('accounts:register')
 
@@ -751,9 +754,13 @@ def yandex_team_onboarding(request):
         send_team_admin_notification({'user_email': request.user.email, 'team_name': team_name})
         for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
             request.session.pop(key, None)
-        messages.success(request, 'Заявка на команду отправлена администратору. После одобрения вы получите доступ к кабинету команды.')
-        return redirect('accounts:profile')
+        return redirect('accounts:yandex_claim_sent')
     return render(request, 'accounts/yandex_team_onboarding.html')
+
+
+@login_required
+def yandex_claim_sent(request):
+    return render(request, 'accounts/yandex_claim_sent.html')
 
 
 @login_required
