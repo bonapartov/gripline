@@ -26,13 +26,16 @@ def setup_onboarding(strategy, backend, user, response, *args, **kwargs):
         role = 'pilot'
     strategy.session_set('yandex_role', role)
 
-    # Pre-selected IDs from choose-role modal
+    # Pre-selected IDs / names from choose-role modal
     pilot_id = strategy.session_get('pilot_id')
     team_id = strategy.session_get('team_id')
+    team_name = strategy.session_get('team_name')
     if pilot_id:
         strategy.session_set('yandex_preselected_pilot_id', pilot_id)
     if team_id:
         strategy.session_set('yandex_preselected_team_id', team_id)
+    if team_name:
+        strategy.session_set('yandex_preselected_team_name', team_name)
 
     # If the user already has any DriverClaim the onboarding is done
     has_claim = DriverClaim.objects.filter(user=user).exists()

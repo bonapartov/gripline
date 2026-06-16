@@ -27,6 +27,13 @@
   border-bottom: 2px solid var(--gl-border-soft);
 }
 
+/* Корректная высота отступа под фиксированным навбаром.
+   nav-link padding: 1.2rem * 2 + line-height(0.85rem) ≈ 61px + border 2px = 63px */
+.navbar-fixed-offset,
+.navbar-fixed-img-offset {
+  height: 63px !important;
+}
+
 .navbar-brand {
   font-weight: var(--gl-weight-black);
   color: var(--gl-brand-yellow-bright) !important;

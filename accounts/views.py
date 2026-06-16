@@ -950,6 +950,28 @@ def yandex_team_onboarding(request):
     if not request.session.get('yandex_onboarding') and has_claim:
         return redirect('teams:dashboard')
 
+    # Auto-create team from name entered in choose-role modal before OAuth
+    preselected_team_name = request.session.pop('yandex_preselected_team_name', None)
+    if preselected_team_name and request.method == 'GET':
+        from website.models import Team as WebTeam
+        from teams.models import TeamClaim as TC, TeamManager as TM
+        from teams.views import send_team_admin_notification
+        team = WebTeam(name=preselected_team_name)
+        team.save()
+        TM.objects.create(user=request.user, team=team, role='manager', is_active=True)
+        TC.objects.create(
+            user=request.user,
+            team=team,
+            requested_team_name=preselected_team_name,
+            status='pending',
+        )
+        send_team_admin_notification({'user_email': request.user.email, 'team_name': preselected_team_name})
+        for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
+            request.session.pop(key, None)
+        request.session['active_role'] = 'team'
+        messages.success(request, 'Команда создана, появится на сайте после проверки.')
+        return redirect('teams:dashboard')
+
     # Auto-select pre-chosen team from choose-role modal
     preselected_team_id = request.session.pop('yandex_preselected_team_id', None)
     if preselected_team_id and request.method == 'GET':

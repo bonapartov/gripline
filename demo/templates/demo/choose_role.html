@@ -379,5 +379,14 @@ function toggleNewTeamForm() {
     form.classList.toggle('show');
     btn.textContent = form.classList.contains('show') ? '← Назад к поиску' : 'Создать новую команду';
 }
+
+// When team_name input changes, update Yandex button URL
+document.getElementById('teamNewName').addEventListener('input', function() {
+    const yBtn = document.getElementById('teamYandexBtn');
+    if (!yBtn) return;
+    const base = '{% url "social:begin" "yandex-oauth2" %}?role=team';
+    const name = this.value.trim();
+    yBtn.href = name ? base + '&team_name=' + encodeURIComponent(name) : base;
+});
 </script>
 {% endblock %}
