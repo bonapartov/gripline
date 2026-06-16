@@ -20,6 +20,53 @@
     .btn-demo { background: transparent; color: #ffc107; border: 1px solid #ffc107; padding: 0.6rem 1.5rem; font-weight: 600; border-radius: 6px; width: 100%; cursor: pointer; text-decoration: none; display: block; font-size: 0.9rem; }
     .btn-demo:hover { color: #ffc107; }
     .demo-note { color: #6c757d; font-size: 0.75rem; margin-top: 0.4rem; }
+
+    /* Modal */
+    .cr-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center; }
+    .cr-modal-overlay.active { display:flex; }
+    .cr-modal { background:#1a1a25; border:1px solid #2a2a35; border-radius:12px; padding:2rem; width:100%; max-width:520px; max-height:90vh; overflow-y:auto; position:relative; }
+    .cr-modal-close { position:absolute; top:1rem; right:1rem; background:none; border:none; color:#adb5bd; font-size:1.4rem; cursor:pointer; line-height:1; }
+    .cr-modal-close:hover { color:#fff; }
+    .cr-modal-title { color:#ffc107; font-size:1.2rem; font-weight:bold; margin-bottom:0.4rem; }
+    .cr-modal-sub { color:#adb5bd; font-size:0.85rem; margin-bottom:1.5rem; }
+
+    /* Tabs */
+    .cr-tabs { display:flex; gap:0; margin-bottom:1.5rem; border-bottom:1px solid #2a2a35; }
+    .cr-tab { flex:1; text-align:center; padding:0.6rem; cursor:pointer; color:#6c757d; font-size:0.9rem; border-bottom:2px solid transparent; transition:all 0.15s; }
+    .cr-tab.active { color:#ffc107; border-bottom-color:#ffc107; }
+    .cr-tab-content { display:none; }
+    .cr-tab-content.active { display:block; }
+
+    /* Search */
+    .cr-search { background:#12121c; border:1px solid #2a2a35; color:#fff; border-radius:6px; padding:0.65rem 1rem; width:100%; font-size:0.95rem; margin-bottom:0.5rem; }
+    .cr-search:focus { outline:none; border-color:#ffc107; }
+    .cr-search::placeholder { color:#6c757d; }
+    .cr-results { list-style:none; padding:0; margin:0; max-height:220px; overflow-y:auto; }
+    .cr-result-item { background:#12121c; border:1px solid #2a2a35; border-radius:6px; padding:0.55rem 0.9rem; margin-bottom:0.35rem; cursor:pointer; display:flex; justify-content:space-between; align-items:center; color:#fff; transition:border-color 0.15s; }
+    .cr-result-item:hover { border-color:#ffc107; }
+    .cr-result-city { color:#6c757d; font-size:0.82rem; }
+    .cr-btn-select { background:#ffc107; color:#000; font-weight:bold; border:none; border-radius:4px; padding:0.25rem 0.7rem; font-size:0.82rem; cursor:pointer; white-space:nowrap; }
+    .cr-no-results { color:#6c757d; font-size:0.88rem; padding:0.4rem 0; display:none; }
+    .cr-divider { border:none; border-top:1px solid #2a2a35; margin:1.2rem 0; }
+
+    /* Auth buttons in modal */
+    .cr-auth-section { margin-top:1rem; }
+    .cr-btn-login { display:block; text-align:center; padding:0.65rem 1rem; border-radius:6px; font-weight:600; font-size:0.9rem; text-decoration:none; margin-bottom:0.5rem; }
+    .cr-btn-yandex { background:#fc3f1d; color:#fff; }
+    .cr-btn-yandex:hover { background:#e03319; color:#fff; }
+    .cr-btn-email { background:transparent; border:1px solid #2a2a35; color:#adb5bd; }
+    .cr-btn-email:hover { border-color:#ffc107; color:#fff; }
+
+    /* New pilot form */
+    .cr-new-form { margin-top:1rem; border-top:1px solid #2a2a35; padding-top:1rem; display:none; }
+    .cr-new-form.show { display:block; }
+    .cr-form-label { color:#adb5bd; font-size:0.82rem; margin-bottom:0.25rem; display:block; }
+    .cr-form-input { background:#12121c; border:1px solid #2a2a35; color:#fff; border-radius:6px; padding:0.55rem 0.9rem; width:100%; font-size:0.9rem; margin-bottom:0.75rem; }
+    .cr-form-input:focus { outline:none; border-color:#ffc107; }
+    .cr-btn-notfound { background:transparent; border:1px solid #2a2a35; color:#adb5bd; border-radius:6px; padding:0.5rem 1rem; margin-top:0.75rem; cursor:pointer; font-size:0.85rem; width:100%; transition:border-color 0.15s; }
+    .cr-btn-notfound:hover { border-color:#ffc107; color:#fff; }
+    .cr-selected-pilot { background:#12121c; border:1px solid #198754; border-radius:6px; padding:0.6rem 1rem; margin-top:0.75rem; color:#198754; font-size:0.9rem; display:none; }
+    .cr-selected-pilot.show { display:block; }
 </style>
 
 <div class="force-width-1500 pt-5 pb-5 text-white">
@@ -37,7 +84,7 @@
                 <div class="role-title">Пилот</div>
                 <div class="role-desc">Просматривайте свой профиль, рейтинг и историю участий в соревнованиях</div>
                 <div class="mt-auto">
-                    <a href="{% url 'accounts:login' %}" class="btn-enter">Войти как пилот</a>
+                    <button class="btn-enter" onclick="openPilotModal()">Войти как пилот</button>
                     <a href="{% url 'demo:demo_login' 'pilot' %}" class="btn-demo">Демо вход</a>
                     <p class="demo-note">Доступ на 2 часа, без регистрации</p>
                 </div>
@@ -51,7 +98,7 @@
                 <div class="role-title">Команда</div>
                 <div class="role-desc">Управляйте составом команды, пилотами и участием в чемпионатах</div>
                 <div class="mt-auto">
-                    <a href="{% url 'teams:login' %}" class="btn-enter">Войти как команда</a>
+                    <button class="btn-enter" onclick="openTeamModal()">Войти как команда</button>
                     <a href="{% url 'demo:demo_login' 'team' %}" class="btn-demo">Демо вход</a>
                     <p class="demo-note">Доступ на 2 часа, без регистрации</p>
                 </div>
@@ -73,7 +120,264 @@
         </div>
 
     </div>
+</div>
 
+<!-- ═══ Модальное окно ПИЛОТА ═══════════════════════════════════════════════ -->
+<div class="cr-modal-overlay" id="pilotModal">
+    <div class="cr-modal">
+        <button class="cr-modal-close" onclick="closeModal('pilotModal')">×</button>
+        <div class="cr-modal-title">🏁 Пилот</div>
+        <div class="cr-modal-sub">Войдите в аккаунт или зарегистрируйтесь</div>
+
+        <div class="cr-tabs">
+            <div class="cr-tab active" onclick="switchTab('pilot','login')">Уже есть аккаунт</div>
+            <div class="cr-tab" onclick="switchTab('pilot','register')">Впервые здесь</div>
+        </div>
+
+        <!-- TAB: Войти -->
+        <div class="cr-tab-content active" id="pilot-login">
+            {% if social_auth.yandex_enabled %}
+            <a href="{% url 'social:begin' 'yandex-oauth2' %}?role=pilot" class="cr-btn-login cr-btn-yandex d-flex align-items-center justify-content-center gap-2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M2.04 12c0-5.523 4.476-10 9.999-10C17.522 2 22 6.477 22 12s-4.478 10-10.001 10C6.516 22 2.04 17.523 2.04 12zm8.793 0H9.4v5.208H7.14V6.792H11.5c2.368 0 3.846 1.254 3.846 3.254 0 1.589-.852 2.694-2.264 3.107L15.34 17.208h-2.498L10.833 12zm-.413-3.536v1.855H11.44c1.037 0 1.614-.491 1.614-1.256 0-.765-.577-1.256-1.614-1.256H10.42z"/></svg>
+                Войти через Яндекс ID
+            </a>
+            <hr class="cr-divider">
+            {% endif %}
+            <a href="{% url 'accounts:login' %}" class="cr-btn-login cr-btn-email">Войти по email и паролю</a>
+        </div>
+
+        <!-- TAB: Зарегистрироваться -->
+        <div class="cr-tab-content" id="pilot-register">
+            <p style="color:#adb5bd;font-size:0.85rem;margin-bottom:1rem;">Найдите себя в базе пилотов или создайте новый профиль</p>
+            <input type="text" id="pilotSearchInput" class="cr-search" placeholder="Начните вводить имя или фамилию..." autocomplete="off">
+            <ul class="cr-results" id="pilotResults"></ul>
+            <div class="cr-no-results" id="pilotNoResults">Пилоты не найдены</div>
+
+            <div class="cr-selected-pilot" id="pilotSelected">
+                <span id="pilotSelectedName"></span>
+                <button type="button" style="float:right;background:none;border:none;color:#adb5bd;cursor:pointer;" onclick="clearPilotSelection()">×</button>
+            </div>
+
+            <button type="button" class="cr-btn-notfound" id="pilotBtnNotFound" onclick="toggleNewPilotForm()">Меня нет в базе — создать новый профиль</button>
+
+            <div class="cr-new-form" id="pilotNewForm">
+                <div style="color:#ffc107;font-weight:bold;margin-bottom:0.75rem;font-size:0.9rem;">Новый профиль пилота</div>
+                <label class="cr-form-label">Имя *</label>
+                <input type="text" id="pilotNewFirstName" class="cr-form-input" placeholder="Иван">
+                <label class="cr-form-label">Фамилия *</label>
+                <input type="text" id="pilotNewLastName" class="cr-form-input" placeholder="Иванов">
+            </div>
+
+            <hr class="cr-divider">
+            <div class="cr-auth-section">
+                {% if social_auth.yandex_enabled %}
+                <a id="pilotYandexBtn" href="{% url 'social:begin' 'yandex-oauth2' %}?role=pilot" class="cr-btn-login cr-btn-yandex d-flex align-items-center justify-content-center gap-2">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M2.04 12c0-5.523 4.476-10 9.999-10C17.522 2 22 6.477 22 12s-4.478 10-10.001 10C6.516 22 2.04 17.523 2.04 12zm8.793 0H9.4v5.208H7.14V6.792H11.5c2.368 0 3.846 1.254 3.846 3.254 0 1.589-.852 2.694-2.264 3.107L15.34 17.208h-2.498L10.833 12zm-.413-3.536v1.855H11.44c1.037 0 1.614-.491 1.614-1.256 0-.765-.577-1.256-1.614-1.256H10.42z"/></svg>
+                    Продолжить через Яндекс ID
+                </a>
+                {% endif %}
+                <a href="{% url 'accounts:register' %}" class="cr-btn-login cr-btn-email">Зарегистрироваться по email</a>
+            </div>
+        </div>
     </div>
 </div>
+
+<!-- ═══ Модальное окно КОМАНДЫ ═══════════════════════════════════════════════ -->
+<div class="cr-modal-overlay" id="teamModal">
+    <div class="cr-modal">
+        <button class="cr-modal-close" onclick="closeModal('teamModal')">×</button>
+        <div class="cr-modal-title">🔧 Команда</div>
+        <div class="cr-modal-sub">Войдите в кабинет команды или зарегистрируйте новую</div>
+
+        <div class="cr-tabs">
+            <div class="cr-tab active" onclick="switchTab('team','login')">Уже есть аккаунт</div>
+            <div class="cr-tab" onclick="switchTab('team','register')">Новая команда</div>
+        </div>
+
+        <!-- TAB: Войти -->
+        <div class="cr-tab-content active" id="team-login">
+            {% if social_auth.yandex_enabled %}
+            <a href="{% url 'social:begin' 'yandex-oauth2' %}?role=team" class="cr-btn-login cr-btn-yandex d-flex align-items-center justify-content-center gap-2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M2.04 12c0-5.523 4.476-10 9.999-10C17.522 2 22 6.477 22 12s-4.478 10-10.001 10C6.516 22 2.04 17.523 2.04 12zm8.793 0H9.4v5.208H7.14V6.792H11.5c2.368 0 3.846 1.254 3.846 3.254 0 1.589-.852 2.694-2.264 3.107L15.34 17.208h-2.498L10.833 12zm-.413-3.536v1.855H11.44c1.037 0 1.614-.491 1.614-1.256 0-.765-.577-1.256-1.614-1.256H10.42z"/></svg>
+                Войти через Яндекс ID
+            </a>
+            <hr class="cr-divider">
+            {% endif %}
+            <a href="{% url 'teams:login' %}" class="cr-btn-login cr-btn-email">Войти по email и паролю</a>
+        </div>
+
+        <!-- TAB: Новая команда -->
+        <div class="cr-tab-content" id="team-register">
+            <p style="color:#adb5bd;font-size:0.85rem;margin-bottom:1rem;">Найдите вашу команду в базе или создайте новую</p>
+            <input type="text" id="teamSearchInput" class="cr-search" placeholder="Начните вводить название команды..." autocomplete="off">
+            <ul class="cr-results" id="teamResults"></ul>
+            <div class="cr-no-results" id="teamNoResults">Команды не найдены</div>
+
+            <div class="cr-selected-pilot" id="teamSelected" style="border-color:#0d6efd;">
+                <span id="teamSelectedName"></span>
+                <button type="button" style="float:right;background:none;border:none;color:#adb5bd;cursor:pointer;" onclick="clearTeamSelection()">×</button>
+            </div>
+
+            <button type="button" class="cr-btn-notfound" id="teamBtnNotFound" onclick="toggleNewTeamForm()">Создать новую команду</button>
+
+            <div class="cr-new-form" id="teamNewForm">
+                <div style="color:#ffc107;font-weight:bold;margin-bottom:0.75rem;font-size:0.9rem;">Новая команда</div>
+                <label class="cr-form-label">Название команды *</label>
+                <input type="text" id="teamNewName" class="cr-form-input" placeholder="Название команды">
+                <label class="cr-form-label">Город</label>
+                <input type="text" id="teamNewCity" class="cr-form-input" placeholder="Москва">
+            </div>
+
+            <hr class="cr-divider">
+            <div class="cr-auth-section">
+                {% if social_auth.yandex_enabled %}
+                <a id="teamYandexBtn" href="{% url 'social:begin' 'yandex-oauth2' %}?role=team" class="cr-btn-login cr-btn-yandex d-flex align-items-center justify-content-center gap-2">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M2.04 12c0-5.523 4.476-10 9.999-10C17.522 2 22 6.477 22 12s-4.478 10-10.001 10C6.516 22 2.04 17.523 2.04 12zm8.793 0H9.4v5.208H7.14V6.792H11.5c2.368 0 3.846 1.254 3.846 3.254 0 1.589-.852 2.694-2.264 3.107L15.34 17.208h-2.498L10.833 12zm-.413-3.536v1.855H11.44c1.037 0 1.614-.491 1.614-1.256 0-.765-.577-1.256-1.614-1.256H10.42z"/></svg>
+                    Продолжить через Яндекс ID
+                </a>
+                {% endif %}
+                <a href="{% url 'teams:login' %}" class="cr-btn-login cr-btn-email">Зарегистрироваться по email</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── Modal helpers ────────────────────────────────────────────────────────────
+function openPilotModal() { document.getElementById('pilotModal').classList.add('active'); }
+function openTeamModal()  { document.getElementById('teamModal').classList.add('active'); }
+function closeModal(id)   { document.getElementById(id).classList.remove('active'); }
+
+// Close on overlay click
+document.querySelectorAll('.cr-modal-overlay').forEach(el => {
+    el.addEventListener('click', function(e) { if (e.target === this) closeModal(this.id); });
+});
+
+// ── Tab switcher ────────────────────────────────────────────────────────────
+function switchTab(modal, tab) {
+    const prefix = modal + '-';
+    document.querySelectorAll(`#${modal}Modal .cr-tab`).forEach(t => t.classList.remove('active'));
+    document.querySelectorAll(`#${modal}Modal .cr-tab-content`).forEach(c => c.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById(prefix + tab).classList.add('active');
+}
+
+// ── Pilot search ────────────────────────────────────────────────────────────
+let selectedPilotId = null;
+let pilotTimer;
+
+document.getElementById('pilotSearchInput').addEventListener('input', function() {
+    clearTimeout(pilotTimer);
+    const q = this.value.trim();
+    const results = document.getElementById('pilotResults');
+    const noR = document.getElementById('pilotNoResults');
+    if (q.length < 2) { results.innerHTML = ''; noR.style.display = 'none'; return; }
+    pilotTimer = setTimeout(() => {
+        fetch('/accounts/api/drivers-search/?q=' + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(data => {
+                results.innerHTML = '';
+                if (!data.results.length) { noR.style.display = 'block'; return; }
+                noR.style.display = 'none';
+                data.results.forEach(d => {
+                    const li = document.createElement('li');
+                    li.className = 'cr-result-item';
+                    li.innerHTML = `<span>${d.name}${d.city ? ' <span class="cr-result-city">· ' + d.city + '</span>' : ''}</span>
+                                    <button class="cr-btn-select" data-id="${d.id}" data-name="${d.name}">Это я</button>`;
+                    li.querySelector('.cr-btn-select').addEventListener('click', function() {
+                        selectPilot(this.dataset.id, this.dataset.name);
+                    });
+                    results.appendChild(li);
+                });
+            });
+    }, 300);
+});
+
+function selectPilot(id, name) {
+    selectedPilotId = id;
+    document.getElementById('pilotSelectedName').textContent = '✓ Выбран: ' + name;
+    document.getElementById('pilotSelected').classList.add('show');
+    document.getElementById('pilotResults').innerHTML = '';
+    document.getElementById('pilotSearchInput').value = '';
+    // Add pilot_id to Yandex button URL
+    const yBtn = document.getElementById('pilotYandexBtn');
+    if (yBtn) yBtn.href = yBtn.href.split('?')[0] + '?role=pilot&pilot_id=' + id;
+}
+
+function clearPilotSelection() {
+    selectedPilotId = null;
+    document.getElementById('pilotSelected').classList.remove('show');
+    const yBtn = document.getElementById('pilotYandexBtn');
+    if (yBtn) {
+        const url = new URL(yBtn.href);
+        url.searchParams.delete('pilot_id');
+        yBtn.href = url.toString();
+    }
+}
+
+function toggleNewPilotForm() {
+    const form = document.getElementById('pilotNewForm');
+    const btn = document.getElementById('pilotBtnNotFound');
+    form.classList.toggle('show');
+    btn.textContent = form.classList.contains('show') ? '← Назад к поиску' : 'Меня нет в базе — создать новый профиль';
+}
+
+// ── Team search ──────────────────────────────────────────────────────────────
+let selectedTeamId = null;
+let teamTimer;
+
+document.getElementById('teamSearchInput').addEventListener('input', function() {
+    clearTimeout(teamTimer);
+    const q = this.value.trim();
+    const results = document.getElementById('teamResults');
+    const noR = document.getElementById('teamNoResults');
+    if (q.length < 2) { results.innerHTML = ''; noR.style.display = 'none'; return; }
+    teamTimer = setTimeout(() => {
+        fetch('/accounts/api/teams-search/?q=' + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(data => {
+                results.innerHTML = '';
+                if (!data.results.length) { noR.style.display = 'block'; return; }
+                noR.style.display = 'none';
+                data.results.forEach(t => {
+                    const li = document.createElement('li');
+                    li.className = 'cr-result-item';
+                    li.innerHTML = `<span>${t.name}</span><button class="cr-btn-select" data-id="${t.id}" data-name="${t.name}">Выбрать</button>`;
+                    li.querySelector('.cr-btn-select').addEventListener('click', function() {
+                        selectTeam(this.dataset.id, this.dataset.name);
+                    });
+                    results.appendChild(li);
+                });
+            });
+    }, 300);
+});
+
+function selectTeam(id, name) {
+    selectedTeamId = id;
+    document.getElementById('teamSelectedName').textContent = '✓ Выбрана: ' + name;
+    document.getElementById('teamSelected').classList.add('show');
+    document.getElementById('teamResults').innerHTML = '';
+    document.getElementById('teamSearchInput').value = '';
+    const yBtn = document.getElementById('teamYandexBtn');
+    if (yBtn) yBtn.href = yBtn.href.split('?')[0] + '?role=team&team_id=' + id;
+}
+
+function clearTeamSelection() {
+    selectedTeamId = null;
+    document.getElementById('teamSelected').classList.remove('show');
+    const yBtn = document.getElementById('teamYandexBtn');
+    if (yBtn) {
+        const url = new URL(yBtn.href);
+        url.searchParams.delete('team_id');
+        yBtn.href = url.toString();
+    }
+}
+
+function toggleNewTeamForm() {
+    const form = document.getElementById('teamNewForm');
+    const btn = document.getElementById('teamBtnNotFound');
+    form.classList.toggle('show');
+    btn.textContent = form.classList.contains('show') ? '← Назад к поиску' : 'Создать новую команду';
+}
+</script>
 {% endblock %}

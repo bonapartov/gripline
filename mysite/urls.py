@@ -20,6 +20,7 @@ def stats_api(request):
     return JsonResponse(data)
     
 urlpatterns = [
+    path('auth/', include('social_django.urls', namespace='social')),
     path('api/stats/', stats_api, name='stats_api'),
     path('api/rating-stats/', rating_stats_api, name='rating_stats_api'),
     path('organizers/', include('organizers.urls')),

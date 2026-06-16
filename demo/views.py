@@ -7,7 +7,9 @@ from .models import DemoSlot
 
 
 def choose_role(request):
-    return render(request, 'demo/choose_role.html')
+    from accounts.models import SocialAuthSettings
+    social_auth = SocialAuthSettings.get()
+    return render(request, 'demo/choose_role.html', {'social_auth': social_auth})
 
 
 REDIRECT_MAP = {

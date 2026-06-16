@@ -51,6 +51,8 @@ INSTALLED_APPS = [
     "taggit",
     "wagtailcache",
     "wagtailseo",
+    # Social auth
+    "social_django",
     # Wagtail
     "wagtail.contrib.forms",
     "accounts",
@@ -109,6 +111,8 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "wagtail.contrib.settings.context_processors.settings",
+                "social_django.context_processors.backends",
+                "social_django.context_processors.login_redirect",
             ],
         },
     },
@@ -223,3 +227,36 @@ EMAIL_TIMEOUT = 5
 
 # Базовый URL сайта для ссылок в письмах
 BASE_URL = 'http://127.0.0.1:8000'  # для продакшена заменить на реальный домен
+
+
+# ── Social Auth (social-auth-app-django) ──────────────────────────────────────
+
+AUTHENTICATION_BACKENDS = [
+    'social_core.backends.yandex.YandexOAuth2',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+SOCIAL_AUTH_YANDEX_OAUTH2_KEY = os.getenv('YANDEX_CLIENT_ID', '')
+SOCIAL_AUTH_YANDEX_OAUTH2_SECRET = os.getenv('YANDEX_CLIENT_SECRET', '')
+SOCIAL_AUTH_YANDEX_OAUTH2_SCOPE = ['login:email', 'login:info']
+
+SOCIAL_AUTH_PIPELINE = (
+    'social_core.pipeline.social_auth.social_details',
+    'social_core.pipeline.social_auth.social_uid',
+    'social_core.pipeline.social_auth.auth_allowed',
+    'social_core.pipeline.social_auth.social_user',
+    'social_core.pipeline.user.get_username',
+    'social_core.pipeline.user.create_user',
+    'social_core.pipeline.social_auth.associate_user',
+    'social_core.pipeline.social_auth.load_extra_data',
+    'social_core.pipeline.user.user_details',
+    'accounts.pipeline.set_unusable_password',
+    'accounts.pipeline.setup_onboarding',
+)
+
+SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/accounts/profile/'
+SOCIAL_AUTH_LOGIN_ERROR_URL = '/accounts/login/'
+SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = ['role', 'pilot_id', 'team_id']
+
+SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL = True
+SOCIAL_AUTH_REDIRECT_IS_HTTPS = False  # set True in prod settings

@@ -22,9 +22,12 @@ urlpatterns = [
     path('resend-verification/', views.resend_verification, name='resend_verification'),
     path('verification-sent/', views.verification_sent, name='verification_sent'),
 
-    # Yandex OAuth
+    # Public search API (used by choose-role page and onboarding)
+    path('api/drivers-search/', views.yandex_search_drivers, name='drivers_search'),
+    path('api/teams-search/', views.yandex_search_teams, name='teams_search'),
+
+    # Yandex OAuth (legacy thin wrapper → social:begin; callback handled by social_django)
     path('yandex/login/', views.yandex_login, name='yandex_login'),
-    path('yandex/callback/', views.yandex_callback, name='yandex_callback'),
     path('yandex/onboarding/pilot/', views.yandex_pilot_onboarding, name='yandex_pilot_onboarding'),
     path('yandex/onboarding/team/', views.yandex_team_onboarding, name='yandex_team_onboarding'),
     path('yandex/onboarding/organizer/', views.yandex_organizer_onboarding, name='yandex_organizer_onboarding'),

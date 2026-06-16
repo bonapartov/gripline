@@ -442,7 +442,10 @@ def profile(request):
         pending = DriverClaim.objects.filter(user=request.user, status='pending').first()
         if pending:
             return render(request, 'accounts/profile_pending.html', {'claim': pending})
-        if YandexSocialAuth.objects.filter(user=request.user).exists():
+        # OAuth users (social_django) or legacy YandexSocialAuth users → onboarding
+        has_social = request.user.social_auth.exists() if hasattr(request.user, 'social_auth') else False
+        has_legacy = YandexSocialAuth.objects.filter(user=request.user).exists()
+        if has_social or has_legacy:
             return _redirect_by_role(request.user, request)
         messages.warning(request, 'У вас нет активной заявки. Зарегистрируйтесь как пилот.')
         return redirect('accounts:register')
@@ -679,6 +682,7 @@ def _redirect_by_role(user, request=None):
 
 
 def yandex_login(request):
+    """Thin wrapper: store role in session then delegate to social-auth-app-django."""
     settings_obj = SocialAuthSettings.get()
     if not settings_obj.yandex_enabled:
         messages.error(request, 'Вход через Яндекс временно недоступен.')
@@ -686,18 +690,9 @@ def yandex_login(request):
     role = request.GET.get('role', 'pilot')
     if role not in ('pilot', 'team', 'organizer'):
         role = 'pilot'
-    request.session['yandex_role'] = role
-    state = secrets.token_urlsafe(16)
-    request.session['yandex_oauth_state'] = state
-    params = {
-        'response_type': 'code',
-        'client_id': settings_obj.yandex_client_id,
-        'redirect_uri': _YANDEX_CALLBACK_URI,
-        'state': state,
-        'scope': 'login:email login:info',
-        'force_confirm': 'no',
-    }
-    return redirect('https://oauth.yandex.ru/authorize?' + urllib.parse.urlencode(params))
+    # social-auth stores SOCIAL_AUTH_FIELDS_STORED_IN_SESSION fields from GET params
+    from django.urls import reverse as _rev
+    return redirect(_rev('social:begin', args=['yandex-oauth2']) + f'?role={role}')
 
 
 def yandex_callback(request):
@@ -838,6 +833,34 @@ def yandex_pilot_onboarding(request):
     first_name = request.session.get('yandex_first_name', request.user.first_name)
     last_name = request.session.get('yandex_last_name', request.user.last_name)
 
+    # Auto-select pre-chosen pilot from choose-role modal
+    preselected_id = request.session.pop('yandex_preselected_pilot_id', None)
+    if preselected_id and request.method == 'GET':
+        try:
+            driver = Driver.objects.get(pk=preselected_id)
+            if not DriverClaim.objects.filter(driver=driver, status='approved').exists():
+                DriverClaim.objects.create(
+                    user=request.user,
+                    driver=driver,
+                    requested_first_name=driver.first_name,
+                    requested_last_name=driver.last_name,
+                    status='pending',
+                )
+                send_admin_notification('пилотом', {
+                    'user_email': request.user.email,
+                    'first_name': driver.first_name,
+                    'last_name': driver.last_name,
+                    'city': driver.city or '',
+                    'driver_name': f'{driver.first_name} {driver.last_name}',
+                })
+                for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
+                    request.session.pop(key, None)
+                request.session['active_role'] = 'pilot'
+                messages.success(request, 'Заявка на привязку профиля отправлена. Ожидайте подтверждения.')
+                return redirect('accounts:profile')
+        except Driver.DoesNotExist:
+            pass
+
     if request.method == 'POST':
         action = request.POST.get('action')
 
@@ -922,10 +945,33 @@ def yandex_pilot_onboarding(request):
 
 @login_required
 def yandex_team_onboarding(request):
-    from teams.models import TeamClaim as _TC
+    from teams.models import TeamClaim as _TC, TeamManager as _TM
     has_claim = _TC.objects.filter(user=request.user).exists()
     if not request.session.get('yandex_onboarding') and has_claim:
         return redirect('teams:dashboard')
+
+    # Auto-select pre-chosen team from choose-role modal
+    preselected_team_id = request.session.pop('yandex_preselected_team_id', None)
+    if preselected_team_id and request.method == 'GET':
+        from website.models import Team as WebTeam
+        from teams.views import send_team_admin_notification
+        try:
+            team = WebTeam.objects.get(pk=preselected_team_id)
+            if not _TM.objects.filter(team=team, is_active=True).exists():
+                _TC.objects.create(
+                    user=request.user,
+                    team=team,
+                    requested_team_name=team.name,
+                    status='pending',
+                )
+                send_team_admin_notification({'user_email': request.user.email, 'team_name': team.name})
+                for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
+                    request.session.pop(key, None)
+                request.session['active_role'] = 'team'
+                messages.success(request, 'Заявка отправлена. Ожидайте подтверждения.')
+                return redirect('teams:dashboard')
+        except WebTeam.DoesNotExist:
+            pass
 
     if request.method == 'POST':
         from website.models import Team as WebTeam
