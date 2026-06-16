@@ -454,7 +454,7 @@ def profile(request):
 def logout_view(request):
     """Выход пользователя"""
     logout(request)
-    return redirect('accounts:login')
+    return redirect('choose_role')
 
 
 @staff_member_required

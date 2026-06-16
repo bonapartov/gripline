@@ -255,6 +255,7 @@ SOCIAL_AUTH_PIPELINE = (
 
 SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/accounts/profile/'
 SOCIAL_AUTH_LOGIN_ERROR_URL = '/accounts/login/'
+SOCIAL_AUTH_LOGOUT_REDIRECT_URL = '/choose-role/'
 SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = ['role', 'pilot_id', 'team_id', 'team_name']
 
 SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL = True

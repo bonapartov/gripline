@@ -802,7 +802,7 @@ def reject_request(request, request_id):
 def logout_view(request):
     """Выход из системы"""
     logout(request)
-    return redirect('/')
+    return redirect('choose_role')
 
 
 @login_required
