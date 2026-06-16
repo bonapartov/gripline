@@ -93,11 +93,15 @@ class YandexSocialAuth(models.Model):
 @register_setting
 class SocialAuthSettings(BaseGenericSetting):
     yandex_enabled = models.BooleanField("Вход через Яндекс", default=False)
+    yandex_client_id = models.CharField("Яндекс Client ID", max_length=200, blank=True)
+    yandex_client_secret = models.CharField("Яндекс Client Secret", max_length=200, blank=True)
     vk_enabled = models.BooleanField("Вход через ВКонтакте", default=False)
     google_enabled = models.BooleanField("Вход через Google", default=False)
 
     panels = [
         FieldPanel('yandex_enabled'),
+        FieldPanel('yandex_client_id'),
+        FieldPanel('yandex_client_secret'),
         FieldPanel('vk_enabled'),
         FieldPanel('google_enabled'),
     ]

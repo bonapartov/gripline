@@ -18,12 +18,14 @@ class Migration(migrations.Migration):
             name='google_enabled',
             field=models.BooleanField(default=False, verbose_name='Вход через Google'),
         ),
-        migrations.RemoveField(
+        migrations.AlterField(
             model_name='socialauthsettings',
             name='yandex_client_id',
+            field=models.CharField(blank=True, max_length=200, verbose_name='Яндекс Client ID'),
         ),
-        migrations.RemoveField(
+        migrations.AlterField(
             model_name='socialauthsettings',
             name='yandex_client_secret',
+            field=models.CharField(blank=True, max_length=200, verbose_name='Яндекс Client Secret'),
         ),
     ]

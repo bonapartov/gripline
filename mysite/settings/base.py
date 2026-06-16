@@ -232,12 +232,11 @@ BASE_URL = 'http://127.0.0.1:8000'  # для продакшена заменит
 # ── Social Auth (social-auth-app-django) ──────────────────────────────────────
 
 AUTHENTICATION_BACKENDS = [
-    'social_core.backends.yandex.YandexOAuth2',
+    'accounts.backends.GriplineYandexOAuth2',
     'django.contrib.auth.backends.ModelBackend',
 ]
 
-SOCIAL_AUTH_YANDEX_OAUTH2_KEY = os.getenv('YANDEX_CLIENT_ID', '')
-SOCIAL_AUTH_YANDEX_OAUTH2_SECRET = os.getenv('YANDEX_CLIENT_SECRET', '')
+# Credentials are stored in DB (SocialAuthSettings) and read by GriplineYandexOAuth2.get_key_and_secret()
 SOCIAL_AUTH_YANDEX_OAUTH2_SCOPE = ['login:email', 'login:info']
 
 SOCIAL_AUTH_PIPELINE = (
