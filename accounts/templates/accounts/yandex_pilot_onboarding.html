@@ -26,8 +26,8 @@
 
 <div class="force-width-1500 pt-5 pb-5">
 <div class="onboarding-box">
-    <div class="onboarding-title">🏁 Привязка профиля пилота</div>
-    <div class="onboarding-sub">Найдите себя в базе или создайте новый профиль</div>
+    <div class="onboarding-title" style="text-align:center;">Привязка профиля пилота</div>
+    <div class="onboarding-sub" style="text-align:center;">Найдите себя в базе или создайте новый профиль</div>
 
     {% if messages %}
     {% for msg in messages %}
@@ -35,7 +35,7 @@
     {% endfor %}
     {% endif %}
 
-    <label class="form-label">Поиск по имени или фамилии</label>
+    <label class="form-label" style="text-align:center;display:block;">Поиск по имени или фамилии</label>
     <input type="text" id="driverSearch" class="search-input" placeholder="Начните вводить имя или фамилию..." autocomplete="off">
     <ul class="results-list" id="resultsList"></ul>
     <div class="no-results" id="noResults">Пилоты не найдены</div>
