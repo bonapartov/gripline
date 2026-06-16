@@ -98,12 +98,26 @@ class SocialAuthSettings(BaseGenericSetting):
     vk_enabled = models.BooleanField("Вход через ВКонтакте", default=False)
     google_enabled = models.BooleanField("Вход через Google", default=False)
 
+    contact_email = models.EmailField(
+        "Контактный email",
+        blank=True,
+        help_text="Email для связи с администратором (показывается пользователям)"
+    )
+    telegram_contact = models.CharField(
+        "Telegram администратора",
+        max_length=100,
+        blank=True,
+        help_text="Telegram-аккаунт или канал, например @gripline"
+    )
+
     panels = [
         FieldPanel('yandex_enabled'),
         FieldPanel('yandex_client_id'),
         FieldPanel('yandex_client_secret'),
         FieldPanel('vk_enabled'),
         FieldPanel('google_enabled'),
+        FieldPanel('contact_email'),
+        FieldPanel('telegram_contact'),
     ]
 
     class Meta:

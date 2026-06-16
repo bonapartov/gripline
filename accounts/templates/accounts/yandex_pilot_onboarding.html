@@ -33,6 +33,7 @@
     {% for msg in messages %}
     <div class="alert alert-{{ msg.tags }} mb-3" style="border-radius:6px;">{{ msg }}</div>
     {% endfor %}
+    {% include 'accounts/_contact_admin.html' %}
     {% endif %}
 
     <label class="form-label" style="text-align:center;display:block;">Поиск по имени или фамилии</label>

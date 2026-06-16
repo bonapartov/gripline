@@ -25,13 +25,14 @@
 
 <div class="force-width-1500 pt-5 pb-5">
 <div class="onboarding-box">
-    <div class="onboarding-title">🔧 Привязка к команде</div>
-    <div class="onboarding-sub">Найдите свою команду в базе или создайте новую</div>
+    <div class="onboarding-title" style="text-align:center;">Привязка к команде</div>
+    <div class="onboarding-sub" style="text-align:center;">Найдите свою команду в базе или создайте новую</div>
 
     {% if messages %}
     {% for msg in messages %}
     <div class="alert alert-{{ msg.tags }} mb-3" style="border-radius:6px;">{{ msg }}</div>
     {% endfor %}
+    {% include 'accounts/_contact_admin.html' %}
     {% endif %}
 
     <label class="form-label">Поиск команды по названию</label>

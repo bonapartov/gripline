@@ -1,0 +1,17 @@
+{% load website_tags %}
+{% get_social_auth_settings as social_auth %}
+{% if social_auth.contact_email or social_auth.telegram_contact %}
+<div style="margin-top:1.25rem;padding:0.9rem 1.1rem;background:#12121c;border:1px solid #2a2a35;border-radius:8px;font-size:0.88rem;color:#adb5bd;text-align:center;">
+    Нужна помощь? Свяжитесь с нами:
+    {% if social_auth.contact_email %}
+    <br><a href="mailto:{{ social_auth.contact_email }}" style="color:#ffc107;text-decoration:none;">
+        <i class="fas fa-envelope" style="margin-right:0.3rem;"></i>{{ social_auth.contact_email }}
+    </a>
+    {% endif %}
+    {% if social_auth.telegram_contact %}
+    <br><a href="https://t.me/{{ social_auth.telegram_contact|cut:'@' }}" target="_blank" style="color:#29b6f6;text-decoration:none;">
+        <i class="fab fa-telegram" style="margin-right:0.3rem;"></i>{{ social_auth.telegram_contact }}
+    </a>
+    {% endif %}
+</div>
+{% endif %}

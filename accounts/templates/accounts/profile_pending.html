@@ -133,7 +133,9 @@
             <i class="fas fa-envelope"></i> Вы получите уведомление на email после подтверждения
         </div>
 
-        <a href="{% url 'accounts:logout' %}" class="btn-pending">Выйти</a>
+        {% include 'accounts/_contact_admin.html' %}
+
+        <a href="{% url 'accounts:logout' %}" class="btn-pending" style="margin-top:1rem;">Выйти</a>
         <a href="/" class="btn-outline-warning">На главную</a>
     </div>
 </div>
