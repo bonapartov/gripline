@@ -1231,9 +1231,24 @@ class RaceClassResultGroup(Orderable, ClusterableModel):
         help_text="Количество осадков за час (0 - сухо, >0 - дождь)"
     )
 
+    SESSION_TYPE_CHOICES = [
+        ('warmup',     'Прогрев'),
+        ('qualifying', 'Квалификация'),
+        ('heat',       'Заезд (ABC)'),
+        ('pre_final',  'Предфинал'),
+        ('final',      'Финал'),
+    ]
+    session_type = models.CharField(
+        "Тип сессии",
+        max_length=20,
+        choices=SESSION_TYPE_CHOICES,
+        default='final',
+    )
+
     panels = [
         FieldPanel('page'),
         FieldPanel('race_class'),
+        FieldPanel('session_type'),
         FieldPanel('tyre'),
         FieldPanel('engine'),
         FieldPanel('race_time'),
@@ -1290,6 +1305,12 @@ class RaceResult(Orderable):
         help_text="Штрафные баллы (вычитаются из очков)"
     )
 
+    start_position = models.IntegerField("Стартовая позиция", null=True, blank=True)
+    best_lap_ms    = models.IntegerField("Лучший круг, мс", null=True, blank=True)
+    best_s1_ms     = models.IntegerField("Лучший S1, мс", null=True, blank=True)
+    best_s2_ms     = models.IntegerField("Лучший S2, мс", null=True, blank=True)
+    best_s3_ms     = models.IntegerField("Лучший S3, мс", null=True, blank=True)
+
     panels = [
         FieldPanel('driver', widget=forms.Select(attrs={
             'class': 'driver-search-select',
@@ -1299,9 +1320,14 @@ class RaceResult(Orderable):
         FieldPanel('race_number'),
         FieldPanel('chassis_new'),
         FieldPanel('position'),
+        FieldPanel('start_position'),
         FieldPanel('points'),
         FieldPanel('tie_breaker'),
         FieldPanel('penalty'),
+        FieldPanel('best_lap_ms'),
+        FieldPanel('best_s1_ms'),
+        FieldPanel('best_s2_ms'),
+        FieldPanel('best_s3_ms'),
     ]
 
     class Meta:

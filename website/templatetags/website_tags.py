@@ -145,3 +145,15 @@ def get_social_auth_settings():
         return SocialAuthSettings.get()
     except Exception:
         return None
+
+
+@register.filter
+def laptime(ms):
+    """62347 → '1:02.347'"""
+    try:
+        ms = int(ms)
+    except (TypeError, ValueError):
+        return '—'
+    minutes = ms // 60000
+    seconds = (ms % 60000) / 1000
+    return f"{minutes}:{seconds:06.3f}"

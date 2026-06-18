@@ -10,7 +10,7 @@ from website.models import Driver, Team, RaceResult, RaceClass, Track, Chassis, 
 from django.utils.timezone import now
 # Добавляем импорт для определения текущего сайта (нужно для Header/Footer)
 from wagtail.models import Site
-from django.db.models import F, OuterRef, Subquery, Avg
+from django.db.models import F, OuterRef, Subquery, Avg, Min, ExpressionWrapper, IntegerField
 from .models import EventOccurrence
 from django.db import models
 from django.utils import timezone
@@ -118,6 +118,15 @@ class EngineViewSet(SnippetViewSet):
             path("<slug:slug>/", engine_detail_view, name="details"),
         ]
 
+def _ms_to_laptime(ms):
+    """62347 → '1:02.347'"""
+    if ms is None:
+        return None
+    minutes = ms // 60000
+    seconds = (ms % 60000) / 1000
+    return f"{minutes}:{seconds:06.3f}"
+
+
 def driver_detail_view(request, slug):
     driver = get_object_or_404(Driver, slug=slug)
 
@@ -137,6 +146,10 @@ def driver_detail_view(request, slug):
             ).order_by('-end').values('end')[:1]
         ),
         group_size=Count('group__class_results'),
+        position_gain=ExpressionWrapper(
+            F('start_position') - F('position'),
+            output_field=IntegerField(),
+        ),
     ).order_by('-event_date', '-group__page__last_published_at')
 
     # --- РАСЧЕТ СТАТИСТИКИ ---
@@ -246,6 +259,35 @@ def driver_detail_view(request, slug):
 
     driver_profile = driver.userprofile_set.first()
 
+    # --- Личные рекорды по классам (агрегируем за один запрос) ---
+    pr_raw = (
+        RaceResult.objects
+        .filter(driver=driver)
+        .values('group__race_class_id', 'group__race_class__name')
+        .annotate(
+            best_lap=Min('best_lap_ms'),
+            best_s1=Min('best_s1_ms'),
+            best_s2=Min('best_s2_ms'),
+            best_s3=Min('best_s3_ms'),
+        )
+        .order_by('group__race_class_id')
+    )
+    personal_records = []
+    for pr in pr_raw:
+        if not any([pr['best_lap'], pr['best_s1'], pr['best_s2'], pr['best_s3']]):
+            continue
+        ideal_ms = None
+        if pr['best_s1'] and pr['best_s2'] and pr['best_s3']:
+            ideal_ms = pr['best_s1'] + pr['best_s2'] + pr['best_s3']
+        personal_records.append({
+            'class_name': pr['group__race_class__name'],
+            'best_lap': _ms_to_laptime(pr['best_lap']),
+            'best_s1':  _ms_to_laptime(pr['best_s1']),
+            'best_s2':  _ms_to_laptime(pr['best_s2']),
+            'best_s3':  _ms_to_laptime(pr['best_s3']),
+            'ideal_lap': _ms_to_laptime(ideal_ms),
+        })
+
     return render(request, "coderedcms/snippets/driver_page.html", {
         "driver": driver,
         "object": driver,
@@ -265,6 +307,7 @@ def driver_detail_view(request, slug):
         "driver_class_periods": driver_class_periods,
         "class_ratings": class_ratings,
         "driver_profile": driver_profile,
+        "personal_records": personal_records,
     })
 
 def team_detail_view(request, slug):
