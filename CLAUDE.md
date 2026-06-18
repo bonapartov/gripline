@@ -94,7 +94,7 @@ gripline/
 **Хост:** `cleantogo` (root@cleantogo)  
 **Путь:** `/www/wwwroot/gripline.ru`  
 **Сервис Django:** `gripline` (gunicorn, 3 воркера, порт 8000)  
-**Сервис FastAPI:** `gripline-api` (uvicorn, порт 8001) — **пока не задеплоен**  
+**Сервис FastAPI:** `gripline-api` (uvicorn, порт 8001)  
 **Python venv Django:** `/www/wwwroot/gripline.ru/venv`  
 **Python venv FastAPI:** `/www/wwwroot/gripline.ru/fastapi/venv`
 
@@ -121,6 +121,42 @@ python manage.py shell
 
 # Запуск FastAPI (локально / dev)
 cd fastapi && venv/bin/uvicorn main:app --reload --port 8001
+
+# Перезапуск FastAPI
+systemctl restart gripline-api
+
+# Логи FastAPI
+journalctl -u gripline-api -f
+```
+
+### Деплой FastAPI на сервер (первый раз)
+
+```bash
+# 1. Скопировать systemd-юнит
+cp /www/wwwroot/gripline.ru/fastapi/gripline-api.service /etc/systemd/system/
+systemctl daemon-reload
+
+# 2. Создать venv и установить зависимости
+cd /www/wwwroot/gripline.ru/fastapi
+python3.13 -m venv venv
+venv/bin/pip install -r requirements.txt
+
+# 3. Добавить FASTAPI_SECRET_KEY в /www/wwwroot/gripline.ru/.env
+echo 'FASTAPI_SECRET_KEY=<сгенерировать: python -c "import secrets; print(secrets.token_hex(32))">' >> /www/wwwroot/gripline.ru/.env
+
+# 4. Запустить и включить автозапуск
+systemctl enable --now gripline-api
+
+# 5. Добавить nginx location (см. fastapi/nginx_snippet.conf)
+# Вставить в /www/server/nginx/conf/vhost/gripline.ru.conf внутрь server {}
+# и перезагрузить: nginx -s reload
+```
+
+### Деплой обновлений FastAPI
+
+```bash
+# После cherry-pick на сервере
+systemctl restart gripline-api
 ```
 
 ---
@@ -397,8 +433,25 @@ SQLAlchemy-модели (`fastapi/models/`) отражают Django-таблиц
 |----------|-------|---------|
 | `/health` | GET | Проверка доступности |
 | `/auth/login` | POST | form-data: `username`/`password` → JWT |
-| `/pilot/me` | GET | Данные из токена (роли, driver_id) |
-| `/pilot/profile` | GET | Данные `Driver` из БД (только для `pilot`) |
+| `/auth/refresh` | POST | Обновление JWT (принимает действующий токен) |
+| `/auth/me` | GET | Профиль текущего пользователя (все роли) |
+| `/pilots` | GET | Список пилотов (фильтр `?class_id=`, `?limit=`, `?offset=`) |
+| `/pilots/{id}` | GET | Профиль пилота с командой |
+| `/pilots/{id}/results` | GET | История результатов (фильтр `?class_id=`) |
+| `/pilots/{id}/rating` | GET | Рейтинг пилота по всем классам |
+| `/pilots/me/profile` | GET | Профиль авторизованного пилота |
+| `/championships` | GET | Список чемпионатов |
+| `/championships/{id}` | GET | Детали чемпионата с этапами |
+| `/championships/{id}/stages` | GET | Только этапы чемпионата |
+| `/stages/{id}` | GET | Результаты этапа по всем классам |
+| `/teams` | GET | Список команд |
+| `/teams/{id}` | GET | Профиль команды с пилотами |
+| `/news` | GET | Список новостей (фильтр `?limit=`, `?offset=`) |
+| `/news/{id}` | GET | Статья по id |
+| `/classes` | GET | Список классов картинга |
+| `/feed` | GET | Лента (для пилота — его результаты + новости) |
+| `/push/register` | POST | Регистрация FCM-токена устройства |
+| `/push/register` | DELETE | Удаление FCM-токена (при выходе) |
 
 JWT содержит: `sub` (user_id), `username`, `roles`, `driver_id`, `team_id`. Срок жизни — 7 дней.
 
