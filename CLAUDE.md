@@ -44,6 +44,32 @@ gripline/
 ├── teams/                # Команды
 ├── tg_bot/               # Telegram-бот
 ├── templates/            # Глобальные шаблоны (navbar, footer, base)
+├── fastapi/              # FastAPI сервис (мобильный API, порт 8001)
+│   ├── main.py           # Точка входа, CORS, роутеры
+│   ├── database.py       # SQLAlchemy engine + get_db()
+│   ├── requirements.txt
+│   ├── .env.example
+│   ├── auth/             # JWT-авторизация
+│   │   ├── jwt.py        # verify_password, create_access_token, decode_token
+│   │   └── router.py     # POST /auth/login
+│   ├── models/           # SQLAlchemy-модели (только чтение, без миграций)
+│   │   ├── user.py       # AuthUser, UserProfile
+│   │   └── driver.py     # Driver
+│   └── routers/
+│       └── pilots.py     # GET /pilot/me, GET /pilot/profile
+├── flutter_app/          # Flutter мобильное приложение
+│   ├── pubspec.yaml
+│   ├── lib/
+│   │   ├── main.dart         # Точка входа, Firebase init
+│   │   ├── router.dart       # GoRouter + auth redirect
+│   │   ├── theme.dart        # Тёмная тема
+│   │   ├── config.dart       # baseUrl, константы
+│   │   ├── models/           # AuthUser, DriverProfile
+│   │   ├── services/         # api_client, auth_service, push_service
+│   │   ├── screens/          # auth/, feed/, pilots/, profile/
+│   │   └── widgets/          # main_shell.dart (bottom nav)
+│   ├── android/app/google-services.json.example
+│   └── ios/Runner/GoogleService-Info.plist.example
 ├── DESIGN_SYSTEM.md      # Дизайн-система (токены CSS, правила)
 └── manage.py
 ```
@@ -67,19 +93,21 @@ gripline/
 
 **Хост:** `cleantogo` (root@cleantogo)  
 **Путь:** `/www/wwwroot/gripline.ru`  
-**Сервис:** `gripline` (gunicorn, 3 воркера, порт 8000)  
-**Python venv:** `/www/wwwroot/gripline.ru/venv`
+**Сервис Django:** `gripline` (gunicorn, 3 воркера, порт 8000)  
+**Сервис FastAPI:** `gripline-api` (uvicorn, порт 8001) — **пока не задеплоен**  
+**Python venv Django:** `/www/wwwroot/gripline.ru/venv`  
+**Python venv FastAPI:** `/www/wwwroot/gripline.ru/fastapi/venv`
 
 ### Основные команды на сервере
 
 ```bash
-# Перезапуск сервиса
+# Перезапуск Django
 systemctl restart gripline
 
-# Логи
+# Логи Django
 journalctl -u gripline -f
 
-# Активировать venv
+# Активировать venv Django
 cd /www/wwwroot/gripline.ru && source venv/bin/activate
 
 # Пересчёт рейтингов (запускать вручную после ввода новых результатов)
@@ -90,6 +118,9 @@ python manage.py migrate
 
 # Django shell
 python manage.py shell
+
+# Запуск FastAPI (локально / dev)
+cd fastapi && venv/bin/uvicorn main:app --reload --port 8001
 ```
 
 ---
@@ -109,8 +140,8 @@ PostgreSQL. Настройки через переменные окружени�
 |--------|---------|
 | `Driver` | Пилот. Поле `rating_by_class` (JSON) хранит BT-рейтинг по классам |
 | `RaceClass` | Класс карта (Micro, Mini, Junior, Senior, DD2, DD2 Masters) |
-| `RaceResult` | Результат пилота в заезде |
-| `RaceClassResultGroup` | Группа результатов одного заезда |
+| `RaceResult` | **Один пилот на одном этапе в одном классе.** Хранит данные всех сессий: квалификация, предфинал, финал |
+| `RaceClassResultGroup` | Класс на этапе. Содержит погоду, шины, двигатель. Связан с `EventPage` |
 | `AnalyticsSettings` | Singleton с параметрами аналитики. Доступ: `AnalyticsSettings.get()` |
 | `HomePage` | Главная страница. Блоки: герой, новости, топ пилотов, предстоящие события, матчасть |
 | `ArticlePage` | Статья/новость |
@@ -118,6 +149,18 @@ PostgreSQL. Настройки через переменные окружени�
 | `TechArticleIndexPage` | Индекс матчасти (`/matchast/`, page id=378) |
 | `StagePage` | Этап чемпионата |
 | `ChampionshipPage` | Чемпионат |
+
+### Поля RaceResult (хронометраж)
+
+Одна запись = один пилот на этапе. Все сессии внутри одной записи:
+
+| Группа | Поля |
+|--------|------|
+| **Финал** | `position`, `start_position`, `best_lap_ms`, `best_s1_ms`, `best_s2_ms`, `best_s3_ms` |
+| **Квалификация** | `qual_position`, `qual_best_lap_ms`, `qual_s1_ms`, `qual_s2_ms`, `qual_s3_ms` |
+| **Предфинал** | `pre_final_position`, `pre_final_start_pos`, `pre_final_best_lap_ms`, `pre_final_s1_ms`, `pre_final_s2_ms`, `pre_final_s3_ms` |
+
+Все временны́е поля в **миллисекундах** (integer). Конвертация в шаблоне: фильтр `laptime` из `website/templatetags/website_tags.py`.
 
 ---
 
@@ -206,7 +249,55 @@ python manage.py update_ratings --entity driver --model bt
 
 ---
 
+## Локальная разработка
+
+Для локальной разработки используется `mysite/settings/local.py` (в `.gitignore` не попадает, но закоммичен как шаблон).
+
+Файл `local.py` обязан начинаться с:
+```python
+from .base import *
+
+SECRET_KEY = "..."  # любой непустой ключ для локалки
+```
+
+Затем переопределяет `DATABASES` под локальный PostgreSQL.
+
+Запуск:
+
+```bash
+source venv/bin/activate
+python manage.py runserver --settings=mysite.settings.local
+python manage.py migrate --settings=mysite.settings.local
+```
+
+Или один раз установить переменную:
+```bash
+export DJANGO_SETTINGS_MODULE=mysite.settings.local
+```
+
+> **Важно:** `base.py` не содержит `SECRET_KEY` — он должен быть в `local.py` (для локалки) или в `prod.py` через `os.getenv('SECRET_KEY')` (для прода). Без него Django упадёт с `ImproperlyConfigured`.
+
+---
+
 ## Миграции
+
+**Актуальная история (website):**
+
+| № | Название | Суть |
+|---|----------|------|
+| 0001–0009 | — | Базовые модели, аналитика, команды |
+| 0010 | `add_session_type_and_timing_fields` | Финальные поля хронометража в `RaceResult` (`start_position`, `best_lap_ms`, секторы) |
+| 0011 | `techarticleindexpage_alter_articlepage_body` | Страница матчасти |
+| 0012 | `remove_session_type` | Удаление колонки `session_type` из `RaceClassResultGroup` (через `RunSQL`) |
+| 0013 | `add_qual_and_prefinal_fields` | Поля квалификации и предфинала в `RaceResult` (11 колонок) |
+| 0014 | `add_roles_team_pushtoken` | Согласование `verbose_name` полей `RaceResult` с состоянием миграций |
+
+**Актуальная история (accounts):**
+
+| № | Название | Суть |
+|---|----------|------|
+| 0001–0009 | — | UserProfile, документы, соц. авторизация |
+| 0010 | `add_roles_team_pushtoken` | `roles` (ArrayField), `verified`, `team` FK в `UserProfile`; новая модель `PushToken` |
 
 Сервер может иметь миграции которых нет в ветке разработки (если они создавались прямо на сервере). При конфликте запускать:
 
@@ -246,51 +337,126 @@ python manage.py migrate
 - `manager` — данные команды и её пилотов; привязан к `Team`
 - `organizer` — на паузе, реализуется позже
 
-**Новые модели (Этап 2):**
-- `UserProfile`: `roles` (ArrayField, денормализованный кэш), `driver` FK, `team` FK, `verified`. Синхронизируется с существующими Django-моделями (`DriverClaim`, `TeamManager`) через сигналы — атомарно обновляет и `roles`, и FK.
-- `PushToken`: отдельная таблица (не поле на профиле). Стратегия — накапливать токены, удалять мёртвые по ответу FCM (`InvalidRegistration`/`NotRegistered`).
+**Модели Этапа 2 (реализовано):**
 
-**Новые поля моделей (Этап 1):**
+`UserProfile` (в `accounts/models.py`) расширен тремя полями:
+- `roles` — `ArrayField(CharField(max_length=20))`, денормализованный кэш для FastAPI. Значения: `'pilot'`, `'manager'`. Источник правды — `DriverClaim` и `TeamManager`.
+- `team` — FK на `website.Team`, `null=True`. Первая активная команда из `TeamManager`.
+- `verified` — `BooleanField`, администратор подтвердил привязку к пилоту.
 
-`RaceClassResultGroup.session_type`:
+`PushToken` (в `accounts/models.py`) — отдельная таблица (не поле на профиле):
 ```python
-('warmup',     'Прогрев')
-('qualifying', 'Квалификация')
-('heat',       'Заезд (ABC)')
-('pre_final',  'Предфинал')
-('final',      'Финал')   # default
+user       = ForeignKey(User, on_delete=CASCADE)
+token      = CharField(max_length=255, unique=True)
+created_at = DateTimeField(auto_now_add=True)
 ```
-Поле `heat_group` (группа AB/AC/BC) — отложено на потом.
+Стратегия: накапливать все токены, удалять мёртвые по ответу FCM (`InvalidRegistration`/`NotRegistered`).
 
-`RaceResult` — новые поля:
-- `start_position` (IntegerField, null)
-- `best_lap_ms`, `best_s1_ms`, `best_s2_ms`, `best_s3_ms` (IntegerField, null) — миллисекунды
+**Сигналы синхронизации (`accounts/signals.py`):**
 
-**Страница пилота — что добавляется (Этап 1):**
-- В таблице истории: бейдж типа сессии (Ф/Пф/ПР/К), прогресс позиции (5→2 ▲3), лучший круг
-- Новый блок «Личные рекорды»: лучший круг по классу, лучшие S1/S2/S3, идеальный круг (S1+S2+S3)
-- Блок скрыт если данных нет
+Функция `_sync_roles(user)` пересчитывает `roles`/`driver`/`team`/`verified` из источников правды:
+- Подключена к `DriverClaim.post_save` — срабатывает при изменении статуса заявки
+- Подключена к `TeamManager.post_save` и `post_delete` — срабатывает при изменении роли в команде
+
+**Wagtail admin для DriverClaim** (`accounts/wagtail_hooks.py`):
+- Список показывает: email, имя, пилот в базе, статус-бейдж, состояние профиля (верифицирован / нет)
+- `inspect_view_enabled = True`
+- Workflow: открыть заявку → сменить `status` на `approved` → сохранить → сигнал обновляет `UserProfile`
+
+**Модель данных хронометража (Этап 1, реализовано):**
+
+Отказались от подхода «один `RaceResult` = одна сессия». Принята модель:
+> **Один `RaceResult` = один пилот на этапе в классе.** Все сессии (квалификация, предфинал, финал) хранятся в одной записи.
+
+`RaceClassResultGroup` — класс на этапе, без разбивки по сессиям.
+
+`RaceResult` — 16 полей хронометража (см. раздел «Ключевые модели»).
+
+Рейтинговая система (`update_ratings`) использует только `position` (финальная позиция) — без изменений.
+
+**Страница пилота (реализовано в Этапе 1):**
+- Таблица истории: колонка «Динамика» (старт→финиш + стрелка), колонка «Круг» (лучший из заполненных сессий с бейджем К/Пф/Ф), бейджи сессий
+- Блок «Личные рекорды»: лучший круг по классу, S1/S2/S3, идеальный круг — агрегируется по всем трём сессиям; скрыт если данных нет
 
 **Импорт данных с хронометража:**
-- Пока ручной ввод через Wagtail admin (агрегаты: best_lap + секторы)
+- Пока: ручной ввод через Wagtail admin
 - Уточнить у организатора: экспортирует ли Apex Timing GoRacing XML/CSV помимо PDF
 - PDF-парсер — отдельный проект, реализуется после Этапа 1
 
+**FastAPI сервис (Этап 3, реализовано):**
+
+Папка `fastapi/` в монорепо. Отдельный Python venv (Python 3.13), отдельный порт 8001.
+
+Зависимости: `fastapi`, `uvicorn[standard]`, `sqlalchemy`, `psycopg[binary]` (v3), `python-jose[cryptography]`, `passlib`, `python-multipart`, `pydantic`, `pydantic-settings`.
+
+SQLAlchemy-модели (`fastapi/models/`) отражают Django-таблицы только для чтения — без собственных миграций. При Django-миграции обновлять вручную синхронно.
+
+Переменные окружения: `fastapi/.env` (локально, в gitignore) → приоритет перед корневым `.env`. На проде — системное окружение.
+
+| Эндпоинт | Метод | Описание |
+|----------|-------|---------|
+| `/health` | GET | Проверка доступности |
+| `/auth/login` | POST | form-data: `username`/`password` → JWT |
+| `/pilot/me` | GET | Данные из токена (роли, driver_id) |
+| `/pilot/profile` | GET | Данные `Driver` из БД (только для `pilot`) |
+
+JWT содержит: `sub` (user_id), `username`, `roles`, `driver_id`, `team_id`. Срок жизни — 7 дней.
+
+Swagger UI (авторизация): http://127.0.0.1:8001/docs → кнопка **Authorize** → `Bearer <token>`.
+
 **Тестирование:**
-- Локальная машина = staging среда
+- Локальная машина = staging среда (PostgreSQL локально, `--settings=mysite.settings.dev`)
 - Workflow: редактировать локально → тестировать → коммит → push → cherry-pick на сервер
-- Автотесты только для: расчёта рейтинга (analytics/) и FastAPI эндпоинтов (роли, авторизация)
+- Автотесты только для: расчёта рейтинга (`analytics/`) и FastAPI эндпоинтов (роли, авторизация)
 
 ### Дорожная карта (кратко)
 
 | Этап | Статус | Суть |
 |------|--------|------|
-| **1. Данные хронометража** | **В работе** | Новые поля моделей + страница пилота |
-| **2. Подготовка к FastAPI** | Следующий | `UserProfile`, `PushToken`, локальная среда |
-| **3. FastAPI сервис** | Позже | JWT API для мобилки, ingestion, расчёт рейтингов |
-| **4. Flutter приложение** | Позже | Мобилка с ролями, push-уведомлениями |
+| **1. Данные хронометража** | **Выполнен** | Поля квал/предфинал/финал + страница пилота |
+| **2. Подготовка к FastAPI** | **Выполнен** | `roles`/`team`/`verified` в `UserProfile`, `PushToken`, сигналы синхронизации |
+| **3. FastAPI сервис** | **Выполнен (базовый)** | JWT авторизация + `/pilot/me` + `/pilot/profile`; деплой на сервер — следующий шаг |
+| **4. Flutter приложение** | **В работе** | Скелет: логин, onboarding, лента, профиль пилота |
+
+**Flutter приложение (Этап 4, базовый скелет):**
+
+Папка `flutter_app/` в монорепо. SDK: Flutter 3.x + Dart 3.3+.
+
+Стек: `flutter_riverpod` (состояние), `go_router` (навигация), `dio` (HTTP), `flutter_secure_storage` (JWT), `firebase_messaging` (push).
+
+| Экран | Файл | Описание |
+|-------|------|---------|
+| Логин | `screens/auth/login_screen.dart` | Форма логина → FastAPI `/auth/login` |
+| Onboarding | `screens/auth/onboarding_screen.dart` | Карточки по роли (пилот / менеджер / болельщик) |
+| Лента | `screens/feed/feed_screen.dart` | Приветствие по роли, заглушка результатов |
+| Пилоты | `screens/pilots/pilots_screen.dart` | Заглушка (рейтинг — следующая итерация) |
+| Профиль | `screens/profile/profile_screen.dart` | Данные из `/pilot/profile`, рейтинг по классам |
+
+**Настройка `baseUrl`** (`lib/config.dart`):
+- Android-эмулятор: `http://10.0.2.2:8001`
+- iOS-симулятор: `http://127.0.0.1:8001`
+- Реальное устройство: IP компьютера в локальной сети
+
+**Запуск:**
+```bash
+cd flutter_app
+flutter pub get
+flutter run
+```
+
+**Firebase:** скопировать `google-services.json` и `GoogleService-Info.plist` из Firebase Console по шаблонам `.example`. Файлы в `.gitignore`.
+
+### Дорожная карта (кратко)
+
+| Этап | Статус | Суть |
+|------|--------|------|
+| **1. Данные хронометража** | **Выполнен** | Поля квал/предфинал/финал + страница пилота |
+| **2. Подготовка к FastAPI** | **Выполнен** | `roles`/`team`/`verified` в `UserProfile`, `PushToken`, сигналы синхронизации |
+| **3. FastAPI сервис** | **Выполнен (базовый)** | JWT авторизация + `/pilot/me` + `/pilot/profile`; деплой на сервер — следующий шаг |
+| **4. Flutter приложение** | **В работе** | Скелет: логин, onboarding, лента, профиль пилота; push и рейтинг пилотов — следующая итерация |
 
 ### Открытые вопросы
 - Экспортирует ли Apex Timing XML/CSV? (уточнить у организатора)
-- Отдельный репозиторий для FastAPI или монорепо? (решить при старте Этапа 3)
-- Push-уведомления: Firebase или альтернатива? (решить при старте Этапа 4)
+- Деплой FastAPI на сервер: systemd-сервис `gripline-api`, порт 8001, nginx proxy
+- Flutter: настроить Firebase проект и добавить реальные `google-services.json`
+- Flutter: экран рейтинга пилотов (нужен API-эндпоинт со списком + фильтрами по классу)
