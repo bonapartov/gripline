@@ -149,6 +149,14 @@ class Command(BaseCommand):
             )
             self.stdout.write(f"  Дата обновления сохранена в БД (ID: {obj.id})")
 
+            # Сбрасываем wagtailcache чтобы пользователи сразу видели новые рейтинги
+            try:
+                from wagtailcache.cache import clear_cache
+                clear_cache()
+                self.stdout.write("  Кеш Wagtail сброшен")
+            except Exception as cache_err:
+                self.stdout.write(self.style.WARNING(f"  Не удалось сбросить кеш: {cache_err}"))
+
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Ошибка: {str(e)}"))
             logger.exception("Ошибка при обновлении рейтингов")
@@ -453,6 +461,8 @@ class Command(BaseCommand):
 
         Пилоты, отсутствовавшие на заезде, получают виртуальное последнее место
         и проигрывают всем участникам — рейтинг падает при каждом пропущенном этапе.
+        Виртуальные поражения начисляются только начиная с первого старта пилота
+        в данном классе — чтобы не штрафовать новичков за гонки до их дебюта.
         """
         import math
         from datetime import date as date_type
@@ -462,6 +472,14 @@ class Command(BaseCommand):
 
         # Все пилоты, когда-либо выступавшие в этом классе
         all_entity_ids = set(df_class[f'{entity_type}_id'].unique())
+
+        # Дата первого старта каждого пилота в этом классе
+        first_start_date = {}
+        for eid, egroup in df_class.groupby(f'{entity_type}_id'):
+            dates = egroup['date'].dropna()
+            if len(dates) > 0:
+                d = min(dates)
+                first_start_date[eid] = d.date() if hasattr(d, 'date') else d
 
         for group_id, group in df_class.groupby('group_id'):
             if len(group) < 2:
@@ -505,10 +523,15 @@ class Command(BaseCommand):
                         'group_id': group_id,
                     })
 
-            # Виртуальные поражения для отсутствовавших пилотов:
-            # каждый участник заезда обгоняет каждого отсутствующего
+            # Виртуальные поражения только для тех, кто уже дебютировал в классе
+            # (новички не штрафуются за гонки до своего первого старта)
             participants = set(group[f'{entity_type}_id'].values)
-            absent_ids = all_entity_ids - participants
+            absent_ids = {
+                eid for eid in all_entity_ids - participants
+                if race_date is not None
+                and eid in first_start_date
+                and first_start_date[eid] <= race_date
+            }
             last_position = group['position'].max()
 
             for absent_id in absent_ids:
