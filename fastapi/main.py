@@ -13,6 +13,7 @@ app = FastAPI(
     title="Gripline API",
     version="0.2.0",
     description="Мобильный API для приложения Gripline",
+    root_path="/api/mobile",
 )
 
 app.add_middleware(
