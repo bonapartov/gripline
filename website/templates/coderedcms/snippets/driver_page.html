@@ -610,6 +610,7 @@
                             <th style="width: 400px;">Соревнование / Класс</th>
                             <th style="width: 150px;">Шасси</th>
                             <th style="width: 250px;">Команда</th>
+                            <th style="width: 100px;" class="text-center">Динамика</th>
                             <th style="width: 100px;" class="text-center">Круг</th>
                             <th style="width: 100px;" class="text-end">Очки</th>
                         </tr>
@@ -621,16 +622,6 @@
                                     <span class="badge {% if res.position == 1 %}bg-warning text-dark{% elif res.position == 2 %}bg-light text-dark{% elif res.position == 3 %}bg-bronze{% else %}bg-secondary{% endif %} px-3">
                                         {{ res.position }}
                                     </span>
-                                    {% if res.start_position %}
-                                    <div class="pos-gain text-center">
-                                        <span class="text-muted">{{ res.start_position }}→{{ res.position }}</span>
-                                        {% if res.position_gain > 0 %}
-                                        <span class="text-success">▲{{ res.position_gain }}</span>
-                                        {% elif res.position_gain < 0 %}
-                                        <span class="text-danger">▼{{ res.position_gain|slice:"1:" }}</span>
-                                        {% endif %}
-                                    </div>
-                                    {% endif %}
                                 </td>
 
                                 <td class="align-middle text-muted small">
@@ -652,14 +643,9 @@
                                         <span class="fw-bold text-nowrap">{{ res.group.page.title }}</span>
                                         <span class="mx-1 text-secondary opacity-50">|</span>
                                         <span class="small text-info text-uppercase text-nowrap">{{ res.group.race_class.name }}</span>
-                                        {% with st=res.group.session_type %}
-                                        {% if st == 'final' %}<span class="session-badge bg-warning text-dark">Ф</span>
-                                        {% elif st == 'pre_final' %}<span class="session-badge bg-info text-dark">Пф</span>
-                                        {% elif st == 'heat' %}<span class="session-badge bg-secondary text-white">ПР</span>
-                                        {% elif st == 'qualifying' %}<span class="session-badge bg-primary text-white">К</span>
-                                        {% elif st == 'warmup' %}<span class="session-badge border border-secondary text-muted">Р</span>
-                                        {% endif %}
-                                        {% endwith %}
+                                        {% if res.qual_position %}<span class="session-badge bg-primary text-white" title="Квалификация: #{{ res.qual_position }}">К</span>{% endif %}
+                                        {% if res.pre_final_position %}<span class="session-badge bg-info text-dark" title="Предфинал: #{{ res.pre_final_position }}">Пф</span>{% endif %}
+                                        {% if res.position %}<span class="session-badge bg-warning text-dark" title="Финал: #{{ res.position }}">Ф</span>{% endif %}
                                     </a>
                                 </td>
 
@@ -683,8 +669,43 @@
                                     {% endif %}
                                 </td>
 
+                                <td class="align-middle text-center small">
+                                    {% if res.start_position and res.position %}
+                                        <div class="d-flex align-items-center justify-content-center gap-1" style="font-size:0.85rem;">
+                                            <span class="text-muted">{{ res.start_position }}→{{ res.position }}</span>
+                                            {% if res.position_gain > 0 %}
+                                                <span class="text-success fw-bold">▲{{ res.position_gain }}</span>
+                                            {% elif res.position_gain < 0 %}
+                                                <span class="text-danger fw-bold">▼{{ res.position_gain|slice:"1:" }}</span>
+                                            {% else %}
+                                                <span class="text-secondary">—</span>
+                                            {% endif %}
+                                        </div>
+                                    {% elif res.pre_final_start_pos and res.pre_final_position %}
+                                        <div class="d-flex align-items-center justify-content-center gap-1" style="font-size:0.85rem;">
+                                            <span class="text-muted">{{ res.pre_final_start_pos }}→{{ res.pre_final_position }}</span>
+                                            {% if res.pre_final_start_pos > res.pre_final_position %}
+                                                <span class="text-success fw-bold">▲{{ res.pre_final_start_pos|add:"-"|add:res.pre_final_position }}</span>
+                                            {% elif res.pre_final_start_pos < res.pre_final_position %}
+                                                <span class="text-danger fw-bold">▼{{ res.pre_final_position|add:"-"|add:res.pre_final_start_pos }}</span>
+                                            {% else %}
+                                                <span class="text-secondary">—</span>
+                                            {% endif %}
+                                            <span class="session-badge bg-info text-dark">Пф</span>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+
                                 <td class="align-middle text-center font-monospace text-muted small">
-                                    {% if res.best_lap_ms %}{{ res.best_lap_ms|laptime }}{% else %}—{% endif %}
+                                    {% if res.best_lap_ms %}
+                                        {{ res.best_lap_ms|laptime }}<span class="session-badge bg-warning text-dark ms-1">Ф</span>
+                                    {% elif res.pre_final_best_lap_ms %}
+                                        {{ res.pre_final_best_lap_ms|laptime }}<span class="session-badge bg-info text-dark ms-1">Пф</span>
+                                    {% elif res.qual_best_lap_ms %}
+                                        {{ res.qual_best_lap_ms|laptime }}<span class="session-badge bg-primary text-white ms-1">К</span>
+                                    {% else %}—{% endif %}
                                 </td>
 
                                 <td class="align-middle text-end fw-bold text-warning fs-5">
@@ -693,7 +714,7 @@
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="8" class="text-center p-5 text-muted">Данные о заездах отсутствуют</td>
+                                <td colspan="9" class="text-center p-5 text-muted">Данные о заездах отсутствуют</td>
                             </tr>
                         {% endfor %}
                     </tbody>

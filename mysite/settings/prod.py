@@ -64,4 +64,4 @@ EMAIL_USE_SSL = False
 EMAIL_HOST_USER = 'gripline.ru@yandex.ru'
 EMAIL_HOST_PASSWORD = 'pcpdnxyjatnwuhud'
 DEFAULT_FROM_EMAIL = 'Gripline <gripline.ru@yandex.ru>'
-PASSWORD_RESET_TIMEOUT = 1800  # Это даст 30 минут, как и написано у тебя в шаблоне
+PASSWORD_RESET_TIMEOUT = 1800  # С‚РѕРєРµРЅ СЃР±СЂРѕСЃР° РїР°СЂРѕР»СЏ Р¶РёРІС‘С‚ 30 РјРёРЅСѓС‚

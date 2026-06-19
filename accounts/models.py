@@ -1,7 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
-from website.models import Driver
+from django.contrib.postgres.fields import ArrayField
+from website.models import Driver, Team
 from wagtail.contrib.settings.models import BaseGenericSetting
 from wagtail.admin.panels import FieldPanel
 from wagtail.contrib.settings.registry import register_setting
@@ -15,6 +16,25 @@ class UserProfile(models.Model):
         null=True,
         blank=True,
         verbose_name="Привязанный пилот"
+    )
+    team = models.ForeignKey(
+        Team,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Команда",
+    )
+    roles = ArrayField(
+        models.CharField(max_length=20),
+        default=list,
+        blank=True,
+        verbose_name="Роли",
+        help_text="Автоматически. Возможные значения: pilot, manager",
+    )
+    verified = models.BooleanField(
+        "Верифицирован администратором",
+        default=False,
+        help_text="Администратор подтвердил привязку к пилоту",
     )
     city = models.CharField("Город", max_length=100, blank=True)
     email_verified = models.BooleanField(default=False)
@@ -204,3 +224,17 @@ class DriverClaim(models.Model):
         verbose_name = "Заявка пилота"
         verbose_name_plural = "Заявки пилотов"
         ordering = ['-created_at']
+
+
+class PushToken(models.Model):
+    """Push-токен устройства для FCM-уведомлений."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='push_tokens', verbose_name="Пользователь")
+    token = models.CharField("Токен", max_length=255, unique=True)
+    created_at = models.DateTimeField("Создан", auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.email} — {self.token[:20]}…"
+
+    class Meta:
+        verbose_name = "Push-токен"
+        verbose_name_plural = "Push-токены"

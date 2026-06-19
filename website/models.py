@@ -15,7 +15,7 @@ from django.db import models
 from modelcluster.models import ClusterableModel
 from wagtail.api import APIField
 from wagtail.snippets.models import register_snippet
-from wagtail.admin.panels import FieldPanel, InlinePanel, MultiFieldPanel
+from wagtail.admin.panels import FieldPanel, FieldRowPanel, HelpPanel, InlinePanel, MultiFieldPanel
 from wagtail.models import DraftStateMixin, RevisionMixin, PreviewableMixin, Orderable
 from django.urls import reverse
 from django.utils.text import slugify
@@ -1231,33 +1231,21 @@ class RaceClassResultGroup(Orderable, ClusterableModel):
         help_text="Количество осадков за час (0 - сухо, >0 - дождь)"
     )
 
-    SESSION_TYPE_CHOICES = [
-        ('warmup',     'Прогрев'),
-        ('qualifying', 'Квалификация'),
-        ('heat',       'Заезд (ABC)'),
-        ('pre_final',  'Предфинал'),
-        ('final',      'Финал'),
-    ]
-    session_type = models.CharField(
-        "Тип сессии",
-        max_length=20,
-        choices=SESSION_TYPE_CHOICES,
-        default='final',
-    )
-
     panels = [
-        FieldPanel('page'),
-        FieldPanel('race_class'),
-        FieldPanel('session_type'),
-        FieldPanel('tyre'),
-        FieldPanel('engine'),
-        FieldPanel('race_time'),
-        FieldPanel('air_temperature'),
-        FieldPanel('humidity'),
-        FieldPanel('pressure'),
-        FieldPanel('wind_speed'),
-        FieldPanel('uv_index'),
-        FieldPanel('precipitation'),
+        FieldRowPanel([FieldPanel('page'), FieldPanel('race_class')]),
+        FieldRowPanel([FieldPanel('tyre'), FieldPanel('engine'), FieldPanel('race_time')]),
+        MultiFieldPanel([
+            FieldRowPanel([
+                FieldPanel('air_temperature'),
+                FieldPanel('humidity'),
+                FieldPanel('pressure'),
+            ]),
+            FieldRowPanel([
+                FieldPanel('wind_speed'),
+                FieldPanel('uv_index'),
+                FieldPanel('precipitation'),
+            ]),
+        ], heading="Погода"),
         InlinePanel('class_results', label="Пилоты этого класса"),
     ]
 
@@ -1293,41 +1281,77 @@ class RaceResult(Orderable):
     points = models.FloatField("Очки", default=0)
 
     # Новое поле для тай-брейка (скрытые очки)
-    tie_breaker = models.FloatField(
-        "Тай-брейк",
-        default=0,
-        help_text="Скрытые очки для разрешения равенства (не отображаются на сайте)"
-    )
-    # Поле для штрафов
-    penalty = models.FloatField(
-        "Штраф",
-        default=0,
-        help_text="Штрафные баллы (вычитаются из очков)"
-    )
+    tie_breaker = models.FloatField("Тай-брейк", default=0)
+    penalty     = models.FloatField("Штраф", default=0)
 
-    start_position = models.IntegerField("Стартовая позиция", null=True, blank=True)
-    best_lap_ms    = models.IntegerField("Лучший круг, мс", null=True, blank=True)
-    best_s1_ms     = models.IntegerField("Лучший S1, мс", null=True, blank=True)
-    best_s2_ms     = models.IntegerField("Лучший S2, мс", null=True, blank=True)
-    best_s3_ms     = models.IntegerField("Лучший S3, мс", null=True, blank=True)
+    # --- Финал ---
+    start_position        = models.IntegerField("Стартовая позиция (финал)", null=True, blank=True)
+    best_lap_ms           = models.IntegerField("Круг, мс", null=True, blank=True)
+    best_s1_ms            = models.IntegerField("S1, мс", null=True, blank=True)
+    best_s2_ms            = models.IntegerField("S2, мс", null=True, blank=True)
+    best_s3_ms            = models.IntegerField("S3, мс", null=True, blank=True)
+
+    # --- Квалификация ---
+    qual_position         = models.IntegerField("Позиция", null=True, blank=True)
+    qual_best_lap_ms      = models.IntegerField("Круг, мс", null=True, blank=True)
+    qual_s1_ms            = models.IntegerField("S1, мс", null=True, blank=True)
+    qual_s2_ms            = models.IntegerField("S2, мс", null=True, blank=True)
+    qual_s3_ms            = models.IntegerField("S3, мс", null=True, blank=True)
+
+    # --- Предфинал ---
+    pre_final_position    = models.IntegerField("Позиция", null=True, blank=True)
+    pre_final_start_pos   = models.IntegerField("Старт", null=True, blank=True)
+    pre_final_best_lap_ms = models.IntegerField("Круг, мс", null=True, blank=True)
+    pre_final_s1_ms       = models.IntegerField("S1, мс", null=True, blank=True)
+    pre_final_s2_ms       = models.IntegerField("S2, мс", null=True, blank=True)
+    pre_final_s3_ms       = models.IntegerField("S3, мс", null=True, blank=True)
 
     panels = [
-        FieldPanel('driver', widget=forms.Select(attrs={
-            'class': 'driver-search-select',
-            'data-search': 'true'
-        })),
-        FieldPanel('team'),
-        FieldPanel('race_number'),
-        FieldPanel('chassis_new'),
-        FieldPanel('position'),
-        FieldPanel('start_position'),
-        FieldPanel('points'),
-        FieldPanel('tie_breaker'),
-        FieldPanel('penalty'),
-        FieldPanel('best_lap_ms'),
-        FieldPanel('best_s1_ms'),
-        FieldPanel('best_s2_ms'),
-        FieldPanel('best_s3_ms'),
+        FieldRowPanel([
+            FieldPanel('driver', widget=forms.Select(attrs={'class': 'driver-search-select', 'data-search': 'true'})),
+            FieldPanel('race_number'),
+        ]),
+        FieldRowPanel([
+            FieldPanel('chassis_new'),
+            FieldPanel('team'),
+        ]),
+        MultiFieldPanel([
+            HelpPanel("Тай-брейк — скрытые очки для разрешения равенства, не отображаются на сайте. Штраф — вычитается из очков."),
+            FieldRowPanel([
+                FieldPanel('position'),
+                FieldPanel('start_position'),
+                FieldPanel('points'),
+                FieldPanel('tie_breaker'),
+                FieldPanel('penalty'),
+            ]),
+        ], heading="Финал"),
+        MultiFieldPanel([
+            FieldRowPanel([
+                FieldPanel('best_lap_ms'),
+                FieldPanel('best_s1_ms'),
+                FieldPanel('best_s2_ms'),
+                FieldPanel('best_s3_ms'),
+            ]),
+        ], heading="Тайминг финала"),
+        MultiFieldPanel([
+            FieldRowPanel([
+                FieldPanel('qual_position'),
+                FieldPanel('qual_best_lap_ms'),
+                FieldPanel('qual_s1_ms'),
+                FieldPanel('qual_s2_ms'),
+                FieldPanel('qual_s3_ms'),
+            ]),
+        ], heading="Квалификация"),
+        MultiFieldPanel([
+            FieldRowPanel([
+                FieldPanel('pre_final_position'),
+                FieldPanel('pre_final_start_pos'),
+                FieldPanel('pre_final_best_lap_ms'),
+                FieldPanel('pre_final_s1_ms'),
+                FieldPanel('pre_final_s2_ms'),
+                FieldPanel('pre_final_s3_ms'),
+            ]),
+        ], heading="Предфинал"),
     ]
 
     class Meta:

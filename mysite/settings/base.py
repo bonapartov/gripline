@@ -34,6 +34,7 @@ LOCALE_PATHS = [
 # Application definition
 
 INSTALLED_APPS = [
+    'django.contrib.postgres',
     'wagtail_modeladmin',
     'wagtailmarkdown',
     'organizers.apps.OrganizersConfig',

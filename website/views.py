@@ -150,6 +150,10 @@ def driver_detail_view(request, slug):
             F('start_position') - F('position'),
             output_field=IntegerField(),
         ),
+        pf_position_gain=ExpressionWrapper(
+            F('pre_final_start_pos') - F('pre_final_position'),
+            output_field=IntegerField(),
+        ),
     ).order_by('-event_date', '-group__page__last_published_at')
 
     # --- РАСЧЕТ СТАТИСТИКИ ---
@@ -259,32 +263,47 @@ def driver_detail_view(request, slug):
 
     driver_profile = driver.userprofile_set.first()
 
-    # --- Личные рекорды по классам (агрегируем за один запрос) ---
+    # --- Личные рекорды по классам (MIN по всем трём сессиям) ---
     pr_raw = (
         RaceResult.objects
         .filter(driver=driver)
         .values('group__race_class_id', 'group__race_class__name')
         .annotate(
-            best_lap=Min('best_lap_ms'),
-            best_s1=Min('best_s1_ms'),
-            best_s2=Min('best_s2_ms'),
-            best_s3=Min('best_s3_ms'),
+            best_lap_final=Min('best_lap_ms'),
+            best_lap_pf=Min('pre_final_best_lap_ms'),
+            best_lap_qual=Min('qual_best_lap_ms'),
+            best_s1_final=Min('best_s1_ms'),
+            best_s1_pf=Min('pre_final_s1_ms'),
+            best_s1_qual=Min('qual_s1_ms'),
+            best_s2_final=Min('best_s2_ms'),
+            best_s2_pf=Min('pre_final_s2_ms'),
+            best_s2_qual=Min('qual_s2_ms'),
+            best_s3_final=Min('best_s3_ms'),
+            best_s3_pf=Min('pre_final_s3_ms'),
+            best_s3_qual=Min('qual_s3_ms'),
         )
         .order_by('group__race_class_id')
     )
     personal_records = []
     for pr in pr_raw:
-        if not any([pr['best_lap'], pr['best_s1'], pr['best_s2'], pr['best_s3']]):
+        def _best(*vals):
+            filtered = [v for v in vals if v is not None]
+            return min(filtered) if filtered else None
+
+        best_lap = _best(pr['best_lap_final'], pr['best_lap_pf'], pr['best_lap_qual'])
+        best_s1  = _best(pr['best_s1_final'],  pr['best_s1_pf'],  pr['best_s1_qual'])
+        best_s2  = _best(pr['best_s2_final'],  pr['best_s2_pf'],  pr['best_s2_qual'])
+        best_s3  = _best(pr['best_s3_final'],  pr['best_s3_pf'],  pr['best_s3_qual'])
+
+        if not any([best_lap, best_s1, best_s2, best_s3]):
             continue
-        ideal_ms = None
-        if pr['best_s1'] and pr['best_s2'] and pr['best_s3']:
-            ideal_ms = pr['best_s1'] + pr['best_s2'] + pr['best_s3']
+        ideal_ms = (best_s1 + best_s2 + best_s3) if all([best_s1, best_s2, best_s3]) else None
         personal_records.append({
             'class_name': pr['group__race_class__name'],
-            'best_lap': _ms_to_laptime(pr['best_lap']),
-            'best_s1':  _ms_to_laptime(pr['best_s1']),
-            'best_s2':  _ms_to_laptime(pr['best_s2']),
-            'best_s3':  _ms_to_laptime(pr['best_s3']),
+            'best_lap':  _ms_to_laptime(best_lap),
+            'best_s1':   _ms_to_laptime(best_s1),
+            'best_s2':   _ms_to_laptime(best_s2),
+            'best_s3':   _ms_to_laptime(best_s3),
             'ideal_lap': _ms_to_laptime(ideal_ms),
         })
 

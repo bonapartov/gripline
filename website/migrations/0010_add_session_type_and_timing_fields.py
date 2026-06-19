@@ -8,26 +8,11 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='raceclassresultgroup',
-            name='session_type',
-            field=models.CharField(
-                choices=[
-                    ('warmup',     'Прогрев'),
-                    ('qualifying', 'Квалификация'),
-                    ('heat',       'Заезд (ABC)'),
-                    ('pre_final',  'Предфинал'),
-                    ('final',      'Финал'),
-                ],
-                default='final',
-                max_length=20,
-                verbose_name='Тип сессии',
-            ),
-        ),
+        # --- RaceResult: финал ---
         migrations.AddField(
             model_name='raceresult',
             name='start_position',
-            field=models.IntegerField(blank=True, null=True, verbose_name='Стартовая позиция'),
+            field=models.IntegerField(blank=True, null=True, verbose_name='Стартовая позиция (финал)'),
         ),
         migrations.AddField(
             model_name='raceresult',
@@ -37,16 +22,73 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='raceresult',
             name='best_s1_ms',
-            field=models.IntegerField(blank=True, null=True, verbose_name='Лучший S1, мс'),
+            field=models.IntegerField(blank=True, null=True, verbose_name='S1, мс'),
         ),
         migrations.AddField(
             model_name='raceresult',
             name='best_s2_ms',
-            field=models.IntegerField(blank=True, null=True, verbose_name='Лучший S2, мс'),
+            field=models.IntegerField(blank=True, null=True, verbose_name='S2, мс'),
         ),
         migrations.AddField(
             model_name='raceresult',
             name='best_s3_ms',
-            field=models.IntegerField(blank=True, null=True, verbose_name='Лучший S3, мс'),
+            field=models.IntegerField(blank=True, null=True, verbose_name='S3, мс'),
+        ),
+        # --- RaceResult: квалификация ---
+        migrations.AddField(
+            model_name='raceresult',
+            name='qual_position',
+            field=models.IntegerField(blank=True, null=True, verbose_name='Позиция (квал.)'),
+        ),
+        migrations.AddField(
+            model_name='raceresult',
+            name='qual_best_lap_ms',
+            field=models.IntegerField(blank=True, null=True, verbose_name='Лучший круг (квал.), мс'),
+        ),
+        migrations.AddField(
+            model_name='raceresult',
+            name='qual_s1_ms',
+            field=models.IntegerField(blank=True, null=True, verbose_name='S1 (квал.), мс'),
+        ),
+        migrations.AddField(
+            model_name='raceresult',
+            name='qual_s2_ms',
+            field=models.IntegerField(blank=True, null=True, verbose_name='S2 (квал.), мс'),
+        ),
+        migrations.AddField(
+            model_name='raceresult',
+            name='qual_s3_ms',
+            field=models.IntegerField(blank=True, null=True, verbose_name='S3 (квал.), мс'),
+        ),
+        # --- RaceResult: предфинал ---
+        migrations.AddField(
+            model_name='raceresult',
+            name='pre_final_position',
+            field=models.IntegerField(blank=True, null=True, verbose_name='Позиция (предфинал)'),
+        ),
+        migrations.AddField(
+            model_name='raceresult',
+            name='pre_final_start_pos',
+            field=models.IntegerField(blank=True, null=True, verbose_name='Старт (предфинал)'),
+        ),
+        migrations.AddField(
+            model_name='raceresult',
+            name='pre_final_best_lap_ms',
+            field=models.IntegerField(blank=True, null=True, verbose_name='Лучший круг (предфинал), мс'),
+        ),
+        migrations.AddField(
+            model_name='raceresult',
+            name='pre_final_s1_ms',
+            field=models.IntegerField(blank=True, null=True, verbose_name='S1 (предфинал), мс'),
+        ),
+        migrations.AddField(
+            model_name='raceresult',
+            name='pre_final_s2_ms',
+            field=models.IntegerField(blank=True, null=True, verbose_name='S2 (предфинал), мс'),
+        ),
+        migrations.AddField(
+            model_name='raceresult',
+            name='pre_final_s3_ms',
+            field=models.IntegerField(blank=True, null=True, verbose_name='S3 (предфинал), мс'),
         ),
     ]
