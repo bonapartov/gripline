@@ -14,26 +14,17 @@
                 <li class="full">
                     <label for="id_race_class_group">Класс заезда:</label>
                     {{ form.race_class_group }}
-                    {% if form.race_class_group.errors %}
-                        <ul class="errorlist">
-                            {% for error in form.race_class_group.errors %}
-                                <li>{{ error }}</li>
-                            {% endfor %}
-                        </ul>
-                    {% endif %}
+                </li>
+
+                <li class="full">
+                    <label for="id_session_type">Тип загрузки:</label>
+                    {{ form.session_type }}
                 </li>
 
                 <li class="full">
                     <label for="id_csv_file">CSV файл:</label>
                     {{ form.csv_file }}
-                    <p class="help">Формат: first_name, last_name, city, team_name, race_number, chassis, position, points</p>
-                    {% if form.csv_file.errors %}
-                        <ul class="errorlist">
-                            {% for error in form.csv_file.errors %}
-                                <li>{{ error }}</li>
-                            {% endfor %}
-                        </ul>
-                    {% endif %}
+                    <p class="help" id="csv-format-hint">Формат: <span id="format-hint-text"></span></p>
                 </li>
 
                 <li>
@@ -43,4 +34,29 @@
             </ul>
         </form>
     </div>
+
+<script>
+const SESSION_HINTS = {
+    'qual':      'first_name, last_name, position, best_lap, s1, s2, s3',
+    'pre_final': 'first_name, last_name, start_position, position, best_lap, s1, s2, s3',
+    'final':     'first_name, last_name, start_position, position, best_lap, s1, s2, s3',
+    'protocol':  'first_name, last_name, city, team_name, race_number, chassis, position, points',
+};
+
+function updateHint() {
+    const sel = document.getElementById('id_session_type');
+    const hint = document.getElementById('format-hint-text');
+    if (sel && hint) {
+        hint.textContent = SESSION_HINTS[sel.value] || '';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const sel = document.getElementById('id_session_type');
+    if (sel) {
+        sel.addEventListener('change', updateHint);
+        updateHint();
+    }
+});
+</script>
 {% endblock %}

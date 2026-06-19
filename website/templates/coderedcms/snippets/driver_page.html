@@ -13,15 +13,6 @@
         background-color: var(--gl-brand-bronze) !important;
         color: var(--gl-fg-1) !important;
     }
-    .session-badge {
-        font-size: 0.6rem;
-        font-weight: 700;
-        padding: 1px 5px;
-        border-radius: var(--gl-radius-sm);
-        vertical-align: middle;
-        letter-spacing: 0.03em;
-        text-transform: uppercase;
-    }
     .pos-gain { font-size: 0.62rem; line-height: 1; margin-top: 3px; }
 </style>
 
@@ -643,9 +634,9 @@
                                         <span class="fw-bold text-nowrap">{{ res.group.page.title }}</span>
                                         <span class="mx-1 text-secondary opacity-50">|</span>
                                         <span class="small text-info text-uppercase text-nowrap">{{ res.group.race_class.name }}</span>
-                                        {% if res.qual_position %}<span class="session-badge bg-primary text-white" title="Квалификация: #{{ res.qual_position }}">К</span>{% endif %}
-                                        {% if res.pre_final_position %}<span class="session-badge bg-info text-dark" title="Предфинал: #{{ res.pre_final_position }}">Пф</span>{% endif %}
-                                        {% if res.position %}<span class="session-badge bg-warning text-dark" title="Финал: #{{ res.position }}">Ф</span>{% endif %}
+                                        {% if res.qual_position %}<span class="badge bg-primary text-white" style="font-size:10px; border-radius:4px;" title="Квалификация: #{{ res.qual_position }}">К</span>{% endif %}
+                                        {% if res.pre_final_position %}<span class="badge bg-warning text-dark" style="font-size:10px; border-radius:4px;" title="Предфинал: #{{ res.pre_final_position }}">Пф</span>{% endif %}
+                                        {% if res.position %}<span class="badge bg-success" style="font-size:10px; border-radius:4px;" title="Финал: #{{ res.position }}">Ф</span>{% endif %}
                                     </a>
                                 </td>
 
@@ -691,7 +682,7 @@
                                             {% else %}
                                                 <span class="text-secondary">—</span>
                                             {% endif %}
-                                            <span class="session-badge bg-info text-dark">Пф</span>
+                                            <span class="badge bg-warning text-dark" style="font-size:10px; border-radius:4px;" title="Предфинал">Пф</span>
                                         </div>
                                     {% else %}
                                         <span class="text-muted">—</span>
@@ -700,11 +691,11 @@
 
                                 <td class="align-middle text-center font-monospace text-muted small">
                                     {% if res.best_lap_ms %}
-                                        {{ res.best_lap_ms|laptime }}<span class="session-badge bg-warning text-dark ms-1">Ф</span>
+                                        {{ res.best_lap_ms|laptime }}<span class="badge bg-success ms-1" style="font-size:10px; border-radius:4px;" title="Финал">Ф</span>
                                     {% elif res.pre_final_best_lap_ms %}
-                                        {{ res.pre_final_best_lap_ms|laptime }}<span class="session-badge bg-info text-dark ms-1">Пф</span>
+                                        {{ res.pre_final_best_lap_ms|laptime }}<span class="badge bg-warning text-dark ms-1" style="font-size:10px; border-radius:4px;" title="Предфинал">Пф</span>
                                     {% elif res.qual_best_lap_ms %}
-                                        {{ res.qual_best_lap_ms|laptime }}<span class="session-badge bg-primary text-white ms-1">К</span>
+                                        {{ res.qual_best_lap_ms|laptime }}<span class="badge bg-primary text-white ms-1" style="font-size:10px; border-radius:4px;" title="Квалификация">К</span>
                                     {% else %}—{% endif %}
                                 </td>
 

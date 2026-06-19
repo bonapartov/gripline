@@ -417,6 +417,9 @@ flutter_app/.flutter-plugins
 flutter_app/.flutter-plugins-dependencies
 flutter_app/android/app/google-services.json
 flutter_app/ios/Runner/GoogleService-Info.plist
+# Исключение: flutter_app/lib/ не должен попадать под Django-правило lib/
+!flutter_app/lib/
+!flutter_app/lib/**
 
 # Битые файлы pip
 =*

@@ -1252,6 +1252,9 @@ class RaceClassResultGroup(Orderable, ClusterableModel):
     def __str__(self):
         return f"{self.page.title} - {self.race_class.name} (ID: {self.id})"
 
+    def sorted_results(self):
+        return self.class_results.order_by('-points', 'position')
+
     class Meta:
         verbose_name = "Группа результатов"
         verbose_name_plural = "Группы результатов"
@@ -1353,6 +1356,32 @@ class RaceResult(Orderable):
             ]),
         ], heading="Предфинал"),
     ]
+
+    @property
+    def best_lap_all_ms(self):
+        times = [t for t in [self.best_lap_ms, self.qual_best_lap_ms, self.pre_final_best_lap_ms] if t]
+        return min(times) if times else None
+
+    @property
+    def best_lap_session(self):
+        candidates = [
+            (self.qual_best_lap_ms, 'qual'),
+            (self.pre_final_best_lap_ms, 'pre_final'),
+            (self.best_lap_ms, 'final'),
+        ]
+        valid = [(ms, s) for ms, s in candidates if ms]
+        if not valid:
+            return None
+        return min(valid, key=lambda x: x[0])[1]
+
+    @property
+    def ideal_lap_all_ms(self):
+        s1 = [t for t in [self.best_s1_ms, self.qual_s1_ms, self.pre_final_s1_ms] if t]
+        s2 = [t for t in [self.best_s2_ms, self.qual_s2_ms, self.pre_final_s2_ms] if t]
+        s3 = [t for t in [self.best_s3_ms, self.qual_s3_ms, self.pre_final_s3_ms] if t]
+        if s1 and s2 and s3:
+            return min(s1) + min(s2) + min(s3)
+        return None
 
     class Meta:
         verbose_name = "Результат"
