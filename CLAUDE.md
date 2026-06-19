@@ -94,9 +94,11 @@ gripline/
 **Хост:** `cleantogo` (root@cleantogo)  
 **Путь:** `/www/wwwroot/gripline.ru`  
 **Сервис Django:** `gripline` (gunicorn, 3 воркера, порт 8000)  
-**Сервис FastAPI:** `gripline-api` (uvicorn, порт 8001)  
+**Сервис FastAPI:** `gripline-api` (uvicorn, 2 воркера, порт 8001) — **задеплоен и работает**  
 **Python venv Django:** `/www/wwwroot/gripline.ru/venv`  
-**Python venv FastAPI:** `/www/wwwroot/gripline.ru/fastapi/venv`
+**Python venv FastAPI:** `/www/wwwroot/gripline.ru/fastapi/venv`  
+**nginx конфиг:** `/etc/nginx/sites-available/gripline`  
+**SSH:** `root@92.63.192.42`
 
 ### Основные команды на сервере
 
@@ -131,26 +133,33 @@ journalctl -u gripline-api -f
 
 ### Деплой FastAPI на сервер (первый раз)
 
-```bash
-# 1. Скопировать systemd-юнит
-cp /www/wwwroot/gripline.ru/fastapi/gripline-api.service /etc/systemd/system/
-systemctl daemon-reload
+> **Уже выполнено 2026-06-19.** Раздел оставлен для воспроизведения на другом сервере.
 
-# 2. Создать venv и установить зависимости
+```bash
+# 1. Создать venv и установить зависимости (сервер использует Python 3.12)
 cd /www/wwwroot/gripline.ru/fastapi
-python3.13 -m venv venv
+python3 -m venv venv
 venv/bin/pip install -r requirements.txt
 
-# 3. Добавить FASTAPI_SECRET_KEY в /www/wwwroot/gripline.ru/.env
-echo 'FASTAPI_SECRET_KEY=<сгенерировать: python -c "import secrets; print(secrets.token_hex(32))">' >> /www/wwwroot/gripline.ru/.env
+# 2. Добавить FASTAPI_SECRET_KEY в /www/wwwroot/gripline.ru/.env
+python3 -c "import secrets; print('FASTAPI_SECRET_KEY=' + secrets.token_hex(32))" >> /www/wwwroot/gripline.ru/.env
 
-# 4. Запустить и включить автозапуск
+# 3. Создать systemd-юнит (User=root — пользователя www на сервере нет)
+# Файл: /etc/systemd/system/gripline-api.service
+# Содержимое — см. fastapi/gripline-api.service, но с User=root, Group=root
+systemctl daemon-reload
 systemctl enable --now gripline-api
 
-# 5. Добавить nginx location (см. fastapi/nginx_snippet.conf)
-# Вставить в /www/server/nginx/conf/vhost/gripline.ru.conf внутрь server {}
-# и перезагрузить: nginx -s reload
+# 4. Добавить nginx location в /etc/nginx/sites-available/gripline
+# Вставить внутрь server { ... } блока (см. fastapi/nginx_snippet.conf):
+#   location /api/mobile/ {
+#       proxy_pass http://127.0.0.1:8001/;
+#       ...
+#   }
+nginx -t && nginx -s reload
 ```
+
+**Важно:** в `fastapi/main.py` установлен `root_path="/api/mobile"` — это обязательно для корректной работы Swagger UI за nginx-прокси с префиксом. Без него Swagger пытается загрузить `/openapi.json` вместо `/api/mobile/openapi.json`.
 
 ### Деплой обновлений FastAPI
 
@@ -455,7 +464,9 @@ SQLAlchemy-модели (`fastapi/models/`) отражают Django-таблиц
 
 JWT содержит: `sub` (user_id), `username`, `roles`, `driver_id`, `team_id`. Срок жизни — 7 дней.
 
-Swagger UI (авторизация): http://127.0.0.1:8001/docs → кнопка **Authorize** → `Bearer <token>`.
+Swagger UI (продакшн): **https://gripline.ru/api/mobile/docs** → кнопка **Authorize** → `Bearer <token>`.
+
+Тестовый аккаунт: `demo_pilot_5@email.ru` / `DemoGripline2026!` (демо-пилот, роли не привязаны).
 
 **Тестирование:**
 - Локальная машина = staging среда (PostgreSQL локально, `--settings=mysite.settings.dev`)
@@ -468,8 +479,8 @@ Swagger UI (авторизация): http://127.0.0.1:8001/docs → кнопка
 |------|--------|------|
 | **1. Данные хронометража** | **Выполнен** | Поля квал/предфинал/финал + страница пилота |
 | **2. Подготовка к FastAPI** | **Выполнен** | `roles`/`team`/`verified` в `UserProfile`, `PushToken`, сигналы синхронизации |
-| **3. FastAPI сервис** | **Выполнен** | 20 эндпоинтов: авторизация, пилоты, чемпионаты, команды, новости, лента, push; деплой на сервер — следующий шаг |
-| **4. Flutter приложение** | **В работе** | Скелет: логин, onboarding, лента, профиль пилота |
+| **3. FastAPI сервис** | **Выполнен + задеплоен** | 20 эндпоинтов, работает на проде: https://gripline.ru/api/mobile/docs |
+| **4. Flutter приложение** | **В работе** | Скелет: логин, onboarding, лента, профиль пилота; подключён к prod API |
 
 **Flutter приложение (Этап 4, базовый скелет):**
 
@@ -486,9 +497,9 @@ Swagger UI (авторизация): http://127.0.0.1:8001/docs → кнопка
 | Профиль | `screens/profile/profile_screen.dart` | Данные из `/pilot/profile`, рейтинг по классам |
 
 **Настройка `baseUrl`** (`lib/config.dart`):
-- Android-эмулятор: `http://10.0.2.2:8001`
-- iOS-симулятор: `http://127.0.0.1:8001`
-- Реальное устройство: IP компьютера в локальной сети
+- **Продакшн (текущий):** `https://gripline.ru/api/mobile`
+- Локальная разработка Android-эмулятор: `http://10.0.2.2:8001`
+- Локальная разработка iOS-симулятор: `http://127.0.0.1:8001`
 
 **Запуск:**
 ```bash
@@ -499,17 +510,33 @@ flutter run
 
 **Firebase:** скопировать `google-services.json` и `GoogleService-Info.plist` из Firebase Console по шаблонам `.example`. Файлы в `.gitignore`.
 
-### Дорожная карта (кратко)
-
-| Этап | Статус | Суть |
-|------|--------|------|
-| **1. Данные хронометража** | **Выполнен** | Поля квал/предфинал/финал + страница пилота |
-| **2. Подготовка к FastAPI** | **Выполнен** | `roles`/`team`/`verified` в `UserProfile`, `PushToken`, сигналы синхронизации |
-| **3. FastAPI сервис** | **Выполнен (базовый)** | JWT авторизация + `/pilot/me` + `/pilot/profile`; деплой на сервер — следующий шаг |
-| **4. Flutter приложение** | **В работе** | Скелет: логин, onboarding, лента, профиль пилота; push и рейтинг пилотов — следующая итерация |
-
 ### Открытые вопросы
 - Экспортирует ли Apex Timing XML/CSV? (уточнить у организатора)
-- Деплой FastAPI на сервер: systemd-сервис `gripline-api`, порт 8001, nginx proxy
 - Flutter: настроить Firebase проект и добавить реальные `google-services.json`
-- Flutter: экран рейтинга пилотов (нужен API-эндпоинт со списком + фильтрами по классу)
+- Flutter: экран рейтинга пилотов (нужен UI поверх готового эндпоинта `/pilots?class_id=`)
+- Flutter: push-уведомления (FCM токен → `/push/register`)
+
+---
+
+## Деплой 2026-06-19 — что сделано
+
+### Исправления кода
+- `fastapi/main.py`: добавлен `root_path="/api/mobile"` — без него Swagger UI не загружает схему за nginx-прокси с префиксом
+- `flutter_app/lib/config.dart`: `baseUrl` переключён на `https://gripline.ru/api/mobile`
+- `.gitignore`: добавлены `.claude/` и `.mimocode/`; добавлено исключение `!flutter_app/lib/**` (правило `lib/` блокировало dart-файлы)
+
+### Настройка сервера
+- Создан venv: `fastapi/venv/` (Python 3.12 — версия 3.13 на сервере отсутствует)
+- Установлены зависимости из `fastapi/requirements.txt`
+- В `.env` добавлен `FASTAPI_SECRET_KEY`
+- Создан `/etc/systemd/system/gripline-api.service` с `User=root` (пользователя `www` на сервере нет)
+- Сервис запущен: `systemctl enable --now gripline-api`
+- В `/etc/nginx/sites-available/gripline` добавлен `location /api/mobile/` → `proxy_pass http://127.0.0.1:8001/`
+- nginx перезагружен: `nginx -s reload`
+
+### Проверки
+- `GET https://gripline.ru/api/mobile/health` → `{"status":"ok"}` ✅
+- `GET https://gripline.ru/api/mobile/classes` → список классов ✅
+- `POST https://gripline.ru/api/mobile/auth/login` (demo_pilot_5@email.ru) → JWT токен ✅
+- `GET https://gripline.ru/api/mobile/auth/me` с токеном → профиль пользователя ✅
+- Swagger UI `https://gripline.ru/api/mobile/docs` → все 20 эндпоинтов отображаются ✅
