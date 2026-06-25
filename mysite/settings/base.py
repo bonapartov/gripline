@@ -34,10 +34,12 @@ LOCALE_PATHS = [
 # Application definition
 
 INSTALLED_APPS = [
+    'django.contrib.postgres',
     'wagtail_modeladmin',
     'wagtailmarkdown',
     'organizers.apps.OrganizersConfig',
     'applications.apps.ApplicationsConfig',
+    'demo.apps.DemoConfig',
     # This project
     "website.apps.WebsiteConfig",
     # Wagtail CRX (CodeRed Extensions)
@@ -50,6 +52,8 @@ INSTALLED_APPS = [
     "taggit",
     "wagtailcache",
     "wagtailseo",
+    # Social auth
+    "social_django",
     # Wagtail
     "wagtail.contrib.forms",
     "accounts",
@@ -108,6 +112,8 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "wagtail.contrib.settings.context_processors.settings",
+                "social_django.context_processors.backends",
+                "social_django.context_processors.login_redirect",
             ],
         },
     },
@@ -217,7 +223,41 @@ EMAIL_USE_TLS = False
 EMAIL_USE_SSL = True
 EMAIL_HOST_USER = 'gripline.ru@yandex.ru'
 EMAIL_HOST_PASSWORD = '5a33af98b71f93708a4179b652a6baeb'  # ваш пароль приложения
+EMAIL_TIMEOUT = 5
 
 
 # Базовый URL сайта для ссылок в письмах
 BASE_URL = 'http://127.0.0.1:8000'  # для продакшена заменить на реальный домен
+
+
+# ── Social Auth (social-auth-app-django) ──────────────────────────────────────
+
+AUTHENTICATION_BACKENDS = [
+    'accounts.backends.GriplineYandexOAuth2',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+# Credentials are stored in DB (SocialAuthSettings) and read by GriplineYandexOAuth2.get_key_and_secret()
+SOCIAL_AUTH_YANDEX_OAUTH2_SCOPE = ['login:email', 'login:info']
+
+SOCIAL_AUTH_PIPELINE = (
+    'social_core.pipeline.social_auth.social_details',
+    'social_core.pipeline.social_auth.social_uid',
+    'social_core.pipeline.social_auth.auth_allowed',
+    'social_core.pipeline.social_auth.social_user',
+    'social_core.pipeline.user.get_username',
+    'social_core.pipeline.user.create_user',
+    'social_core.pipeline.social_auth.associate_user',
+    'social_core.pipeline.social_auth.load_extra_data',
+    'social_core.pipeline.user.user_details',
+    'accounts.pipeline.set_unusable_password',
+    'accounts.pipeline.setup_onboarding',
+)
+
+SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/accounts/profile/'
+SOCIAL_AUTH_LOGIN_ERROR_URL = '/accounts/login/'
+SOCIAL_AUTH_LOGOUT_REDIRECT_URL = '/choose-role/'
+SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = ['role', 'pilot_id', 'team_id', 'team_name']
+
+SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL = True
+SOCIAL_AUTH_REDIRECT_IS_HTTPS = False  # set True in prod settings

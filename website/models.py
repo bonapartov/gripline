@@ -15,7 +15,7 @@ from django.db import models
 from modelcluster.models import ClusterableModel
 from wagtail.api import APIField
 from wagtail.snippets.models import register_snippet
-from wagtail.admin.panels import FieldPanel, InlinePanel, MultiFieldPanel
+from wagtail.admin.panels import FieldPanel, FieldRowPanel, HelpPanel, InlinePanel, MultiFieldPanel
 from wagtail.models import DraftStateMixin, RevisionMixin, PreviewableMixin, Orderable
 from django.urls import reverse
 from django.utils.text import slugify
@@ -58,7 +58,7 @@ class ArticleIndexPage(CoderedArticleIndexPage):
     def get_context(self, request):
         context = super().get_context(request)
         
-        # Получаем статьи только этой секции (дочерние страницы)
+        # Получаем статьи только из этого раздела (исключаем матчасть и другие индексы)
         articles = ArticlePage.objects.child_of(self).live().order_by('-date_display')
         
         # Получаем данные классификаторов
@@ -84,14 +84,13 @@ class ArticleIndexPage(CoderedArticleIndexPage):
         return context
     
     def get_classifiers_data(self):
-        """Возвращает словарь классификаторов и их терминов, используемых в статьях этой секции"""
+        """Возвращает словарь классификаторов и их терминов, используемых в статьях"""
         from coderedcms.models import ClassifierTerm
-
-        section_ids = ArticlePage.objects.child_of(self).live().values_list('id', flat=True)
-
+        
+        # Получаем термины только из дочерних статей этого раздела
+        child_ids = ArticlePage.objects.child_of(self).live().values_list('id', flat=True)
         used_terms = ClassifierTerm.objects.filter(
-            coderedpage__id__in=section_ids,
-            coderedpage__live=True,
+            coderedpage__id__in=child_ids,
         ).distinct().select_related('classifier')
         
         # Группируем по классификаторам
@@ -104,7 +103,6 @@ class ArticleIndexPage(CoderedArticleIndexPage):
                 classifiers_dict[classifier].append(term)
         
         return classifiers_dict
-
 
 class TechArticleIndexPage(CoderedArticleIndexPage):
     class Meta:
@@ -783,6 +781,7 @@ class TeamMembership(models.Model):
     """Связь пилота с командой с датами"""
     driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name='team_memberships')
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='memberships')
+    race_class = models.ForeignKey('RaceClass', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Класс')
     joined_at = models.DateField("Дата присоединения", auto_now_add=True)
     left_at = models.DateField("Дата ухода", null=True, blank=True)
     is_active = models.BooleanField("Активен", default=True)
@@ -1233,22 +1232,28 @@ class RaceClassResultGroup(Orderable, ClusterableModel):
     )
 
     panels = [
-        FieldPanel('page'),
-        FieldPanel('race_class'),
-        FieldPanel('tyre'),
-        FieldPanel('engine'),
-        FieldPanel('race_time'),
-        FieldPanel('air_temperature'),
-        FieldPanel('humidity'),
-        FieldPanel('pressure'),
-        FieldPanel('wind_speed'),
-        FieldPanel('uv_index'),
-        FieldPanel('precipitation'),
+        FieldRowPanel([FieldPanel('page'), FieldPanel('race_class')]),
+        FieldRowPanel([FieldPanel('tyre'), FieldPanel('engine'), FieldPanel('race_time')]),
+        MultiFieldPanel([
+            FieldRowPanel([
+                FieldPanel('air_temperature'),
+                FieldPanel('humidity'),
+                FieldPanel('pressure'),
+            ]),
+            FieldRowPanel([
+                FieldPanel('wind_speed'),
+                FieldPanel('uv_index'),
+                FieldPanel('precipitation'),
+            ]),
+        ], heading="Погода"),
         InlinePanel('class_results', label="Пилоты этого класса"),
     ]
 
     def __str__(self):
         return f"{self.page.title} - {self.race_class.name} (ID: {self.id})"
+
+    def sorted_results(self):
+        return self.class_results.order_by('-points', 'position')
 
     class Meta:
         verbose_name = "Группа результатов"
@@ -1279,31 +1284,104 @@ class RaceResult(Orderable):
     points = models.FloatField("Очки", default=0)
 
     # Новое поле для тай-брейка (скрытые очки)
-    tie_breaker = models.FloatField(
-        "Тай-брейк",
-        default=0,
-        help_text="Скрытые очки для разрешения равенства (не отображаются на сайте)"
-    )
-    # Поле для штрафов
-    penalty = models.FloatField(
-        "Штраф",
-        default=0,
-        help_text="Штрафные баллы (вычитаются из очков)"
-    )
+    tie_breaker = models.FloatField("Тай-брейк", default=0)
+    penalty     = models.FloatField("Штраф", default=0)
+
+    # --- Финал ---
+    start_position        = models.IntegerField("Стартовая позиция (финал)", null=True, blank=True)
+    best_lap_ms           = models.IntegerField("Круг, мс", null=True, blank=True)
+    best_s1_ms            = models.IntegerField("S1, мс", null=True, blank=True)
+    best_s2_ms            = models.IntegerField("S2, мс", null=True, blank=True)
+    best_s3_ms            = models.IntegerField("S3, мс", null=True, blank=True)
+
+    # --- Квалификация ---
+    qual_position         = models.IntegerField("Позиция", null=True, blank=True)
+    qual_best_lap_ms      = models.IntegerField("Круг, мс", null=True, blank=True)
+    qual_s1_ms            = models.IntegerField("S1, мс", null=True, blank=True)
+    qual_s2_ms            = models.IntegerField("S2, мс", null=True, blank=True)
+    qual_s3_ms            = models.IntegerField("S3, мс", null=True, blank=True)
+
+    # --- Предфинал ---
+    pre_final_position    = models.IntegerField("Позиция", null=True, blank=True)
+    pre_final_start_pos   = models.IntegerField("Старт", null=True, blank=True)
+    pre_final_best_lap_ms = models.IntegerField("Круг, мс", null=True, blank=True)
+    pre_final_s1_ms       = models.IntegerField("S1, мс", null=True, blank=True)
+    pre_final_s2_ms       = models.IntegerField("S2, мс", null=True, blank=True)
+    pre_final_s3_ms       = models.IntegerField("S3, мс", null=True, blank=True)
 
     panels = [
-        FieldPanel('driver', widget=forms.Select(attrs={
-            'class': 'driver-search-select',
-            'data-search': 'true'
-        })),
-        FieldPanel('team'),
-        FieldPanel('race_number'),
-        FieldPanel('chassis_new'),
-        FieldPanel('position'),
-        FieldPanel('points'),
-        FieldPanel('tie_breaker'),
-        FieldPanel('penalty'),
+        FieldRowPanel([
+            FieldPanel('driver', widget=forms.Select(attrs={'class': 'driver-search-select', 'data-search': 'true'})),
+            FieldPanel('race_number'),
+        ]),
+        FieldRowPanel([
+            FieldPanel('chassis_new'),
+            FieldPanel('team'),
+        ]),
+        MultiFieldPanel([
+            HelpPanel("Тай-брейк — скрытые очки для разрешения равенства, не отображаются на сайте. Штраф — вычитается из очков."),
+            FieldRowPanel([
+                FieldPanel('position'),
+                FieldPanel('start_position'),
+                FieldPanel('points'),
+                FieldPanel('tie_breaker'),
+                FieldPanel('penalty'),
+            ]),
+        ], heading="Финал"),
+        MultiFieldPanel([
+            FieldRowPanel([
+                FieldPanel('best_lap_ms'),
+                FieldPanel('best_s1_ms'),
+                FieldPanel('best_s2_ms'),
+                FieldPanel('best_s3_ms'),
+            ]),
+        ], heading="Тайминг финала"),
+        MultiFieldPanel([
+            FieldRowPanel([
+                FieldPanel('qual_position'),
+                FieldPanel('qual_best_lap_ms'),
+                FieldPanel('qual_s1_ms'),
+                FieldPanel('qual_s2_ms'),
+                FieldPanel('qual_s3_ms'),
+            ]),
+        ], heading="Квалификация"),
+        MultiFieldPanel([
+            FieldRowPanel([
+                FieldPanel('pre_final_position'),
+                FieldPanel('pre_final_start_pos'),
+                FieldPanel('pre_final_best_lap_ms'),
+                FieldPanel('pre_final_s1_ms'),
+                FieldPanel('pre_final_s2_ms'),
+                FieldPanel('pre_final_s3_ms'),
+            ]),
+        ], heading="Предфинал"),
     ]
+
+    @property
+    def best_lap_all_ms(self):
+        times = [t for t in [self.best_lap_ms, self.qual_best_lap_ms, self.pre_final_best_lap_ms] if t]
+        return min(times) if times else None
+
+    @property
+    def best_lap_session(self):
+        candidates = [
+            (self.qual_best_lap_ms, 'qual'),
+            (self.pre_final_best_lap_ms, 'pre_final'),
+            (self.best_lap_ms, 'final'),
+        ]
+        valid = [(ms, s) for ms, s in candidates if ms]
+        if not valid:
+            return None
+        return min(valid, key=lambda x: x[0])[1]
+
+    @property
+    def ideal_lap_all_ms(self):
+        s1 = [t for t in [self.best_s1_ms, self.qual_s1_ms, self.pre_final_s1_ms] if t]
+        s2 = [t for t in [self.best_s2_ms, self.qual_s2_ms, self.pre_final_s2_ms] if t]
+        s3 = [t for t in [self.best_s3_ms, self.qual_s3_ms, self.pre_final_s3_ms] if t]
+        if s1 and s2 and s3:
+            return min(s1) + min(s2) + min(s3)
+        return None
 
     class Meta:
         verbose_name = "Результат"
@@ -1444,6 +1522,14 @@ class AnalyticsSettings(models.Model):
         default=3,
         verbose_name="Мин. общих пилотов для ансамбля",
         help_text="Минимальное число общих пилотов между BT и PageRank для построения ансамбля.",
+    )
+    trend_window = models.IntegerField(
+        default=5,
+        verbose_name="Окно тренда формы (гонок)",
+        help_text=(
+            "Число гонок для расчёта тренда. Сравниваются последние N и предыдущие N гонок. "
+            "Минимум стартов для показа тренда = N+1."
+        ),
     )
 
     updated_at = models.DateTimeField(auto_now=True)
@@ -1712,6 +1798,7 @@ class EventCalendarPage(CoderedWebPage):
         view_mode = request.GET.get('view', 'grid')
         context['view_mode'] = view_mode
 
+
         # Получаем ТЕКУЩУЮ дату по московскому времени
         today = timezone.localtime().date()
 
@@ -1968,13 +2055,21 @@ class HomePage(CoderedWebPage):
         from django.utils import timezone
         from datetime import timedelta
 
-        # Используем московское время для всех сравнений        
+        # Используем московское время для всех сравнений
         now = timezone.localtime()
         context['now'] = now
         next_event = None  # <--- ВАЖНО: инициализируем переменную
-        
+
+        # ID страниц этапов, скрытых организатором (is_published=False)
+        from organizers.models import Stage as OrgStage
+        _draft_stage_page_ids = OrgStage.objects.filter(
+            is_published=False, wagtail_page__isnull=False
+        ).values_list('wagtail_page_id', flat=True)
+
         # 1. Сначала ищем StagePage, который идёт ПРЯМО СЕЙЧАС (start <= now <= end)
-        current_stages = StagePage.objects.live().filter(
+        current_stages = StagePage.objects.live().exclude(
+            id__in=_draft_stage_page_ids
+        ).filter(
             start_date__lte=now,
             end_date__gte=now
         ).distinct().select_related('track')
@@ -1995,7 +2090,9 @@ class HomePage(CoderedWebPage):
         
         # 2. Если текущего нет — ищем ближайший БУДУЩИЙ StagePage
         if not next_event:
-            upcoming_stages = StagePage.objects.live().filter(
+            upcoming_stages = StagePage.objects.live().exclude(
+                id__in=_draft_stage_page_ids
+            ).filter(
                 start_date__gt=now
             ).order_by('start_date').distinct().select_related('track')
             
@@ -2015,14 +2112,18 @@ class HomePage(CoderedWebPage):
         
         context['next_event'] = next_event
 
-        # --- БЛОК 2: Последние новости ---
-        news_sections = ArticleIndexPage.objects.live()
-        news_articles = ArticlePage.objects.none()
-        for section in news_sections:
-            news_articles = news_articles | ArticlePage.objects.child_of(section).live()
-        context['latest_articles'] = news_articles.filter(
-            date_display__isnull=False
-        ).order_by('-date_display')[:12]
+        # --- БЛОК 2: Последние новости (без статей матчасти) ---
+        tech_index = TechArticleIndexPage.objects.live().first()
+        if tech_index:
+            context['latest_articles'] = ArticlePage.objects.live().not_child_of(tech_index).filter(
+                date_display__isnull=False
+            ).order_by('-date_display')[:12]
+            context['latest_tech_articles'] = ArticlePage.objects.child_of(tech_index).live().order_by('-first_published_at')[:8]
+        else:
+            context['latest_articles'] = ArticlePage.objects.live().filter(
+                date_display__isnull=False
+            ).order_by('-date_display')[:12]
+            context['latest_tech_articles'] = []
 
         # --- БЛОК 3: Топ пилотов ---
         class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
@@ -2039,47 +2140,75 @@ class HomePage(CoderedWebPage):
 
         top_drivers = []
         if selected_class_id:
-            import json
-            drivers = Driver.objects.exclude(ensemble_by_class={})
-            for driver in drivers:
-                # ensemble_by_class может быть строкой или dict
-                ebc = driver.ensemble_by_class
-                if isinstance(ebc, str):
-                    try:
-                        ebc = json.loads(ebc)
-                    except:
-                        ebc = {}
-                ensemble_data = ebc.get(str(selected_class_id), {})
-                if not ensemble_data:
-                    continue
-                results = RaceResult.objects.filter(
-                    driver=driver, group__race_class_id=selected_class_id
+            import json, statistics as _stats
+            from datetime import date as _date
+            from django.db.models import Count, Q
+            class_key = str(selected_class_id)
+            _as = AnalyticsSettings.get()
+            all_drivers = Driver.objects.exclude(rating_by_class={}).exclude(rating_by_class__isnull=True)
+
+            # Один запрос для всех статистик по классу
+            race_stats = {
+                s['driver_id']: s
+                for s in RaceResult.objects.filter(
+                    group__race_class_id=selected_class_id
+                ).values('driver_id').annotate(
+                    race_count=Count('id'),
+                    win_count=Count('id', filter=Q(position=1)),
                 )
-                race_count = results.count()
-                win_count = results.filter(position=1).count()
-                driver.rating_score = ensemble_data.get('score', 0)
-                driver.race_count = race_count
-                driver.win_count = win_count
-                driver.win_percentage = round(win_count / race_count * 100, 1) if race_count > 0 else 0
-                top_drivers.append(driver)
+            }
 
-            top_drivers.sort(key=lambda x: x.rating_score, reverse=True)
-            top_drivers = top_drivers[:5]
+            candidates = []
+            for driver in all_drivers:
+                rbc = driver.rating_by_class
+                if isinstance(rbc, str):
+                    try:
+                        rbc = json.loads(rbc)
+                    except (json.JSONDecodeError, ValueError, TypeError):
+                        rbc = {}
+                bt_data = rbc.get(class_key, {})
+                if not bt_data:
+                    continue
 
-            if top_drivers:
-                max_r = top_drivers[0].rating_score
-                min_r = top_drivers[-1].rating_score
-                rng = max_r - min_r if max_r > min_r else 1
-                for i, d in enumerate(top_drivers, 1):
+                # Skip drivers inactive in this class beyond threshold
+                last_race_str = bt_data.get('last_race_date')
+                if last_race_str:
+                    try:
+                        last_race = _date.fromisoformat(last_race_str)
+                        if (_date.today() - last_race).days > _as.inactive_threshold_days:
+                            continue
+                    except (ValueError, TypeError):
+                        pass
+
+                s = race_stats.get(driver.id, {})
+                driver.race_count = s.get('race_count', 0)
+                driver.win_count = s.get('win_count', 0)
+                driver._bt_score = bt_data.get('score', 0)
+                driver._starts = bt_data.get('starts', 0)
+                candidates.append(driver)
+
+            if candidates:
+                mu = _stats.median(d._bt_score for d in candidates)
+                C = 15
+                for d in candidates:
+                    d._smoothed = (d._starts * d._bt_score + C * mu) / (d._starts + C)
+                candidates.sort(key=lambda x: x._smoothed, reverse=True)
+                min_s = candidates[-1]._smoothed
+                max_s = candidates[0]._smoothed
+                rng = max_s - min_s if max_s > min_s else 1
+                for i, d in enumerate(candidates, 1):
                     d.rank = i
-                    d.normalized_rating = round((d.rating_score - min_r) / rng * 100, 1)
+                    d.normalized_rating = round((d._smoothed - min_s) / rng * 100, 1)
+                top_drivers = candidates[:5]
 
         context['top_drivers'] = top_drivers
         context['classes'] = classes
         context['selected_class_id'] = selected_class_id
 
         # --- БЛОК 4: Ближайшие события (календарь) ---
-        upcoming_stages_raw = StagePage.objects.live().filter(
+        upcoming_stages_raw = StagePage.objects.live().exclude(
+            id__in=_draft_stage_page_ids
+        ).filter(
             start_date__gt=now
         ).order_by('start_date').distinct().select_related('track')
         

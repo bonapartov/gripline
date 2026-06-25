@@ -1,7 +1,11 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
-from website.models import Driver
+from django.contrib.postgres.fields import ArrayField
+from website.models import Driver, Team
+from wagtail.contrib.settings.models import BaseGenericSetting
+from wagtail.admin.panels import FieldPanel
+from wagtail.contrib.settings.registry import register_setting
 
 class UserProfile(models.Model):
     """Расширение стандартной модели User"""
@@ -12,6 +16,25 @@ class UserProfile(models.Model):
         null=True,
         blank=True,
         verbose_name="Привязанный пилот"
+    )
+    team = models.ForeignKey(
+        Team,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Команда",
+    )
+    roles = ArrayField(
+        models.CharField(max_length=20),
+        default=list,
+        blank=True,
+        verbose_name="Роли",
+        help_text="Автоматически. Возможные значения: pilot, manager",
+    )
+    verified = models.BooleanField(
+        "Верифицирован администратором",
+        default=False,
+        help_text="Администратор подтвердил привязку к пилоту",
     )
     city = models.CharField("Город", max_length=100, blank=True)
     email_verified = models.BooleanField(default=False)
@@ -62,12 +85,68 @@ class UserProfile(models.Model):
     default_engine = models.CharField("Двигатель", max_length=100, blank=True)
     default_transponder = models.CharField("Номер транспондера AMB", max_length=50, blank=True)
 
+    birth_date_public = models.BooleanField(
+        "Публиковать дату рождения",
+        default=False,
+        help_text="Показывать дату рождения в публичной карточке пилота на сайте"
+    )
+
     @property
     def is_minor(self):
         if not self.birth_date:
             return False
         from datetime import date
         return (date.today() - self.birth_date).days / 365.25 < 18
+
+
+class YandexSocialAuth(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='yandex_auth')
+    yandex_uid = models.CharField(max_length=64, unique=True)
+    yandex_login = models.CharField(max_length=128)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Яндекс аккаунт"
+        verbose_name_plural = "Яндекс аккаунты"
+
+
+@register_setting
+class SocialAuthSettings(BaseGenericSetting):
+    yandex_enabled = models.BooleanField("Вход через Яндекс", default=False)
+    yandex_client_id = models.CharField("Яндекс Client ID", max_length=200, blank=True)
+    yandex_client_secret = models.CharField("Яндекс Client Secret", max_length=200, blank=True)
+    vk_enabled = models.BooleanField("Вход через ВКонтакте", default=False)
+    google_enabled = models.BooleanField("Вход через Google", default=False)
+
+    contact_email = models.EmailField(
+        "Контактный email",
+        blank=True,
+        help_text="Email для связи с администратором (показывается пользователям)"
+    )
+    telegram_contact = models.CharField(
+        "Telegram администратора",
+        max_length=100,
+        blank=True,
+        help_text="Telegram-аккаунт или канал, например @gripline"
+    )
+
+    panels = [
+        FieldPanel('yandex_enabled'),
+        FieldPanel('yandex_client_id'),
+        FieldPanel('yandex_client_secret'),
+        FieldPanel('vk_enabled'),
+        FieldPanel('google_enabled'),
+        FieldPanel('contact_email'),
+        FieldPanel('telegram_contact'),
+    ]
+
+    class Meta:
+        verbose_name = "Авторизация на сайте"
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
 
 
 class PilotDocument(models.Model):
@@ -77,6 +156,7 @@ class PilotDocument(models.Model):
         related_name='documents', verbose_name='Профиль'
     )
     name = models.CharField('Название документа', max_length=200)
+    doc_number = models.CharField('Номер документа', max_length=100, blank=True)
     file = models.FileField('Файл', upload_to='pilot_documents/')
     expiry_date = models.DateField('Срок действия', null=True, blank=True)
     uploaded_at = models.DateTimeField('Загружен', auto_now_add=True)
@@ -144,3 +224,17 @@ class DriverClaim(models.Model):
         verbose_name = "Заявка пилота"
         verbose_name_plural = "Заявки пилотов"
         ordering = ['-created_at']
+
+
+class PushToken(models.Model):
+    """Push-токен устройства для FCM-уведомлений."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='push_tokens', verbose_name="Пользователь")
+    token = models.CharField("Токен", max_length=255, unique=True)
+    created_at = models.DateTimeField("Создан", auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.email} — {self.token[:20]}…"
+
+    class Meta:
+        verbose_name = "Push-токен"
+        verbose_name_plural = "Push-токены"

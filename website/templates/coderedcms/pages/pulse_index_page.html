@@ -3,353 +3,840 @@
 
 {% block content %}
 <style>
-    /* Единый стандарт ширины 1500px */
-    .force-width-1500 {
-        max-width: 1500px !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }
+/* ── Контейнер страницы ─────────────────────────────────────────────── */
+.pl-page {
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: 48px 24px 64px;
+    color: #fff;
+}
 
-    /* Стили для карточек как в track_index_page.html */
-    .championship-card {
-        transition: transform 0.3s, box-shadow 0.3s;
-        background-color: #1a1a25;
-        border: 1px solid #2a2a35;
-        height: 100%;
-    }
-    .championship-card:hover {
+/* ── Hero ───────────────────────────────────────────────────────────── */
+.pl-hero {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    flex-wrap: wrap;
+}
+.pl-year-hero {
+    font-family: var(--gl-font-mono, 'JetBrains Mono', monospace);
+    font-size: 120px;
+    font-weight: 900;
+    line-height: .78;
+    letter-spacing: -5px;
+    color: #fff;
+    user-select: none;
+}
+.pl-hero-right {
+    flex: 1;
+    min-width: 280px;
+}
+.pl-hero-label {
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: #ffc107;
+    margin-bottom: 8px;
+}
+.pl-hero-sub {
+    color: #adb5bd;
+    font-size: 15px;
+    max-width: 560px;
+    margin-bottom: 16px;
+}
+.pl-year-switch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.pl-year-pill {
+    padding: 7px 16px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: var(--gl-font-mono, 'JetBrains Mono', monospace);
+    border: 1px solid #2a2a35;
+    background: #1a1a25;
+    color: #fff;
+    cursor: pointer;
+    transition: color .2s, border-color .2s;
+}
+.pl-year-pill.active,
+.pl-year-pill:hover {
+    background: #ffc107;
+    color: #1a1a25;
+    border-color: #ffc107;
+}
+.pl-year-pill.active {
+    cursor: default;
+}
 
-        box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-        border-color: #ffc107;
-    }
-    .championship-card img {
-        height: 357px;
-        object-fit: cover;
-        border-bottom: 1px solid #2a2a35;
-    }
-    .championship-card .card-body {
-        padding: 1.25rem;
-    }
-    .championship-card .card-title {
-        color: #fff;
-        font-weight: bold;
-        margin-bottom: 0.5rem;
-    }
-    .championship-card .card-text {
-        color: #adb5bd;
-        font-size: 0.9rem;
-    }
+/* ── Радужная полоса ────────────────────────────────────────────────── */
+.pl-rainbow {
+    height: 3px;
+    border-radius: 2px;
+    margin: 18px 0 28px;
+    background: linear-gradient(90deg, #ffc107, #0dcaf0, #ffc107);
+}
 
-    /* Стили для таблицы как в team_page.html */
-    .table-hover tbody tr:hover {
-        background-color: rgba(13, 202, 240, 0.1) !important;
-        transition: 0.3s;
-    }
+/* ── Метки и чипы фильтров ──────────────────────────────────────────── */
+.pl-filter-label {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #0dcaf0;
+    white-space: nowrap;
+}
+.pl-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+.pl-filter-row:last-child {
+    margin-bottom: 36px;
+}
+.pl-chips-wrap {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.pl-chip {
+    padding: 6px 15px;
+    border-radius: 5px;
+    font-size: 13px;
+    font-weight: 400;
+    border: 1px solid #2a2a35;
+    background: #1a1a25;
+    color: #fff;
+    cursor: pointer;
+    transition: border-color .2s, background .2s, color .2s;
+}
+.pl-chip:hover {
+    border-color: #ffc107;
+}
+.pl-chip--active {
+    background: #ffc107;
+    color: #1a1a25;
+    border-color: #ffc107;
+    font-weight: 700;
+}
+.pl-reset-btn {
+    padding: 6px 13px;
+    border-radius: 20px;
+    font-size: 13px;
+    color: #6c757d;
+    border: 1px solid #2a2a35;
+    background: transparent;
+    cursor: pointer;
+    transition: color .2s, border-color .2s;
+}
+.pl-reset-btn:hover {
+    color: #ffc107;
+    border-color: #ffc107;
+}
 
-    /* Стили для фильтров */
-    .filter-card {
-        background-color: #1a1a25;
-        border: 1px solid #2a2a35;
-    }
+/* ── Заголовки секций ───────────────────────────────────────────────── */
+.pl-section {
+    margin-bottom: 56px;
+}
+.pl-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid #2a2a35;
+    padding-bottom: 12px;
+    margin-bottom: 24px;
+}
+.pl-section-header--blue {
+    border-bottom-color: #0d6efd;
+}
+.pl-section-title {
+    font-size: 17px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0;
+    border-bottom: 2px solid #2a2a35;
+    padding-bottom: 12px;
+    margin-bottom: 24px;
+}
+.pl-section-header .pl-section-title {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+.pl-stage-count {
+    font-size: 12px;
+    color: #6c757d;
+    font-family: var(--gl-font-mono, 'JetBrains Mono', monospace);
+}
+.pl-chassis-link {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #0dcaf0;
+    text-decoration: none;
+    letter-spacing: .5px;
+}
+.pl-chassis-link:hover { color: #ffc107; }
 
-    .filter-card .card-header {
-        background-color: #0d6efd;
-        border-bottom: 1px solid #2a2a35;
-    }
+/* ── Лидеры ─────────────────────────────────────────────────────────── */
+.pl-leaders-strip {
+    display: flex;
+    gap: 18px;
+    overflow-x: auto;
+    justify-content: center;
+    padding: 20px 24px;
+    background: #1a1a25;
+    border: 1px solid #2a2a35;
+    border-radius: 12px;
+}
+.pl-leaders-strip::-webkit-scrollbar { height: 4px; }
+.pl-leaders-strip::-webkit-scrollbar-track { background: #2a2a35; }
+.pl-leaders-strip::-webkit-scrollbar-thumb { background: #ffc107; border-radius: 4px; }
 
-    .form-check-input {
-        background-color: #2a2a35;
-        border-color: #3a3a45;
-    }
+.pl-leader-card {
+    width: 170px;
+    flex-shrink: 0;
+    text-align: center;
+}
+.pl-leader-photo-wrap {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 0 auto;
+}
+.pl-leader-photo-wrap img {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    display: block;
+}
+.pl-leader-placeholder {
+    width: 150px;
+    height: 150px;
+    background: #2a2a35;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,.4);
+    font-size: 2rem;
+}
+.pl-leader-class-badge {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,.72);
+    color: #ffc107;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 4px 0;
+    text-align: center;
+}
+.pl-leader-name {
+    font-weight: 700;
+    font-size: 15px;
+    margin-top: 10px;
+}
+.pl-leader-name a {
+    color: #fff;
+    text-decoration: none;
+}
+.pl-leader-name a:hover { color: #ffc107; }
+.pl-leader-meta {
+    color: #6c757d;
+    font-size: 12px;
+    font-family: var(--gl-font-mono, 'JetBrains Mono', monospace);
+    margin-top: 3px;
+}
 
-    .form-check-input:checked {
-        background-color: #0dcaf0;
-        border-color: #0dcaf0;
-    }
+/* ── Таймлайн ───────────────────────────────────────────────────────── */
+.pl-timeline-wrap {
+    position: relative;
+    padding-left: 48px;
+}
+.pl-timeline-line {
+    position: absolute;
+    left: 19px;
+    top: 8px;
+    bottom: 34px;
+    width: 4px;
+    background: repeating-linear-gradient(#3a3a45 0 10px, transparent 10px 18px);
+}
+.pl-station {
+    position: relative;
+    margin-bottom: 18px;
+}
+.pl-station-dot {
+    position: absolute;
+    left: -38px;
+    top: 18px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 3px solid #15151c;
+}
+.pl-stationcard {
+    background: #1a1a25;
+    border: 1px solid #2a2a35;
+    border-radius: 12px;
+    display: flex;
+    gap: 18px;
+    padding: 16px;
+    align-items: flex-start;
+    transition: border-color .2s, transform .2s, box-shadow .2s;
+    cursor: default;
+}
+.pl-stationcard:hover {
+    border-color: #ffc107;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,.3);
+}
+.pl-station-cover {
+    width: 118px;
+    height: 80px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+.pl-station-cover--placeholder {
+    width: 118px;
+    height: 80px;
+    border-radius: 8px;
+    background: #2a2a35;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: rgba(255,255,255,.3);
+    font-size: 1.5rem;
+}
+.pl-station-body {
+    flex: 1;
+    min-width: 0;
+}
+.pl-station-meta {
+    font-size: 11px;
+    color: #6c757d;
+    font-family: var(--gl-font-mono, 'JetBrains Mono', monospace);
+    margin-bottom: 6px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.pl-station-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+.pl-station-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: inherit;
+    text-decoration: none;
+}
+.pl-station-name:hover {
+    color: #ffc107;
+    text-decoration: none;
+}
+.pl-type-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+/* Победители по классам */
+.pl-winners-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 28px;
+}
+.pl-winners-col {
+    flex: 1 1 130px;
+    min-width: 0;
+}
+.pl-class-badge {
+    display: inline-block;
+    background: #2a2a35;
+    color: #0dcaf0;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 3px 9px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    text-decoration: none;
+}
+.pl-class-badge--link:hover {
+    background: #3a3a45;
+    color: #fff;
+    text-decoration: none;
+}
+.pl-place-row {
+    display: grid;
+    grid-template-columns: 20px minmax(0,1fr) auto;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 5px;
+}
+.pl-pos-badge {
+    font-family: var(--gl-font-mono, 'JetBrains Mono', monospace);
+    font-weight: 800;
+    font-size: 11px;
+    border-radius: 3px;
+    padding: 1px 0;
+    text-align: center;
+    min-width: 20px;
+}
+.pl-pos-1 { background: #ffc107; color: #212529; }
+.pl-pos-2 { background: #f8f9fa; color: #212529; }
+.pl-pos-3 { background: #cd7f32; color: #fff; }
+.pl-place-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #adb5bd;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-decoration: none;
+}
+.pl-place-name--1 {
+    font-weight: 700;
+    color: #eceff1;
+}
+.pl-place-name--link:hover {
+    color: #ffc107;
+    text-decoration: none;
+}
+.pl-place-num {
+    font-size: 12px;
+    color: #6c757d;
+    font-family: var(--gl-font-mono, 'JetBrains Mono', monospace);
+}
+.pl-station-link {
+    flex-shrink: 0;
+    color: #ffc107;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    padding-top: 4px;
+}
+.pl-station-link:hover { text-decoration: underline; }
 
-    .class-filter-list {
-        max-height: 200px;
-        overflow-y: auto;
-        padding-right: 5px;
-    }
+/* Чемпионы завершённого сезона */
+.pl-champs-block { margin: 12px 0 4px; }
+.pl-champs-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,.45);
+    margin-bottom: 10px;
+    text-align: center;
+}
+.pl-champs-row {
+    display: flex;
+    gap: 18px;
+    overflow-x: auto;
+    justify-content: center;
+    padding: 14px 16px;
+    background: #1a1a25;
+    border: 1px solid #2a2a35;
+    border-radius: 10px;
+}
 
-    .class-filter-list::-webkit-scrollbar {
-        width: 5px;
-    }
+/* Финиш сезона */
+.pl-finish {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 4px;
+    padding-left: 0;
+}
+.pl-finish-flag {
+    position: absolute;
+    left: -40px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: 2px solid #15151c;
+    background: repeating-conic-gradient(#fff 0 25%, #000 0 50%) 0 / 8px 8px;
+    flex-shrink: 0;
+}
+.pl-finish-label {
+    color: #6c757d;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    font-family: var(--gl-font-mono, 'JetBrains Mono', monospace);
+}
+/* Старт сезона */
+.pl-start {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 4px;
+    margin-bottom: 8px;
+}
+.pl-start-flag {
+    position: absolute;
+    left: -40px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 3px solid #15151c;
+    background: #28a745;
+    box-shadow: 0 0 0 2px #28a745;
+    flex-shrink: 0;
+}
+.pl-start-label {
+    color: #6c757d;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    font-family: var(--gl-font-mono, 'JetBrains Mono', monospace);
+}
+/* Разделитель между чемпионатами */
+.pl-champ-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 32px 0 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #2a2a35;
+}
+.pl-champ-divider-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 3px 9px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+.pl-champ-divider-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #adb5bd;
+}
 
-    .class-filter-list::-webkit-scrollbar-track {
-        background: #2a2a35;
-    }
+/* Аккордеон «Предстоящие» */
+.pl-upcoming-accordion {
+    margin-bottom: 18px;
+    border: none;
+}
+.pl-upcoming-summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 16px;
+    background: #1a1a25;
+    border: 1px solid #2a2a35;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #adb5bd;
+    list-style: none;
+    user-select: none;
+    transition: border-color .15s, color .15s;
+}
+.pl-upcoming-summary::-webkit-details-marker { display: none; }
+.pl-upcoming-summary:hover {
+    border-color: #ffc107;
+    color: #eceff1;
+}
+.pl-upcoming-count {
+    background: #2a2a35;
+    color: #0dcaf0;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: var(--gl-font-mono, 'JetBrains Mono', monospace);
+}
+.pl-upcoming-chevron {
+    margin-left: auto;
+    font-size: 11px;
+    transition: transform .2s;
+}
+details[open] .pl-upcoming-chevron {
+    transform: rotate(180deg);
+}
+.pl-upcoming-body {
+    margin-top: 12px;
+}
 
-    .class-filter-list::-webkit-scrollbar-thumb {
-        background: #ffc107;
-        border-radius: 5px;
-    }
+/* Пустое состояние */
+.pl-empty {
+    background: #1a1a25;
+    border: 1px dashed #2a2a35;
+    border-radius: 8px;
+    padding: 48px;
+    text-align: center;
+    color: #6c757d;
+}
+.pl-empty i { font-size: 2.5rem; margin-bottom: 12px; display: block; }
+.pl-empty p { margin: 0; font-size: 15px; }
 
-    /* Стили для карты */
-    #map {
-        height: 400px;
-        width: 100%;
-        border-radius: 0 0 6px 6px;
-    }
+/* ── Топ-шасси ──────────────────────────────────────────────────────── */
+.pl-chassis-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    gap: 16px;
+}
+@media (max-width: 768px) {
+    .pl-chassis-grid { grid-template-columns: 1fr; }
+}
+.pl-chassis-card {
+    background: #1a1a25;
+    border: 1px solid #2a2a35;
+    border-radius: 12px;
+    padding: 18px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: border-color .2s, transform .2s;
+}
+.pl-chassis-card:hover {
+    border-color: #ffc107;
+    transform: translateY(-2px);
+}
+.pl-chassis-rank {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    font-family: var(--gl-font-mono, 'JetBrains Mono', monospace);
+    font-size: 16px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.pl-chassis-info { flex: 1; min-width: 0; }
+.pl-chassis-name { font-size: 16px; font-weight: 700; }
+.pl-chassis-classes { color: #6c757d; font-size: 12px; margin-top: 2px; }
+.pl-chassis-wins-col { text-align: right; flex-shrink: 0; }
+.pl-chassis-wins {
+    font-size: 28px;
+    font-weight: 800;
+    font-family: var(--gl-font-mono, 'JetBrains Mono', monospace);
+    color: #ffc107;
+    line-height: 1;
+}
+.pl-chassis-wins-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: #0dcaf0;
+    letter-spacing: .5px;
+}
 
-    /* Стили для бейджей */
-    .badge-year {
-        background-color: #0d6efd;
-        color: white;
-    }
+/* ── Трассы ─────────────────────────────────────────────────────────── */
+.pl-tracks-card {
+    background: #1a1a25;
+    border: 1px solid #2a2a35;
+    border-radius: 12px;
+    overflow: hidden;
+}
+.pl-tracks-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #2a2a35;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.pl-tracks-header h2 { margin: 0; }
+.pl-tracks-body {
+    display: flex;
+}
+.pl-map-wrap {
+    flex: 1;
+    height: calc(100vh - 220px);
+    min-height: 400px;
+}
+#map {
+    height: 100%;
+    width: 100%;
+}
+.pl-track-list-wrap {
+    width: 340px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    border-left: 1px solid #2a2a35;
+}
+.pl-track-list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+#pl-track-list {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+.pl-track-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border-radius: 6px;
+    background: rgba(0,0,0,.25);
+    border: 1px solid transparent;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+}
+.pl-track-row:hover { border-color: #ffc107; }
+.pl-track-row--active {
+    background: rgba(255,193,7,.14);
+    border-color: #ffc107;
+}
+.pl-track-name { font-weight: 600; color: #eceff1; flex: 1; min-width: 0; }
+.pl-track-count {
+    background: #2a2a35;
+    color: #b0bec5;
+    font-size: 11px;
+    font-family: var(--gl-font-mono, 'JetBrains Mono', monospace);
+    padding: 1px 6px;
+    border-radius: 10px;
+}
+.pl-track-city { color: #6c757d; font-size: 12px; margin-left: auto; }
 
-    .badge-type {
-        background-color: #0dcaf0;
-        color: #1a1a25;
-    }
-
-    /* НОВЫЕ СТИЛИ ДЛЯ БЛОКА ЧЕМПИОНОВ */
-    .champion-spotlight {
-        background-color: #1a1a25;
-        border: 1px solid #2a2a35;
-        border-radius: 8px;
-        padding: 15px;
-        margin-bottom: 15px;
-        width: 100%;
-    }
-
-    .champion-title {
-        font-size: 30px;
-        font-weight: bold;
-        color: #ffc107;
-        margin-bottom: 20px;
-        text-align: center;
-        width: 100%;
-    }
-
-    .champions-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        text-align: center;
-    }
-
-    .champion-photos {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 20px;
-        justify-content: center;
-        width: 100%;
-    }
-
-    .champion-card {
-        width: 150px;
-        text-align: center;
-    }
-
-    /* Контейнер для фото с надписью */
-    .champion-photo-wrapper {
-        position: relative;
-        width: 150px;
-        height: 150px;
-        margin-bottom: 0;
-        border-radius: 8px;  /* добавить скругление */
-        overflow: hidden;    /* чтобы внутренности не вылезали */
-    }
-
-    /* Фото и заглушка */
-    .champion-photo-img,
-    .champion-photo-placeholder {
-        width: 150px;
-        height: 150px;
-        border: 2px solid #ffc107;
-        border-radius: 8px;
-        display: block;
-        object-fit: cover;
-        box-sizing: border-box;  /* чтобы border не увеличивал размер */
-    }
-
-    .champion-photo-placeholder {
-        background-color: #2a2a35;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .champion-photo-placeholder i {
-        font-size: 2rem;
-        color: rgba(255,255,255,0.5);
-    }
-
-    /* Название класса на фото (внизу) */
-    .champion-class-on-photo {
-        position: absolute;
-        bottom: 2px;
-        left: 2px;
-        right: 2px;
-        background: rgba(0,0,0,0.7);
-        color: #ffc107;
-        font-size: 12px;
-        font-weight: bold;
-        padding: 4px 0;
-        text-align: center;
-        border-radius: 4px;
-        backdrop-filter: blur(2px);
-        width: calc(100% - 4px);
-        margin: 0 auto;
-        box-sizing: border-box;
-        z-index: 2;  /* поверх фото */
-    }
-
-    /* Имя пилота под фото */
-    .champion-name {
-        font-size: 14px;
-        font-weight: 500;
-        color: #fff;
-        margin-top: 8px;
-        text-align: center;
-        word-wrap: break-word;
-        line-height: 1.3;
-        max-width: 150px;
-    }
-
-    .champion-subtitle {
-        font-size: 18px;
-        font-weight: bold;
-        color: #ffc107;
-        margin-top: 5px;
-        margin-bottom: 15px;
-        text-align: center;
-        width: 100%;
-    }
-
-    .champion-subtitle:first-of-type {
-        margin-top: 0;
-    }
-
-    @media (min-width: 768px) {
-        .champion-photos {
-            flex-wrap: nowrap;
-            overflow-x: auto;
-            padding-bottom: 10px;
-            justify-content: flex-start;
-        }
-    }
-    .bg-bronze {
-        background-color: #cd7f32 !important;
-        color: white !important;
-    }
-    .badge.bg-bronze {
-        background-color: #cd7f32 !important;
-        color: white !important;
-    }
+@media (max-width: 768px) {
+    .pl-year-hero { font-size: 72px; }
+    .pl-tracks-body { flex-direction: column; }
+    .pl-track-list-wrap { width: 100%; border-left: none; border-top: 1px solid #2a2a35; }
+    .pl-chassis-grid { grid-template-columns: 1fr; }
+}
 </style>
 
-<div class="force-width-1500 my-5 text-white" id="pulse-app">
-    <!-- ШАПКА: Заголовок и подзаголовок по центру -->
-    <div class="time-machine mb-5">
-        <h1 class="display-4 fw-bold mb-3 text-center text-uppercase">{{ page.hero_title }}</h1>
-        <p class="lead text-muted mb-4 text-center">{{ page.hero_subtitle }}</p>
+<div class="pl-page" id="pulse-app">
 
-        <!-- Чемпионы года -->
-        <div class="champion-spotlight">
-            <div class="champion-title" id="championName">Загрузка...</div>
-            <div class="champion-photos" id="championPhoto"></div>
-        </div>
-    </div>
-
-    <!-- ОСНОВНАЯ ЧАСТЬ: Фильтры и карточки -->
-    <div class="row">
-        <!-- Панель фильтров -->
-        <div class="col-md-3">
-            <div class="card filter-card mb-4">
-                <div class="card-header bg-primary text-white py-3">
-                    <h5 class="mb-0 text-uppercase fw-bold small">Фильтры</h5>
-                </div>
-                <div class="card-body">
-                    <!-- Фильтр по году (кнопки) -->
-                    <div class="mb-4">
-                        <label class="form-label text-info small fw-bold text-uppercase">Год</label>
-                        <div class="row g-2" id="yearButtons">
-                            {% for year in available_years %}
-                            <div class="col-4">
-                                <button class="btn w-100 year-filter {% if year == current_year %}btn-warning{% else %}btn-outline-secondary{% endif %}"
-                                        data-year="{{ year }}">
-                                    {{ year }}
-                                </button>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-
-                    <!-- Фильтр по типу -->
-                    <div class="mb-4">
-                        <label class="form-label text-info small fw-bold text-uppercase">Тип соревнований</label>
-                        {% for type in available_types %}
-                        <div class="form-check">
-                            <input class="form-check-input type-filter" type="checkbox" value="{{ type }}" id="type{{ forloop.counter }}">
-                            <label class="form-check-label text-light small" for="type{{ forloop.counter }}">
-                                {{ type }}
-                            </label>
-                        </div>
-                        {% endfor %}
-                    </div>
-
-                    <!-- Фильтр по классу -->
-                    <div class="mb-4">
-                        <label class="form-label text-info small fw-bold text-uppercase">Класс</label>
-                        <div class="class-filter-list">
-                            {% for class in available_classes %}
-                            <div class="form-check">
-                                <input class="form-check-input class-filter" type="checkbox" value="{{ class.name }}" id="class{{ class.id }}">
-                                <label class="form-check-label text-light small" for="class{{ class.id }}">
-                                    {{ class.name }}
-                                </label>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-
-                    <button class="btn btn-warning w-100 text-uppercase fw-bold" id="applyFilters">
-                        Применить
-                    </button>
-                    <button class="btn btn-outline-secondary w-100 mt-2" id="resetFilters">Сбросить</button>
-                </div>
+    <!-- 1. Hero -->
+    <div class="pl-hero">
+        <div class="pl-year-hero" id="pl-year-display">{{ current_year }}</div>
+        <div class="pl-hero-right">
+            <div class="pl-hero-label">
+                <i class="fas fa-flag-checkered"></i> Пульс картинга · Хроника сезона
             </div>
-        </div>
-
-        <!-- Карточки турниров -->
-        <div class="col-md-9">
-            <h3 class="border-bottom border-primary pb-2 mb-4 text-uppercase fw-bold">Турниры сезона</h3>
-            <div class="row g-4" id="tournamentCards">
-                <!-- Карточки будут загружены через JS -->
-                <div class="col-12 text-center">
-                    <div class="spinner-border text-warning" role="status">
-                        <span class="visually-hidden">Загрузка...</span>
-                    </div>
-                </div>
+            <p class="pl-hero-sub">Весь сезон по этапам — победители, трассы и чемпионы по классам, выстроенные вдоль одной линии.</p>
+            <div class="pl-year-switch">
+                <span class="pl-filter-label">СЕЗОН</span>
+                {% for year in available_years %}
+                <button class="pl-year-pill {% if year == current_year %}active{% endif %}" data-year="{{ year }}">{{ year }}</button>
+                {% endfor %}
             </div>
         </div>
     </div>
 
-    <!-- ПОДВАЛ: Карта трасс -->
-    <div class="row mt-5">
-        <div class="col-12">
-            <div class="card filter-card">
-                <div class="card-header bg-success text-white py-3">
-                    <h5 class="mb-0 text-uppercase fw-bold">
-                        <i class="fas fa-map-marked-alt me-2"></i>
-                        Трассы сезона
-                    </h5>
-                </div>
-                <div class="card-body p-0">
-                    <div id="map" style="height: 400px; width: 100%;"></div>
+    <!-- 2. Радужная полоса -->
+    <div class="pl-rainbow"></div>
+
+    <!-- 3. Фильтры -->
+    <div>
+        <div class="pl-filter-row">
+            <span class="pl-filter-label">ТИП</span>
+            <div id="pl-type-chips" class="pl-chips-wrap"></div>
+            <button id="pl-type-reset" class="pl-reset-btn" style="display:none">Сбросить ✕</button>
+        </div>
+        <div class="pl-filter-row">
+            <span class="pl-filter-label">КЛАСС</span>
+            <div id="pl-class-chips" class="pl-chips-wrap"></div>
+            <button id="pl-class-reset" class="pl-reset-btn" style="display:none">Сбросить ✕</button>
+        </div>
+    </div>
+
+    <!-- 4. Лидеры -->
+    <section class="pl-section">
+        <h2 class="pl-section-title"><i class="fas fa-crown" style="color:#ffc107"></i> ЛИДЕРЫ СЕЗОНА</h2>
+        <div id="pl-leaders-strip" class="pl-leaders-strip">
+            <div class="pl-empty"><div class="spinner-border text-warning" role="status"></div></div>
+        </div>
+    </section>
+
+    <!-- 5. Хроника -->
+    <section class="pl-section">
+        <div class="pl-section-header pl-section-header--blue">
+            <h2 class="pl-section-title" style="border:none;padding:0;margin:0">
+                <i class="fas fa-history"></i> ХРОНИКА СЕЗОНА
+            </h2>
+            <span id="pl-stage-count" class="pl-stage-count"></span>
+        </div>
+        <div class="pl-timeline-wrap">
+            <div class="pl-timeline-line"></div>
+            <div id="pl-timeline">
+                <div class="pl-empty">
+                    <div class="spinner-border text-warning" role="status"></div>
                 </div>
             </div>
         </div>
-    </div>
+    </section>
+
+    <!-- 5b. Топ-шасси -->
+    <section id="pl-chassis-section" class="pl-section" style="display:none">
+        <div class="pl-section-header">
+            <h2 class="pl-section-title" style="border:none;padding:0;margin:0">
+                <i class="fas fa-cog" style="color:#0dcaf0"></i> ТОП-ШАССИ СЕЗОНА
+            </h2>
+            <a href="/compare/" class="pl-chassis-link">Рейтинг шасси по трассам →</a>
+        </div>
+        <div id="pl-chassis" class="pl-chassis-grid"></div>
+    </section>
+
+    <!-- 6. Трассы -->
+    <section class="pl-section">
+        <div class="pl-tracks-card">
+            <div class="pl-tracks-header">
+                <i class="fas fa-map-marked-alt" style="color:#28a745;font-size:18px"></i>
+                <h2 class="pl-section-title" style="border:none;padding:0;margin:0">ТРАССЫ СЕЗОНА</h2>
+                <span id="pl-track-active-label" style="display:none;font-size:12px;color:#6c757d;margin-left:8px">
+                    <i class="fas fa-filter" style="color:#ffc107"></i> фильтр активен
+                </span>
+            </div>
+            <div class="pl-tracks-body">
+                <div class="pl-map-wrap">
+                    <div id="map"></div>
+                </div>
+                <div class="pl-track-list-wrap">
+                    <div class="pl-track-list-header">
+                        <span class="pl-filter-label">ВЫБОР ТРАССЫ</span>
+                        <button id="pl-track-reset" class="pl-reset-btn" style="display:none">Сбросить ✕</button>
+                    </div>
+                    <div id="pl-track-list"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
 </div>
 
-<!-- API ключ для Яндекс.Карт -->
 <script src="https://api-maps.yandex.ru/2.1/?apikey=fe4bbab7-bb35-4949-bce5-676cbc2df5e6&lang=ru_RU" type="text/javascript"></script>
-
-<!-- Подключаем JavaScript для интерактивности -->
 <script src="{% static 'js/pulse.js' %}"></script>
 {% endblock %}

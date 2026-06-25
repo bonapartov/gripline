@@ -7,6 +7,7 @@ from django.contrib.auth import views as auth_views
 from website.models import Driver, Chassis, RaceResult, Track
 from website.views import staff_detail_view, staff_api
 from website.views import rating_stats_api
+from demo.views import choose_role
 
 # Функция для API статистики
 def stats_api(request):
@@ -19,10 +20,13 @@ def stats_api(request):
     return JsonResponse(data)
     
 urlpatterns = [
+    path('auth/', include('social_django.urls', namespace='social')),
     path('api/stats/', stats_api, name='stats_api'),
     path('api/rating-stats/', rating_stats_api, name='rating_stats_api'),
     path('organizers/', include('organizers.urls')),
     path('applications/', include('applications.urls')),
+    path('demo/', include('demo.urls')),
+    path('choose-role/', choose_role, name='choose_role'),
     path("django-admin/", admin.site.urls),
 
     # accounts URLS - САМЫЕ ПЕРВЫЕ, ДО ВСЕГО

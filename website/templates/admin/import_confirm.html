@@ -1,34 +1,74 @@
 {% extends "admin/base_site.html" %}
 
 {% block content %}
-<div style="padding:20px;">
-    <h2>Подтверждение импорта</h2>
-    <p>Будет импортировано {{ selections|length }} записей.</p>
+<style>
+    .session-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 4px;
+        background: #007bff;
+        color: white;
+        font-size: 13px;
+        margin-bottom: 12px;
+    }
+    .confirm-table th { background:#f0f0f0; padding:8px; text-align:left; }
+    .confirm-table td { padding:8px; border-bottom:1px solid #eee; }
+    .timing-cell { font-family: monospace; color: #555; }
+</style>
 
-    <table style="width:100%; border-collapse:collapse; margin-bottom:20px;">
+<div style="padding:20px;">
+    <span class="session-badge">{{ session_label }}</span>
+    <h2 style="margin-top:8px;">Подтверждение импорта</h2>
+    <p>Будет импортировано <strong>{{ selections|length }}</strong> записей.</p>
+
+    <table style="width:100%; border-collapse:collapse; margin-bottom:20px;" class="confirm-table">
         <thead>
-            <tr style="background:#f0f0f0;">
-                <th style="padding:8px; text-align:left;">Пилот</th>
-                <th style="padding:8px; text-align:left;">Команда</th>
-                <th style="padding:8px; text-align:center;">Место</th>
-                <th style="padding:8px; text-align:center;">Очки</th>
-                <th style="padding:8px; text-align:center;">Group ID</th>
+            <tr>
+                <th>Пилот</th>
+                {% if cfg.has_team_chassis %}
+                    <th>Команда</th>
+                    <th>Шасси</th>
+                    <th>№</th>
+                    <th>Место</th>
+                    <th>Очки</th>
+                {% else %}
+                    {% if cfg.has_start_position %}<th>Старт</th>{% endif %}
+                    <th>Место</th>
+                    {% if cfg.has_timing %}
+                        <th>Лучший круг</th>
+                        <th>S1</th>
+                        <th>S2</th>
+                        <th>S3</th>
+                    {% endif %}
+                {% endif %}
             </tr>
         </thead>
         <tbody>
             {% for sel in selections %}
             <tr>
-                <td style="padding:8px; border-bottom:1px solid #eee;">
+                <td>
                     {% if sel.selected_driver_id == 'new' %}
                         ✚ {{ sel.first_name }} {{ sel.last_name }} (будет создан)
                     {% else %}
                         {{ sel.first_name }} {{ sel.last_name }}
                     {% endif %}
                 </td>
-                <td style="padding:8px; border-bottom:1px solid #eee;">{{ sel.team_name|default:"—" }}</td>
-                <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;">{{ sel.position }}</td>
-                <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;">{{ sel.points }}</td>
-                <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;">{{ sel.group_id|default:"—" }}</td>
+                {% if cfg.has_team_chassis %}
+                    <td>{{ sel.team_name|default:"—" }}</td>
+                    <td>{{ sel.chassis|default:"—" }}</td>
+                    <td>{{ sel.race_number|default:"—" }}</td>
+                    <td>{{ sel.position|default:"—" }}</td>
+                    <td>{{ sel.points|default:"—" }}</td>
+                {% else %}
+                    {% if cfg.has_start_position %}<td class="timing-cell">{{ sel.start_position|default:"—" }}</td>{% endif %}
+                    <td class="timing-cell">{{ sel.position|default:"—" }}</td>
+                    {% if cfg.has_timing %}
+                        <td class="timing-cell">{{ sel.best_lap|default:"—" }}</td>
+                        <td class="timing-cell">{{ sel.s1|default:"—" }}</td>
+                        <td class="timing-cell">{{ sel.s2|default:"—" }}</td>
+                        <td class="timing-cell">{{ sel.s3|default:"—" }}</td>
+                    {% endif %}
+                {% endif %}
             </tr>
             {% endfor %}
         </tbody>
@@ -37,7 +77,10 @@
     <form method="post" action="">
         {% csrf_token %}
         <input type="hidden" name="confirm" value="1">
-        <button type="submit" class="button" style="padding:10px 20px; background:#28a745; color:white; border:none; cursor:pointer;">✓ Подтвердить импорт</button>
+        <button type="submit" class="button"
+                style="padding:10px 20px; background:#28a745; color:white; border:none; cursor:pointer;">
+            ✓ Подтвердить импорт
+        </button>
         <a href="{% url 'event_import_preview' %}" style="margin-left:20px;">← Вернуться к предпросмотру</a>
     </form>
 </div>

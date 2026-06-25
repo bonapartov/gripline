@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Management-команда для обновления рейтингов пилотов и шасси.
-Запуск: python manage.py update_ratings [--alpha 0.1] [--damping 0.85] [--model bt|pr|ensemble|context|all]
+Запуск: python manage.py update_ratings [--entity driver|chassis|all] [--model bt|pr|ensemble|context|all]
+Параметры модели (alpha, damping, lambda и др.) берутся из AnalyticsSettings в БД.
+Все параметры можно переопределить через CLI-флаги для разового тестирования.
 """
 
 from django.core.management.base import BaseCommand
@@ -147,6 +149,14 @@ class Command(BaseCommand):
             )
             self.stdout.write(f"  Дата обновления сохранена в БД (ID: {obj.id})")
 
+            # Сбрасываем wagtailcache чтобы пользователи сразу видели новые рейтинги
+            try:
+                from wagtailcache.cache import clear_cache
+                clear_cache()
+                self.stdout.write("  Кеш Wagtail сброшен")
+            except Exception as cache_err:
+                self.stdout.write(self.style.WARNING(f"  Не удалось сбросить кеш: {cache_err}"))
+
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Ошибка: {str(e)}"))
             logger.exception("Ошибка при обновлении рейтингов")
@@ -207,6 +217,16 @@ class Command(BaseCommand):
             ratings = model.get_all_ratings()
             bt_ratings[race_class.id] = ratings
 
+            # Last race date per driver in this class
+            driver_last_dates = {}
+            for did, dgroup in df_class.groupby('driver_id'):
+                dates = dgroup['date'].dropna()
+                if len(dates) > 0:
+                    last = max(dates)
+                    if hasattr(last, 'date'):
+                        last = last.date()
+                    driver_last_dates[did] = str(last)
+
             with transaction.atomic():
                 for driver_id, score in ratings.items():
                     driver_starts = len(df_class[df_class['driver_id'] == driver_id])
@@ -218,7 +238,8 @@ class Command(BaseCommand):
                     driver.rating_by_class[str(race_class.id)] = {
                         'score': float(score),
                         'starts': driver_starts,
-                        'updated': timezone.now().isoformat()
+                        'updated': timezone.now().isoformat(),
+                        'last_race_date': driver_last_dates.get(driver_id),
                     }
                     driver.save()
 
@@ -436,12 +457,29 @@ class Command(BaseCommand):
         self.stdout.write(f"    Обновлено {len(ratings)} шасси")
 
     def _create_class_comparisons(self, df_class, entity_type, settings):
-        """Создает парные сравнения для одного класса с temporal decay."""
+        """Создает парные сравнения для одного класса с temporal decay.
+
+        Пилоты, отсутствовавшие на заезде, получают виртуальное последнее место
+        и проигрывают всем участникам — рейтинг падает при каждом пропущенном этапе.
+        Виртуальные поражения начисляются только начиная с первого старта пилота
+        в данном классе — чтобы не штрафовать новичков за гонки до их дебюта.
+        """
         import math
         from datetime import date as date_type
 
         today = date_type.today()
         comparisons = []
+
+        # Все пилоты, когда-либо выступавшие в этом классе
+        all_entity_ids = set(df_class[f'{entity_type}_id'].unique())
+
+        # Дата первого старта каждого пилота в этом классе
+        first_start_date = {}
+        for eid, egroup in df_class.groupby(f'{entity_type}_id'):
+            dates = egroup['date'].dropna()
+            if len(dates) > 0:
+                d = min(dates)
+                first_start_date[eid] = d.date() if hasattr(d, 'date') else d
 
         for group_id, group in df_class.groupby('group_id'):
             if len(group) < 2:
@@ -460,6 +498,7 @@ class Command(BaseCommand):
                 lam = settings.lambda_inactive if is_inactive else settings.lambda_active
                 temporal_weight = math.exp(-lam * days / 365)
 
+            # Реальные парные сравнения между участниками
             for i, row_i in group.iterrows():
                 for j, row_j in group.iterrows():
                     if i == j:
@@ -480,6 +519,30 @@ class Command(BaseCommand):
                         'entity_2_id': loser_id,
                         'winner_id': winner_id,
                         'loser_id': loser_id,
+                        'weight': weight,
+                        'group_id': group_id,
+                    })
+
+            # Виртуальные поражения только для тех, кто уже дебютировал в классе
+            # (новички не штрафуются за гонки до своего первого старта)
+            participants = set(group[f'{entity_type}_id'].values)
+            absent_ids = {
+                eid for eid in all_entity_ids - participants
+                if race_date is not None
+                and eid in first_start_date
+                and first_start_date[eid] <= race_date
+            }
+            last_position = group['position'].max()
+
+            for absent_id in absent_ids:
+                for _, row in group.iterrows():
+                    position_diff = (last_position + 1) - row['position']
+                    weight = (1.0 / (1.0 + position_diff)) * temporal_weight
+                    comparisons.append({
+                        'entity_1_id': row[f'{entity_type}_id'],
+                        'entity_2_id': absent_id,
+                        'winner_id': row[f'{entity_type}_id'],
+                        'loser_id': absent_id,
                         'weight': weight,
                         'group_id': group_id,
                     })

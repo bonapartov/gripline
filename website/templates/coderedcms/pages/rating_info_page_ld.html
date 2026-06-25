@@ -95,7 +95,7 @@
     .place-badge.bronze { background-color: #cd7f32; color: #fff; }
 
     .rating-badge-example {
-        background-color: #28a745;
+        background-color: var(--gl-signal-success);
         color: #fff;
         padding: 0.25rem 0.75rem;
         border-radius: 20px;
@@ -220,8 +220,8 @@
         <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-2">
             <h2 class="mb-0">Как считается рейтинг пилотов?</h2>
             <div style="text-align:right;">
-                <div style="color:#6c757d; font-size:0.85rem;">Последнее обновление</div>
-                <div style="color:#ffc107; font-weight:bold;" id="last-update">загрузка...</div>
+                <div style="color:var(--gl-fg-muted); font-size:0.85rem;">Последнее обновление</div>
+                <div style="color:var(--gl-brand-yellow); font-weight:bold;" id="last-update">загрузка...</div>
             </div>
         </div>
 
@@ -352,8 +352,8 @@
             <thead>
                 <tr>
                     <th>Давность гонки</th>
-                    <th>Вес (λ=0.8, активный)</th>
-                    <th>Вес (λ=2.0, неактивный)</th>
+                    <th>Вес (λ=<span id="th-lambda-active">0.8</span>, активный)</th>
+                    <th>Вес (λ=<span id="th-lambda-inactive">2.0</span>, неактивный)</th>
                 </tr>
             </thead>
             <tbody>
@@ -364,6 +364,15 @@
                 <tr><td>2 года назад</td><td>~20%</td><td>~2%</td></tr>
             </tbody>
         </table>
+
+        <div class="info-box">
+            <i class="fas fa-info-circle text-info me-2"></i>
+            <strong>Сколько гонок берётся в расчёт?</strong>
+            В модель включаются <strong>все гонки за всё время</strong> — без ограничений по дате.
+            Старые результаты не удаляются, а постепенно теряют вес согласно формуле затухания выше.
+            Класс включается в расчёт только при наличии не менее
+            <strong id="info-min-races">5 гонок</strong> в нём.
+        </div>
 
         <div class="info-box">
             <i class="fas fa-info-circle text-info me-2"></i>
@@ -395,21 +404,21 @@
         <div class="row">
             <div class="col-md-6 mb-3">
                 <div class="comparison-card">
-                    <h4 style="color:#dc3545 !important;">Без сглаживания</h4>
+                    <h4 style="color:var(--gl-signal-danger) !important;">Без сглаживания</h4>
                     <ul style="list-style:none; padding:0;">
-                        <li style="margin-bottom:0.5rem; color:#fff;">⚠️ 1 старт, случайная победа → рейтинг 100</li>
-                        <li style="margin-bottom:0.5rem; color:#fff;">⚠️ Рейтинг нестабилен, скачет после каждой гонки</li>
-                        <li style="color:#6c757d; font-size:0.9rem;">Новичок выше опытных пилотов</li>
+                        <li style="margin-bottom:0.5rem; color:var(--gl-fg-1);"><i class="fas fa-triangle-exclamation me-1 text-warning"></i>1 старт, случайная победа → рейтинг 100</li>
+                        <li style="margin-bottom:0.5rem; color:var(--gl-fg-1);"><i class="fas fa-triangle-exclamation me-1 text-warning"></i>Рейтинг нестабилен, скачет после каждой гонки</li>
+                        <li style="color:var(--gl-fg-muted); font-size:0.9rem;">Новичок выше опытных пилотов</li>
                     </ul>
                 </div>
             </div>
             <div class="col-md-6 mb-3">
                 <div class="comparison-card">
-                    <h4 style="color:#28a745 !important;">С байесовским сглаживанием</h4>
+                    <h4 style="color:var(--gl-signal-success) !important;">С байесовским сглаживанием</h4>
                     <ul style="list-style:none; padding:0;">
-                        <li style="margin-bottom:0.5rem; color:#fff;">✅ 1 старт → рейтинг близок к среднему по классу</li>
-                        <li style="margin-bottom:0.5rem; color:#fff;">✅ После 15+ стартов — полное доверие к результату</li>
-                        <li style="color:#6c757d; font-size:0.9rem;">Рост рейтинга заслуженный</li>
+                        <li style="margin-bottom:0.5rem; color:var(--gl-fg-1);"><i class="fas fa-check me-1 text-success"></i>1 старт → рейтинг близок к среднему по классу</li>
+                        <li style="margin-bottom:0.5rem; color:var(--gl-fg-1);"><i class="fas fa-check me-1 text-success"></i>После 15+ стартов — полное доверие к результату</li>
+                        <li style="color:var(--gl-fg-muted); font-size:0.9rem;">Рост рейтинга заслуженный</li>
                     </ul>
                 </div>
             </div>
@@ -453,38 +462,39 @@
         <p>
             Где <strong>N</strong> — число участников. 1-е место из 20 пилотов
             даёт 100, 1-е место из 4 — тоже 100, но 10-е из 20 даёт 47,
-            а 10-е из 11 — лишь 9. Затем сравниваем средние за последние 5 и предыдущие 5 гонок:
+            а 10-е из 11 — лишь 9. Затем сравниваем средние за последние <span id="trend-window-text">5</span> и предыдущие <span id="trend-window-text2">5</span> гонок:
         </p>
 
         <div class="trend-demo">
             <div class="trend-item">
                 <div class="trend-arrow text-success">▲</div>
-                <div style="color:#28a745; font-weight:bold;">На подъёме</div>
-                <div class="trend-label">Последние 5 лучше<br>предыдущих 5 на 10%+</div>
+                <div style="color:var(--gl-signal-success); font-weight:bold;">На подъёме</div>
+                <div class="trend-label">Последние <span class="tw">5</span> лучше<br>предыдущих <span class="tw">5</span> на 10%+</div>
             </div>
             <div class="trend-item">
                 <div class="trend-arrow text-secondary">▬</div>
-                <div style="color:#6c757d; font-weight:bold;">Стабильно</div>
+                <div style="color:var(--gl-fg-muted); font-weight:bold;">Стабильно</div>
                 <div class="trend-label">Разница<br>в пределах ±10%</div>
             </div>
             <div class="trend-item">
                 <div class="trend-arrow text-danger">▼</div>
-                <div style="color:#dc3545; font-weight:bold;">Спад</div>
-                <div class="trend-label">Последние 5 хуже<br>предыдущих 5 на 10%+</div>
+                <div style="color:var(--gl-signal-danger); font-weight:bold;">Спад</div>
+                <div class="trend-label">Последние <span class="tw">5</span> хуже<br>предыдущих <span class="tw">5</span> на 10%+</div>
             </div>
             <div class="trend-item">
                 <div class="trend-arrow text-muted" style="font-size:1.2rem;">—</div>
-                <div style="color:#6c757d; font-weight:bold;">Нет данных</div>
-                <div class="trend-label">Менее 6 гонок<br>в классе</div>
+                <div style="color:var(--gl-fg-muted); font-weight:bold;">Нет данных</div>
+                <div class="trend-label">Менее <span id="trend-min-races">6</span> гонок<br>в классе</div>
             </div>
         </div>
 
         <!-- 7. Доверительный интервал -->
-        <h3>7. Иконка ⚠️ — мало стартов</h3>
+        <h3>7. Иконка <i class="fas fa-triangle-exclamation text-warning"></i> — мало стартов</h3>
 
         <p>
             Пилоты с менее чем <strong id="min-starts-text">3</strong> стартами
-            отмечаются иконкой ⚠️. Байесовское сглаживание уже корректирует их
+            отмечаются иконкой <i class="fas fa-triangle-exclamation text-warning"></i>.
+            Байесовское сглаживание уже корректирует их
             рейтинг, но визуальное предупреждение помогает не переоценивать результат.
         </p>
 
@@ -501,20 +511,20 @@
                 <tr>
                     <td>Пилот А</td>
                     <td>2</td>
-                    <td><span class="rating-badge-example rating-low-data">54.2</span> ⚠️</td>
-                    <td style="color:#6c757d;">Рейтинг тянется к медиане</td>
+                    <td><span class="rating-badge-example rating-low-data">54.2</span> <i class="fas fa-triangle-exclamation text-warning" title="Мало стартов"></i></td>
+                    <td style="color:var(--gl-fg-muted);">Рейтинг тянется к медиане</td>
                 </tr>
                 <tr>
                     <td>Пилот Б</td>
                     <td>7</td>
                     <td><span class="rating-badge-example">78.1</span></td>
-                    <td style="color:#adb5bd;">Умеренное доверие</td>
+                    <td style="color:var(--gl-fg-4);">Умеренное доверие</td>
                 </tr>
                 <tr>
                     <td>Пилот В</td>
                     <td>15</td>
                     <td><span class="rating-badge-example">91.4</span></td>
-                    <td style="color:#28a745;">Полное доверие</td>
+                    <td style="color:var(--gl-signal-success);">Полное доверие</td>
                 </tr>
             </tbody>
         </table>
@@ -538,7 +548,7 @@
             <li>Обучаем модель Брэдли-Терри с Lasso-регуляризацией (α = <span id="algo-alpha">0.1</span>)</li>
             <li>Применяем байесовское сглаживание C=15: новички тянутся к медиане класса</li>
             <li>Нормируем в шкалу 0–100 внутри каждого класса</li>
-            <li>Рассчитываем тренд формы ▲/▬/▼ по последним 10 гонкам</li>
+            <li>Рассчитываем тренд формы ▲/▬/▼ по последним <span id="trend-window-total">10</span> гонкам (<span id="trend-window-algo">5</span>+<span id="trend-window-algo2">5</span>)</li>
             <li>Помечаем ⚠️ пилотов с малым числом стартов</li>
         </ul>
 
@@ -560,6 +570,14 @@
 </div>
 
 <script>
+function declRace(n) {
+    const m10 = n % 10, m100 = n % 100;
+    if (m100 >= 11 && m100 <= 19) return n + ' гонок';
+    if (m10 === 1) return n + ' гонка';
+    if (m10 >= 2 && m10 <= 4) return n + ' гонки';
+    return n + ' гонок';
+}
+
 fetch('/api/rating-stats/')
     .then(r => r.json())
     .then(data => {
@@ -587,6 +605,21 @@ fetch('/api/rating-stats/')
 
         const minStarts = s.min_starts_display ?? 3;
         document.getElementById('min-starts-text').textContent = minStarts;
+
+        const minRaces = s.min_races_per_class ?? 5;
+        document.getElementById('info-min-races').textContent = declRace(minRaces);
+
+        document.getElementById('th-lambda-active').textContent = s.lambda_active ?? '0.8';
+        document.getElementById('th-lambda-inactive').textContent = s.lambda_inactive ?? '2.0';
+
+        const tw = s.trend_window ?? 5;
+        document.getElementById('trend-window-text').textContent = tw;
+        document.getElementById('trend-window-text2').textContent = tw;
+        document.querySelectorAll('.tw').forEach(el => el.textContent = tw);
+        document.getElementById('trend-min-races').textContent = tw + 1;
+        document.getElementById('trend-window-total').textContent = tw * 2;
+        document.getElementById('trend-window-algo').textContent = tw;
+        document.getElementById('trend-window-algo2').textContent = tw;
     })
     .catch(() => {
         document.getElementById('last-update').textContent = '—';

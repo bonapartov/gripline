@@ -463,7 +463,7 @@
             {% for article in latest_articles %}
             <a href="{{ article.url }}" class="news-card">
                 {% if article.cover_image %}
-                    {% image article.cover_image fill-400x220 as img %}
+                    {% image article.cover_image width-400 as img %}
                     <img src="{{ img.url }}" class="news-card-img" alt="{{ article.title }}">
                 {% else %}
                     <div class="news-card-img-placeholder">
@@ -565,6 +565,35 @@
     </div>
 </div>
 
+{% if latest_tech_articles %}
+<div class="force-width-1500 mb-4">
+    <div class="section-header">
+        <h2 class="section-title"><i class="fas fa-wrench me-2 text-warning"></i>Матчасть</h2>
+        <a href="/matchast/" class="section-link">Все статьи →</a>
+    </div>
+    <div class="news-grid">
+        {% for article in latest_tech_articles %}
+        <a href="{{ article.url }}" class="news-card">
+            {% if article.cover_image %}
+                {% image article.cover_image width-400 as img %}
+                <img src="{{ img.url }}" class="news-card-img" alt="{{ article.title }}">
+            {% else %}
+                <div class="news-card-img-placeholder">
+                    <i class="fas fa-wrench fa-2x text-secondary"></i>
+                </div>
+            {% endif %}
+            <div class="news-card-body">
+                <div class="news-card-date">
+                    {{ article.first_published_at|date:"d E Y" }}
+                </div>
+                <p class="news-card-title">{{ article.title }}</p>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <!-- Счётчик обратного отсчёта -->
 <script>
 (function() {
@@ -587,10 +616,15 @@
         const minutes = Math.floor((diff % 3600000) / 60000);
         const seconds = Math.floor((diff % 60000) / 1000);
 
-        document.getElementById('cd-days').textContent    = String(days).padStart(2, '0');
-        document.getElementById('cd-hours').textContent   = String(hours).padStart(2, '0');
-        document.getElementById('cd-minutes').textContent = String(minutes).padStart(2, '0');
-        document.getElementById('cd-seconds').textContent = String(seconds).padStart(2, '0');
+        const cdDays = document.getElementById('cd-days');
+        const cdHours = document.getElementById('cd-hours');
+        const cdMinutes = document.getElementById('cd-minutes');
+        const cdSeconds = document.getElementById('cd-seconds');
+        if (!cdDays || !cdHours || !cdMinutes || !cdSeconds) return;
+        cdDays.textContent    = String(days).padStart(2, '0');
+        cdHours.textContent   = String(hours).padStart(2, '0');
+        cdMinutes.textContent = String(minutes).padStart(2, '0');
+        cdSeconds.textContent = String(seconds).padStart(2, '0');
     }
 
     update();

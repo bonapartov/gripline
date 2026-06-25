@@ -23,11 +23,26 @@ from django.utils.text import slugify
 import time
 
 @login_required
+def organizer_pending(request):
+    """Страница ожидания активации аккаунта организатора"""
+    org = getattr(request.user, 'organizer_profile', None)
+    if org and org.status == 'active':
+        return redirect('organizers:dashboard')
+    return render(request, 'organizers/pending.html')
+
+
+@login_required
 def dashboard(request):
     try:
         profile = request.user.organizer_profile
     except OrganizerProfile.DoesNotExist:
         messages.error(request, 'У вас нет прав организатора.')
+        return redirect('/')
+
+    if profile.status == 'pending':
+        return redirect('organizers:pending')
+    if profile.status == 'rejected':
+        messages.error(request, 'Ваша заявка организатора была отклонена.')
         return redirect('/')
     
     championships = Championship.objects.filter(organizer=profile)
@@ -43,6 +58,7 @@ def dashboard(request):
                 'title': stage.title,
                 'championship_title': champ.title,
                 'championship_id': champ.id,
+                'championship_tyre_mode': champ.tyre_mode,
                 'start_date': stage.start_date,
                 'end_date': stage.end_date,
                 'entry_fee': stage.entry_fee,
@@ -51,11 +67,20 @@ def dashboard(request):
                 'is_published': stage.is_published,
                 'reg_count': app_qs.exclude(status__in=['cancelled', 'rejected']).count(),
                 'reg_pending': app_qs.filter(status='submitted').count(),
+                'registration_enabled': stage.registration_enabled,
+                'registration_deadline': stage.registration_deadline,
+                'max_participants': stage.max_participants,
+                'stage_tyres': [str(t) for t in stage.stage_tyres.select_related('brand', 'type').all()],
             })
     
     # Сортируем этапы по дате начала
     stages.sort(key=lambda x: x['start_date'] or datetime.min)
-    
+
+    # Группируем этапы по чемпионату для шаблона
+    stages_by_champ = {}
+    for s in stages:
+        stages_by_champ.setdefault(s['championship_id'], []).append(s)
+
     # Получаем глобальные настройки
     settings_obj = OrganizerSettings.objects.first()
     default_commission = settings_obj.commission_default if settings_obj else 10
@@ -73,10 +98,12 @@ def dashboard(request):
     support_phone = settings_obj.support_phone if settings_obj else ""
     support_email = settings_obj.support_email if settings_obj else ""
     terms_text = settings_obj.terms_text if settings_obj else ""
-    
+    payments_enabled = settings_obj.payments_enabled if settings_obj else False
+
     return render(request, 'organizers/dashboard.html', {
         'championships': championships,
         'stages': stages,
+        'stages_by_champ': stages_by_champ,
         'default_commission': default_commission,
         'default_payer': default_payer,
         'organizer_commission': organizer_commission,
@@ -86,6 +113,7 @@ def dashboard(request):
         'support_phone': support_phone,
         'support_email': support_email,
         'terms_text': terms_text,
+        'payments_enabled': payments_enabled,
     })
 
 @login_required
@@ -127,6 +155,9 @@ def championship_create(request):
             # Сохраняем классы
             if form.cleaned_data.get('race_classes'):
                 championship.race_classes.set(form.cleaned_data['race_classes'])
+
+            # Сохраняем шины
+            championship.default_tyres.set(form.cleaned_data.get('default_tyres') or [])
 
             # Обработка фото
             if 'cover_image' in request.FILES:
@@ -189,7 +220,8 @@ def stage_create(request, championship_id):
             stage = form.save(commit=False)
             stage.championship = championship
             stage.save()  # Сигнал сам создаст StagePage и EventPage
-            
+            stage.stage_tyres.set(form.cleaned_data.get('stage_tyres') or [])
+
             messages.success(request, f'Этап "{stage.title}" создан!')
             return redirect('organizers:dashboard')
         else:
@@ -300,6 +332,62 @@ def organizer_resend_verification(request):
             messages.error(request, 'Пользователь с таким email не найден или уже активирован.')
     return render(request, 'organizers/verification_resend.html')
 
+
+def _sync_event_pages_for_classes(championship, old_class_ids, new_class_ids):
+    """Создаёт EventPages для новых классов и удаляет для убранных."""
+    from django.utils.text import slugify
+    from website.models import EventPage, EventOccurrence, RaceClassResultGroup, RaceClass
+
+    added = new_class_ids - old_class_ids
+    removed = old_class_ids - new_class_ids
+
+    for stage in championship.stages.all():
+        if not stage.wagtail_page:
+            continue
+        stage_page = stage.wagtail_page.specific
+
+        # Удаляем EventPages для убранных классов
+        if removed:
+            groups_to_delete = RaceClassResultGroup.objects.filter(
+                page__in=EventPage.objects.child_of(stage_page),
+                race_class_id__in=removed,
+            )
+            for group in groups_to_delete:
+                group.page.delete()
+
+        # Создаём EventPages для новых классов
+        existing_class_ids = set(
+            RaceClassResultGroup.objects.filter(
+                page__in=EventPage.objects.child_of(stage_page)
+            ).values_list('race_class_id', flat=True)
+        )
+        for class_id in added - existing_class_ids:
+            race_class = RaceClass.objects.get(id=class_id)
+            base_slug = slugify(f"{stage.title}-{race_class.name}")
+            slug = base_slug
+            counter = 1
+            while EventPage.objects.filter(slug=slug).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            event_page = EventPage(
+                title=stage.title,
+                admin_title=f"{stage.title} - {race_class.name}",
+                slug=slug,
+                track=stage.track,
+            )
+            stage_page.add_child(instance=event_page)
+            event_page.save_revision().publish()
+            EventOccurrence.objects.create(
+                event=event_page,
+                start=stage.start_date,
+                end=stage.end_date,
+            )
+            RaceClassResultGroup.objects.create(
+                page=event_page,
+                race_class=race_class,
+            )
+
+
 @login_required
 def championship_edit(request, pk):
     championship = get_object_or_404(Championship, pk=pk, organizer__user=request.user)
@@ -317,11 +405,32 @@ def championship_edit(request, pk):
                 championship.competition_types.clear()
 
             # Обновляем классы
+            old_class_ids = set(championship.race_classes.values_list('id', flat=True))
             if form.cleaned_data.get('race_classes'):
                 championship.race_classes.set(form.cleaned_data['race_classes'])
             else:
                 championship.race_classes.clear()
-            
+            new_class_ids = set(championship.race_classes.values_list('id', flat=True))
+
+            # Синхронизируем EventPages: создаём новые, удаляем убранные классы
+            _sync_event_pages_for_classes(championship, old_class_ids, new_class_ids)
+
+            # Обновляем шины
+            new_tyre_mode = form.cleaned_data.get('tyre_mode', Championship.TYRE_MODE_ALL)
+            old_tyre_mode = Championship.objects.get(pk=championship.pk).tyre_mode if championship.pk else None
+
+            if new_tyre_mode == Championship.TYRE_MODE_PER_STAGE:
+                # Сбрасываем шины чемпионата
+                championship.default_tyres.clear()
+                # Если переключились с 'all' — предупреждаем
+                if old_tyre_mode == Championship.TYRE_MODE_ALL:
+                    from datetime import date
+                    future_stages = championship.stages.filter(end_date__date__gte=date.today())
+                    if future_stages.exists():
+                        messages.warning(request, f'Выберите шины для этапов в «{championship.title}»')
+            else:
+                championship.default_tyres.set(form.cleaned_data.get('default_tyres') or [])
+
             # Обработка cover_image
             if 'cover_image' in request.FILES:
                 from wagtail.images.models import Image as WagtailImage
@@ -368,20 +477,138 @@ def championship_delete(request, pk):
     messages.success(request, f'Чемпионат "{title}" удалён!')
     return redirect('organizers:dashboard')
 
+
+@login_required
+def championship_reg_settings(request, pk):
+    """Общие настройки регистрации чемпионата (документы и опции для всех этапов)."""
+    from applications.models import ChampionshipDocument, ChampionshipOption, StageDocument, StageOption
+    from .forms import StageDocumentForm, StageOptionForm
+
+    championship = get_object_or_404(Championship, pk=pk, organizer__user=request.user)
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'add_document':
+            form = StageDocumentForm(request.POST)
+            if form.is_valid():
+                doc = ChampionshipDocument.objects.create(
+                    championship=championship,
+                    name=form.cleaned_data['name'],
+                    description=form.cleaned_data.get('description', ''),
+                    required=form.cleaned_data.get('required', True),
+                    minors_only=form.cleaned_data.get('minors_only', False),
+                    has_expiry_date=form.cleaned_data.get('has_expiry_date', False),
+                    order=championship.championship_documents.count(),
+                )
+                _sync_championship_docs_to_stages(championship)
+                messages.success(request, f'Документ «{doc.name}» добавлен.')
+
+        elif action == 'delete_document':
+            ChampionshipDocument.objects.filter(id=request.POST.get('doc_id'), championship=championship).delete()
+            _sync_championship_docs_to_stages(championship)
+            messages.success(request, 'Документ удалён.')
+
+        elif action == 'add_option':
+            form = StageOptionForm(request.POST)
+            if form.is_valid():
+                opt = ChampionshipOption.objects.create(
+                    championship=championship,
+                    name=form.cleaned_data['name'],
+                    description=form.cleaned_data.get('description', ''),
+                    price=form.cleaned_data.get('price', 0),
+                    is_mandatory=form.cleaned_data.get('is_mandatory', False),
+                    is_active=form.cleaned_data.get('is_active', True),
+                    order=championship.championship_options.count(),
+                )
+                _sync_championship_opts_to_stages(championship)
+                messages.success(request, f'Опция «{opt.name}» добавлена.')
+
+        elif action == 'delete_option':
+            ChampionshipOption.objects.filter(id=request.POST.get('option_id'), championship=championship).delete()
+            _sync_championship_opts_to_stages(championship)
+            messages.success(request, 'Опция удалена.')
+
+        return redirect('organizers:championship_reg_settings', pk=championship.pk)
+
+    return render(request, 'organizers/championship_reg_settings.html', {
+        'championship': championship,
+        'documents': championship.championship_documents.all(),
+        'options': championship.championship_options.all(),
+        'document_form': StageDocumentForm(),
+        'option_form': StageOptionForm(),
+    })
+
+
+def _sync_championship_docs_to_stages(championship):
+    """Синхронизирует документы чемпионата со всеми будущими этапами."""
+    from django.utils import timezone
+    from applications.models import ChampionshipDocument, StageDocument
+    future_stages = championship.stages.filter(start_date__gt=timezone.now())
+    for stage in future_stages:
+        stage.required_documents.all().delete()
+        for doc in championship.championship_documents.all():
+            StageDocument.objects.create(
+                stage=stage, name=doc.name, description=doc.description,
+                required=doc.required, minors_only=doc.minors_only,
+                has_expiry_date=doc.has_expiry_date, order=doc.order,
+            )
+
+
+def _sync_championship_opts_to_stages(championship):
+    """Синхронизирует опции чемпионата со всеми будущими этапами."""
+    from django.utils import timezone
+    from applications.models import ChampionshipOption, StageOption
+    future_stages = championship.stages.filter(start_date__gt=timezone.now())
+    for stage in future_stages:
+        stage.options.all().delete()
+        for opt in championship.championship_options.all():
+            StageOption.objects.create(
+                stage=stage, name=opt.name, description=opt.description,
+                price=opt.price, is_mandatory=opt.is_mandatory,
+                is_active=opt.is_active, order=opt.order,
+            )
+
+
 @login_required
 def stage_edit(request, pk):
+    from django.utils import timezone
     stage = get_object_or_404(Stage, pk=pk, championship__organizer__user=request.user)
-    
+    stage_started = stage.start_date <= timezone.now()
+
+    LOCKED_FIELDS = ['title', 'start_date', 'end_date', 'track', 'entry_fee', 'schedule', 'stage_tyres']
+
     if request.method == 'POST':
-        form = StageForm(request.POST, instance=stage)
+        if stage_started:
+            # Подменяем POST-данные: для заблокированных полей берём значения из БД
+            post_data = request.POST.copy()
+            for field in LOCKED_FIELDS:
+                if field in post_data:
+                    del post_data[field]
+            form = StageForm(post_data, instance=stage)
+        else:
+            form = StageForm(request.POST, instance=stage)
+
         if form.is_valid():
             stage = form.save()
+            if not stage_started:
+                stage.stage_tyres.set(form.cleaned_data.get('stage_tyres') or [])
             messages.success(request, f'Этап "{stage.title}" обновлён!')
             return redirect('organizers:dashboard')
     else:
         form = StageForm(instance=stage)
+        if stage_started:
+            for field in LOCKED_FIELDS:
+                if field in form.fields:
+                    form.fields[field].widget.attrs['disabled'] = True
+                    form.fields[field].required = False
 
-    return render(request, 'organizers/stage_form.html', {'form': form, 'championship': stage.championship, 'stage': stage})
+    return render(request, 'organizers/stage_form.html', {
+        'form': form,
+        'championship': stage.championship,
+        'stage': stage,
+        'stage_started': stage_started,
+    })
     
 
 
@@ -403,7 +630,9 @@ def stage_settings(request, pk):
     from .forms import StageDocumentForm, StageOptionForm
     from applications.models import StageDocument, StageOption
 
+    from django.utils import timezone
     stage = get_object_or_404(Stage, pk=pk, championship__organizer__user=request.user)
+    stage_started = stage.start_date <= timezone.now()
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -419,8 +648,11 @@ def stage_settings(request, pk):
             return redirect('organizers:stage_settings', pk=stage.id)
 
         if action == 'delete_document':
-            StageDocument.objects.filter(id=request.POST.get('doc_id'), stage=stage).delete()
-            messages.success(request, 'Документ удалён.')
+            if stage_started:
+                messages.error(request, 'Нельзя удалять документы после начала этапа.')
+            else:
+                StageDocument.objects.filter(id=request.POST.get('doc_id'), stage=stage).delete()
+                messages.success(request, 'Документ удалён.')
             return redirect('organizers:stage_settings', pk=stage.id)
 
         if action == 'add_option':
@@ -457,6 +689,7 @@ def stage_settings(request, pk):
         'document_form': StageDocumentForm(),
         'option_form': StageOptionForm(),
         'reserved_str': ', '.join(str(n) for n in (stage.reserved_start_numbers or [])),
+        'stage_started': stage_started,
     })
 
 
@@ -548,11 +781,15 @@ def stage_registrations(request, stage_id):
         cls_name = app.race_class.name if app.race_class else 'Без класса'
         by_class.setdefault(cls_name, []).append(app)
 
+    settings_obj = OrganizerSettings.objects.first()
+    payments_enabled = settings_obj.payments_enabled if settings_obj else False
+
     return render(request, 'organizers/stage_registrations.html', {
         'stage': stage,
         'by_class': by_class,
         'total': applications.count(),
         'pending_count': applications.filter(status='submitted').count(),
+        'payments_enabled': payments_enabled,
     })
 
 
@@ -672,6 +909,11 @@ def stage_finance(request, stage_id):
     from .models import Stage
     from applications.models import Application, ApplicationPayment
     from django.db.models import Sum, Count, Q
+
+    settings_obj = OrganizerSettings.objects.first()
+    if not (settings_obj and settings_obj.payments_enabled):
+        messages.error(request, 'Финансовый модуль отключён.')
+        return redirect('organizers:dashboard')
 
     stage = get_object_or_404(Stage, pk=stage_id, championship__organizer__user=request.user)
 

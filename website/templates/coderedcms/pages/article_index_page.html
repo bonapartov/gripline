@@ -337,15 +337,15 @@
                         <article class="post-card">
                             <a href="{% pageurl post %}">
                                 {% if post.specific.cover_image %}
-                                    {% image post.specific.cover_image fill-1200x900 %}
+                                    {% image post.specific.cover_image width-1200 %}
                                 {% elif post.specific.image %}
-                                    {% image post.specific.image fill-1200x900 %}
+                                    {% image post.specific.image width-1200 %}
                                 {% elif post.specific.featured_image %}
-                                    {% image post.specific.featured_image fill-1200x900 %}
+                                    {% image post.specific.featured_image width-1200 %}
                                 {% elif post.specific.hero_image %}
-                                    {% image post.specific.hero_image fill-1200x900 %}
+                                    {% image post.specific.hero_image width-1200 %}
                                 {% elif post.specific.og_image %}
-                                    {% image post.specific.og_image fill-1200x900 %}
+                                    {% image post.specific.og_image width-1200 %}
                                 {% else %}
                                     <div style="width:100%; height:100%; background:#222; display:flex; align-items:center; justify-content:center;">
                                         <span style="color:#666; font-size:14px;">Нет изображения, фотограф уже бежит</span>
@@ -379,15 +379,15 @@
                 <article class="post-card">
                     <a href="{% pageurl post %}">
                         {% if post.specific.cover_image %}
-                            {% image post.specific.cover_image fill-1200x900 %}
+                            {% image post.specific.cover_image width-1200 %}
                         {% elif post.specific.image %}
-                            {% image post.specific.image fill-1200x900 %}
+                            {% image post.specific.image width-1200 %}
                         {% elif post.specific.featured_image %}
-                            {% image post.specific.featured_image fill-1200x900 %}
+                            {% image post.specific.featured_image width-1200 %}
                         {% elif post.specific.hero_image %}
-                            {% image post.specific.hero_image fill-1200x900 %}
+                            {% image post.specific.hero_image width-1200 %}
                         {% elif post.specific.og_image %}
-                            {% image post.specific.og_image fill-1200x900 %}
+                            {% image post.specific.og_image width-1200 %}
                         {% else %}
                             <div style="width:100%; height:100%; background:#222; display:flex; align-items:center; justify-content:center;">
                                 <span style="color:#666; font-size:14px;">Нет изображения, фотограф уже бежит</span>

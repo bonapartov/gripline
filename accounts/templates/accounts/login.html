@@ -1,5 +1,5 @@
 {% extends "coderedcms/pages/web_page.html" %}
-{% load static %}
+{% load static website_tags %}
 
 {% block content %}
 <style>
@@ -13,7 +13,7 @@
 
     .login-container {
         max-width: 600px;
-        margin: 3rem auto;
+        margin: 0 auto 3rem;
         padding: 2rem;
         background-color: #1a1a25;
         border: 1px solid #2a2a35;
@@ -106,9 +106,9 @@
     }
 </style>
 
-<div class="force-width-1500 my-5">
+<div class="force-width-1500 pt-5 pb-5">
     <div class="login-container">
-        <h1 class="login-title">Вход</h1>
+        <h1 class="login-title">Вход для пилотов</h1>
 
         {% if messages %}
             {% for message in messages %}
@@ -134,6 +134,8 @@
             <button type="submit" class="btn-login">Войти</button>
         </form>
     <div class="text-center mt-2"><a href="{% url "password_reset" %}" class="text-muted small">Забыли пароль?</a></div>
+
+        {% include 'accounts/_social_auth_buttons.html' with role='pilot' %}
 
         <div class="auth-links">
             Нет аккаунта? <a href="{% url 'accounts:register' %}">Зарегистрироваться</a>

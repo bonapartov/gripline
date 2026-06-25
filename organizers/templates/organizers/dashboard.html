@@ -1,4 +1,5 @@
 {% extends "coderedcms/pages/web_page.html" %}
+{% load organizer_tags %}
 
 {% block content %}
 <style>
@@ -46,10 +47,12 @@
         margin-bottom: 1.5rem;
     }
     .left-column {
-        flex: 1;
+        flex: 0 0 30%;
+        max-width: 30%;
     }
     .right-column {
         flex: 1;
+        min-width: 0;
     }
     @media (max-width: 768px) {
         .two-columns {
@@ -58,7 +61,7 @@
     }
 </style>
 
-<div class="force-width-1500 my-5">
+<div class="force-width-1500 pt-5 pb-5">
     <!-- Верхняя карточка -->
     <div class="info-card">
         <h2 class="text-warning mb-4">Личный кабинет организатора</h2>
@@ -67,11 +70,26 @@
 
     <!-- Две колонки -->
     <div class="two-columns">
-        <!-- Левая колонка: Условия обслуживания -->
+        <!-- Левая колонка: контакты поддержки + условия оплаты (если включена) -->
         <div class="left-column">
             <div class="info-card">
-                <h3 class="text-info mb-3 text-center">Условия обслуживания</h3>
-                
+                <h3 class="text-info mb-3 text-center">Поддержка</h3>
+
+                <div class="info-row">
+                    <span class="info-label">Телефон поддержки:</span>
+                    <span class="info-value">{{ support_phone|default:"не указан" }}</span>
+                </div>
+
+                <div class="info-row">
+                    <span class="info-label">Email поддержки:</span>
+                    <span class="info-value">{{ support_email }}</span>
+                </div>
+
+                {% if payments_enabled %}
+                <hr class="border-secondary my-3">
+
+                <h5 class="text-info mb-3 text-center">Условия оплаты</h5>
+
                 <div class="info-row">
                     <span class="info-label">Комиссия платформы:</span>
                     <span class="info-value">
@@ -84,7 +102,7 @@
                         {% endif %}
                     </span>
                 </div>
-                
+
                 <div class="info-row">
                     <span class="info-label">Плательщик комиссии:</span>
                     <span class="info-value">
@@ -97,28 +115,18 @@
                         {% endif %}
                     </span>
                 </div>
-                
-                <div class="info-row">
-                    <span class="info-label">Телефон поддержки:</span>
-                    <span class="info-value">{{ support_phone|default:"не указан" }}</span>
-                </div>
-                
-                <div class="info-row">
-                    <span class="info-label">Email поддержки:</span>
-                    <span class="info-value">{{ support_email }}</span>
-                </div>
-                
+
                 {% if terms_text %}
                 <div class="mt-3">
                     <div class="info-label">Условия использования:</div>
                     <p class="text-white-50 small mt-2">{{ terms_text|linebreaks }}</p>
                 </div>
                 {% endif %}
-                
+
                 <div class="commission-note">
                     <i class="fas fa-info-circle"></i> Комиссия применяется ко всем чемпионатам автоматически. <br>Для изменения условий обратитесь к администратору.
-                    <div class="alert alert-warning mt-2 small">⚠️ Сервис работает в тестовом режиме. Все операции по оплате временно отключены.</div>
                 </div>
+                {% endif %}
             </div>
         </div>
 
@@ -146,22 +154,29 @@
                                 {% endif %}
                                 <div>
                                     <h5 class="text-warning mb-1">{{ champ.title }}</h5>
-                                    <p class="text-white-50 small mb-1">Комиссия:
-                                        {% if champ.commission_percent %}
-                                            {{ champ.commission_percent }}%
-                                        {% elif champ.organizer.commission_percent %}
-                                            {{ champ.organizer.commission_percent }}%
-                                        {% else %}
-                                            {{ default_commission }}%
-                                        {% endif %}
-                                    </p>
                                     {% if champ.competition_types.all %}
-                                        <p class="text-white-50 small mb-1">
-                                            Тип:
-                                            {% for ct in champ.competition_types.all %}
-                                                <span class="badge bg-info text-dark">{{ ct.name }}</span>
-                                            {% endfor %}
+                                    <p class="text-white-50 small mb-1">
+                                        {% for ct in champ.competition_types.all %}<span class="badge bg-info text-dark me-1">{{ ct.name }}</span>{% endfor %}
+                                    </p>
+                                    {% endif %}
+                                    {% if champ.race_classes.all %}
+                                    <p class="text-white-50 small mb-1">
+                                        <span class="text-white-50">Классы:</span>
+                                        {% for rc in champ.race_classes.all %}<span class="badge bg-secondary me-1">{{ rc.name }}</span>{% endfor %}
+                                    </p>
+                                    {% else %}
+                                    <p class="small mb-1"><span class="badge bg-danger">⚠ Классы не указаны</span></p>
+                                    {% endif %}
+                                    {% if champ.tyre_mode == 'per_stage' %}
+                                    <p class="text-white-50 small mb-1">🏎 Шины: <span class="badge bg-secondary">на каждый этап отдельно</span></p>
+                                    {% else %}
+                                        {% if champ.default_tyres.all %}
+                                        <p class="text-white-50 small mb-1">🏎 Шины:
+                                            {% for t in champ.default_tyres.all %}<span class="badge bg-secondary me-1">{{ t }}</span>{% endfor %}
                                         </p>
+                                        {% else %}
+                                        <p class="small mb-1"><span class="badge bg-danger">⚠ Шины не указаны</span></p>
+                                        {% endif %}
                                     {% endif %}
                                 </div>
                             </div>
@@ -172,6 +187,11 @@
                                 <a href="{% url 'organizers:championship_edit' champ.id %}" class="btn btn-sm btn-outline-warning ms-1">
                                     <i class="fas fa-edit me-1"></i>
                                 </a>
+                                {% if champ.registration_mode == 'all' %}
+                                <a href="{% url 'organizers:championship_reg_settings' champ.id %}" class="btn btn-sm btn-outline-info ms-1" title="Настройки регистрации">
+                                    <i class="fas fa-cog"></i>
+                                </a>
+                                {% endif %}
                                 <button type="button" class="btn btn-sm btn-outline-danger ms-1" data-bs-toggle="modal" data-bs-target="#deleteModal{{ champ.id }}">
                                     <i class="fas fa-trash me-1"></i>
                                 </button>
@@ -202,7 +222,84 @@
                             </form>
                         </div>
                     </div>
-                    
+
+                    <!-- Этапы чемпионата -->
+                    {% with champ_stages=stages_by_champ|dict_get:champ.id %}
+                    {% if champ_stages %}
+                    <div class="text-white-50 mt-3 mb-2" style="margin-left: 2rem; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.03em;">Этапы</div>
+                    {% for stage in champ_stages %}
+                    <div class="mb-2 pb-2 border-bottom border-secondary" style="margin-left: 2rem; border-left: 2px solid #2a2a35; padding-left: 1rem;">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="text-warning mb-1"><i class="fas fa-flag-checkered me-1 text-muted" style="font-size:0.75rem;"></i>{{ stage.title }}</h6>
+                                <p class="text-white-50 small mb-1">📅 {{ stage.start_date|date:"d.m.Y H:i" }} — {{ stage.end_date|date:"d.m.Y H:i" }}</p>
+                                <p class="text-white-50 small mb-1">🏁 {{ stage.track }} &nbsp;·&nbsp; 💰 {{ stage.entry_fee }} ₽</p>
+                                <p class="text-white-50 small mb-1">
+                                    {% if stage.registration_enabled %}
+                                        <span class="badge bg-success">Регистрация открыта</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Регистрация закрыта</span>
+                                    {% endif %}
+                                    {% if stage.registration_deadline %}
+                                        <span class="text-white-50 ms-1">до {{ stage.registration_deadline|date:"d.m.Y H:i" }}</span>
+                                    {% endif %}
+                                    {% if stage.max_participants %}
+                                        &nbsp;·&nbsp; макс. {{ stage.max_participants }} чел.
+                                    {% endif %}
+                                </p>
+                                {% if stage.championship_tyre_mode == 'per_stage' %}
+                                <p class="text-white-50 small mb-1">🏎
+                                    {% if stage.stage_tyres %}
+                                        {% for t in stage.stage_tyres %}<span class="badge bg-secondary me-1">{{ t }}</span>{% endfor %}
+                                    {% else %}
+                                        <span class="badge bg-danger">⚠ Шины не указаны</span>
+                                    {% endif %}
+                                </p>
+                                {% endif %}
+                                <p class="text-white-50 small mb-0">
+                                    👥 Регистраций: <strong class="text-info">{{ stage.reg_count }}</strong>
+                                    {% if stage.reg_pending %}<span class="badge bg-warning text-dark ms-1">{{ stage.reg_pending }} новых</span>{% endif %}
+                                </p>
+                            </div>
+                            <div class="d-flex flex-wrap gap-1 ms-2">
+                                {% if stage.wagtail_page %}
+                                <a href="{{ stage.wagtail_page.url }}" target="_blank" class="btn btn-sm btn-outline-info" title="Открыть">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'organizers:stage_registrations' stage.id %}" class="btn btn-sm btn-outline-primary" title="Регистрации">
+                                    <i class="fas fa-users"></i>
+                                </a>
+                                {% if champ.registration_mode != 'all' %}
+                                <a href="{% url 'organizers:stage_settings' stage.id %}" class="btn btn-sm btn-outline-info" title="Настройки">
+                                    <i class="fas fa-cog"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'organizers:stage_edit' stage.id %}" class="btn btn-sm btn-outline-warning" title="Редактировать">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'organizers:stage_delete' stage.id %}" class="btn btn-sm btn-outline-danger" title="Удалить"
+                                   onclick="return confirm('Удалить этап «{{ stage.title }}»? Все данные будут потеряны.');">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-end mt-1">
+                            <form method="post" action="{% url 'organizers:stage_toggle_publish' stage.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm {% if stage.is_published %}btn-success{% else %}btn-secondary{% endif %}" style="min-width:120px;">
+                                    {% if stage.is_published %}
+                                        <i class="fas fa-eye me-1"></i>Опубликован
+                                    {% else %}
+                                        <i class="fas fa-eye-slash me-1"></i>Черновик
+                                    {% endif %}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}{% endwith %}
+
                     <!-- Модальное окно подтверждения удаления -->
                     <div class="modal fade" id="deleteModal{{ champ.id }}" tabindex="-1">
                         <div class="modal-dialog">
@@ -231,74 +328,6 @@
                         </a>
                     </div>
                 {% endif %}
-            </div>
-            <!-- Блок этапов -->
-            <div class="info-card">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h3 class="text-info mb-0">Этапы</h3>
-                </div>
-                
-                {% if stages %}
-                    {% for stage in stages %}
-                    <div class="mb-3 pb-2 border-bottom border-secondary">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <h5 class="text-warning mb-1">{{ stage.title }}</h5>
-                                <p class="text-white-50 small mb-1">{{ stage.championship_title }}</p>
-                                <p class="text-white-50 small mb-1">
-                                    📅 {{ stage.start_date|date:"d.m.Y H:i" }} — {{ stage.end_date|date:"d.m.Y H:i" }}
-                                </p>
-                                <p class="text-white-50 small mb-1">🏁 Трасса: {{ stage.track }}</p>
-                                <p class="text-white-50 small mb-1">💰 Стартовый взнос: {{ stage.entry_fee }} ₽</p>
-                                <p class="text-white-50 small mb-0">
-                                    👥 Регистраций: <strong class="text-info">{{ stage.reg_count }}</strong>
-                                    {% if stage.reg_pending %}<span class="badge bg-warning text-dark ms-1">{{ stage.reg_pending }} новых</span>{% endif %}
-                                </p>
-                            </div>
-                            <div>
-								{% if stage.wagtail_page %}
-								<a href="{{ stage.wagtail_page.url }}" target="_blank" class="btn btn-sm btn-outline-info">
-									<i class="fas fa-eye me-1"></i>
-								</a>
-								{% endif %}
-								<a href="{% url 'organizers:stage_registrations' stage.id %}" class="btn btn-sm btn-outline-primary" title="Регистрации">
-									<i class="fas fa-users"></i>
-								</a>
-								<a href="{% url 'organizers:stage_settings' stage.id %}" class="btn btn-sm btn-outline-info" title="Настройки регистрации">
-									<i class="fas fa-cog"></i>
-								</a>
-								<a href="{% url 'organizers:stage_edit' stage.id %}" class="btn btn-sm btn-outline-warning">
-									<i class="fas fa-edit"></i>
-								</a>
-								<a href="{% url 'organizers:stage_delete' stage.id %}"
-								   class="btn btn-sm btn-outline-danger"
-								   onclick="return confirm('Удалить этап «{{ stage.title }}»? Все данные будут потеряны.');">
-									<i class="fas fa-trash"></i>
-								</a>
-							</div>
-                        </div>
-                        <!-- Статус публикации — нижний правый угол -->
-                        <div class="d-flex justify-content-end mt-2">
-                            <form method="post" action="{% url 'organizers:stage_toggle_publish' stage.id %}">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-sm {% if stage.is_published %}btn-success{% else %}btn-secondary{% endif %}" style="min-width:140px;">
-                                    {% if stage.is_published %}
-                                        <i class="fas fa-eye me-1"></i>Опубликован
-                                    {% else %}
-                                        <i class="fas fa-eye-slash me-1"></i>Черновик
-                                    {% endif %}
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="text-center py-3">
-                        <p class="text-muted mb-0">У вас пока нет этапов.</p>
-                        <p class="text-muted small">Создайте чемпионат и добавьте этапы</p>
-                    </div>
-                {% endif %}
-
             </div>
         </div>
     </div>

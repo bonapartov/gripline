@@ -277,6 +277,8 @@ def global_admin_css():
                 color: #adb5bd !important;
                 opacity: 0.7;
             }
+
+            .field-row { align-items: flex-end; }
         </style>
     """)
 

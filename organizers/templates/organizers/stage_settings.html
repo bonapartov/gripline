@@ -46,7 +46,12 @@
 
     <!-- Требуемые документы -->
     <div class="ss-card">
-        <div class="ss-title">Требуемые документы</div>
+        <div class="ss-title">Требуемые документы
+            {% if stage_started %}<span class="badge bg-warning text-dark ms-2" style="font-size:0.7rem;"><i class="fas fa-lock me-1"></i>Этап начался</span>{% endif %}
+        </div>
+        {% if stage_started %}
+        <div class="alert alert-warning small py-2 mb-3">После начала этапа документы нельзя удалять. Можно только добавлять новые.</div>
+        {% endif %}
         {% if documents %}
         <div class="mb-3">
             {% for doc in documents %}
@@ -58,12 +63,16 @@
                     {% if doc.has_expiry_date %}<span class="badge bg-secondary ms-1">срок действия</span>{% endif %}
                     {% if doc.description %}<div class="text-muted small">{{ doc.description }}</div>{% endif %}
                 </div>
+                {% if not stage_started %}
                 <form method="post" onsubmit="return confirm('Удалить документ?');">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="delete_document">
                     <input type="hidden" name="doc_id" value="{{ doc.id }}">
                     <button class="btn btn-sm btn-outline-danger">✗</button>
                 </form>
+                {% else %}
+                <span class="text-muted small"><i class="fas fa-lock"></i></span>
+                {% endif %}
             </div>
             {% endfor %}
         </div>

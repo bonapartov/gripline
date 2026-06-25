@@ -9,7 +9,7 @@ from .views import (
     TyreBrandViewSet, TyreTypeViewSet, TyreViewSet, EngineViewSet,
     track_detail_view, chassis_detail_view, tyrebrand_detail_view,
     tyretype_detail_view, tyre_detail_view, engine_detail_view,
-    drivers_api, teams_api, chassis_api,
+    drivers_api, teams_api, chassis_api, home_top_drivers_api,
     compare_view, top_drivers_view, compare_models_view,
     weights_table_view, tyre_analysis_view, chassis_track_matrix_view, weather_impact_view
 )
@@ -62,6 +62,7 @@ urlpatterns = [
     path("matrix/", chassis_track_matrix_view, name="chassis_track_matrix"),
     path("weather-impact/", weather_impact_view, name="weather_impact"),
     path("drivers-api/", drivers_api, name="drivers_api"),
+    path("api/home-top-drivers/", home_top_drivers_api, name="home_top_drivers_api"),
     path('api/v2/', include([
         path('pages/', api_router.urls),  # Стандартный API Wagtail
         path('pulse/', pulse_data, name='pulse_api'),  # Наш кастомный эндпоинт

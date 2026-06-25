@@ -98,7 +98,7 @@
     }
 </style>
 
-<div class="force-width-1500 my-5">
+<div class="force-width-1500 pt-5 pb-5">
     <div class="register-container">
         <h1 class="register-title">Регистрация пилота</h1>
 
@@ -158,6 +158,8 @@
 
             <button type="submit" class="btn-register">Зарегистрироваться</button>
         </form>
+
+        {% include 'accounts/_social_auth_buttons.html' with role='pilot' %}
 
         <div class="auth-links">
             Уже есть аккаунт? <a href="{% url 'accounts:login' %}">Войти</a>

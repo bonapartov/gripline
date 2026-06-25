@@ -1,0 +1,114 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% block content %}
+<style>
+    .force-width-1500 { max-width: 1500px !important; margin: 0 auto; padding: 0 1rem; }
+    .onboarding-box { max-width: 600px; margin: 3rem auto; background: #1a1a25; border: 1px solid #2a2a35; border-radius: 12px; padding: 2.5rem 2rem; }
+    .onboarding-title { color: #ffc107; font-size: 1.5rem; font-weight: bold; margin-bottom: 0.5rem; }
+    .onboarding-sub { color: #adb5bd; font-size: 0.9rem; margin-bottom: 2rem; }
+    .search-input { background: #12121c; border: 1px solid #2a2a35; color: #fff; border-radius: 6px; padding: 0.65rem 1rem; width: 100%; font-size: 0.95rem; }
+    .search-input:focus { outline: none; border-color: #ffc107; }
+    .search-input::placeholder { color: #6c757d; }
+    .results-list { list-style: none; padding: 0; margin: 0.75rem 0 0; max-height: 280px; overflow-y: auto; }
+    .result-item { background: #12121c; border: 1px solid #2a2a35; border-radius: 6px; padding: 0.65rem 1rem; margin-bottom: 0.4rem; display: flex; justify-content: space-between; align-items: center; color: #fff; transition: border-color 0.15s; }
+    .result-item:hover { border-color: #ffc107; }
+    .btn-select { background: #ffc107; color: #000; font-weight: bold; border: none; border-radius: 4px; padding: 0.3rem 0.8rem; font-size: 0.85rem; cursor: pointer; }
+    .btn-notfound { background: transparent; border: 1px solid #2a2a35; color: #adb5bd; border-radius: 6px; padding: 0.6rem 1.2rem; margin-top: 1.25rem; cursor: pointer; font-size: 0.9rem; width: 100%; transition: border-color 0.15s; }
+    .btn-notfound:hover { border-color: #ffc107; color: #fff; }
+    .new-form { margin-top: 1.5rem; border-top: 1px solid #2a2a35; padding-top: 1.5rem; display: none; }
+    .new-form.show { display: block; }
+    .form-label { color: #adb5bd; font-size: 0.85rem; margin-bottom: 0.3rem; display: block; }
+    .form-control-dark { background: #12121c; border: 1px solid #2a2a35; color: #fff; border-radius: 6px; padding: 0.6rem 1rem; width: 100%; font-size: 0.95rem; margin-bottom: 1rem; }
+    .form-control-dark:focus { outline: none; border-color: #ffc107; }
+    .btn-submit { background: #ffc107; color: #000; font-weight: bold; border: none; border-radius: 6px; padding: 0.65rem 1.75rem; cursor: pointer; font-size: 0.95rem; }
+    .no-results { color: #6c757d; font-size: 0.9rem; padding: 0.5rem 0; display: none; }
+</style>
+
+<div class="force-width-1500 pt-5 pb-5">
+<div class="onboarding-box">
+    <div class="onboarding-title" style="text-align:center;">Привязка к команде</div>
+    <div class="onboarding-sub" style="text-align:center;">Найдите свою команду в базе или создайте новую</div>
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags }} mb-3" style="border-radius:6px;">{{ msg }}</div>
+    {% endfor %}
+    {% include 'accounts/_contact_admin.html' %}
+    {% endif %}
+
+    <label class="form-label">Поиск команды по названию</label>
+    <input type="text" id="teamSearch" class="search-input" placeholder="Начните вводить название команды..." autocomplete="off">
+    <ul class="results-list" id="resultsList"></ul>
+    <div class="no-results" id="noResults">Команды не найдены</div>
+
+    <form method="post" id="selectForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="select">
+        <input type="hidden" name="team_id" id="selectedTeamId">
+    </form>
+
+    <button type="button" class="btn-notfound" id="btnNotFound">Нет моей команды — создать новую</button>
+
+    <div class="new-form {% if show_new_form %}show{% endif %}" id="newForm">
+        <div style="color:#ffc107;font-weight:bold;margin-bottom:1rem;">Новая команда</div>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="new">
+            <label class="form-label">Название команды *</label>
+            <input type="text" name="team_name" class="form-control-dark" required placeholder="Например: Team Karting Pro">
+            <label class="form-label">Город</label>
+            <input type="text" name="city" class="form-control-dark" placeholder="Москва">
+            <button type="submit" class="btn-submit">Создать команду и отправить заявку</button>
+        </form>
+    </div>
+</div>
+</div>
+
+<script>
+const searchInput = document.getElementById('teamSearch');
+const resultsList = document.getElementById('resultsList');
+const noResults = document.getElementById('noResults');
+const selectForm = document.getElementById('selectForm');
+const selectedTeamId = document.getElementById('selectedTeamId');
+const btnNotFound = document.getElementById('btnNotFound');
+const newForm = document.getElementById('newForm');
+
+let searchTimer;
+
+searchInput.addEventListener('input', function() {
+    clearTimeout(searchTimer);
+    const q = this.value.trim();
+    if (q.length < 2) {
+        resultsList.innerHTML = '';
+        noResults.style.display = 'none';
+        return;
+    }
+    searchTimer = setTimeout(() => {
+        fetch('{% url "accounts:yandex_search_teams" %}?q=' + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(data => {
+                resultsList.innerHTML = '';
+                if (!data.results.length) {
+                    noResults.style.display = 'block';
+                    return;
+                }
+                noResults.style.display = 'none';
+                data.results.forEach(t => {
+                    const li = document.createElement('li');
+                    li.className = 'result-item';
+                    li.innerHTML = `<span>${t.name}</span><button type="button" class="btn-select" data-id="${t.id}">Это моя команда</button>`;
+                    li.querySelector('.btn-select').addEventListener('click', () => {
+                        selectedTeamId.value = t.id;
+                        selectForm.submit();
+                    });
+                    resultsList.appendChild(li);
+                });
+            });
+    }, 300);
+});
+
+btnNotFound.addEventListener('click', () => {
+    newForm.classList.toggle('show');
+    btnNotFound.textContent = newForm.classList.contains('show') ? '← Назад к поиску' : 'Нет моей команды — создать новую';
+});
+</script>
+{% endblock %}

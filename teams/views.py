@@ -8,7 +8,7 @@ from .models import TeamClaim
 from django.contrib.auth import authenticate, login as auth_login
 
 from django.contrib.auth.decorators import login_required
-from .models import TeamManager, TeamJoinRequest
+from .models import TeamManager, TeamJoinRequest, TeamInvitation
 from django.shortcuts import get_object_or_404
 from django import forms
 from django.utils import timezone
@@ -73,7 +73,7 @@ Email пользователя: {claim_data.get('user_email')}
         message,
         settings.DEFAULT_FROM_EMAIL,
         ['gripline.ru@yandex.ru'],
-        fail_silently=False,
+        fail_silently=True,
     )
 
 
@@ -356,6 +356,11 @@ def dashboard(request):
         ).select_related('team').first()
 
         if not manager:
+            # Проверяем есть ли pending-заявка
+            from .models import TeamClaim as TC
+            pending = TC.objects.filter(user=request.user, status='pending').first()
+            if pending:
+                return render(request, 'teams/pending.html', {'claim': pending})
             messages.error(request, 'У вас нет прав на управление командой')
             return redirect('/')
 
@@ -367,6 +372,7 @@ def dashboard(request):
         ).distinct().order_by('last_name')
 
         driver_classes = []
+        drivers_with_results = set()
 
         for driver in drivers:
             six_months_ago = timezone.now() - timedelta(days=180)
@@ -385,15 +391,41 @@ def dashboard(request):
                     'class_name': item['group__race_class__name'],
                     'last_date': item['last_date'],
                 })
+                drivers_with_results.add(driver.id)
 
         driver_classes.sort(key=lambda x: x['last_date'], reverse=True)
+
+        # Добавляем пилотов без результатов — по классу из членства
+        from website.models import TeamMembership as TM
+        from django.utils import timezone as tz
+        for driver in drivers:
+            if driver.id not in drivers_with_results:
+                membership = TM.objects.filter(driver=driver, team=team, is_active=True).select_related('race_class').first()
+                class_name = membership.race_class.name if membership and membership.race_class else '—'
+                driver_classes.append({
+                    'driver': driver,
+                    'class_name': class_name,
+                    'last_date': tz.now(),
+                })
 
         pending_requests = TeamJoinRequest.objects.filter(
             team=team,
             status='pending'
         ).select_related('driver')
 
-        all_drivers = Driver.objects.all().order_by('last_name')
+        # Определяем демо-команду по email менеджера
+        is_demo_team = request.user.email.startswith('demo_team_')
+        from accounts.models import DriverClaim
+        if is_demo_team:
+            demo_driver_ids = DriverClaim.objects.filter(
+                user__email__startswith='demo_pilot_', status='approved'
+            ).values_list('driver_id', flat=True)
+            all_drivers = Driver.objects.filter(id__in=demo_driver_ids).order_by('last_name')
+        else:
+            demo_driver_ids = DriverClaim.objects.filter(
+                user__email__startswith='demo_pilot_'
+            ).values_list('driver_id', flat=True)
+            all_drivers = Driver.objects.exclude(id__in=demo_driver_ids).order_by('last_name')
 
         form = TeamForm(instance=team)
         formset = TeamSocialLinkFormSet(instance=team)
@@ -405,7 +437,10 @@ def dashboard(request):
             if form.is_valid() and formset.is_valid():
                 team = form.save()
 
-                if 'logo_upload' in request.FILES:
+                if request.POST.get('delete_logo') == 'true':
+                    team.logo = None
+                    team.save()
+                elif 'logo_upload' in request.FILES:
                     logo_image = Image.objects.create(
                         title=f"Логотип {team.name}",
                         file=request.FILES['logo_upload']
@@ -413,7 +448,10 @@ def dashboard(request):
                     team.logo = logo_image
                     team.save()
 
-                if 'manager_photo_upload' in request.FILES:
+                if request.POST.get('delete_manager_photo') == 'true':
+                    team.manager_photo = None
+                    team.save()
+                elif 'manager_photo_upload' in request.FILES:
                     photo_image = Image.objects.create(
                         title=f"Фото руководителя {team.manager_name or team.name}",
                         file=request.FILES['manager_photo_upload']
@@ -446,6 +484,9 @@ def dashboard(request):
                 'membership': membership,
             })
 
+        from website.models import RaceClass
+        pending_invitations = TeamInvitation.objects.filter(team=team, status='pending').select_related('driver', 'race_class')
+
         return render(request, 'teams/dashboard.html', {
             'team': team,
             'driver_classes': driver_classes,
@@ -455,6 +496,8 @@ def dashboard(request):
             'staff_members': staff_list,
             'form': form,
             'formset': formset,
+            'race_classes': RaceClass.objects.all().order_by('name'),
+            'pending_invitations': pending_invitations,
         })
 
     except Exception as e:
@@ -510,6 +553,165 @@ def add_driver(request):
                 messages.success(request, f'{driver.full_name} добавлен в команду')
 
     return redirect('teams:dashboard')
+
+
+@login_required
+def invite_driver(request):
+    """Пригласить пилота в команду (создаёт TeamInvitation + отправляет email)"""
+    if request.method != 'POST':
+        return redirect('teams:dashboard')
+
+    manager = TeamManager.objects.filter(user=request.user, is_active=True).first()
+    if not manager:
+        messages.error(request, 'Нет прав')
+        return redirect('teams:dashboard')
+
+    team = manager.team
+    driver_id = request.POST.get('driver_id')
+    race_class_id = request.POST.get('race_class_id')
+
+    if not driver_id:
+        messages.error(request, 'Выберите пилота')
+        return redirect('teams:dashboard')
+
+    driver = get_object_or_404(Driver, id=driver_id)
+
+    # Проверяем, что пилот зарегистрирован на сайте
+    from accounts.models import DriverClaim
+    claim = DriverClaim.objects.filter(driver=driver, status='approved').first()
+    if not claim:
+        messages.error(request, f'{driver.full_name} не зарегистрирован на сайте — отправить приглашение невозможно.')
+        return redirect('teams:dashboard')
+
+    # Демо-фильтрация
+    is_demo_team = request.user.email.startswith('demo_team_')
+    is_demo_pilot = claim.user.email.startswith('demo_pilot_')
+    if is_demo_team and not is_demo_pilot:
+        messages.error(request, 'Демо-команда может приглашать только демо-пилотов.')
+        return redirect('teams:dashboard')
+    if not is_demo_team and is_demo_pilot:
+        messages.error(request, 'Нельзя приглашать демо-пилотов в реальную команду.')
+        return redirect('teams:dashboard')
+
+    # Проверяем уже существующее приглашение
+    existing = TeamInvitation.objects.filter(driver=driver, team=team).first()
+    if existing:
+        if existing.status == 'pending':
+            messages.warning(request, f'Приглашение для {driver.full_name} уже отправлено и ожидает ответа.')
+        elif existing.status == 'accepted':
+            messages.warning(request, f'{driver.full_name} уже в команде.')
+        else:
+            # declined — позволяем повторно пригласить
+            existing.status = 'pending'
+            existing.responded_at = None
+            existing.invited_by = request.user
+            if race_class_id:
+                from website.models import RaceClass
+                try:
+                    existing.race_class = RaceClass.objects.get(pk=race_class_id)
+                except RaceClass.DoesNotExist:
+                    pass
+            existing.save()
+            _send_team_invitation_email(driver, team, claim.user, existing)
+            messages.success(request, f'Повторное приглашение отправлено {driver.full_name}.')
+        return redirect('teams:dashboard')
+
+    # Проверяем уже в команде
+    if TeamMembership.objects.filter(driver=driver, team=team, is_active=True).exists():
+        messages.warning(request, f'{driver.full_name} уже в команде.')
+        return redirect('teams:dashboard')
+
+    race_class = None
+    if race_class_id:
+        from website.models import RaceClass
+        try:
+            race_class = RaceClass.objects.get(pk=race_class_id)
+        except RaceClass.DoesNotExist:
+            pass
+
+    invitation = TeamInvitation.objects.create(
+        team=team,
+        driver=driver,
+        race_class=race_class,
+        invited_by=request.user,
+        status='pending',
+    )
+    _send_team_invitation_email(driver, team, claim.user, invitation)
+    messages.success(request, f'Приглашение отправлено {driver.full_name}.')
+    return redirect('teams:dashboard')
+
+
+def _send_team_invitation_email(driver, team, user, invitation):
+    from django.core.mail import send_mail
+    from django.template.loader import render_to_string
+    from django.conf import settings
+    try:
+        body = render_to_string('teams/email_invitation.html', {
+            'driver': driver,
+            'team': team,
+            'invitation': invitation,
+            'base_url': getattr(settings, 'BASE_URL', 'https://gripline.ru'),
+        })
+        send_mail(
+            subject=f'Приглашение в команду {team.name}',
+            message='',
+            from_email=settings.EMAIL_HOST_USER,
+            recipient_list=[user.email],
+            html_message=body,
+            fail_silently=True,
+        )
+    except Exception:
+        pass
+
+
+@login_required
+def accept_invitation(request, inv_id):
+    """Пилот принимает приглашение"""
+    from accounts.models import DriverClaim
+    claim = DriverClaim.objects.filter(user=request.user, status='approved').first()
+    if not claim:
+        messages.error(request, 'Нет привязанного профиля пилота.')
+        return redirect('accounts:profile')
+
+    invitation = get_object_or_404(TeamInvitation, pk=inv_id, driver=claim.driver, status='pending')
+
+    # Создаём членство
+    existing = TeamMembership.objects.filter(driver=invitation.driver, team=invitation.team).first()
+    if existing:
+        existing.is_active = True
+        existing.left_at = None
+        existing.race_class = invitation.race_class
+        existing.save()
+    else:
+        TeamMembership.objects.create(
+            driver=invitation.driver,
+            team=invitation.team,
+            race_class=invitation.race_class,
+            joined_at=timezone.now().date(),
+            is_active=True,
+        )
+
+    invitation.status = 'accepted'
+    invitation.responded_at = timezone.now()
+    invitation.save()
+    messages.success(request, f'Вы приняты в команду {invitation.team.name}!')
+    return redirect('accounts:profile')
+
+
+@login_required
+def decline_invitation(request, inv_id):
+    """Пилот отклоняет приглашение"""
+    from accounts.models import DriverClaim
+    claim = DriverClaim.objects.filter(user=request.user, status='approved').first()
+    if not claim:
+        return redirect('accounts:profile')
+
+    invitation = get_object_or_404(TeamInvitation, pk=inv_id, driver=claim.driver, status='pending')
+    invitation.status = 'declined'
+    invitation.responded_at = timezone.now()
+    invitation.save()
+    messages.info(request, f'Приглашение от команды {invitation.team.name} отклонено.')
+    return redirect('accounts:profile')
 
 
 @login_required
@@ -600,7 +802,7 @@ def reject_request(request, request_id):
 def logout_view(request):
     """Выход из системы"""
     logout(request)
-    return redirect('/')
+    return redirect('choose_role')
 
 
 @login_required

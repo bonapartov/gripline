@@ -7,11 +7,18 @@ from wagtail.models import Page
 from django.utils.text import slugify
 
 class OrganizerProfile(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Ожидает активации'),
+        ('active', 'Активен'),
+        ('rejected', 'Отклонён'),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='organizer_profile')
     photo = models.ForeignKey('wagtailimages.Image', on_delete=models.SET_NULL, null=True, blank=True)
     phone = models.CharField(max_length=30, blank=True)
     telegram = models.CharField(max_length=100, blank=True)
     website = models.URLField(blank=True)
+    status = models.CharField("Статус", max_length=20, choices=STATUS_CHOICES, default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     commission_percent = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Оставьте пустым для использования глобальной комиссии")
@@ -37,6 +44,7 @@ class Championship(models.Model):
     is_active = models.BooleanField(default=True)
     is_archived = models.BooleanField(default=False)
     is_published = models.BooleanField(default=True, verbose_name='Опубликован на сайте')
+    is_demo = models.BooleanField(default=False, verbose_name='Демо-мероприятие', help_text='Не публикуется на сайте и не попадает в рейтинг')
     color = models.CharField(max_length=7, default='#ffc107', verbose_name='Цвет в календаре')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -53,13 +61,37 @@ class Championship(models.Model):
         blank=True,
         help_text="Классы, которые участвуют в чемпионате"
     )
-    
-    default_tyre = models.ForeignKey(
+
+    default_tyres = models.ManyToManyField(
         'website.Tyre',
-        on_delete=models.SET_NULL,
-        null=True,
         blank=True,
-        help_text="Шина по умолчанию для всех классов"
+        help_text="Разрешённые шины для чемпионата"
+    )
+
+    REG_MODE_ALL = 'all'
+    REG_MODE_PER_STAGE = 'per_stage'
+    REG_MODE_CHOICES = [
+        (REG_MODE_PER_STAGE, 'Настройки для каждого этапа отдельно'),
+        (REG_MODE_ALL, 'Общие настройки для всех этапов'),
+    ]
+    registration_mode = models.CharField(
+        max_length=20,
+        choices=REG_MODE_CHOICES,
+        default=REG_MODE_PER_STAGE,
+        verbose_name='Режим настроек регистрации',
+    )
+
+    TYRE_MODE_ALL = 'all'
+    TYRE_MODE_PER_STAGE = 'per_stage'
+    TYRE_MODE_CHOICES = [
+        (TYRE_MODE_ALL, 'Одни шины для всех этапов'),
+        (TYRE_MODE_PER_STAGE, 'Шины на каждый этап отдельно'),
+    ]
+    tyre_mode = models.CharField(
+        max_length=20,
+        choices=TYRE_MODE_CHOICES,
+        default=TYRE_MODE_ALL,
+        verbose_name='Режим назначения шин',
     )
 
     def save(self, *args, **kwargs):
@@ -93,6 +125,13 @@ class Stage(models.Model):
         verbose_name='Множитель позднего взноса'
     )
     max_participants = models.PositiveIntegerField(null=True, blank=True, verbose_name='Макс. участников')
+
+    stage_tyres = models.ManyToManyField(
+        'website.Tyre',
+        blank=True,
+        help_text="Шины для этого этапа (если в чемпионате режим 'per_stage')",
+        related_name='stages',
+    )
 
     # Стартовые номера
     start_number_digits = models.PositiveIntegerField(
@@ -174,6 +213,11 @@ class OrganizerSettings(models.Model):
     support_email = models.EmailField(default="support@gripline.ru")
     terms_text = models.TextField(blank=True, default="")
     refund_policy = models.TextField(blank=True, default="")
+    payments_enabled = models.BooleanField(
+        default=False,
+        verbose_name="Оплата включена",
+        help_text="Показывать блоки оплаты, комиссий и финансов в ЛК организатора"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -194,6 +238,9 @@ def sync_wagtail_stage(sender, instance, created, **kwargs):
     """Создаёт или обновляет StagePage и EventPage для этапа"""
     from website.models import StagePage, EventPage, EventOccurrence, RaceClassResultGroup
     
+    if instance.championship.is_demo:
+        return
+
     parent_page = instance.championship.wagtail_page
     if not parent_page:
         return
@@ -205,13 +252,16 @@ def sync_wagtail_stage(sender, instance, created, **kwargs):
             start_date=instance.start_date,
             end_date=instance.end_date,
             track=instance.track,
+            live=False,
         )
         parent_page.add_child(instance=wagtail_stage)
-        wagtail_stage.save_revision().publish()
-        
+        revision = wagtail_stage.save_revision()
+        if instance.is_published:
+            revision.publish()
+
         instance.wagtail_page = wagtail_stage
         instance.save()
-        
+
         for race_class in instance.championship.race_classes.all():
             base_slug = slugify(f"{instance.title}-{race_class.name}")
             slug = base_slug
@@ -219,15 +269,18 @@ def sync_wagtail_stage(sender, instance, created, **kwargs):
             while EventPage.objects.filter(slug=slug).exists():
                 slug = f"{base_slug}-{counter}"
                 counter += 1
-            
+
             event_page = EventPage(
                 title=instance.title,
                 admin_title=f"{instance.title} - {race_class.name}",
                 slug=slug,
                 track=instance.track,
+                live=False,
             )
             wagtail_stage.add_child(instance=event_page)
-            event_page.save_revision().publish()
+            revision = event_page.save_revision()
+            if instance.is_published:
+                revision.publish()
             
             EventOccurrence.objects.create(
                 event=event_page,
@@ -240,9 +293,23 @@ def sync_wagtail_stage(sender, instance, created, **kwargs):
                 race_class=race_class,
             )
             
-            if instance.championship.default_tyre:
-                group.tyre = instance.championship.default_tyre
-                group.save()
+            # default_tyres is now M2M — auto-assignment of a single tyre removed
+
+            # Копируем документы и опции с чемпионата если registration_mode='all'
+            if instance.championship.registration_mode == Championship.REG_MODE_ALL:
+                from applications.models import ChampionshipDocument, ChampionshipOption, StageDocument, StageOption
+                for doc in instance.championship.championship_documents.all():
+                    StageDocument.objects.create(
+                        stage=instance, name=doc.name, description=doc.description,
+                        required=doc.required, minors_only=doc.minors_only,
+                        has_expiry_date=doc.has_expiry_date, order=doc.order,
+                    )
+                for opt in instance.championship.championship_options.all():
+                    StageOption.objects.create(
+                        stage=instance, name=opt.name, description=opt.description,
+                        price=opt.price, is_mandatory=opt.is_mandatory,
+                        is_active=opt.is_active, order=opt.order,
+                    )
     else:
         # РЕДАКТИРОВАНИЕ
         if instance.wagtail_page:
@@ -251,17 +318,25 @@ def sync_wagtail_stage(sender, instance, created, **kwargs):
             stage_page.start_date = instance.start_date
             stage_page.end_date = instance.end_date
             stage_page.track = instance.track
-            stage_page.save_revision().publish()
-            
-            for event_page in EventPage.objects.child_of(stage_page).live():
+            revision = stage_page.save_revision()
+            if instance.is_published:
+                revision.publish()
+            elif stage_page.live:
+                stage_page.unpublish()
+
+            for event_page in EventPage.objects.child_of(stage_page):
                 event_page.title = instance.title
                 if event_page.admin_title:
                     parts = event_page.admin_title.split(' - ')
                     if len(parts) > 1:
                         event_page.admin_title = f"{instance.title} - {parts[1]}"
                 event_page.track = instance.track
-                event_page.save_revision().publish()
-                
+                revision = event_page.save_revision()
+                if instance.is_published:
+                    revision.publish()
+                elif event_page.live:
+                    event_page.unpublish()
+
                 if event_page.occurrences.exists():
                     occurrence = event_page.occurrences.first()
                     occurrence.start = instance.start_date

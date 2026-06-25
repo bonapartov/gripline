@@ -1,5 +1,5 @@
 {% extends "coderedcms/pages/web_page.html" %}
-{% load wagtailcore_tags wagtailimages_tags coderedcms_tags %}
+{% load wagtailcore_tags wagtailimages_tags coderedcms_tags website_tags %}
 
 {% block content %}
 {# Убираем стандартную обложку, чтобы не двоился заголовок #}
@@ -30,8 +30,17 @@
     }
     .badge { width: 45px; font-weight: 800; }
     .bg-bronze {
-    background-color: #cd7f32 !important;
-}
+        background-color: #cd7f32 !important;
+    }
+    .session-badge {
+        font-size: 0.6rem;
+        font-weight: 700;
+        padding: 1px 5px;
+        border-radius: 3px;
+        vertical-align: middle;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+    }
 </style>
 
 
@@ -248,11 +257,13 @@
                                     <th>Пилот</th>
                                     <th>Команда</th>
                                     <th>Шасси</th>
+                                    <th class="text-end">Лучший круг</th>
+                                    <th class="text-end">Идеальный круг</th>
                                     <th class="text-end">Очки</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for result in group.class_results.all|dictsort:"position" %}
+                                {% for result in group.sorted_results %}
                                     <tr>
                                         <td class="align-middle">
                                             <span class="badge {% if result.position == 1 %}bg-warning text-dark{% elif result.position == 2 %}bg-light text-dark{% elif result.position == 3 %}bg-bronze text-white{% else %}bg-secondary{% endif %} px-3" style="width: 45px;">
@@ -285,6 +296,19 @@
                                             {% else %}
                                                 —
                                             {% endif %}
+                                        </td>
+                                        <td class="align-middle text-end">
+                                            {% if result.best_lap_session == 'qual' %}
+                                                <span class="badge bg-primary me-1" style="font-size:10px;" title="Квалификация">К</span>
+                                            {% elif result.best_lap_session == 'pre_final' %}
+                                                <span class="badge bg-warning text-dark me-1" style="font-size:10px;" title="Предфинал">Пф</span>
+                                            {% elif result.best_lap_session == 'final' %}
+                                                <span class="badge bg-success me-1" style="font-size:10px;" title="Финал">Ф</span>
+                                            {% endif %}
+                                            <span class="font-monospace text-info small">{{ result.best_lap_all_ms|laptime }}</span>
+                                        </td>
+                                        <td class="align-middle text-end font-monospace text-secondary small">
+                                            {{ result.ideal_lap_all_ms|laptime }}
                                         </td>
                                         <td class="align-middle text-end fw-bold fs-5 text-primary">
                                             {{ result.points|floatformat:"0" }}

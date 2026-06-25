@@ -1,5 +1,5 @@
 {% extends "coderedcms/pages/web_page.html" %}
-{% load wagtailimages_tags %}
+{% load wagtailimages_tags website_tags %}
 
 {% block content %}
 <style>
@@ -25,6 +25,7 @@
         background-color: #cd7f32 !important;
         color: white !important;
     }
+    .pos-gain { font-size: 0.62rem; line-height: 1; margin-top: 3px; }
 </style>
 
 <div class="force-width-1500 my-5 text-white">
@@ -53,6 +54,11 @@
             <p class="text-info fs-5 mb-3">
                 <i class="fas fa-map-marker-alt me-2"></i>{{ driver.city|default:"Город не указан" }}
             </p>
+            {% if driver_profile and driver_profile.birth_date %}
+            <p class="text-muted fs-6 mb-3">
+                <i class="fas fa-birthday-cake me-2"></i>{{ driver_profile.birth_date|date:"d.m.Y" }}
+            </p>
+            {% endif %}
 
 
 
@@ -450,6 +456,64 @@
 				</div>
 			</div>
 		
+{% if personal_records %}
+<!-- Личные рекорды -->
+<div class="col-12 mb-4">
+    <div class="card p-4">
+        <h4 class="text-warning border-bottom border-secondary pb-2 mb-4 text-uppercase fw-bold">
+            <i class="fas fa-stopwatch me-2"></i>Личные рекорды
+        </h4>
+        <div class="row g-3">
+            {% for pr in personal_records %}
+            <div class="col-12 col-md-6 col-xl-4">
+                <div class="rounded-3 p-3 border border-secondary" style="background:rgba(0,0,0,0.25);">
+                    <div class="text-info small text-uppercase fw-bold mb-3">{{ pr.class_name }}</div>
+                    <div class="row g-2" style="font-size:0.85rem;">
+                        {% if pr.best_lap %}
+                        <div class="col-6">
+                            <div class="text-muted small">Лучший круг</div>
+                            <div class="text-white fw-bold font-monospace">{{ pr.best_lap }}</div>
+                        </div>
+                        {% endif %}
+                        {% if pr.ideal_lap %}
+                        <div class="col-6">
+                            <div class="text-muted small">Идеальный круг</div>
+                            <div class="text-warning fw-bold font-monospace">{{ pr.ideal_lap }}</div>
+                        </div>
+                        {% endif %}
+                        {% if pr.best_s1 or pr.best_s2 or pr.best_s3 %}
+                        <div class="col-12">
+                            <div class="d-flex gap-3 mt-1">
+                                {% if pr.best_s1 %}
+                                <div>
+                                    <div class="text-muted" style="font-size:0.7rem;">S1</div>
+                                    <div class="text-secondary font-monospace" style="font-size:0.8rem;">{{ pr.best_s1 }}</div>
+                                </div>
+                                {% endif %}
+                                {% if pr.best_s2 %}
+                                <div>
+                                    <div class="text-muted" style="font-size:0.7rem;">S2</div>
+                                    <div class="text-secondary font-monospace" style="font-size:0.8rem;">{{ pr.best_s2 }}</div>
+                                </div>
+                                {% endif %}
+                                {% if pr.best_s3 %}
+                                <div>
+                                    <div class="text-muted" style="font-size:0.7rem;">S3</div>
+                                    <div class="text-secondary font-monospace" style="font-size:0.8rem;">{{ pr.best_s3 }}</div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- История выступлений -->
     <div class="row">
         <div class="col-12">
@@ -549,6 +613,8 @@
                             <th style="width: 400px;">Соревнование / Класс</th>
                             <th style="width: 150px;">Шасси</th>
                             <th style="width: 250px;">Команда</th>
+                            <th style="width: 100px;" class="text-center">Динамика</th>
+                            <th style="width: 100px;" class="text-center">Круг</th>
                             <th style="width: 100px;" class="text-end">Очки</th>
                         </tr>
                     </thead>
@@ -576,14 +642,13 @@
                                 </td>
 
                                 <td class="align-middle">
-                                    <a href="{{ res.group.page.url }}" class="text-white text-decoration-none d-flex align-items-center">
+                                    <a href="{{ res.group.page.url }}" class="text-white text-decoration-none d-flex align-items-center flex-wrap gap-1">
                                         <span class="fw-bold text-nowrap">{{ res.group.page.title }}</span>
-
-                                        <span class="mx-2 text-secondary opacity-50">|</span>
-
-                                        <span class="small text-info text-uppercase text-nowrap">
-                                            {{ res.group.race_class.name }}
-                                        </span>
+                                        <span class="mx-1 text-secondary opacity-50">|</span>
+                                        <span class="small text-info text-uppercase text-nowrap">{{ res.group.race_class.name }}</span>
+                                        {% if res.qual_position %}<span class="badge bg-primary text-white" style="font-size:10px; border-radius:4px;" title="Квалификация: #{{ res.qual_position }}">К</span>{% endif %}
+                                        {% if res.pre_final_position %}<span class="badge bg-warning text-dark" style="font-size:10px; border-radius:4px;" title="Предфинал: #{{ res.pre_final_position }}">Пф</span>{% endif %}
+                                        {% if res.position %}<span class="badge bg-success" style="font-size:10px; border-radius:4px;" title="Финал: #{{ res.position }}">Ф</span>{% endif %}
                                     </a>
                                 </td>
 
@@ -607,13 +672,52 @@
                                     {% endif %}
                                 </td>
 
+                                <td class="align-middle text-center small">
+                                    {% if res.start_position and res.position %}
+                                        <div class="d-flex align-items-center justify-content-center gap-1" style="font-size:0.85rem;">
+                                            <span class="text-muted">{{ res.start_position }}→{{ res.position }}</span>
+                                            {% if res.position_gain > 0 %}
+                                                <span class="text-success fw-bold">▲{{ res.position_gain }}</span>
+                                            {% elif res.position_gain < 0 %}
+                                                <span class="text-danger fw-bold">▼{{ res.position_gain|slice:"1:" }}</span>
+                                            {% else %}
+                                                <span class="text-secondary">—</span>
+                                            {% endif %}
+                                        </div>
+                                    {% elif res.pre_final_start_pos and res.pre_final_position %}
+                                        <div class="d-flex align-items-center justify-content-center gap-1" style="font-size:0.85rem;">
+                                            <span class="text-muted">{{ res.pre_final_start_pos }}→{{ res.pre_final_position }}</span>
+                                            {% if res.pre_final_start_pos > res.pre_final_position %}
+                                                <span class="text-success fw-bold">▲{{ res.pre_final_start_pos|add:"-"|add:res.pre_final_position }}</span>
+                                            {% elif res.pre_final_start_pos < res.pre_final_position %}
+                                                <span class="text-danger fw-bold">▼{{ res.pre_final_position|add:"-"|add:res.pre_final_start_pos }}</span>
+                                            {% else %}
+                                                <span class="text-secondary">—</span>
+                                            {% endif %}
+                                            <span class="badge bg-warning text-dark" style="font-size:10px; border-radius:4px;" title="Предфинал">Пф</span>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+
+                                <td class="align-middle text-center font-monospace text-muted small">
+                                    {% if res.best_lap_ms %}
+                                        {{ res.best_lap_ms|laptime }}<span class="badge bg-success ms-1" style="font-size:10px; border-radius:4px;" title="Финал">Ф</span>
+                                    {% elif res.pre_final_best_lap_ms %}
+                                        {{ res.pre_final_best_lap_ms|laptime }}<span class="badge bg-warning text-dark ms-1" style="font-size:10px; border-radius:4px;" title="Предфинал">Пф</span>
+                                    {% elif res.qual_best_lap_ms %}
+                                        {{ res.qual_best_lap_ms|laptime }}<span class="badge bg-primary text-white ms-1" style="font-size:10px; border-radius:4px;" title="Квалификация">К</span>
+                                    {% else %}—{% endif %}
+                                </td>
+
                                 <td class="align-middle text-end fw-bold text-warning fs-5">
                                     {{ res.points|floatformat:"0" }}
                                 </td>
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="7" class="text-center p-5 text-muted">Данные о заездах отсутствуют</td>
+                                <td colspan="9" class="text-center p-5 text-muted">Данные о заездах отсутствуют</td>
                             </tr>
                         {% endfor %}
                     </tbody>

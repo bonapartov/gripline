@@ -153,6 +153,10 @@
         text-align: right;
         margin-top: 1rem;
     }
+
+    #ratings-container {
+        transition: opacity 0.2s;
+    }
 </style>
 
 <div class="force-width-1500 my-5 text-white">
@@ -166,11 +170,19 @@
         </a>
     </div>
 
-    <!-- Навигация по классам -->
-    <!-- Навигация по классам -->
-    {% include "includes/class_nav.html" with classes=classes selected_class=selected_class_id base_url="?" %}
+    <!-- Навигация по классам (AJAX, без "Все") -->
+    <div class="class-nav" id="class-nav">
+        {% for class in classes %}
+        <a href="?class={{ class.id }}"
+           data-class-id="{{ class.id }}"
+           class="nav-link {% if selected_class_id == class.id %}active{% endif %}">
+            {{ class.name }}
+        </a>
+        {% endfor %}
+    </div>
 
     <!-- Таблица рейтинга -->
+    <div id="ratings-container">
     <div class="top-table">
         <table class="table table-dark table-hover mb-0">
             <thead>
@@ -260,6 +272,8 @@
         </table>
     </div>
 
+    </div><!-- /ratings-container -->
+
     <!-- Пояснение про рейтинг -->
     <div class="methodology-link">
         <small class="text-muted">
@@ -269,4 +283,43 @@
         </small>
     </div>
 </div>
+<script>
+(function() {
+    const nav = document.getElementById('class-nav');
+    const container = document.getElementById('ratings-container');
+    if (!nav || !container) return;
+
+    nav.addEventListener('click', function(e) {
+        const link = e.target.closest('a[data-class-id]');
+        if (!link) return;
+        e.preventDefault();
+
+        nav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
+        link.classList.add('active');
+
+        container.style.opacity = '0.4';
+        container.style.pointerEvents = 'none';
+
+        const url = '?class=' + link.dataset.classId;
+        history.pushState(null, '', url);
+
+        fetch(url)
+            .then(r => r.text())
+            .then(html => {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                const newContainer = doc.getElementById('ratings-container');
+                if (newContainer) {
+                    container.innerHTML = newContainer.innerHTML;
+                }
+                container.style.opacity = '1';
+                container.style.pointerEvents = '';
+            })
+            .catch(() => {
+                container.style.opacity = '1';
+                container.style.pointerEvents = '';
+            });
+    });
+})();
+</script>
+
 {% endblock %}

@@ -10,7 +10,7 @@ from website.models import Driver, Team, RaceResult, RaceClass, Track, Chassis, 
 from django.utils.timezone import now
 # Добавляем импорт для определения текущего сайта (нужно для Header/Footer)
 from wagtail.models import Site
-from django.db.models import F, OuterRef, Subquery, Avg
+from django.db.models import F, OuterRef, Subquery, Avg, Min, ExpressionWrapper, IntegerField
 from .models import EventOccurrence
 from django.db import models
 from django.utils import timezone
@@ -118,6 +118,15 @@ class EngineViewSet(SnippetViewSet):
             path("<slug:slug>/", engine_detail_view, name="details"),
         ]
 
+def _ms_to_laptime(ms):
+    """62347 → '1:02.347'"""
+    if ms is None:
+        return None
+    minutes = ms // 60000
+    seconds = (ms % 60000) / 1000
+    return f"{minutes}:{seconds:06.3f}"
+
+
 def driver_detail_view(request, slug):
     driver = get_object_or_404(Driver, slug=slug)
 
@@ -137,6 +146,14 @@ def driver_detail_view(request, slug):
             ).order_by('-end').values('end')[:1]
         ),
         group_size=Count('group__class_results'),
+        position_gain=ExpressionWrapper(
+            F('start_position') - F('position'),
+            output_field=IntegerField(),
+        ),
+        pf_position_gain=ExpressionWrapper(
+            F('pre_final_start_pos') - F('pre_final_position'),
+            output_field=IntegerField(),
+        ),
     ).order_by('-event_date', '-group__page__last_published_at')
 
     # --- РАСЧЕТ СТАТИСТИКИ ---
@@ -169,7 +186,7 @@ def driver_detail_view(request, slug):
             import json
             try:
                 prbc = json.loads(prbc)
-            except:
+            except (json.JSONDecodeError, ValueError, TypeError):
                 prbc = {}
         if prbc:
             first_class = list(prbc.values())[0]
@@ -181,7 +198,7 @@ def driver_detail_view(request, slug):
             import json
             try:
                 ebc = json.loads(ebc)
-            except:
+            except (json.JSONDecodeError, ValueError, TypeError):
                 ebc = {}
         if ebc:
             first_class = list(ebc.values())[0]
@@ -193,7 +210,7 @@ def driver_detail_view(request, slug):
             import json
             try:
                 cbc = json.loads(cbc)
-            except:
+            except (json.JSONDecodeError, ValueError, TypeError):
                 cbc = {}
         if cbc:
             first_class = list(cbc.values())[0]
@@ -244,6 +261,52 @@ def driver_detail_view(request, slug):
 
     class_ratings = _get_driver_class_ratings(driver)
 
+    driver_profile = driver.userprofile_set.first()
+
+    # --- Личные рекорды по классам (MIN по всем трём сессиям) ---
+    pr_raw = (
+        RaceResult.objects
+        .filter(driver=driver)
+        .values('group__race_class_id', 'group__race_class__name')
+        .annotate(
+            best_lap_final=Min('best_lap_ms'),
+            best_lap_pf=Min('pre_final_best_lap_ms'),
+            best_lap_qual=Min('qual_best_lap_ms'),
+            best_s1_final=Min('best_s1_ms'),
+            best_s1_pf=Min('pre_final_s1_ms'),
+            best_s1_qual=Min('qual_s1_ms'),
+            best_s2_final=Min('best_s2_ms'),
+            best_s2_pf=Min('pre_final_s2_ms'),
+            best_s2_qual=Min('qual_s2_ms'),
+            best_s3_final=Min('best_s3_ms'),
+            best_s3_pf=Min('pre_final_s3_ms'),
+            best_s3_qual=Min('qual_s3_ms'),
+        )
+        .order_by('group__race_class_id')
+    )
+    personal_records = []
+    for pr in pr_raw:
+        def _best(*vals):
+            filtered = [v for v in vals if v is not None]
+            return min(filtered) if filtered else None
+
+        best_lap = _best(pr['best_lap_final'], pr['best_lap_pf'], pr['best_lap_qual'])
+        best_s1  = _best(pr['best_s1_final'],  pr['best_s1_pf'],  pr['best_s1_qual'])
+        best_s2  = _best(pr['best_s2_final'],  pr['best_s2_pf'],  pr['best_s2_qual'])
+        best_s3  = _best(pr['best_s3_final'],  pr['best_s3_pf'],  pr['best_s3_qual'])
+
+        if not any([best_lap, best_s1, best_s2, best_s3]):
+            continue
+        ideal_ms = (best_s1 + best_s2 + best_s3) if all([best_s1, best_s2, best_s3]) else None
+        personal_records.append({
+            'class_name': pr['group__race_class__name'],
+            'best_lap':  _ms_to_laptime(best_lap),
+            'best_s1':   _ms_to_laptime(best_s1),
+            'best_s2':   _ms_to_laptime(best_s2),
+            'best_s3':   _ms_to_laptime(best_s3),
+            'ideal_lap': _ms_to_laptime(ideal_ms),
+        })
+
     return render(request, "coderedcms/snippets/driver_page.html", {
         "driver": driver,
         "object": driver,
@@ -262,6 +325,8 @@ def driver_detail_view(request, slug):
         "last_update": last_update,
         "driver_class_periods": driver_class_periods,
         "class_ratings": class_ratings,
+        "driver_profile": driver_profile,
+        "personal_records": personal_records,
     })
 
 def team_detail_view(request, slug):
@@ -342,7 +407,23 @@ def team_detail_view(request, slug):
     class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
                    'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 Masters',
                    'Rotax Max DD2 32+']
-    sorted_driver_classes = dict(sorted(driver_classes.items(), 
+
+    # Добавляем пилотов без результатов (есть race_class в TeamMembership)
+    drivers_with_results_ids = {
+        d['driver'].id
+        for drivers_list in driver_classes.values()
+        for d in drivers_list
+    }
+    for driver in team_drivers:
+        if driver.id not in drivers_with_results_ids:
+            membership = driver.team_memberships.filter(team=team, is_active=True).select_related('race_class').first()
+            if membership and membership.race_class:
+                cls = membership.race_class.name
+                if cls not in driver_classes:
+                    driver_classes[cls] = []
+                driver_classes[cls].append({'driver': driver, 'period': '—'})
+
+    sorted_driver_classes = dict(sorted(driver_classes.items(),
                                         key=lambda x: class_order.index(x[0]) if x[0] in class_order else 999))
     # Получаем активных сотрудников команды
     staff_members = TeamStaff.objects.filter(
@@ -835,12 +916,17 @@ def get_chassis_stats(chassis, class_id=None):
         'wet_total': wet_results.count(),
         'avg_position': round(results.aggregate(avg=Avg('position'))['avg'] or 0, 2),
     }
-def _compute_form_trend(driver_id, class_id, window=5):
+def _compute_form_trend(driver_id, class_id, window=None):
     """
-    Сравнивает последние 5 гонок с предыдущими 5 по нормализованной позиции.
+    Сравнивает последние N гонок с предыдущими N по нормализованной позиции.
     Возвращает 'up', 'down', 'stable' или None (мало данных).
+    N берётся из AnalyticsSettings.trend_window.
     """
     from django.db.models import Count
+    from .models import AnalyticsSettings
+
+    if window is None:
+        window = AnalyticsSettings.get().trend_window
 
     rows = list(
         RaceResult.objects.filter(
@@ -1064,10 +1150,11 @@ def top_drivers_view(request):
     """
     import json
     import statistics
+    from datetime import date, timedelta
 
     current_site = Site.find_for_request(request)
 
-    from .models import Driver, RaceClass, RaceResult
+    from .models import Driver, RaceClass, RaceResult, AnalyticsSettings
 
     class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
                    'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 32+']
@@ -1080,10 +1167,25 @@ def top_drivers_view(request):
     else:
         selected_class_id = classes[0].id if classes else None
 
+    analytics_settings = AnalyticsSettings.get()
+
     # Пилоты с BT-рейтингом (чистый Bradley-Terry, без PageRank)
     drivers = Driver.objects.exclude(rating_by_class={}).order_by('last_name')
 
     result_drivers = []
+
+    if selected_class_id:
+        from django.db.models import Count, Q
+        stats_qs = RaceResult.objects.filter(
+            group__race_class_id=selected_class_id,
+        ).values('driver_id').annotate(
+            race_count=Count('id'),
+            win_count=Count('id', filter=Q(position=1)),
+            podium_count=Count('id', filter=Q(position__in=[1, 2, 3])),
+        )
+        stats_by_driver = {s['driver_id']: s for s in stats_qs}
+    else:
+        stats_by_driver = {}
 
     for driver in drivers:
         if not selected_class_id:
@@ -1094,23 +1196,30 @@ def top_drivers_view(request):
         if isinstance(rbc, str):
             try:
                 rbc = json.loads(rbc)
-            except Exception:
+            except (json.JSONDecodeError, ValueError, TypeError):
                 rbc = {}
 
         bt_data = rbc.get(class_key, {})
         if not bt_data:
             continue
 
+        # Hide drivers inactive in this class beyond threshold
+        last_race_str = bt_data.get('last_race_date')
+        if last_race_str:
+            try:
+                last_race = date.fromisoformat(last_race_str)
+                if (date.today() - last_race).days > analytics_settings.inactive_threshold_days:
+                    continue
+            except (ValueError, TypeError):
+                pass
+
         bt_score = bt_data.get('score', 0)
         starts = bt_data.get('starts', 0)
 
-        results = RaceResult.objects.filter(
-            driver=driver,
-            group__race_class_id=selected_class_id,
-        )
-        race_count = results.count()
-        win_count = results.filter(position=1).count()
-        podium_count = results.filter(position__in=[1, 2, 3]).count()
+        s = stats_by_driver.get(driver.id, {})
+        race_count = s.get('race_count', 0)
+        win_count = s.get('win_count', 0)
+        podium_count = s.get('podium_count', 0)
         win_percentage = round(win_count / race_count * 100, 1) if race_count > 0 else 0
 
         driver.race_count = race_count
@@ -1973,6 +2082,87 @@ def drivers_api(request):
     }
     return JsonResponse(data)
 
+
+def home_top_drivers_api(request):
+    """AJAX endpoint: топ пилотов по классу для главной страницы."""
+    import json, statistics as _stats
+    from datetime import date as _date
+    from .models import Driver, RaceResult, AnalyticsSettings
+
+    class_id = request.GET.get('class')
+    if not class_id or not class_id.isdigit():
+        return JsonResponse({'drivers': []})
+    class_id = int(class_id)
+    class_key = str(class_id)
+
+    _as = AnalyticsSettings.get()
+
+    all_drivers = Driver.objects.exclude(rating_by_class={}).exclude(rating_by_class__isnull=True)
+    candidates = []
+    for driver in all_drivers:
+        rbc = driver.rating_by_class
+        if isinstance(rbc, str):
+            try:
+                rbc = json.loads(rbc)
+            except Exception:
+                rbc = {}
+        bt_data = rbc.get(class_key, {})
+        if not bt_data:
+            continue
+
+        # Skip drivers inactive in this class beyond threshold
+        last_race_str = bt_data.get('last_race_date')
+        if last_race_str:
+            try:
+                last_race = _date.fromisoformat(last_race_str)
+                if (_date.today() - last_race).days > _as.inactive_threshold_days:
+                    continue
+            except (ValueError, TypeError):
+                pass
+
+        results = RaceResult.objects.filter(driver=driver, group__race_class_id=class_id)
+        driver.race_count = results.count()
+        driver.win_count = results.filter(position=1).count()
+        driver._bt_score = bt_data.get('score', 0)
+        driver._starts = bt_data.get('starts', 0)
+        candidates.append(driver)
+
+    if not candidates:
+        return JsonResponse({'drivers': []})
+
+    mu = _stats.median(d._bt_score for d in candidates)
+    C = 15
+    for d in candidates:
+        d._smoothed = (d._starts * d._bt_score + C * mu) / (d._starts + C)
+    candidates.sort(key=lambda x: x._smoothed, reverse=True)
+    min_s = candidates[-1]._smoothed
+    max_s = candidates[0]._smoothed
+    rng = max_s - min_s if max_s > min_s else 1
+    for i, d in enumerate(candidates, 1):
+        d.rank = i
+        d.normalized_rating = round((d._smoothed - min_s) / rng * 100, 1)
+    top_drivers = candidates[:5]
+
+    result = []
+    for d in top_drivers:
+        photo_url = None
+        if d.photo:
+            from wagtail.images.shortcuts import get_rendition_or_not_found
+            rendition = get_rendition_or_not_found(d.photo, 'fill-52x52')
+            photo_url = rendition.url
+        result.append({
+            'rank': d.rank,
+            'full_name': d.full_name,
+            'url': d.get_absolute_url(),
+            'photo_url': photo_url,
+            'race_count': d.race_count,
+            'win_count': d.win_count,
+            'normalized_rating': d.normalized_rating,
+        })
+
+    return JsonResponse({'drivers': result})
+
+
 def team_ratings_view(request):
     """Командный рейтинг — агрегация BT-рейтингов пилотов по командам."""
     import json, statistics as _stats
@@ -2437,9 +2627,10 @@ def ads_list(request):
 
 def ads_detail(request, ad_id):
     """Детальная страница объявления"""
+    from django.db.models import F
     ad = get_object_or_404(Ad, id=ad_id, is_active=True)
-    ad.views_count += 1
-    ad.save()
+    Ad.objects.filter(id=ad_id).update(views_count=F('views_count') + 1)
+    ad.refresh_from_db(fields=['views_count'])
     return render(request, 'website/ads_detail.html', {'ad': ad})
 
 
@@ -2584,6 +2775,8 @@ def rating_stats_api(request):
             'min_starts_display': settings.min_starts_display,
             'bt_alpha': settings.bt_alpha,
             'pagerank_damping': settings.pagerank_damping,
+            'trend_window': settings.trend_window,
+            'min_races_per_class': settings.min_races_per_class,
         },
     }
     return JsonResponse(data)

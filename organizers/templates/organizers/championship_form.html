@@ -55,7 +55,7 @@
     }
 </style>
 
-<div class="container my-5">
+<div class="container pt-5 pb-5">
     <div class="card bg-dark border-secondary">
         <div class="card-header bg-dark border-secondary">
             <h1 class="text-warning mb-0">{% if is_edit %}Редактирование чемпионата{% else %}Создание чемпионата{% endif %}</h1>
@@ -100,11 +100,41 @@
                 </div>
                 
                 <div class="mb-3">
-                    <label class="form-label text-info">Шины по умолчанию</label>
-                    {{ form.default_tyre }}
-                    <small class="text-muted">Будут использоваться для всех классов, если не указано иное</small>
+                    <label class="form-label text-info">Настройки регистрации</label>
+                    <div class="d-flex flex-column gap-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="registration_mode" id="reg_mode_per_stage" value="per_stage" {% if form.instance.registration_mode != 'all' %}checked{% endif %}>
+                            <label class="form-check-label text-white" for="reg_mode_per_stage">Настройки для каждого этапа отдельно</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="registration_mode" id="reg_mode_all" value="all" {% if form.instance.registration_mode == 'all' %}checked{% endif %}>
+                            <label class="form-check-label text-white" for="reg_mode_all">Общие настройки для всех этапов</label>
+                        </div>
+                    </div>
                 </div>
-                
+
+                <div class="mb-3">
+                    <label class="form-label text-info">Назначение шин</label>
+                    <div class="d-flex flex-column gap-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="tyre_mode" id="tyre_mode_all" value="all" {% if form.instance.tyre_mode != 'per_stage' %}checked{% endif %}>
+                            <label class="form-check-label text-white" for="tyre_mode_all">Одни шины для всех этапов</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="tyre_mode" id="tyre_mode_per_stage" value="per_stage" {% if form.instance.tyre_mode == 'per_stage' %}checked{% endif %}>
+                            <label class="form-check-label text-white" for="tyre_mode_per_stage">Шины на каждый этап отдельно</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3" id="default-tyres-block">
+                    <label class="form-label text-info">Разрешённые шины</label>
+                    <div class="checkbox-container">
+                        {{ form.default_tyres }}
+                    </div>
+                    <small class="text-muted">Шины, разрешённые на всех этапах (видно участникам)</small>
+                </div>
+
                 <button type="submit" class="btn btn-warning w-100 py-2">Сохранить чемпионат</button>
             </form>
         </div>
@@ -112,13 +142,11 @@
 </div>
 
 <script>
-    // Добавляем классы ко всем полям формы
     document.querySelectorAll('input[type="text"], input[type="file"], select, textarea').forEach(field => {
         if (!field.classList.contains('form-control-dark')) {
             field.classList.add('form-control-dark');
         }
     });
-    // Добавляем классы к чекбоксам
     document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
         cb.classList.add('form-check-input');
     });
@@ -127,5 +155,16 @@
             label.classList.add('form-check-label');
         }
     });
+
+    // Показываем/скрываем блок шин в зависимости от режима
+    function updateTyreBlock() {
+        const selected = document.querySelector('input[name="tyre_mode"]:checked');
+        const block = document.getElementById('default-tyres-block');
+        if (block) {
+            block.style.display = (selected && selected.value === 'per_stage') ? 'none' : '';
+        }
+    }
+    document.querySelectorAll('input[name="tyre_mode"]').forEach(r => r.addEventListener('change', updateTyreBlock));
+    updateTyreBlock();
 </script>
 {% endblock %}

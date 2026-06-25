@@ -13,6 +13,7 @@ urlpatterns = [
     path('championship/create/', views.championship_create, name='championship_create'),
     path('championship/edit/<int:pk>/', views.championship_edit, name='championship_edit'),
     path('championship/delete/<int:pk>/', views.championship_delete, name='championship_delete'),
+    path('championship/<int:pk>/reg-settings/', views.championship_reg_settings, name='championship_reg_settings'),
     path('stage/create/<int:championship_id>/', views.stage_create, name='stage_create'),
     path('stage/edit/<int:pk>/', views.stage_edit, name='stage_edit'),
     path('stage/delete/<int:pk>/', views.stage_delete, name='stage_delete'),
@@ -27,4 +28,5 @@ urlpatterns = [
     path('championship/<int:pk>/toggle-publish/', views.championship_toggle_publish, name='championship_toggle_publish'),
     path('stage/<int:pk>/toggle-publish/', views.stage_toggle_publish, name='stage_toggle_publish'),
     path('championship/<int:pk>/set-color/', views.championship_set_color, name='championship_set_color'),
+    path('pending/', views.organizer_pending, name='pending'),
 ]

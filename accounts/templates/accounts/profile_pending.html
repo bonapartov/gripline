@@ -110,7 +110,7 @@
     }
 </style>
 
-<div class="force-width-1500 my-5">
+<div class="force-width-1500 pt-5 pb-5">
     <div class="pending-container">
         <div class="pending-icon">⏳</div>
         <h1 class="pending-title">Заявка на рассмотрении</h1>
@@ -118,18 +118,24 @@
         <div class="status-badge">Ожидает подтверждения</div>
 
         <div class="pending-message">
-            Ваша заявка отправлена администратору
+            {% if claim.driver %}
+                Заявка на привязку к профилю <strong>{{ claim.driver.first_name }} {{ claim.driver.last_name }}</strong> отправлена администратору.
+            {% else %}
+                Заявка на профиль <strong>{{ claim.requested_first_name }} {{ claim.requested_last_name }}</strong> отправлена администратору.
+            {% endif %}
         </div>
 
         <div class="pending-info">
-            <i class="fas fa-clock"></i> Обычно это занимает 1-2 дня
+            <i class="fas fa-clock"></i> Обычно это занимает 1–2 рабочих дня
         </div>
 
         <div class="pending-info">
-            <i class="fas fa-envelope"></i> Вы получите уведомление на email
+            <i class="fas fa-envelope"></i> Вы получите уведомление на email после подтверждения
         </div>
 
-        <a href="{% url 'accounts:logout' %}" class="btn-pending">Выйти</a>
+        {% include 'accounts/_contact_admin.html' %}
+
+        <a href="{% url 'accounts:logout' %}" class="btn-pending" style="margin-top:1rem;">Выйти</a>
         <a href="/" class="btn-outline-warning">На главную</a>
     </div>
 </div>

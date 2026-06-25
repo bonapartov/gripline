@@ -20,8 +20,8 @@
     }
 
     .team-logo-wrapper {
-        width: 200px;
-        height: 200px;
+        width: 300px;
+        height: 300px;
         margin: 0 auto 1rem auto;
         border-radius: 12px;
         overflow: hidden;
@@ -282,7 +282,7 @@
     {% endfor %}
 {% endif %}
 
-<div class="force-width-1500 my-5">
+<div class="force-width-1500 pt-5 pb-5">
     <!-- Шапка с названием команды и информацией -->
     <div class="dashboard-card">
         <div class="row align-items-center">
@@ -290,7 +290,7 @@
             <div class="col-md-4 text-center">
                 <div class="team-logo-wrapper mx-auto">
                     {% if team.logo %}
-                        {% image team.logo fill-200x200 as team_logo %}
+                        {% image team.logo fill-300x300 as team_logo %}
                         <img src="{{ team_logo.url }}" alt="{{ team.name }}">
                     {% else %}
                         <div class="team-logo-placeholder">
@@ -346,6 +346,13 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label class="form-label">Фото руководителя</label>
+                                {% if team.manager_photo %}
+                                <div class="mb-2">
+                                    {% image team.manager_photo fill-120x120 as mgr_photo %}
+                                    <img src="{{ mgr_photo.url }}" alt="Фото руководителя"
+                                         style="width:120px;height:120px;object-fit:cover;border-radius:8px;border:2px solid #2a2a35;">
+                                </div>
+                                {% endif %}
                                 {{ form.manager_photo_upload }}
                                 <div class="text-muted small mt-1">Рекомендуемый размер: 300x300 пикселей</div>
                                 {% if team.manager_photo %}
@@ -427,7 +434,7 @@
                 <h3 class="section-title mb-1" style="border:none; padding:0;">Регистрация на соревнования</h3>
                 <p class="text-muted small mb-0">Зарегистрируйте пилотов команды на предстоящие этапы</p>
             </div>
-            <a href="/calendar/" class="btn-save" style="text-decoration:none; white-space:nowrap;">
+            <a href="/event_calendar/" class="btn-save" style="text-decoration:none; white-space:nowrap;">
                 <i class="fas fa-flag-checkered me-2"></i>Выбрать этап →
             </a>
         </div>
@@ -548,25 +555,25 @@
     </div>
 </div>
 
-<!-- Модальное окно добавления пилота (без изменений) -->
+<!-- Модальное окно приглашения пилота -->
 <div class="modal fade" id="addDriverModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content bg-dark">
             <div class="modal-header border-secondary">
-                <h5 class="modal-title text-warning"><i class="fas fa-user-plus me-2"></i>Добавить пилота</h5>
+                <h5 class="modal-title text-warning"><i class="fas fa-envelope me-2"></i>Пригласить пилота</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p class="text-muted small mb-3">Выберите пилота из списка, чтобы добавить в команду</p>
+                <p class="text-muted small mb-3">Выберите пилота — ему придёт приглашение на email и в личный кабинет</p>
                 <div class="form-group mb-3">
                     <label class="form-label">Поиск пилота</label>
                     <input type="text" id="driverSearch" class="form-control" placeholder="Введите имя или фамилию...">
                 </div>
-                <form method="post" action="{% url 'teams:add_driver' %}" id="add-driver-form">
+                <form method="post" action="{% url 'teams:invite_driver' %}" id="add-driver-form">
                     {% csrf_token %}
                     <div class="form-group mb-3">
                         <label class="form-label">Пилот</label>
-                        <select name="driver_id" id="driverSelect" class="form-control" required size="8">
+                        <select name="driver_id" id="driverSelect" class="form-control" required size="6">
                             <option value="">-- Выберите пилота --</option>
                             {% for driver in all_drivers %}
                             <option value="{{ driver.id }}" data-search="{{ driver.full_name|lower }} {{ driver.city|lower }}">
@@ -575,8 +582,17 @@
                             {% endfor %}
                         </select>
                     </div>
+                    <div class="form-group mb-3">
+                        <label class="form-label">Класс</label>
+                        <select name="race_class_id" class="form-control">
+                            <option value="">-- Выберите класс --</option>
+                            {% for rc in race_classes %}
+                            <option value="{{ rc.id }}">{{ rc.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     <div class="d-flex gap-2 mt-4">
-                        <button type="submit" class="btn-save flex-grow-1"><i class="fas fa-plus-circle me-2"></i>Добавить</button>
+                        <button type="submit" class="btn-save flex-grow-1"><i class="fas fa-paper-plane me-2"></i>Отправить приглашение</button>
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
                     </div>
                 </form>

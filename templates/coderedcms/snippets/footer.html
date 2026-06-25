@@ -1,0 +1,262 @@
+{% load wagtailcore_tags coderedcms_tags website_tags static %}
+{% get_organizer_settings as org_settings %}
+{% django_setting "CRX_DISABLE_LAYOUT" as disable_layout %}
+{% if not disable_layout %}
+<footer class="gl-footer">
+    <div class="gl-footer__main">
+        <div class="container-xl">
+            <div class="gl-footer__grid">
+
+                <!-- Колонка 1: бренд + контакты -->
+                <div class="gl-footer__col gl-footer__col--brand">
+                    <a href="/" class="gl-footer__logo">GRIPLINE</a>
+                    <p class="gl-footer__tagline">Рейтинг картингистов России</p>
+                    {% if org_settings and org_settings.support_phone %}
+                    <a href="tel:{{ org_settings.support_phone }}" class="gl-footer__contact-link">
+                        <i class="fas fa-phone-alt"></i> {{ org_settings.support_phone }}
+                    </a>
+                    {% endif %}
+                    {% if org_settings and org_settings.support_email %}
+                    <a href="mailto:{{ org_settings.support_email }}" class="gl-footer__contact-link">
+                        <i class="fas fa-envelope"></i> {{ org_settings.support_email }}
+                    </a>
+                    {% endif %}
+                    <!-- Соцсети — добавить ссылки когда появятся -->
+                    <!--
+                    <div class="gl-footer__socials">
+                        <a href="#" class="gl-footer__social-link" aria-label="VK"><i class="fab fa-vk"></i></a>
+                        <a href="#" class="gl-footer__social-link" aria-label="Telegram"><i class="fab fa-telegram"></i></a>
+                        <a href="#" class="gl-footer__social-link" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+                    </div>
+                    -->
+                </div>
+
+                <!-- Колонка 2: навигация -->
+                <div class="gl-footer__col">
+                    <h4 class="gl-footer__col-title">Навигация</h4>
+                    <ul class="gl-footer__links">
+                        <li><a href="/top/drivers/">Рейтинг пилотов</a></li>
+                        <li><a href="/event_calendar/">Календарь событий</a></li>
+                        <li><a href="/news/">Новости</a></li>
+                        <li><a href="/matchast/">Матчасть</a></li>
+                        <li><a href="/compare/">Сравнение шасси</a></li>
+                        <li><a href="/compare-drivers/">Сравнение пилотов</a></li>
+                    </ul>
+                </div>
+
+                <!-- Колонка 3: личный кабинет -->
+                <div class="gl-footer__col">
+                    <h4 class="gl-footer__col-title">Личный кабинет</h4>
+                    <ul class="gl-footer__links">
+                        <li><a href="/accounts/login/">Войти как пилот</a></li>
+                        <li><a href="/teams/login/">Войти как команда</a></li>
+                        <li><a href="/organizers/login/">Войти как организатор</a></li>
+                        <li><a href="/choose-role/" class="gl-footer__demo-link">Демо вход</a></li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Нижняя полоса -->
+    <div class="gl-footer__bottom">
+        <div class="container-xl">
+            <div class="gl-footer__bottom-inner">
+                <span class="gl-footer__copyright">© 2026 Gripline.ru · Все права защищены.</span>
+                <span class="gl-footer__copy-notice">При копировании материалов сайта индексируемая ссылка на <a href="/">gripline.ru</a> обязательна.</span>
+                <a href="/privacy-policy/" class="gl-footer__policy-link">Политика конфиденциальности</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<style>
+.gl-footer {
+    background: var(--gl-surface-deepest);
+    border-top: 1px solid var(--gl-border-mid);
+    margin-top: 3rem;
+}
+
+.gl-footer__main {
+    padding: 3rem 0 2rem;
+}
+
+.gl-footer__grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: 3rem;
+}
+
+.gl-footer__logo {
+    display: inline-block;
+    font-size: 1.5rem;
+    font-weight: 900;
+    letter-spacing: 0.05em;
+    color: var(--gl-brand-yellow);
+    text-decoration: none;
+    margin-bottom: 0.5rem;
+}
+
+.gl-footer__logo:hover {
+    color: var(--gl-brand-yellow-hover);
+}
+
+.gl-footer__tagline {
+    color: var(--gl-fg-3);
+    font-size: 0.85rem;
+    margin-bottom: 1.25rem;
+}
+
+.gl-footer__contact-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--gl-fg-3);
+    text-decoration: none;
+    font-size: 0.9rem;
+    margin-bottom: 0.4rem;
+    transition: color 0.2s;
+}
+
+.gl-footer__contact-link:hover {
+    color: var(--gl-fg-1);
+}
+
+.gl-footer__contact-link i {
+    color: var(--gl-brand-yellow);
+    width: 14px;
+    text-align: center;
+}
+
+.gl-footer__socials {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.gl-footer__social-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 6px;
+    background: var(--gl-surface-card);
+    color: var(--gl-fg-3);
+    text-decoration: none;
+    font-size: 0.95rem;
+    transition: background 0.2s, color 0.2s;
+}
+
+.gl-footer__social-link:hover {
+    background: var(--gl-brand-yellow);
+    color: var(--gl-fg-on-yellow);
+}
+
+.gl-footer__col-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--gl-fg-muted);
+    margin-bottom: 1rem;
+}
+
+.gl-footer__links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.gl-footer__links li {
+    margin-bottom: 0.55rem;
+}
+
+.gl-footer__links a {
+    color: var(--gl-fg-3);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+}
+
+.gl-footer__links a:hover {
+    color: var(--gl-fg-1);
+}
+
+.gl-footer__demo-link {
+    color: var(--gl-brand-yellow) !important;
+}
+
+.gl-footer__demo-link:hover {
+    color: var(--gl-brand-yellow-hover) !important;
+}
+
+.gl-footer__bottom {
+    border-top: 1px solid var(--gl-border-mid);
+    padding: 1.25rem 0;
+}
+
+.gl-footer__bottom-inner {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem 2rem;
+}
+
+.gl-footer__copyright,
+.gl-footer__copy-notice {
+    color: var(--gl-fg-muted);
+    font-size: 0.8rem;
+}
+
+.gl-footer__copy-notice a {
+    color: var(--gl-fg-muted);
+    text-decoration: underline;
+}
+
+.gl-footer__copy-notice a:hover {
+    color: var(--gl-fg-3);
+}
+
+.gl-footer__policy-link {
+    color: var(--gl-fg-muted);
+    font-size: 0.8rem;
+    text-decoration: none;
+    margin-left: auto;
+}
+
+.gl-footer__policy-link:hover {
+    color: var(--gl-fg-3);
+    text-decoration: underline;
+}
+
+@media (max-width: 991px) {
+    .gl-footer__grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+    }
+    .gl-footer__col--brand {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 575px) {
+    .gl-footer__grid {
+        grid-template-columns: 1fr;
+        gap: 1.75rem;
+    }
+    .gl-footer__col--brand {
+        grid-column: auto;
+    }
+    .gl-footer__bottom-inner {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    .gl-footer__policy-link {
+        margin-left: 0;
+    }
+}
+</style>
+{% endif %}
