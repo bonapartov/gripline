@@ -431,3 +431,5 @@ gripline_old/
 # Claude Code и Mimo
 .claude/
 .mimocode/
+PROJECT_ASSESSMENT.md
+website/static/website/img/
