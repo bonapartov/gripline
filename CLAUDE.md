@@ -78,14 +78,25 @@ gripline/
 
 ## Git-ветки
 
-| Ветка | Назначение |
-|-------|-----------|
-| `design/hero-redesign` | **Продакшн** — работает на сервере |
-| `claude/review-project-rating-RxaZa` | **Разработка** — сюда коммитим изменения |
+Одна ветка — `main`. Это единственная ветка. Сервер работает на `main`.
 
-**Важно:** GitHub не имеет прямого доступа к серверу. Workflow:
-1. Коммит в `claude/review-project-rating-RxaZa` → push на GitHub
-2. На сервере: `git fetch origin` → `git cherry-pick <хеш>` → `systemctl restart gripline`
+**Workflow разработки:**
+1. Работаем локально в `main` (или в feature-ветке если фича большая)
+2. Коммит → `git push origin main`
+3. Деплой: `./deploy.sh` (запускает pull + collectstatic + migrate + restart на сервере)
+
+**Деплой вручную (если deploy.sh недоступен):**
+```bash
+ssh root@92.63.192.42
+cd /www/wwwroot/gripline.ru
+git pull origin main
+source venv/bin/activate
+python manage.py collectstatic --noinput
+python manage.py migrate
+systemctl restart gripline
+```
+
+**Важно:** никогда не редактировать файлы напрямую на сервере — только через git. Если потребовалось исправить что-то напрямую — сразу коммитить изменение локально и пушить.
 
 ---
 
@@ -508,7 +519,7 @@ Swagger UI (продакшн): **https://gripline.ru/api/mobile/docs** → кн�
 
 **Тестирование:**
 - Локальная машина = staging среда (PostgreSQL локально, `--settings=mysite.settings.dev`)
-- Workflow: редактировать локально → тестировать → коммит → push → cherry-pick на сервер
+- Workflow: редактировать локально → тестировать → коммит → push → `./deploy.sh`
 - Автотесты только для: расчёта рейтинга (`analytics/`) и FastAPI эндпоинтов (роли, авторизация)
 
 ### Дорожная карта (кратко)
