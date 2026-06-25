@@ -2452,3 +2452,16 @@ class AdFavorite(models.Model):
 
     def __str__(self):
         return f"{self.user.email} -> {self.ad.title}"
+
+
+class PulseCache(models.Model):
+    data = models.JSONField(default=dict)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Pulse Cache"
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
