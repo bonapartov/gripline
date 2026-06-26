@@ -136,8 +136,10 @@ class DataLoader:
         today = date_type.today()
         comparisons = []
 
+        df = self.df_races.dropna(subset=[f'{entity_type}_id'])
+
         # Группируем по group_id (один заезд)
-        for group_id, group in self.df_races.groupby('group_id'):
+        for group_id, group in df.groupby('group_id'):
             if len(group) < 2:
                 continue
 
@@ -227,8 +229,10 @@ class DataLoader:
         today = date_type.today()
         comparisons = []
 
+        df = self.df_races.dropna(subset=[f'{entity_type}_id'])
+
         # Группируем по group_id (один заезд)
-        for group_id, group in self.df_races.groupby('group_id'):
+        for group_id, group in df.groupby('group_id'):
             if len(group) < 2:
                 continue
 
