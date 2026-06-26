@@ -702,18 +702,18 @@
                                     {% endif %}
                                 </td>
 
-                                <td class="align-middle text-center font-monospace text-muted small">
+                                <td class="align-middle text-center text-muted small">
                                     {% if res.best_lap_ms %}
                                         <div class="d-flex align-items-center justify-content-center gap-1">
-                                            <span>{{ res.best_lap_ms|laptime }}</span><span class="badge bg-success flex-shrink-0" style="font-size:10px; border-radius:4px; width:45px;" title="Финал">Ф</span>
+                                            <span class="font-monospace">{{ res.best_lap_ms|laptime }}</span><span class="badge bg-success" style="font-size:10px; border-radius:4px; width:45px;" title="Финал">Ф</span>
                                         </div>
                                     {% elif res.pre_final_best_lap_ms %}
                                         <div class="d-flex align-items-center justify-content-center gap-1">
-                                            <span>{{ res.pre_final_best_lap_ms|laptime }}</span><span class="badge bg-warning text-dark flex-shrink-0" style="font-size:10px; border-radius:4px; width:45px;" title="Предфинал">Пф</span>
+                                            <span class="font-monospace">{{ res.pre_final_best_lap_ms|laptime }}</span><span class="badge bg-warning text-dark" style="font-size:10px; border-radius:4px; width:45px;" title="Предфинал">Пф</span>
                                         </div>
                                     {% elif res.qual_best_lap_ms %}
                                         <div class="d-flex align-items-center justify-content-center gap-1">
-                                            <span>{{ res.qual_best_lap_ms|laptime }}</span><span class="badge bg-primary text-white flex-shrink-0" style="font-size:10px; border-radius:4px; width:45px;" title="Квалификация">К</span>
+                                            <span class="font-monospace">{{ res.qual_best_lap_ms|laptime }}</span><span class="badge bg-primary text-white" style="font-size:10px; border-radius:4px; width:45px;" title="Квалификация">К</span>
                                         </div>
                                     {% else %}—{% endif %}
                                 </td>
