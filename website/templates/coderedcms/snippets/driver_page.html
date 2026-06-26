@@ -703,11 +703,17 @@
 
                                 <td class="align-middle text-center font-monospace text-muted small">
                                     {% if res.best_lap_ms %}
-                                        {{ res.best_lap_ms|laptime }}<span class="badge bg-success ms-1" style="font-size:10px; border-radius:4px;" title="Финал">Ф</span>
+                                        <div class="d-flex align-items-center justify-content-center gap-1">
+                                            <span>{{ res.best_lap_ms|laptime }}</span><span class="badge bg-success" style="font-size:10px; border-radius:4px;" title="Финал">Ф</span>
+                                        </div>
                                     {% elif res.pre_final_best_lap_ms %}
-                                        {{ res.pre_final_best_lap_ms|laptime }}<span class="badge bg-warning text-dark ms-1" style="font-size:10px; border-radius:4px;" title="Предфинал">Пф</span>
+                                        <div class="d-flex align-items-center justify-content-center gap-1">
+                                            <span>{{ res.pre_final_best_lap_ms|laptime }}</span><span class="badge bg-warning text-dark" style="font-size:10px; border-radius:4px;" title="Предфинал">Пф</span>
+                                        </div>
                                     {% elif res.qual_best_lap_ms %}
-                                        {{ res.qual_best_lap_ms|laptime }}<span class="badge bg-primary text-white ms-1" style="font-size:10px; border-radius:4px;" title="Квалификация">К</span>
+                                        <div class="d-flex align-items-center justify-content-center gap-1">
+                                            <span>{{ res.qual_best_lap_ms|laptime }}</span><span class="badge bg-primary text-white" style="font-size:10px; border-radius:4px;" title="Квалификация">К</span>
+                                        </div>
                                     {% else %}—{% endif %}
                                 </td>
 
