@@ -147,6 +147,9 @@ class Command(BaseCommand):
             )
             self.stdout.write(f"  Дата обновления сохранена в БД (ID: {obj.id})")
 
+            from website.models import UpdateLog
+            UpdateLog.objects.create(status='success', message='Пересчёт завершён успешно')
+
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Ошибка: {str(e)}"))
             logger.exception("Ошибка при обновлении рейтингов")
