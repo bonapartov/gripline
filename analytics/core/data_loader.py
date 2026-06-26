@@ -75,7 +75,7 @@ class DataLoader:
 
                 # Сущности
                 'chassis_id': r.chassis_new.id if r.chassis_new else None,
-                'chassis_name': r.chassis_new.name,
+                'chassis_name': r.chassis_new.name if r.chassis_new else None,
                 'driver_id': r.driver.id,
                 'driver_name': r.driver.full_name,
                 'team_id': r.team.id if r.team else None,
