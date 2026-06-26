@@ -458,7 +458,10 @@ class Command(BaseCommand):
         today = date_type.today()
         comparisons = []
 
-        # Все пилоты, когда-либо выступавшие в этом классе
+        # Для шасси исключаем строки без chassis_id (результаты без указания шасси)
+        df_class = df_class.dropna(subset=[f'{entity_type}_id'])
+
+        # Все пилоты/шасси, когда-либо выступавшие в этом классе
         all_entity_ids = set(df_class[f'{entity_type}_id'].unique())
 
         for group_id, group in df_class.groupby('group_id'):

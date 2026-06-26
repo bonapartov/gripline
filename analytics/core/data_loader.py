@@ -55,8 +55,7 @@ class DataLoader:
         # Преобразуем в pandas DataFrame
         data = []
         for r in results:
-            # Пропускаем записи без шасси или пилота
-            if not r.chassis_new or not r.driver:
+            if not r.driver:
                 continue
 
             # Получаем дату окончания этапа
@@ -75,7 +74,7 @@ class DataLoader:
                 'month': race_date.month,
 
                 # Сущности
-                'chassis_id': r.chassis_new.id,
+                'chassis_id': r.chassis_new.id if r.chassis_new else None,
                 'chassis_name': r.chassis_new.name,
                 'driver_id': r.driver.id,
                 'driver_name': r.driver.full_name,
