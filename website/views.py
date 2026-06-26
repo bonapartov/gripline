@@ -1087,7 +1087,10 @@ def top_drivers_view(request):
 
     class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
                    'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 32+']
-    all_classes = list(RaceClass.objects.all())
+    all_classes = [
+        c for c in RaceClass.objects.all()
+        if Driver.objects.filter(rating_by_class__has_key=str(c.id)).exists()
+    ]
     classes = sorted(all_classes, key=lambda x: class_order.index(x.name) if x.name in class_order else 999)
 
     selected_class_id = request.GET.get('class')
