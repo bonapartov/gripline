@@ -19,6 +19,13 @@
   border-bottom: 2px solid #222;
 }
 
+/* Реальная высота нашего navbar (~61px) больше дефолтных 56px из
+   coderedcms/crx-front.css — из-за этого шапка перекрывала верх
+   контента на всех страницах. Переопределяем отступ-распорку. */
+.-fixed-offset {
+  margin-top: 61px;
+}
+
 /* Настройка логотипа */
 .navbar-brand {
   font-weight: 900;
