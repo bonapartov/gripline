@@ -21,30 +21,33 @@
     <h2 style="margin-top:8px;">Подтверждение импорта</h2>
     <p>Будет импортировано <strong>{{ selections|length }}</strong> записей.</p>
 
+    {% for group in groups %}
+    {% if groups|length > 1 %}<h3 style="margin-top:20px;">{{ group.label }} ({{ group.rows|length }})</h3>{% endif %}
     <table style="width:100%; border-collapse:collapse; margin-bottom:20px;" class="confirm-table">
         <thead>
             <tr>
                 <th>Пилот</th>
-                {% if cfg.has_team_chassis %}
+                {% if group.cfg.has_team_chassis %}
                     <th>Команда</th>
                     <th>Шасси</th>
                     <th>№</th>
                     <th>Место</th>
                     <th>Очки</th>
                 {% else %}
-                    {% if cfg.has_start_position %}<th>Старт</th>{% endif %}
+                    {% if group.cfg.has_start_position %}<th>Старт</th>{% endif %}
                     <th>Место</th>
-                    {% if cfg.has_timing %}
+                    {% if group.cfg.has_timing %}
                         <th>Лучший круг</th>
                         <th>S1</th>
                         <th>S2</th>
                         <th>S3</th>
+                        <th>Штраф</th>
                     {% endif %}
                 {% endif %}
             </tr>
         </thead>
         <tbody>
-            {% for sel in selections %}
+            {% for idx, sel in group.rows %}
             <tr>
                 <td>
                     {% if sel.selected_driver_id == 'new' %}
@@ -53,26 +56,28 @@
                         {{ sel.first_name }} {{ sel.last_name }}
                     {% endif %}
                 </td>
-                {% if cfg.has_team_chassis %}
+                {% if group.cfg.has_team_chassis %}
                     <td>{{ sel.team_name|default:"—" }}</td>
                     <td>{{ sel.chassis|default:"—" }}</td>
                     <td>{{ sel.race_number|default:"—" }}</td>
                     <td>{{ sel.position|default:"—" }}</td>
                     <td>{{ sel.points|default:"—" }}</td>
                 {% else %}
-                    {% if cfg.has_start_position %}<td class="timing-cell">{{ sel.start_position|default:"—" }}</td>{% endif %}
+                    {% if group.cfg.has_start_position %}<td class="timing-cell">{{ sel.start_position|default:"—" }}</td>{% endif %}
                     <td class="timing-cell">{{ sel.position|default:"—" }}</td>
-                    {% if cfg.has_timing %}
+                    {% if group.cfg.has_timing %}
                         <td class="timing-cell">{{ sel.best_lap|default:"—" }}</td>
                         <td class="timing-cell">{{ sel.s1|default:"—" }}</td>
                         <td class="timing-cell">{{ sel.s2|default:"—" }}</td>
                         <td class="timing-cell">{{ sel.s3|default:"—" }}</td>
+                        <td class="timing-cell">{{ sel.penalty|default:"—" }}</td>
                     {% endif %}
                 {% endif %}
             </tr>
             {% endfor %}
         </tbody>
     </table>
+    {% endfor %}
 
     <form method="post" action="">
         {% csrf_token %}

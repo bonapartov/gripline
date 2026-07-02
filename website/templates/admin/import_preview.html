@@ -83,13 +83,15 @@
         {% csrf_token %}
         <input type="hidden" name="session_type" value="{{ session_type }}">
 
-        <table style="width:100%; border-collapse:collapse;" class="preview-table">
+        {% for group in groups %}
+        {% if is_combined %}<h3 style="margin-top:24px;">{{ group.label }} ({{ group.rows|length }})</h3>{% endif %}
+        <table style="width:100%; border-collapse:collapse; margin-bottom:16px;" class="preview-table">
             <thead>
                 <tr>
                     <th>№</th>
                     <th>Имя</th>
                     <th>Фамилия</th>
-                    {% if cfg.has_team_chassis %}
+                    {% if group.cfg.has_team_chassis %}
                         <th>Город</th>
                         <th>Команда</th>
                         <th>Шасси</th>
@@ -97,27 +99,28 @@
                         <th>Место</th>
                         <th>Очки</th>
                     {% else %}
-                        {% if cfg.has_start_position %}<th>Старт</th>{% endif %}
+                        {% if group.cfg.has_start_position %}<th>Старт</th>{% endif %}
                         <th>Место</th>
-                        {% if cfg.has_timing %}
+                        {% if group.cfg.has_timing %}
                             <th>Лучший круг</th>
                             <th>S1</th>
                             <th>S2</th>
                             <th>S3</th>
+                            <th>Штраф</th>
                         {% endif %}
                     {% endif %}
                     <th>Пилот в базе</th>
                 </tr>
             </thead>
             <tbody>
-                {% for row in rows %}
+                {% for idx, row in group.rows %}
                 {% with row_found=row.found_drivers|length %}
-                <tr data-row="{{ forloop.counter0 }}" class="{% if row_found > 0 %}found-row{% else %}not-found-row{% endif %}">
+                <tr data-row="{{ idx }}" class="{% if row_found > 0 %}found-row{% else %}not-found-row{% endif %}">
                     <td>{{ forloop.counter }}</td>
                     <td>{{ row.first_name }}</td>
                     <td>{{ row.last_name }}</td>
 
-                    {% if cfg.has_team_chassis %}
+                    {% if group.cfg.has_team_chassis %}
                         <td>{{ row.city|default:"—" }}</td>
                         <td>
                             <div class="driver-search-container">
@@ -125,10 +128,10 @@
                                       class="driver-search-input {% if row.team_name and row.team_exists %}found{% elif row.team_name %}not-found{% endif %}"
                                       placeholder="Начните вводить команду..."
                                       autocomplete="off"
-                                      data-row="{{ forloop.counter0 }}"
+                                      data-row="{{ idx }}"
                                       data-type="team"
                                       value="{{ row.team_name|default:'' }}">
-                                <input type="hidden" name="team_{{ forloop.counter0 }}" class="team-selected-id"
+                                <input type="hidden" name="team_{{ idx }}" class="team-selected-id"
                                       value="{% if row.team_exists %}{{ row.team_id }}{% endif %}">
                             </div>
                         </td>
@@ -138,10 +141,10 @@
                                       class="driver-search-input {% if row.chassis and row.chassis_exists %}found{% elif row.chassis %}not-found{% endif %}"
                                       placeholder="Начните вводить шасси..."
                                       autocomplete="off"
-                                      data-row="{{ forloop.counter0 }}"
+                                      data-row="{{ idx }}"
                                       data-type="chassis"
                                       value="{{ row.chassis|default:'' }}">
-                                <input type="hidden" name="chassis_{{ forloop.counter0 }}" class="chassis-selected-id"
+                                <input type="hidden" name="chassis_{{ idx }}" class="chassis-selected-id"
                                       value="{% if row.chassis_exists %}{{ row.chassis_id }}{% endif %}">
                             </div>
                         </td>
@@ -149,13 +152,14 @@
                         <td>{{ row.position }}</td>
                         <td>{{ row.points }}</td>
                     {% else %}
-                        {% if cfg.has_start_position %}<td class="timing-cell">{{ row.start_position|default:"—" }}</td>{% endif %}
+                        {% if group.cfg.has_start_position %}<td class="timing-cell">{{ row.start_position|default:"—" }}</td>{% endif %}
                         <td class="timing-cell">{{ row.position|default:"—" }}</td>
-                        {% if cfg.has_timing %}
+                        {% if group.cfg.has_timing %}
                             <td class="timing-cell">{{ row.best_lap|default:"—" }}</td>
                             <td class="timing-cell">{{ row.s1|default:"—" }}</td>
                             <td class="timing-cell">{{ row.s2|default:"—" }}</td>
                             <td class="timing-cell">{{ row.s3|default:"—" }}</td>
+                            <td class="timing-cell">{{ row.penalty|default:"—" }}</td>
                         {% endif %}
                     {% endif %}
 
@@ -165,29 +169,31 @@
                                    class="driver-search-input {% if row_found > 0 %}found{% else %}not-found{% endif %}"
                                    placeholder="Начните вводить имя..."
                                    autocomplete="off"
-                                   data-row="{{ forloop.counter0 }}"
+                                   data-row="{{ idx }}"
                                    data-type="driver"
                                    value="{% if row.selected_driver_id and row.selected_driver_id != 'new' %}{% for d in row.found_drivers %}{% if d.id|stringformat:'s' == row.selected_driver_id|stringformat:'s' %}{{ d.full_name }}{% endif %}{% endfor %}{% endif %}">
 
-                            <input type="hidden" name="driver_{{ forloop.counter0 }}" class="driver-selected-id"
+                            <input type="hidden" name="driver_{{ idx }}" class="driver-selected-id"
                                    value="{% if row.selected_driver_id and row.selected_driver_id != 'new' %}{{ row.selected_driver_id }}{% endif %}">
 
                             {# Все скрытые поля данных #}
-                            <input type="hidden" name="first_name_{{ forloop.counter0 }}" value="{{ row.first_name }}">
-                            <input type="hidden" name="last_name_{{ forloop.counter0 }}" value="{{ row.last_name }}">
-                            <input type="hidden" name="city_{{ forloop.counter0 }}" value="{{ row.city }}">
-                            <input type="hidden" name="team_name_{{ forloop.counter0 }}" value="{{ row.team_name }}">
-                            <input type="hidden" name="race_number_{{ forloop.counter0 }}" value="{{ row.race_number }}">
-                            <input type="hidden" name="chassis_{{ forloop.counter0 }}" value="{{ row.chassis }}">
-                            <input type="hidden" name="position_{{ forloop.counter0 }}" value="{{ row.position }}">
-                            <input type="hidden" name="points_{{ forloop.counter0 }}" value="{{ row.points }}">
-                            <input type="hidden" name="start_position_{{ forloop.counter0 }}" value="{{ row.start_position }}">
-                            <input type="hidden" name="best_lap_{{ forloop.counter0 }}" value="{{ row.best_lap }}">
-                            <input type="hidden" name="s1_{{ forloop.counter0 }}" value="{{ row.s1 }}">
-                            <input type="hidden" name="s2_{{ forloop.counter0 }}" value="{{ row.s2 }}">
-                            <input type="hidden" name="s3_{{ forloop.counter0 }}" value="{{ row.s3 }}">
+                            <input type="hidden" name="session_type_{{ idx }}" value="{{ row.session_type }}">
+                            <input type="hidden" name="first_name_{{ idx }}" value="{{ row.first_name }}">
+                            <input type="hidden" name="last_name_{{ idx }}" value="{{ row.last_name }}">
+                            <input type="hidden" name="city_{{ idx }}" value="{{ row.city }}">
+                            <input type="hidden" name="team_name_{{ idx }}" value="{{ row.team_name }}">
+                            <input type="hidden" name="race_number_{{ idx }}" value="{{ row.race_number }}">
+                            <input type="hidden" name="chassis_{{ idx }}" value="{{ row.chassis }}">
+                            <input type="hidden" name="position_{{ idx }}" value="{{ row.position }}">
+                            <input type="hidden" name="points_{{ idx }}" value="{{ row.points }}">
+                            <input type="hidden" name="start_position_{{ idx }}" value="{{ row.start_position }}">
+                            <input type="hidden" name="best_lap_{{ idx }}" value="{{ row.best_lap }}">
+                            <input type="hidden" name="s1_{{ idx }}" value="{{ row.s1 }}">
+                            <input type="hidden" name="s2_{{ idx }}" value="{{ row.s2 }}">
+                            <input type="hidden" name="s3_{{ idx }}" value="{{ row.s3 }}">
+                            <input type="hidden" name="penalty_{{ idx }}" value="{{ row.penalty }}">
                         </div>
-                        <button type="button" class="btn-add-driver" data-row="{{ forloop.counter0 }}"
+                        <button type="button" class="btn-add-driver" data-row="{{ idx }}"
                                 style="{% if row_found > 0 %}display:none;{% endif %}">+ Добавить пилота</button>
                     </td>
                 </tr>
@@ -195,6 +201,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        {% endfor %}
 
         <div style="margin-top:20px;">
             <button type="submit" class="button" style="padding:10px 20px;">Продолжить</button>

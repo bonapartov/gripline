@@ -8,23 +8,31 @@ from django.views.decorators.http import require_POST
 from .models import Driver, Team, RaceResult, Chassis
 
 SESSION_CONFIGS = {
+    'combined': {
+        'label': 'Комбинированный (все сессии)',
+        'hint': 'session_type, last_name, first_name, city, team_name, race_number, chassis, '
+                'position, points, start_position, best_lap, s1, s2, s3, penalty',
+        'has_timing': None,
+        'has_start_position': None,
+        'has_team_chassis': None,
+    },
     'qual': {
         'label': 'Квалификация',
-        'hint': 'first_name, last_name, position, best_lap, s1, s2, s3',
+        'hint': 'first_name, last_name, position, best_lap, s1, s2, s3, penalty',
         'has_timing': True,
         'has_start_position': False,
         'has_team_chassis': False,
     },
     'pre_final': {
         'label': 'Предфинал',
-        'hint': 'first_name, last_name, start_position, position, best_lap, s1, s2, s3',
+        'hint': 'first_name, last_name, start_position, position, best_lap, s1, s2, s3, penalty',
         'has_timing': True,
         'has_start_position': True,
         'has_team_chassis': False,
     },
     'final': {
         'label': 'Финал (хронометраж)',
-        'hint': 'first_name, last_name, start_position, position, best_lap, s1, s2, s3',
+        'hint': 'first_name, last_name, start_position, position, best_lap, s1, s2, s3, penalty',
         'has_timing': True,
         'has_start_position': True,
         'has_team_chassis': False,
@@ -38,11 +46,33 @@ SESSION_CONFIGS = {
     },
 }
 
+# Типы сессий, из которых реально складывается комбинированный файл (порядок отображения групп)
+GROUP_ORDER = ['qual', 'pre_final', 'final', 'protocol']
+
 # Все скрытые поля передаваемые через форму предпросмотра
 HIDDEN_FIELDS = [
-    'first_name', 'last_name', 'city', 'team_name', 'race_number', 'chassis',
-    'position', 'points', 'start_position', 'best_lap', 's1', 's2', 's3',
+    'session_type', 'first_name', 'last_name', 'city', 'team_name', 'race_number', 'chassis',
+    'position', 'points', 'start_position', 'best_lap', 's1', 's2', 's3', 'penalty',
 ]
+
+
+def group_rows_by_session_type(items, session_type):
+    """Группирует preview_rows/selections по их собственному session_type —
+    для комбинированного импорта. Каждая группа несёт (index, item) пары:
+    index — исходный индекс в плоском списке, нужен для имён полей формы предпросмотра.
+    Для обычных (не комбинированных) импортов вернёт ровно одну группу."""
+    order = GROUP_ORDER if session_type == 'combined' else [session_type]
+    groups = []
+    for t in order:
+        matched = [(i, item) for i, item in enumerate(items) if item.get('session_type', session_type) == t]
+        if matched:
+            groups.append({
+                'session_type': t,
+                'label': SESSION_CONFIGS[t]['label'],
+                'cfg': SESSION_CONFIGS[t],
+                'rows': matched,
+            })
+    return groups
 
 
 def seconds_to_ms(value_str):
@@ -216,16 +246,28 @@ def import_results(request, page_id=None):
 def import_preview(request):
     rows = request.session.get('import_rows', [])
     session_type = request.session.get('import_session_type', 'protocol')
+    is_combined = session_type == 'combined'
     cfg = SESSION_CONFIGS.get(session_type, SESSION_CONFIGS['protocol'])
 
     if not rows:
         messages.error(request, 'Сессия истекла')
         return redirect('wagtailadmin_home')
 
+    skipped_unknown_type = 0
     preview_rows = []
     for row in rows:
         if not row.get('first_name') or not row.get('last_name'):
             continue
+
+        if is_combined:
+            row_type = row.get('session_type', '').strip()
+            if row_type not in GROUP_ORDER:
+                skipped_unknown_type += 1
+                continue
+        else:
+            row_type = session_type
+
+        row_cfg = SESSION_CONFIGS[row_type]
 
         first_name = row.get('first_name', '').strip()
         last_name = row.get('last_name', '').strip()
@@ -235,19 +277,20 @@ def import_preview(request):
 
         team_obj = None
         team_exists = False
-        if cfg['has_team_chassis'] and team_name:
+        if row_cfg['has_team_chassis'] and team_name:
             team_obj = Team.objects.filter(name__iexact=team_name).first()
             team_exists = team_obj is not None
 
         chassis_obj = None
         chassis_exists = False
-        if cfg['has_team_chassis'] and chassis_name:
+        if row_cfg['has_team_chassis'] and chassis_name:
             chassis_obj = Chassis.objects.filter(name__iexact=chassis_name).first()
             chassis_exists = chassis_obj is not None
 
         found_drivers, selected_id = find_drivers(first_name, last_name, city or None)
 
         preview_rows.append({
+            'session_type': row_type,
             'first_name': first_name,
             'last_name': last_name,
             'city': city,
@@ -265,9 +308,17 @@ def import_preview(request):
             's1': row.get('s1', ''),
             's2': row.get('s2', ''),
             's3': row.get('s3', ''),
+            'penalty': row.get('penalty', ''),
             'found_drivers': found_drivers,
             'selected_driver_id': selected_id,
         })
+
+    if skipped_unknown_type:
+        messages.warning(
+            request,
+            f'Пропущено строк с неизвестным/пустым session_type: {skipped_unknown_type}. '
+            f'Допустимые значения: {", ".join(GROUP_ORDER)}.'
+        )
 
     if request.method == 'POST':
         form = PreviewForm(request.POST, rows_data=preview_rows)
@@ -298,6 +349,8 @@ def import_preview(request):
         'session_type': session_type,
         'session_label': cfg['label'],
         'cfg': cfg,
+        'is_combined': is_combined,
+        'groups': group_rows_by_session_type(preview_rows, session_type),
     })
 
 
@@ -314,6 +367,15 @@ def _build_defaults(row, session_type, team, chassis_obj):
         except (ValueError, TypeError):
             return None
 
+    def penalty():
+        val = row.get('penalty', '')
+        if not val:
+            return None
+        try:
+            return float(str(val).replace(',', '.'))
+        except (ValueError, TypeError):
+            return None
+
     if s == 'qual':
         return {
             'qual_position': pos('position'),
@@ -323,7 +385,7 @@ def _build_defaults(row, session_type, team, chassis_obj):
             'qual_s3_ms': seconds_to_ms(row.get('s3')),
         }
     elif s == 'pre_final':
-        return {
+        defaults = {
             'pre_final_position': pos('position'),
             'pre_final_start_pos': pos('start_position'),
             'pre_final_best_lap_ms': seconds_to_ms(row.get('best_lap')),
@@ -331,8 +393,12 @@ def _build_defaults(row, session_type, team, chassis_obj):
             'pre_final_s2_ms': seconds_to_ms(row.get('s2')),
             'pre_final_s3_ms': seconds_to_ms(row.get('s3')),
         }
+        p = penalty()
+        if p is not None:
+            defaults['penalty'] = p
+        return defaults
     elif s == 'final':
-        return {
+        defaults = {
             'start_position': pos('start_position'),
             'position': pos('position') or 0,
             'best_lap_ms': seconds_to_ms(row.get('best_lap')),
@@ -340,6 +406,10 @@ def _build_defaults(row, session_type, team, chassis_obj):
             'best_s2_ms': seconds_to_ms(row.get('s2')),
             'best_s3_ms': seconds_to_ms(row.get('s3')),
         }
+        p = penalty()
+        if p is not None:
+            defaults['penalty'] = p
+        return defaults
     else:  # protocol
         defaults = {
             'position': pos('position') or 0,
@@ -368,6 +438,7 @@ def import_confirm(request):
             'session_type': session_type,
             'session_label': cfg['label'],
             'cfg': cfg,
+            'groups': group_rows_by_session_type(selections, session_type),
         })
 
     selections = request.session.get('import_selections', [])
@@ -385,6 +456,7 @@ def import_confirm(request):
 
     for row in selections:
         try:
+            row_session_type = row.get('session_type') or session_type
             driver_id = row.get('selected_driver_id')
             group_id = row.get('group_id') or request.session.get('import_group_id')
 
@@ -406,7 +478,7 @@ def import_confirm(request):
             # Команда и шасси нужны только для протокола
             team = None
             chassis_obj = None
-            if session_type == 'protocol':
+            if row_session_type == 'protocol':
                 team_id = row.get('team_id', '')
                 if team_id and str(team_id).isdigit():
                     try:
@@ -435,9 +507,9 @@ def import_confirm(request):
                     if not chassis_obj:
                         raise Exception(f"Шасси '{row['chassis']}' не найдено в базе.")
 
-            defaults = _build_defaults(row, session_type, team, chassis_obj)
+            defaults = _build_defaults(row, row_session_type, team, chassis_obj)
 
-            if session_type == 'protocol':
+            if row_session_type == 'protocol':
                 result, created = RaceResult.objects.update_or_create(
                     group_id=group_id,
                     driver=driver,
