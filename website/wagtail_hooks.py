@@ -1,5 +1,5 @@
 from wagtail_modeladmin.options import (ModelAdmin, ModelAdminGroup, modeladmin_register)
-from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings
+from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage
 from wagtail import hooks
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -431,3 +431,20 @@ def insert_admin_js():
         });
     </script>
     """)
+
+
+@hooks.register('construct_explorer_page_queryset')
+def order_event_pages_by_admin_title(parent_page, pages, request):
+    """
+    В списках Wagtail-админки под StagePage/EventIndexPage (дочерние — всегда
+    EventPage) сортируем по умолчанию по алфавиту "Название для админки"
+    (EventPage.admin_title), а не по стандартному заголовку страницы.
+    Явно выбранную пользователем сортировку (клик по колонке) не трогаем.
+    """
+    if request.GET.get('ordering'):
+        return pages
+
+    if isinstance(parent_page, (StagePage, EventIndexPage)):
+        return pages.order_by('coderedpage__eventpage__admin_title')
+
+    return pages
