@@ -59,6 +59,19 @@
         font-size: 13px;
         margin-bottom: 12px;
     }
+    .btn-add-driver {
+        margin-left: 6px;
+        padding: 5px 10px;
+        font-size: 13px;
+        border: 1px solid #28a745;
+        border-radius: 4px;
+        background: #28a745;
+        color: white;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .btn-add-driver:hover { background: #218838; }
+    .btn-add-driver:disabled { background: #6c757d; border-color: #6c757d; cursor: default; }
 </style>
 
 <div style="padding:20px;">
@@ -174,6 +187,8 @@
                             <input type="hidden" name="s2_{{ forloop.counter0 }}" value="{{ row.s2 }}">
                             <input type="hidden" name="s3_{{ forloop.counter0 }}" value="{{ row.s3 }}">
                         </div>
+                        <button type="button" class="btn-add-driver" data-row="{{ forloop.counter0 }}"
+                                style="{% if row_found > 0 %}display:none;{% endif %}">+ Добавить пилота</button>
                     </td>
                 </tr>
                 {% endwith %}
@@ -272,6 +287,60 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         if (hasErrors) { e.preventDefault(); alert('Для всех строк необходимо выбрать пилота!'); }
+    });
+
+    const csrfToken = document.querySelector('#import-form [name=csrfmiddlewaretoken]').value;
+
+    document.querySelectorAll('.btn-add-driver').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const rowIdx = this.dataset.row;
+            const firstName = document.querySelector(`input[name="first_name_${rowIdx}"]`).value;
+            const lastName = document.querySelector(`input[name="last_name_${rowIdx}"]`).value;
+            const cityInput = document.querySelector(`input[name="city_${rowIdx}"]`);
+            const city = cityInput ? cityInput.value : '';
+
+            this.disabled = true;
+            const originalLabel = this.textContent;
+            this.textContent = 'Добавляю...';
+
+            fetch("{% url 'event_import_add_driver' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({ first_name: firstName, last_name: lastName, city: city }),
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        this.disabled = false;
+                        this.textContent = originalLabel;
+                        return;
+                    }
+
+                    const container = this.parentElement.querySelector('.driver-search-container');
+                    const input = container.querySelector('.driver-search-input');
+                    const hiddenInput = container.querySelector('.driver-selected-id');
+
+                    input.value = data.full_name;
+                    hiddenInput.value = data.id;
+                    input.classList.remove('not-found');
+                    input.classList.add('found');
+
+                    const row = this.closest('tr');
+                    row.classList.remove('not-found-row');
+                    row.classList.add('found-row');
+
+                    this.style.display = 'none';
+                })
+                .catch(() => {
+                    alert('Ошибка при добавлении пилота');
+                    this.disabled = false;
+                    this.textContent = originalLabel;
+                });
+        });
     });
 });
 </script>

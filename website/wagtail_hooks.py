@@ -4,7 +4,7 @@ from wagtail import hooks
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.urls import path, reverse
-from .import_utils import import_results, import_preview, import_confirm
+from .import_utils import import_results, import_preview, import_confirm, import_add_driver
 from wagtail.admin.menu import MenuItem
 from .admin_views import analytics_dashboard, analytics_status
 
@@ -145,6 +145,7 @@ def register_import_urls():
         path('event/<int:page_id>/import/', import_results, name='event_import'),
         path('import/preview/', import_preview, name='event_import_preview'),
         path('import/confirm/', import_confirm, name='event_import_confirm'),
+        path('import/add-driver/', import_add_driver, name='event_import_add_driver'),
         path('analytics/', analytics_dashboard, name='analytics_dashboard'),
         path('analytics/status/', analytics_status, name='analytics_status'),
     ]

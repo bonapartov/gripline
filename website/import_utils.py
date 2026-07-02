@@ -3,6 +3,8 @@ import io
 from django import forms
 from django.shortcuts import render, redirect
 from django.contrib import messages
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 from .models import Driver, Team, RaceResult, Chassis
 
 SESSION_CONFIGS = {
@@ -140,6 +142,35 @@ def find_drivers(first_name, last_name, city=None):
                 found_drivers = list(drivers)
 
     return found_drivers, selected_id
+
+
+@require_POST
+def import_add_driver(request):
+    """AJAX: быстро создать пилота прямо со страницы предпросмотра импорта."""
+    first_name = request.POST.get('first_name', '').strip()
+    last_name = request.POST.get('last_name', '').strip()
+    city = request.POST.get('city', '').strip()
+
+    if not first_name or not last_name:
+        return JsonResponse({'error': 'Укажите имя и фамилию'}, status=400)
+
+    driver = Driver.objects.filter(
+        first_name__iexact=first_name,
+        last_name__iexact=last_name,
+    ).first()
+
+    if not driver:
+        driver = Driver.objects.create(
+            first_name=first_name,
+            last_name=last_name,
+            city=city or None,
+        )
+
+    return JsonResponse({
+        'id': driver.id,
+        'full_name': driver.full_name,
+        'city': driver.city or '',
+    })
 
 
 def import_results(request, page_id=None):
