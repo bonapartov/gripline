@@ -47,7 +47,11 @@
 <div class="force-width-1500 my-5 text-white">
     <div class="row mb-5">
         <div class="col-md-8">
-            <h1 class="display-4 fw-bold mb-1 text-uppercase">{{ page.title }}</h1>
+            <h1 class="display-4 fw-bold mb-1 text-uppercase">
+                {% with championship=page.get_championship %}
+                {% if championship %}<a href="{{ championship.url }}" class="text-reset text-decoration-none">{{ page.title }}</a>{% else %}{{ page.title }}{% endif %}
+                {% endwith %}
+            </h1>
             <p class="text-info fs-5 mb-3">
                 <i class="fas fa-calendar-alt me-2"></i>
                 {% with occ=page.occurrences.all.first %}

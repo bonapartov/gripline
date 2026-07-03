@@ -187,6 +187,15 @@ class EventPage(CoderedEventPage):
         """Используем admin_title в админке, если он есть"""
         return self.admin_title or self.title
 
+    def get_championship(self):
+        """Ближайший ChampionshipPage: родитель напрямую либо родитель StagePage-родителя."""
+        parent = self.get_parent().specific
+        if isinstance(parent, ChampionshipPage):
+            return parent
+        if isinstance(parent, StagePage):
+            return parent.get_parent().specific
+        return None
+
     api_fields = [
         APIField('admin_title'),
     ]

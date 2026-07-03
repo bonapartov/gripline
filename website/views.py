@@ -207,7 +207,12 @@ def driver_detail_view(request, slug):
     class_periods = {}
     for result in all_driver_results:
         class_name = result.group.race_class.name
-        event_date = result.group.page.last_published_at or result.group.page.first_published_at
+        stage = result.group.page.get_parent().specific
+        event_date = (
+            getattr(stage, 'start_date', None)
+            or result.group.page.last_published_at
+            or result.group.page.first_published_at
+        )
         if class_name not in class_periods:
             class_periods[class_name] = []
         class_periods[class_name].append(event_date)
