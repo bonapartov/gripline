@@ -721,6 +721,10 @@ def vk_id_widget_complete(request):
     if role not in ('pilot', 'team', 'organizer'):
         role = 'pilot'
     request.session['role'] = role
+    for field in ('pilot_id', 'team_id', 'team_name'):
+        value = payload.get(field)
+        if value:
+            request.session[field] = value
 
     from social_django.utils import load_strategy, load_backend
     strategy = load_strategy(request)

@@ -145,10 +145,7 @@
             </a>
             {% endif %}
             {% if social_auth.vk_enabled %}
-            <a href="{% url 'social:begin' 'vk-id' %}?role=pilot" class="cr-btn-login cr-btn-vk d-flex align-items-center justify-content-center gap-2">
-                <i class="fab fa-vk"></i>
-                Войти через VK ID
-            </a>
+            <div id="pilotVkWidget" style="width:100%;margin-bottom:0.5rem;"></div>
             {% endif %}
             {% if social_auth.yandex_enabled or social_auth.vk_enabled %}
             <hr class="cr-divider">
@@ -187,10 +184,7 @@
                 </a>
                 {% endif %}
                 {% if social_auth.vk_enabled %}
-                <a id="pilotVkBtn" href="{% url 'social:begin' 'vk-id' %}?role=pilot" class="cr-btn-login cr-btn-vk d-flex align-items-center justify-content-center gap-2">
-                    <i class="fab fa-vk"></i>
-                    Продолжить через VK ID
-                </a>
+                <div id="pilotVkWidgetRegister" style="width:100%;margin-bottom:0.5rem;"></div>
                 {% endif %}
                 <a href="{% url 'accounts:register' %}" class="cr-btn-login cr-btn-email">Зарегистрироваться по email</a>
             </div>
@@ -219,10 +213,7 @@
             </a>
             {% endif %}
             {% if social_auth.vk_enabled %}
-            <a href="{% url 'social:begin' 'vk-id' %}?role=team" class="cr-btn-login cr-btn-vk d-flex align-items-center justify-content-center gap-2">
-                <i class="fab fa-vk"></i>
-                Войти через VK ID
-            </a>
+            <div id="teamVkWidget" style="width:100%;margin-bottom:0.5rem;"></div>
             {% endif %}
             {% if social_auth.yandex_enabled or social_auth.vk_enabled %}
             <hr class="cr-divider">
@@ -261,10 +252,7 @@
                 </a>
                 {% endif %}
                 {% if social_auth.vk_enabled %}
-                <a id="teamVkBtn" href="{% url 'social:begin' 'vk-id' %}?role=team" class="cr-btn-login cr-btn-vk d-flex align-items-center justify-content-center gap-2">
-                    <i class="fab fa-vk"></i>
-                    Продолжить через VK ID
-                </a>
+                <div id="teamVkWidgetRegister" style="width:100%;margin-bottom:0.5rem;"></div>
                 {% endif %}
                 <a href="{% url 'teams:login' %}" class="cr-btn-login cr-btn-email">Зарегистрироваться по email</a>
             </div>
@@ -329,11 +317,9 @@ function selectPilot(id, name) {
     document.getElementById('pilotSelected').classList.add('show');
     document.getElementById('pilotResults').innerHTML = '';
     document.getElementById('pilotSearchInput').value = '';
-    // Add pilot_id to Yandex/VK button URLs
+    // Add pilot_id to Yandex button URL (VK ID виджет читает selectedPilotId напрямую)
     const yBtn = document.getElementById('pilotYandexBtn');
     if (yBtn) yBtn.href = yBtn.href.split('?')[0] + '?role=pilot&pilot_id=' + id;
-    const vBtn = document.getElementById('pilotVkBtn');
-    if (vBtn) vBtn.href = vBtn.href.split('?')[0] + '?role=pilot&pilot_id=' + id;
 }
 
 function clearPilotSelection() {
@@ -344,12 +330,6 @@ function clearPilotSelection() {
         const url = new URL(yBtn.href);
         url.searchParams.delete('pilot_id');
         yBtn.href = url.toString();
-    }
-    const vBtn = document.getElementById('pilotVkBtn');
-    if (vBtn) {
-        const url = new URL(vBtn.href);
-        url.searchParams.delete('pilot_id');
-        vBtn.href = url.toString();
     }
 }
 
@@ -398,8 +378,6 @@ function selectTeam(id, name) {
     document.getElementById('teamSearchInput').value = '';
     const yBtn = document.getElementById('teamYandexBtn');
     if (yBtn) yBtn.href = yBtn.href.split('?')[0] + '?role=team&team_id=' + id;
-    const vBtn = document.getElementById('teamVkBtn');
-    if (vBtn) vBtn.href = vBtn.href.split('?')[0] + '?role=team&team_id=' + id;
 }
 
 function clearTeamSelection() {
@@ -411,12 +389,6 @@ function clearTeamSelection() {
         url.searchParams.delete('team_id');
         yBtn.href = url.toString();
     }
-    const vBtn = document.getElementById('teamVkBtn');
-    if (vBtn) {
-        const url = new URL(vBtn.href);
-        url.searchParams.delete('team_id');
-        vBtn.href = url.toString();
-    }
 }
 
 function toggleNewTeamForm() {
@@ -426,7 +398,7 @@ function toggleNewTeamForm() {
     btn.textContent = form.classList.contains('show') ? '← Назад к поиску' : 'Создать новую команду';
 }
 
-// When team_name input changes, update Yandex/VK button URLs
+// When team_name input changes, update Yandex button URL (VK ID виджет читает поле напрямую)
 document.getElementById('teamNewName').addEventListener('input', function() {
     const name = this.value.trim();
     const yBtn = document.getElementById('teamYandexBtn');
@@ -434,11 +406,89 @@ document.getElementById('teamNewName').addEventListener('input', function() {
         const yBase = '{% url "social:begin" "yandex-oauth2" %}?role=team';
         yBtn.href = name ? yBase + '&team_name=' + encodeURIComponent(name) : yBase;
     }
-    const vBtn = document.getElementById('teamVkBtn');
-    if (vBtn) {
-        const vBase = '{% url "social:begin" "vk-id" %}?role=team';
-        vBtn.href = name ? vBase + '&team_name=' + encodeURIComponent(name) : vBase;
-    }
 });
 </script>
+
+{% if social_auth.vk_enabled %}
+<script src="https://unpkg.com/@vkid/sdk@<3.0.0/dist-sdk/umd/index.js"></script>
+<script>
+(function () {
+    if (!('VKIDSDK' in window)) return;
+    var VKID = window.VKIDSDK;
+
+    VKID.Config.init({
+        app: {{ social_auth.vk_client_id }},
+        redirectUrl: 'https://gripline.ru/auth/complete/vk-id/',
+        responseMode: VKID.ConfigResponseMode.Callback,
+        source: VKID.ConfigSource.LOWCODE,
+        scope: 'email',
+    });
+
+    function getCookie(name) {
+        var v = null;
+        if (document.cookie) {
+            document.cookie.split(';').forEach(function (c) {
+                c = c.trim();
+                if (c.indexOf(name + '=') === 0) v = decodeURIComponent(c.slice(name.length + 1));
+            });
+        }
+        return v;
+    }
+
+    function vkidOnError(error) {
+        console.error('VK ID: ошибка виджета', error);
+    }
+
+    function sendVkToken(accessToken, extra) {
+        fetch('{% url "accounts:vk_id_widget_complete" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify(Object.assign({ access_token: accessToken }, extra)),
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+                if (res.success) {
+                    window.location.href = res.redirect;
+                } else {
+                    console.error('VK ID: ошибка входа', res.error);
+                }
+            })
+            .catch(vkidOnError);
+    }
+
+    function renderVkWidget(containerId, extraFn) {
+        var container = document.getElementById(containerId);
+        if (!container) return;
+        new VKID.OneTap().render({
+            container: container,
+            showAlternativeLogin: true,
+        })
+            .on(VKID.WidgetEvents.ERROR, vkidOnError)
+            .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, function (payload) {
+                VKID.Auth.exchangeCode(payload.code, payload.device_id)
+                    .then(function (data) { sendVkToken(data.access_token, extraFn()); })
+                    .catch(vkidOnError);
+            });
+    }
+
+    renderVkWidget('pilotVkWidget', function () { return { role: 'pilot' }; });
+    renderVkWidget('pilotVkWidgetRegister', function () {
+        var extra = { role: 'pilot' };
+        if (selectedPilotId) extra.pilot_id = selectedPilotId;
+        return extra;
+    });
+    renderVkWidget('teamVkWidget', function () { return { role: 'team' }; });
+    renderVkWidget('teamVkWidgetRegister', function () {
+        var extra = { role: 'team' };
+        if (selectedTeamId) {
+            extra.team_id = selectedTeamId;
+        } else {
+            var name = document.getElementById('teamNewName').value.trim();
+            if (name) extra.team_name = name;
+        }
+        return extra;
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}
