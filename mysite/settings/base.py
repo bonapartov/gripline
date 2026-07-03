@@ -234,11 +234,15 @@ BASE_URL = 'http://127.0.0.1:8000'  # для продакшена заменит
 
 AUTHENTICATION_BACKENDS = [
     'accounts.backends.GriplineYandexOAuth2',
+    'accounts.backends.GriplineVKID',
     'django.contrib.auth.backends.ModelBackend',
 ]
 
-# Credentials are stored in DB (SocialAuthSettings) and read by GriplineYandexOAuth2.get_key_and_secret()
+# Credentials are stored in DB (SocialAuthSettings) and read by get_key_and_secret() of each backend
 SOCIAL_AUTH_YANDEX_OAUTH2_SCOPE = ['login:email', 'login:info']
+# VK ID: scope задан прямо в GriplineVKID.DEFAULT_SCOPE.
+# Email придёт, только если он подтверждён у пользователя в самом VK —
+# у части пользователей его нет, тогда email в ответе будет пустым.
 
 SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_details',

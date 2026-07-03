@@ -99,23 +99,14 @@ class UserProfile(models.Model):
         return (date.today() - self.birth_date).days / 365.25 < 18
 
 
-class YandexSocialAuth(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='yandex_auth')
-    yandex_uid = models.CharField(max_length=64, unique=True)
-    yandex_login = models.CharField(max_length=128)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        verbose_name = "Яндекс аккаунт"
-        verbose_name_plural = "Яндекс аккаунты"
-
-
 @register_setting
 class SocialAuthSettings(BaseGenericSetting):
     yandex_enabled = models.BooleanField("Вход через Яндекс", default=False)
     yandex_client_id = models.CharField("Яндекс Client ID", max_length=200, blank=True)
     yandex_client_secret = models.CharField("Яндекс Client Secret", max_length=200, blank=True)
     vk_enabled = models.BooleanField("Вход через ВКонтакте", default=False)
+    vk_client_id = models.CharField("VK Client ID", max_length=200, blank=True)
+    vk_client_secret = models.CharField("VK Client Secret", max_length=200, blank=True)
     google_enabled = models.BooleanField("Вход через Google", default=False)
 
     contact_email = models.EmailField(
@@ -135,6 +126,8 @@ class SocialAuthSettings(BaseGenericSetting):
         FieldPanel('yandex_client_id'),
         FieldPanel('yandex_client_secret'),
         FieldPanel('vk_enabled'),
+        FieldPanel('vk_client_id'),
+        FieldPanel('vk_client_secret'),
         FieldPanel('google_enabled'),
         FieldPanel('contact_email'),
         FieldPanel('telegram_contact'),
