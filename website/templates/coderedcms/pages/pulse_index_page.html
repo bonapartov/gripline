@@ -187,62 +187,55 @@
 
 /* ── Карточка лидера/чемпиона (используется внутри блока хроники) ─────── */
 .pl-leader-card {
-    width: 170px;
-    flex-shrink: 0;
+    width: 120px;
     text-align: center;
 }
 .pl-leader-photo-wrap {
     position: relative;
-    width: 150px;
-    height: 150px;
+    width: 100px;
+    height: 100px;
     border-radius: 10px;
     overflow: hidden;
     margin: 0 auto;
 }
 .pl-leader-photo-wrap img {
-    width: 150px;
-    height: 150px;
+    width: 100px;
+    height: 100px;
     object-fit: cover;
     display: block;
 }
 .pl-leader-placeholder {
-    width: 150px;
-    height: 150px;
+    width: 100px;
+    height: 100px;
     background: #2a2a35;
     display: flex;
     align-items: center;
     justify-content: center;
     color: rgba(255,255,255,.4);
-    font-size: 2rem;
+    font-size: 1.5rem;
 }
 .pl-leader-class-badge {
     position: absolute;
     left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,.72);
     color: #ffc107;
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: .5px;
-    padding: 4px 0;
+    letter-spacing: .3px;
+    padding: 3px 0;
     text-align: center;
 }
 .pl-leader-name {
     font-weight: 700;
-    font-size: 15px;
-    margin-top: 10px;
+    font-size: 13px;
+    margin-top: 8px;
 }
 .pl-leader-name a {
     color: #fff;
     text-decoration: none;
 }
 .pl-leader-name a:hover { color: #ffc107; }
-.pl-leader-meta {
-    color: #6c757d;
-    font-size: 12px;
-    font-family: var(--gl-font-mono, 'JetBrains Mono', monospace);
-    margin-top: 3px;
-}
 
 /* ── Таймлайн ───────────────────────────────────────────────────────── */
 .pl-timeline-wrap {
@@ -439,8 +432,8 @@
 }
 .pl-champs-row {
     display: flex;
+    flex-wrap: wrap;
     gap: 18px;
-    overflow-x: auto;
     justify-content: center;
     padding: 14px 16px;
     background: #1a1a25;
