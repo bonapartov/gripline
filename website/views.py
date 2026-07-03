@@ -242,10 +242,8 @@ def driver_detail_view(request, slug):
             'period': period
         })
     
-    # Сортируем классы в нужном порядке
-    class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
-                   'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 Masters']
-    driver_class_periods.sort(key=lambda x: class_order.index(x['class_name']) if x['class_name'] in class_order else 999)
+    # Сортируем классы по алфавиту
+    driver_class_periods.sort(key=lambda x: x['class_name'])
 
     class_ratings = _get_driver_class_ratings(driver)
 
@@ -343,12 +341,8 @@ def team_detail_view(request, slug):
                     'period': period
                 })
 
-    # Сортируем классы в правильном порядке
-    class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
-                   'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 Masters',
-                   'Rotax Max DD2 32+']
-    sorted_driver_classes = dict(sorted(driver_classes.items(), 
-                                        key=lambda x: class_order.index(x[0]) if x[0] in class_order else 999))
+    # Сортируем классы по алфавиту
+    sorted_driver_classes = dict(sorted(driver_classes.items(), key=lambda x: x[0]))
     # Получаем активных сотрудников команды
     staff_members = TeamStaff.objects.filter(
         team_memberships__team=team,
@@ -691,11 +685,8 @@ def engine_detail_view(request, slug):
     from .models import RaceClass
     all_classes = RaceClass.objects.all()
 
-    # Сортируем классы в нужном порядке
-    class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
-                   'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 Masters']
-    classes = sorted(all_classes,
-                     key=lambda x: class_order.index(x.name) if x.name in class_order else 999)
+    # Сортируем классы по алфавиту
+    classes = sorted(all_classes, key=lambda x: x.name)
 
     # Получаем выбранный класс из GET-параметров
     class_id = request.GET.get('class')
@@ -762,11 +753,8 @@ def compare_view(request):
     from .models import RaceClass
     all_classes = RaceClass.objects.all()
 
-    # Сортируем классы в нужном порядке
-    class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
-                   'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 Masters']
-    classes = sorted(all_classes,
-                     key=lambda x: class_order.index(x.name) if x.name in class_order else 999)
+    # Сортируем классы по алфавиту
+    classes = sorted(all_classes, key=lambda x: x.name)
 
     # Получаем выбранный класс из GET-параметров
     class_id = request.GET.get('class')
@@ -904,9 +892,6 @@ def _get_driver_class_ratings(driver):
     import json, statistics as _stats
 
     C = 15
-    class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
-                   'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 Masters',
-                   'Rotax Max DD2 32+']
 
     rbc = driver.rating_by_class or {}
     if isinstance(rbc, str):
@@ -1072,9 +1057,7 @@ def _get_driver_class_ratings(driver):
             'victim': victim,
         })
 
-    class_ratings.sort(
-        key=lambda x: class_order.index(x['class_name']) if x['class_name'] in class_order else 999
-    )
+    class_ratings.sort(key=lambda x: x['class_name'])
     return class_ratings
 
 
@@ -1090,13 +1073,11 @@ def top_drivers_view(request):
 
     from .models import Driver, RaceClass, RaceResult, AnalyticsSettings
 
-    class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
-                   'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 32+']
     all_classes = [
         c for c in RaceClass.objects.all()
         if Driver.objects.filter(rating_by_class__has_key=str(c.id)).exists()
     ]
-    classes = sorted(all_classes, key=lambda x: class_order.index(x.name) if x.name in class_order else 999)
+    classes = sorted(all_classes, key=lambda x: x.name)
 
     selected_class_id = request.GET.get('class')
     if selected_class_id and selected_class_id.isdigit():
@@ -1219,15 +1200,9 @@ def compare_drivers_view(request):
     else:
         class_id = None
 
-    # Получаем все классы для кнопок
+    # Получаем все классы для кнопок, по алфавиту
     from .models import RaceClass
-    all_classes = RaceClass.objects.all().order_by('name')
-
-    # Формируем список классов в нужном порядке
-    class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
-                   'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 Masters']
-    classes = sorted(all_classes,
-                     key=lambda x: class_order.index(x.name) if x.name in class_order else 999)
+    classes = RaceClass.objects.all().order_by('name')
 
     # Получаем всех пилотов
     all_drivers = Driver.objects.all().order_by('last_name', 'first_name')
@@ -1699,10 +1674,7 @@ def chassis_track_matrix_view(request):
 
     # Получаем все классы для вкладок
     all_classes = RaceClass.objects.all()
-    class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
-                   'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 Masters']
-    classes = sorted(all_classes,
-                     key=lambda x: class_order.index(x.name) if x.name in class_order else 999)
+    classes = sorted(all_classes, key=lambda x: x.name)
 
     # Получаем выбранный класс
     class_id = request.GET.get('class')
@@ -1776,11 +1748,8 @@ def weather_impact_view(request):
     import json
     from django.utils import timezone
 
-    # Получаем все классы для фильтра
-    class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
-                   'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 32+']
-    all_classes = list(RaceClass.objects.all())
-    classes = sorted(all_classes, key=lambda x: class_order.index(x.name) if x.name in class_order else 999)
+    # Получаем все классы для фильтра, по алфавиту
+    classes = sorted(RaceClass.objects.all(), key=lambda x: x.name)
 
     selected_class_id = request.GET.get('class')
     if selected_class_id and selected_class_id.isdigit():
@@ -2095,8 +2064,6 @@ def team_ratings_view(request):
     import json, statistics as _stats
 
     current_site = Site.find_for_request(request)
-    class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
-                   'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 32+']
 
     # Собираем все рейтинги всех пилотов для нормализации
     all_drivers = Driver.objects.exclude(rating_by_class__isnull=True).exclude(rating_by_class={})
@@ -2172,11 +2139,8 @@ def team_ratings_view(request):
         if not class_data:
             continue
 
-        # Сортируем классы
-        sorted_classes = sorted(
-            class_data.items(),
-            key=lambda x: class_order.index(x[0]) if x[0] in class_order else 999
-        )
+        # Сортируем классы по алфавиту
+        sorted_classes = sorted(class_data.items(), key=lambda x: x[0])
 
         # Средний балл команды (по всем классам)
         all_scores = [s for _, d in class_data.items() for s in d['scores']]
@@ -2375,11 +2339,8 @@ def tyre_analysis_view(request):
     from django.db.models import Count, Q, Avg
     import json
 
-    # Получаем все классы для фильтра
-    class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
-                   'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 32+']
-    all_classes = list(RaceClass.objects.all())
-    classes = sorted(all_classes, key=lambda x: class_order.index(x.name) if x.name in class_order else 999)
+    # Получаем все классы для фильтра, по алфавиту
+    classes = sorted(RaceClass.objects.all(), key=lambda x: x.name)
 
     selected_class_id = request.GET.get('class')
     if selected_class_id and selected_class_id.isdigit():

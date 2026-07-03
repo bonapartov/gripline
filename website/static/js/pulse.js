@@ -10,11 +10,6 @@ class PulseApp {
         this.ymaps = null;
         this.map = null;
 
-        this.CLASS_ORDER = [
-            'Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
-            'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 Masters',
-        ];
-
         this.init();
     }
 
@@ -168,13 +163,10 @@ class PulseApp {
             () => { this.activeTypes.clear(); this.activeTrack = null; this.renderAll(); }
         );
 
-        // Классы — из данных этапов
+        // Классы — из данных этапов, по алфавиту
         const allClasses = [...new Set(
             (this.data.stages || []).flatMap(s => s.winners.map(w => w.class_name))
-        )].sort((a, b) => {
-            const ia = this.CLASS_ORDER.indexOf(a), ib = this.CLASS_ORDER.indexOf(b);
-            return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
-        });
+        )].sort((a, b) => a.localeCompare(b, 'ru'));
 
         this._renderChips(
             'pl-class-chips', 'pl-class-reset',
@@ -340,18 +332,11 @@ class PulseApp {
     }
 
     _renderStandingsBlock(champId) {
-        const classOrder = ['micro', 'mini', 'junior', 'senior', 'dd2', 'dd2 masters'];
-        const classRank = name => {
-            const n = name.toLowerCase();
-            if (n.includes('dd2 masters')) return classOrder.indexOf('dd2 masters');
-            const i = classOrder.findIndex(k => n.includes(k));
-            return i === -1 ? 99 : i;
-        };
         const champ = (this.data.championships || []).find(c => c.id === champId);
         if (!champ) return '';
         const winners = (champ.champions || [])
             .filter(c => c.position === 1)
-            .sort((a, b) => classRank(a.class) - classRank(b.class));
+            .sort((a, b) => a.class.localeCompare(b.class, 'ru'));
         if (!winners.length) return '';
         const items = winners.map(c => {
             const photoInner = c.photo

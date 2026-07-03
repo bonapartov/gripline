@@ -372,15 +372,9 @@ class ChampionshipPage(CoderedWebPage):
       ).values_list('group__race_class_id', flat=True).distinct()
   
       available_classes = RaceClass.objects.filter(id__in=available_class_ids)
-  
-      # Сортируем как надо
-      class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
-                  'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 Masters']
-  
-      available_classes = sorted(
-          available_classes,
-          key=lambda x: class_order.index(x.name) if x.name in class_order else 999
-      )
+
+      # Сортируем по алфавиту
+      available_classes = sorted(available_classes, key=lambda x: x.name)
   
       # Получаем список названий для проверки
       available_class_names = [c.name for c in available_classes]
@@ -1693,16 +1687,8 @@ class PulseIndexPage(CoderedWebPage):
         context['championships'] = championships
         context['available_types'] = list(types)
     
-        # Сортируем классы в нужном порядке
-        class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
-                    'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 Masters']
-    
-        sorted_classes = sorted(
-            race_classes,
-            key=lambda x: class_order.index(x.name) if x.name in class_order else 999
-        )
-    
-        context['available_classes'] = sorted_classes
+        # Сортируем классы по алфавиту
+        context['available_classes'] = sorted(race_classes, key=lambda x: x.name)
         context['available_years'] = filtered_years
         context['current_year'] = filtered_years[0] if filtered_years else current_year
     
@@ -2135,11 +2121,7 @@ class HomePage(CoderedWebPage):
             context['latest_tech_articles'] = []
 
         # --- БЛОК 3: Топ пилотов ---
-        class_order = ['Rotax Max Micro', 'Rotax Max Mini', 'Rotax Max Junior',
-                       'Rotax Max Senior', 'Rotax Max DD2', 'Rotax Max DD2 Masters']
-        all_classes = list(RaceClass.objects.all())
-        classes = sorted(all_classes,
-                         key=lambda x: class_order.index(x.name) if x.name in class_order else 999)
+        classes = sorted(RaceClass.objects.all(), key=lambda x: x.name)
 
         selected_class_id = request.GET.get('class')
         if selected_class_id and selected_class_id.isdigit():
