@@ -1,6 +1,8 @@
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save, post_delete, pre_save
 from django.contrib.auth.models import User
 from django.dispatch import receiver
+from django.conf import settings
+from django.core.mail import send_mail
 from .models import UserProfile
 
 
@@ -59,9 +61,66 @@ def save_user_profile(sender, instance, **kwargs):
         UserProfile.objects.get_or_create(user=instance)
 
 
+def send_driver_claim_approved_email(user, driver):
+    """Отправка уведомления пилоту о подтверждении заявки на привязку профиля."""
+    if not user.email:
+        return
+
+    login_url = f"{settings.BASE_URL}/accounts/login/"
+    profile_url = f"{settings.BASE_URL}{driver.get_absolute_url()}" if driver else ''
+    driver_name = driver.full_name if driver else ''
+
+    subject = '✅ Ваша заявка на привязку профиля пилота подтверждена'
+    message = f"""Здравствуйте!
+
+Ваша заявка на привязку к профилю пилота{f' "{driver_name}"' if driver_name else ''} подтверждена администратором.
+
+Личный кабинет: {login_url}
+{f'Профиль на сайте: {profile_url}' if profile_url else ''}
+
+С уважением,
+Команда Gripline
+"""
+    html_message = f"""<h2>✅ Заявка подтверждена</h2>
+<p>Здравствуйте!</p>
+<p>Ваша заявка на привязку к профилю пилота{f' <strong>{driver_name}</strong>' if driver_name else ''} подтверждена администратором.</p>
+<p>Теперь вы можете войти в <a href="{login_url}">личный кабинет</a>.</p>
+{f'<p>Профиль на сайте: <a href="{profile_url}">{profile_url}</a></p>' if profile_url else ''}
+<br>
+<p>С уважением,<br>Команда Gripline</p>
+"""
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            html_message=html_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+    except Exception:
+        # Не даём сбою почты сломать сохранение заявки в админке
+        pass
+
+
+@receiver(pre_save, sender='accounts.DriverClaim')
+def stash_old_driver_claim_status(sender, instance, **kwargs):
+    if instance.pk:
+        try:
+            instance._old_status = sender.objects.get(pk=instance.pk).status
+        except sender.DoesNotExist:
+            instance._old_status = None
+    else:
+        instance._old_status = None
+
+
 @receiver(post_save, sender='accounts.DriverClaim')
-def on_driver_claim_save(sender, instance, **kwargs):
+def on_driver_claim_save(sender, instance, created, **kwargs):
     _sync_roles(instance.user)
+
+    old_status = getattr(instance, '_old_status', None)
+    if not created and old_status != 'approved' and instance.status == 'approved':
+        send_driver_claim_approved_email(instance.user, instance.driver)
 
 
 @receiver(post_save, sender='teams.TeamManager')
