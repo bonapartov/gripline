@@ -369,7 +369,7 @@ class PulseApp {
         const title = champ.title_prefix || 'Лидеры';
         return `
         <details class="pl-upcoming-accordion">
-            <summary class="pl-upcoming-summary">
+            <summary class="pl-upcoming-summary pl-champs-summary">
                 <i class="fas fa-crown"></i>
                 ${this._esc(title)} сезона · ${this._esc(champ.title)}
                 <span class="pl-upcoming-count">${this.classesCount(winners.length)}</span>
