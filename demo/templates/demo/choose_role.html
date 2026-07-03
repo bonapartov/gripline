@@ -262,8 +262,19 @@
 
 <script>
 // ── Modal helpers ────────────────────────────────────────────────────────────
-function openPilotModal() { document.getElementById('pilotModal').classList.add('active'); }
-function openTeamModal()  { document.getElementById('teamModal').classList.add('active'); }
+// Роль для VK ID передаётся в отдельное окно (accounts/vk_id_redirect.html)
+// через sessionStorage — оно не имеет доступа к переменным этой страницы.
+function openPilotModal() {
+    document.getElementById('pilotModal').classList.add('active');
+    sessionStorage.setItem('vk_id_role', 'pilot');
+    sessionStorage.removeItem('vk_id_pilot_id');
+}
+function openTeamModal()  {
+    document.getElementById('teamModal').classList.add('active');
+    sessionStorage.setItem('vk_id_role', 'team');
+    sessionStorage.removeItem('vk_id_team_id');
+    sessionStorage.removeItem('vk_id_team_name');
+}
 function closeModal(id)   { document.getElementById(id).classList.remove('active'); }
 
 // Close on overlay click
@@ -317,9 +328,10 @@ function selectPilot(id, name) {
     document.getElementById('pilotSelected').classList.add('show');
     document.getElementById('pilotResults').innerHTML = '';
     document.getElementById('pilotSearchInput').value = '';
-    // Add pilot_id to Yandex button URL (VK ID виджет читает selectedPilotId напрямую)
+    // Add pilot_id to Yandex button URL (VK ID виджет читает selectedPilotId/sessionStorage)
     const yBtn = document.getElementById('pilotYandexBtn');
     if (yBtn) yBtn.href = yBtn.href.split('?')[0] + '?role=pilot&pilot_id=' + id;
+    sessionStorage.setItem('vk_id_pilot_id', id);
 }
 
 function clearPilotSelection() {
@@ -331,6 +343,7 @@ function clearPilotSelection() {
         url.searchParams.delete('pilot_id');
         yBtn.href = url.toString();
     }
+    sessionStorage.removeItem('vk_id_pilot_id');
 }
 
 function toggleNewPilotForm() {
@@ -378,6 +391,8 @@ function selectTeam(id, name) {
     document.getElementById('teamSearchInput').value = '';
     const yBtn = document.getElementById('teamYandexBtn');
     if (yBtn) yBtn.href = yBtn.href.split('?')[0] + '?role=team&team_id=' + id;
+    sessionStorage.setItem('vk_id_team_id', id);
+    sessionStorage.removeItem('vk_id_team_name');
 }
 
 function clearTeamSelection() {
@@ -389,6 +404,7 @@ function clearTeamSelection() {
         url.searchParams.delete('team_id');
         yBtn.href = url.toString();
     }
+    sessionStorage.removeItem('vk_id_team_id');
 }
 
 function toggleNewTeamForm() {
@@ -406,6 +422,7 @@ document.getElementById('teamNewName').addEventListener('input', function() {
         const yBase = '{% url "social:begin" "yandex-oauth2" %}?role=team';
         yBtn.href = name ? yBase + '&team_name=' + encodeURIComponent(name) : yBase;
     }
+    if (name) { sessionStorage.setItem('vk_id_team_name', name); } else { sessionStorage.removeItem('vk_id_team_name'); }
 });
 </script>
 

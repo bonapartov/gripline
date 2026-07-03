@@ -743,6 +743,25 @@ def vk_id_widget_complete(request):
     return JsonResponse({'success': True, 'redirect': '/accounts/profile/'})
 
 
+def vk_id_redirect_landing(request):
+    """
+    Landing-страница для redirectUrl VK ID SDK (https://gripline.ru/auth/complete/vk-id/).
+
+    Для уже узнанной VK-сессии («Продолжить как …») виджет не отдаёт code
+    через LOGIN_SUCCESS в исходной вкладке — вместо этого открывает окно
+    с полноценным OAuth-редиректом сюда (?code=...&device_id=...). Здесь тот же
+    VK ID SDK довершает обмен кода на access_token (code_verifier PKCE хранится
+    в sessionStorage самим SDK и переживает переход в пределах одного окна),
+    а дальше — тот же POST в vk_id_widget_complete, что и у обычного клика.
+
+    Путь перехватывает social_django-роут auth/complete/vk-id/ раньше
+    (см. mysite/urls.py) — сервер туда больше не заходит, code/device_id
+    обрабатываются только в браузере.
+    """
+    settings_obj = SocialAuthSettings.get()
+    return render(request, 'accounts/vk_id_redirect.html', {'social_auth': settings_obj})
+
+
 def yandex_search_drivers(request):
     """AJAX: поиск Driver по имени/фамилии"""
     q = request.GET.get('q', '').strip()

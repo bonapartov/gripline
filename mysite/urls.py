@@ -8,6 +8,7 @@ from website.models import Driver, Chassis, RaceResult, Track
 from website.views import staff_detail_view, staff_api
 from website.views import rating_stats_api
 from demo.views import choose_role
+from accounts.views import vk_id_redirect_landing
 
 # Функция для API статистики
 def stats_api(request):
@@ -20,6 +21,10 @@ def stats_api(request):
     return JsonResponse(data)
     
 urlpatterns = [
+    # Перехват redirectUrl VK ID SDK ДО social_django — обмен code на
+    # access_token для «узнанной» VK-сессии довершается в браузере,
+    # а не через классический server-side complete-view python-social-auth.
+    path('auth/complete/vk-id/', vk_id_redirect_landing, name='vk_id_redirect_landing'),
     path('auth/', include('social_django.urls', namespace='social')),
     path('api/stats/', stats_api, name='stats_api'),
     path('api/rating-stats/', rating_stats_api, name='rating_stats_api'),

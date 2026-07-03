@@ -27,6 +27,14 @@
     if (!('VKIDSDK' in window)) return;
     var VKID = window.VKIDSDK;
 
+    // Для «узнанной» VK-сессии виджет довершает вход через отдельное окно
+    // (см. accounts/vk_id_redirect.html) — роль передаётся через sessionStorage,
+    // т.к. это окно не имеет доступа к переменным текущей страницы.
+    sessionStorage.setItem('vk_id_role', '{{ role|default:"pilot" }}');
+    sessionStorage.removeItem('vk_id_pilot_id');
+    sessionStorage.removeItem('vk_id_team_id');
+    sessionStorage.removeItem('vk_id_team_name');
+
     VKID.Config.init({
         app: {{ social_auth.vk_client_id }},
         redirectUrl: 'https://gripline.ru/auth/complete/vk-id/',

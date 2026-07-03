@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Вход через VK ID…</title>
+</head>
+<body style="background:#0d0d12;color:#adb5bd;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+<div>Входим через VK ID…</div>
+<script src="https://unpkg.com/@vkid/sdk@<3.0.0/dist-sdk/umd/index.js"></script>
+<script>
+(function () {
+    function getCookie(name) {
+        var v = null;
+        if (document.cookie) {
+            document.cookie.split(';').forEach(function (c) {
+                c = c.trim();
+                if (c.indexOf(name + '=') === 0) v = decodeURIComponent(c.slice(name.length + 1));
+            });
+        }
+        return v;
+    }
+
+    function fail() {
+        window.location.href = '{% url "accounts:login" %}';
+    }
+
+    var params = new URLSearchParams(window.location.search);
+    var code = params.get('code');
+    var deviceId = params.get('device_id');
+    if (!code || !deviceId || !('VKIDSDK' in window)) { fail(); return; }
+    var VKID = window.VKIDSDK;
+
+    VKID.Config.init({
+        app: {{ social_auth.vk_client_id }},
+        redirectUrl: 'https://gripline.ru/auth/complete/vk-id/',
+        source: VKID.ConfigSource.LOWCODE,
+    });
+
+    VKID.Auth.exchangeCode(code, deviceId)
+        .then(function (data) {
+            return fetch('{% url "accounts:vk_id_widget_complete" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: JSON.stringify({
+                    access_token: data.access_token,
+                    role: sessionStorage.getItem('vk_id_role') || 'pilot',
+                    pilot_id: sessionStorage.getItem('vk_id_pilot_id') || '',
+                    team_id: sessionStorage.getItem('vk_id_team_id') || '',
+                    team_name: sessionStorage.getItem('vk_id_team_name') || '',
+                }),
+            });
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+            if (res.success) { window.location.href = res.redirect; } else { fail(); }
+        })
+        .catch(function (e) {
+            console.error('VK ID: ошибка обмена кода', e);
+            fail();
+        });
+})();
+</script>
+</body>
+</html>
