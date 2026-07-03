@@ -187,49 +187,50 @@
 
 /* ── Карточка лидера/чемпиона (используется внутри блока хроники) ─────── */
 .pl-leader-card {
-    width: 120px;
+    width: 170px;
+    flex-shrink: 0;
     text-align: center;
 }
 .pl-leader-photo-wrap {
     position: relative;
-    width: 100px;
-    height: 100px;
+    width: 150px;
+    height: 150px;
     border-radius: 10px;
     overflow: hidden;
     margin: 0 auto;
 }
 .pl-leader-photo-wrap img {
-    width: 100px;
-    height: 100px;
+    width: 150px;
+    height: 150px;
     object-fit: cover;
     display: block;
 }
 .pl-leader-placeholder {
-    width: 100px;
-    height: 100px;
+    width: 150px;
+    height: 150px;
     background: #2a2a35;
     display: flex;
     align-items: center;
     justify-content: center;
     color: rgba(255,255,255,.4);
-    font-size: 1.5rem;
+    font-size: 2rem;
 }
 .pl-leader-class-badge {
     position: absolute;
     left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,.72);
     color: #ffc107;
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: .3px;
-    padding: 3px 0;
+    letter-spacing: .5px;
+    padding: 4px 0;
     text-align: center;
 }
 .pl-leader-name {
     font-weight: 700;
-    font-size: 13px;
-    margin-top: 8px;
+    font-size: 15px;
+    margin-top: 10px;
 }
 .pl-leader-name a {
     color: #fff;
@@ -419,17 +420,7 @@
 }
 .pl-station-link:hover { text-decoration: underline; }
 
-/* Чемпионы завершённого сезона */
-.pl-champs-block { margin: 12px 0 4px; }
-.pl-champs-title {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: rgba(255,255,255,.45);
-    margin-bottom: 10px;
-    text-align: center;
-}
+/* Лидеры/чемпионы сезона — аккордеон (использует .pl-upcoming-*) */
 .pl-champs-row {
     display: flex;
     flex-wrap: wrap;

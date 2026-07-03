@@ -78,6 +78,12 @@ class PulseApp {
         return `${n} этапов`;
     }
 
+    classesCount(n) {
+        if (n % 10 === 1 && n % 100 !== 11) return `${n} класс`;
+        if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return `${n} класса`;
+        return `${n} классов`;
+    }
+
     // ── Производные данные ────────────────────────────────────────────────
 
     filteredStages() {
@@ -361,10 +367,18 @@ class PulseApp {
             </div>`;
         }).join('');
         const title = champ.title_prefix || 'Лидеры';
-        return `<div class="pl-champs-block">
-            <div class="pl-champs-title">${this._esc(title)} сезона · ${this._esc(champ.title)}</div>
-            <div class="pl-champs-row">${items}</div>
-        </div>`;
+        return `
+        <details class="pl-upcoming-accordion">
+            <summary class="pl-upcoming-summary">
+                <i class="fas fa-crown"></i>
+                ${this._esc(title)} сезона · ${this._esc(champ.title)}
+                <span class="pl-upcoming-count">${this.classesCount(winners.length)}</span>
+                <i class="fas fa-chevron-down pl-upcoming-chevron"></i>
+            </summary>
+            <div class="pl-upcoming-body">
+                <div class="pl-champs-row">${items}</div>
+            </div>
+        </details>`;
     }
 
     _renderStation(stage) {
