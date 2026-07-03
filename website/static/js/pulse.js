@@ -96,27 +96,6 @@ class PulseApp {
         return stages;
     }
 
-    filteredChampions() {
-        const classOrder = ['micro', 'mini', 'junior', 'senior', 'dd2', 'dd2 masters'];
-        const classRank = c => {
-            const name = c.class.toLowerCase();
-            if (name.includes('dd2 masters')) return classOrder.indexOf('dd2 masters');
-            const i = classOrder.findIndex(k => name.includes(k));
-            return i === -1 ? 99 : i;
-        };
-        const result = [];
-        for (const ch of this.data.championships || []) {
-            if (!ch.is_current || ch.is_completed) continue;
-            if (this.activeTypes.size > 0 && !this.activeTypes.has(ch.type)) continue;
-            for (const c of ch.champions || []) {
-                if (c.position !== 1) continue;
-                if (this.activeClasses.size > 0 && !this.activeClasses.has(c.class)) continue;
-                result.push(c);
-            }
-        }
-        return result.sort((a, b) => classRank(a) - classRank(b));
-    }
-
     // Топ-шасси считается по type+class фильтрам (не по трассе)
     computeChassis() {
         let stages = this.data.stages || [];
@@ -154,11 +133,9 @@ class PulseApp {
 
     renderAll() {
         const stages   = this.filteredStages();
-        const champions = this.filteredChampions();
         const chassis  = this.computeChassis();
 
         this.renderFilters();
-        this.renderLeaders(champions);
         this.renderTimeline(stages);
         this.renderChassis(chassis);
         this.renderTrackList(stages);
@@ -225,35 +202,6 @@ class PulseApp {
             resetBtn.style.display = activeSet.size > 0 ? '' : 'none';
             resetBtn.onclick = onReset;
         }
-    }
-
-    // ── Лидеры ────────────────────────────────────────────────────────────
-
-    renderLeaders(champions) {
-        const el = document.getElementById('pl-leaders-strip');
-        if (!el) return;
-
-        if (!champions.length) {
-            el.innerHTML = `<div class="pl-empty"><i class="fas fa-crown"></i><p>Нет данных о лидерах за выбранный период</p></div>`;
-            return;
-        }
-
-        el.innerHTML = champions.map((c, i) => {
-            const ring = (i === 0 && this.activeClasses.size === 0) ? '#ffc107' : '#2a2a35';
-            const photoHtml = c.photo
-                ? `<img src="${this._esc(c.photo)}" alt="${this._esc(c.name)}">`
-                : `<div class="pl-leader-placeholder"><i class="fas fa-user"></i></div>`;
-            const meta = (c.race_number ? `#${c.race_number} · ` : '') + `${c.points} очк.`;
-            return `
-            <div class="pl-leader-card">
-                <div class="pl-leader-photo-wrap" style="border-color:${ring}">
-                    ${photoHtml}
-                    <div class="pl-leader-class-badge">${this._esc(c.class)}</div>
-                </div>
-                <div class="pl-leader-name"><a href="${this._esc(c.url)}">${this._esc(c.name)}</a></div>
-                <div class="pl-leader-meta">${meta}</div>
-            </div>`;
-        }).join('');
     }
 
     // ── Таймлайн ──────────────────────────────────────────────────────────
@@ -363,8 +311,9 @@ class PulseApp {
                     <div class="pl-finish-flag"></div>
                     <span class="pl-finish-label">Финиш · ${this._esc(group.date_last_full)} · ${this._esc(group.title)}</span>
                 </div>`;
-                html += this._renderChampionsMini(group.id);
             }
+
+            html += this._renderStandingsBlock(group.id);
 
             if (isNextUpcomingHere) {
                 html += this._renderStation(nextUpcoming);
@@ -384,7 +333,7 @@ class PulseApp {
         el.innerHTML = html;
     }
 
-    _renderChampionsMini(champId) {
+    _renderStandingsBlock(champId) {
         const classOrder = ['micro', 'mini', 'junior', 'senior', 'dd2', 'dd2 masters'];
         const classRank = name => {
             const n = name.toLowerCase();
@@ -411,8 +360,9 @@ class PulseApp {
                 <div class="pl-leader-name"><a href="${this._esc(c.url)}">${this._esc(c.name)}</a></div>
             </div>`;
         }).join('');
+        const title = champ.title_prefix || 'Лидеры';
         return `<div class="pl-champs-block">
-            <div class="pl-champs-title">Чемпионы сезона · ${this._esc(champ.title)}</div>
+            <div class="pl-champs-title">${this._esc(title)} сезона · ${this._esc(champ.title)}</div>
             <div class="pl-champs-row">${items}</div>
         </div>`;
     }
@@ -596,10 +546,8 @@ class PulseApp {
 
     showLoading() {
         const spinner = `<div class="pl-empty"><div class="spinner-border text-warning" role="status" style="width:3rem;height:3rem"></div><p style="margin-top:12px">Загружаем данные…</p></div>`;
-        ['pl-leaders-strip', 'pl-timeline'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.innerHTML = spinner;
-        });
+        const el = document.getElementById('pl-timeline');
+        if (el) el.innerHTML = spinner;
     }
 
     showError() {
@@ -609,10 +557,8 @@ class PulseApp {
             <p style="color:#dc3545">Ошибка загрузки данных</p>
             <button class="btn btn-outline-warning btn-sm mt-2" onclick="location.reload()">Обновить страницу</button>
         </div>`;
-        ['pl-leaders-strip', 'pl-timeline'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.innerHTML = html;
-        });
+        const el = document.getElementById('pl-timeline');
+        if (el) el.innerHTML = html;
     }
 
     // ── Утилиты ───────────────────────────────────────────────────────────

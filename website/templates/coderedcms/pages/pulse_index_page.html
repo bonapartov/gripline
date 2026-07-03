@@ -185,21 +185,7 @@
 }
 .pl-chassis-link:hover { color: #ffc107; }
 
-/* ── Лидеры ─────────────────────────────────────────────────────────── */
-.pl-leaders-strip {
-    display: flex;
-    gap: 18px;
-    overflow-x: auto;
-    justify-content: center;
-    padding: 20px 24px;
-    background: #1a1a25;
-    border: 1px solid #2a2a35;
-    border-radius: 12px;
-}
-.pl-leaders-strip::-webkit-scrollbar { height: 4px; }
-.pl-leaders-strip::-webkit-scrollbar-track { background: #2a2a35; }
-.pl-leaders-strip::-webkit-scrollbar-thumb { background: #ffc107; border-radius: 4px; }
-
+/* ── Карточка лидера/чемпиона (используется внутри блока хроники) ─────── */
 .pl-leader-card {
     width: 170px;
     flex-shrink: 0;
@@ -285,6 +271,7 @@
     border: 3px solid #15151c;
 }
 .pl-stationcard {
+    position: relative;
     background: #1a1a25;
     border: 1px solid #2a2a35;
     border-radius: 12px;
@@ -331,6 +318,7 @@
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
+    padding-right: 100px;
 }
 .pl-station-title {
     display: flex;
@@ -338,6 +326,7 @@
     gap: 8px;
     margin-bottom: 10px;
     flex-wrap: wrap;
+    padding-right: 100px;
 }
 .pl-station-name {
     font-size: 16px;
@@ -359,12 +348,11 @@
 }
 /* Победители по классам */
 .pl-winners-row {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
     gap: 16px 28px;
 }
 .pl-winners-col {
-    flex: 1 1 130px;
     min-width: 0;
 }
 .pl-class-badge {
@@ -427,13 +415,14 @@
     font-family: var(--gl-font-mono, 'JetBrains Mono', monospace);
 }
 .pl-station-link {
-    flex-shrink: 0;
+    position: absolute;
+    top: 16px;
+    right: 16px;
     color: #ffc107;
     font-size: 12px;
     font-weight: 600;
     text-decoration: none;
     white-space: nowrap;
-    padding-top: 4px;
 }
 .pl-station-link:hover { text-decoration: underline; }
 
@@ -773,15 +762,7 @@ details[open] .pl-upcoming-chevron {
         </div>
     </div>
 
-    <!-- 4. Лидеры -->
-    <section class="pl-section">
-        <h2 class="pl-section-title"><i class="fas fa-crown" style="color:#ffc107"></i> ЛИДЕРЫ СЕЗОНА</h2>
-        <div id="pl-leaders-strip" class="pl-leaders-strip">
-            <div class="pl-empty"><div class="spinner-border text-warning" role="status"></div></div>
-        </div>
-    </section>
-
-    <!-- 5. Хроника -->
+    <!-- 4. Хроника -->
     <section class="pl-section">
         <div class="pl-section-header pl-section-header--blue">
             <h2 class="pl-section-title" style="border:none;padding:0;margin:0">
