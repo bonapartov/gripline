@@ -688,6 +688,57 @@ def yandex_login(request):
     return redirect(_rev('social:begin', args=['yandex-oauth2']) + f'?role={role}')
 
 
+@csrf_exempt
+def vk_id_widget_complete(request):
+    """
+    Завершение входа для виджета VK ID SDK (OneTap).
+
+    VK ID требует официальный SDK-виджет вместо прямого редиректа на
+    id.vk.ru/authorize (иначе платформа блокирует вход: «Сервис заблокирован»).
+    Виджет сам обменивает code на access_token в браузере (VKID.Auth.exchangeCode) —
+    сервер code_verifier не видит и участвовать в обмене не может, поэтому
+    здесь запускается только вторая половина стандартного pipeline
+    python-social-auth: access_token → user_data() (проверка токена на стороне VK)
+    → SOCIAL_AUTH_PIPELINE (создание/связывание пользователя) → login().
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    settings_obj = SocialAuthSettings.get()
+    if not settings_obj.vk_enabled:
+        return JsonResponse({'error': 'Вход через VK ID временно недоступен.'}, status=403)
+
+    try:
+        payload = json.loads(request.body)
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'Некорректный запрос.'}, status=400)
+
+    access_token = payload.get('access_token')
+    if not access_token:
+        return JsonResponse({'error': 'Не получен access_token.'}, status=400)
+
+    role = payload.get('role', 'pilot')
+    if role not in ('pilot', 'team', 'organizer'):
+        role = 'pilot'
+    request.session['role'] = role
+
+    from social_django.utils import load_strategy, load_backend
+    strategy = load_strategy(request)
+    backend = load_backend(strategy, 'vk-id', redirect_uri=None)
+
+    try:
+        user = backend.do_auth(access_token, request=request)
+    except Exception as e:
+        return JsonResponse({'error': f'Ошибка VK ID: {e}'}, status=400)
+
+    if not isinstance(user, User) or not user.is_active:
+        return JsonResponse({'error': 'Не удалось войти через VK ID.'}, status=400)
+
+    user.backend = f'{backend.__module__}.{backend.__class__.__name__}'
+    login(request, user)
+    return JsonResponse({'success': True, 'redirect': '/accounts/profile/'})
+
+
 def yandex_search_drivers(request):
     """AJAX: поиск Driver по имени/фамилии"""
     q = request.GET.get('q', '').strip()

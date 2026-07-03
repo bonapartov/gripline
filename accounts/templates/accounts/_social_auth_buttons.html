@@ -16,12 +16,68 @@
         </a>
         {% endif %}
         {% if social_auth.vk_enabled %}
-        <a href="{% url 'social:begin' 'vk-id' %}?role={{ role|default:'pilot' }}"
-           style="flex:1;display:flex;align-items:center;justify-content:center;gap:0.5rem;background:#0077ff;color:#fff;padding:0.7rem 0.5rem;border-radius:6px;text-decoration:none;font-weight:600;font-size:0.9rem;min-width:0;">
-            <i class="fab fa-vk" style="flex-shrink:0;font-size:1.1rem;"></i>
-            VK ID
-        </a>
+        <div id="vkIdContainer" style="flex:1;min-width:0;"></div>
         {% endif %}
     </div>
 </div>
+{% if social_auth.vk_enabled %}
+<script src="https://unpkg.com/@vkid/sdk@<3.0.0/dist-sdk/umd/index.js"></script>
+<script>
+(function () {
+    if (!('VKIDSDK' in window)) return;
+    var VKID = window.VKIDSDK;
+
+    VKID.Config.init({
+        app: {{ social_auth.vk_client_id }},
+        redirectUrl: 'https://gripline.ru/auth/complete/vk-id/',
+        responseMode: VKID.ConfigResponseMode.Callback,
+        source: VKID.ConfigSource.LOWCODE,
+        scope: 'email',
+    });
+
+    function getCookie(name) {
+        var v = null;
+        if (document.cookie) {
+            document.cookie.split(';').forEach(function (c) {
+                c = c.trim();
+                if (c.indexOf(name + '=') === 0) v = decodeURIComponent(c.slice(name.length + 1));
+            });
+        }
+        return v;
+    }
+
+    function vkidOnError(error) {
+        console.error('VK ID: ошибка виджета', error);
+    }
+
+    function vkidOnSuccess(data) {
+        fetch('{% url "accounts:vk_id_widget_complete" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({ access_token: data.access_token, role: '{{ role|default:"pilot" }}' }),
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+                if (res.success) {
+                    window.location.href = res.redirect;
+                } else {
+                    console.error('VK ID: ошибка входа', res.error);
+                }
+            })
+            .catch(vkidOnError);
+    }
+
+    new VKID.OneTap().render({
+        container: document.getElementById('vkIdContainer'),
+        showAlternativeLogin: true,
+    })
+        .on(VKID.WidgetEvents.ERROR, vkidOnError)
+        .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, function (payload) {
+            VKID.Auth.exchangeCode(payload.code, payload.device_id)
+                .then(vkidOnSuccess)
+                .catch(vkidOnError);
+        });
+})();
+</script>
+{% endif %}
 {% endif %}

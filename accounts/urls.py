@@ -28,6 +28,10 @@ urlpatterns = [
 
     # Yandex OAuth (legacy thin wrapper → social:begin; callback handled by social_django)
     path('yandex/login/', views.yandex_login, name='yandex_login'),
+
+    # VK ID SDK widget (OneTap) — обмен кода на токен идёт в браузере,
+    # сюда попадает уже готовый access_token
+    path('vk-id/widget-complete/', views.vk_id_widget_complete, name='vk_id_widget_complete'),
     path('yandex/onboarding/pilot/', views.yandex_pilot_onboarding, name='yandex_pilot_onboarding'),
     path('yandex/onboarding/team/', views.yandex_team_onboarding, name='yandex_team_onboarding'),
     path('yandex/onboarding/organizer/', views.yandex_organizer_onboarding, name='yandex_organizer_onboarding'),
