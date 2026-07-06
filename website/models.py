@@ -1386,6 +1386,25 @@ class RaceResult(Orderable):
             return min(s1) + min(s2) + min(s3)
         return None
 
+    @property
+    def ideal_lap_session(self):
+        """Сессия, если все три сектора идеального круга взяты из неё же; иначе None (сектора вразнобой)."""
+        s1 = [t for t in [self.best_s1_ms, self.qual_s1_ms, self.pre_final_s1_ms] if t]
+        s2 = [t for t in [self.best_s2_ms, self.qual_s2_ms, self.pre_final_s2_ms] if t]
+        s3 = [t for t in [self.best_s3_ms, self.qual_s3_ms, self.pre_final_s3_ms] if t]
+        if not (s1 and s2 and s3):
+            return None
+        min_s1, min_s2, min_s3 = min(s1), min(s2), min(s3)
+        sessions = {
+            'qual': (self.qual_s1_ms, self.qual_s2_ms, self.qual_s3_ms),
+            'pre_final': (self.pre_final_s1_ms, self.pre_final_s2_ms, self.pre_final_s3_ms),
+            'final': (self.best_s1_ms, self.best_s2_ms, self.best_s3_ms),
+        }
+        for session, (a, b, c) in sessions.items():
+            if a == min_s1 and b == min_s2 and c == min_s3:
+                return session
+        return None
+
     class Meta:
         verbose_name = "Результат"
         verbose_name_plural = "Результаты"

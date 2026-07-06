@@ -311,8 +311,15 @@
                                             {% endif %}
                                             <span class="font-monospace text-info small">{{ result.best_lap_all_ms|laptime }}</span>
                                         </td>
-                                        <td class="align-middle text-end font-monospace text-secondary small">
-                                            {{ result.ideal_lap_all_ms|laptime }}
+                                        <td class="align-middle text-end">
+                                            {% if result.ideal_lap_session == 'qual' %}
+                                                <span class="badge bg-primary me-1" style="font-size:10px;" title="Квалификация">К</span>
+                                            {% elif result.ideal_lap_session == 'pre_final' %}
+                                                <span class="badge bg-warning text-dark me-1" style="font-size:10px;" title="Предфинал">Пф</span>
+                                            {% elif result.ideal_lap_session == 'final' %}
+                                                <span class="badge bg-success me-1" style="font-size:10px;" title="Финал">Ф</span>
+                                            {% endif %}
+                                            <span class="font-monospace text-secondary small">{{ result.ideal_lap_all_ms|laptime }}</span>
                                         </td>
                                         <td class="align-middle text-end fw-bold fs-5 text-primary">
                                             {{ result.points|floatformat:"0" }}
