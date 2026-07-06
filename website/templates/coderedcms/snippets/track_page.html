@@ -1,5 +1,5 @@
 {% extends "coderedcms/pages/web_page.html" %}
-{% load wagtailimages_tags %}
+{% load wagtailimages_tags website_tags %}
 
 {% block content %}
 <style>
@@ -163,6 +163,56 @@
             </td>
         </tr>
     </table>
+
+    <!-- Рекорды трассы -->
+    <div class="mb-4">
+        <h3 class="border-bottom border-primary pb-2 mb-4 text-uppercase fw-bold">
+            <i class="fas fa-stopwatch me-2 text-info"></i>Рекорды трассы
+        </h3>
+
+        {% if track_records %}
+            <div class="table-responsive">
+                <table class="table table-dark table-hover border-secondary">
+                    <thead>
+                        <tr>
+                            <th>Класс</th>
+                            <th>Пилот</th>
+                            <th>Круг</th>
+                            <th>Дата</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in track_records %}
+                        <tr>
+                            <td><span class="class-badge">{{ record.race_class.name }}</span></td>
+                            <td>
+                                <a href="{{ record.driver.get_absolute_url }}" class="text-white text-decoration-none fw-bold">
+                                    {{ record.driver.full_name }}
+                                </a>
+                            </td>
+                            <td class="text-warning fw-bold">
+                                <a href="{{ record.event_url }}" class="text-warning text-decoration-none fw-bold" title="Результаты этапа">{{ record.lap_ms|laptime }}</a>
+                                {% if record.session == 'qual' %}
+                                <span class="badge bg-primary ms-1" style="font-size:10px; border-radius:4px;" title="Квалификация">К</span>
+                                {% elif record.session == 'pre_final' %}
+                                <span class="badge bg-warning text-dark ms-1" style="font-size:10px; border-radius:4px;" title="Предфинал">Пф</span>
+                                {% elif record.session == 'final' %}
+                                <span class="badge bg-success ms-1" style="font-size:10px; border-radius:4px;" title="Финал">Ф</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-muted">{% if record.date %}{{ record.date|date:"d.m.Y" }}{% else %}—{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-stopwatch fa-3x mb-3"></i>
+                <p class="mb-0">На этой трассе ещё нет результатов с временем круга</p>
+            </div>
+        {% endif %}
+    </div>
 
     <div class="row">
 

@@ -452,12 +452,39 @@ def track_detail_view(request, slug):
         key=lambda x: x['start']
     )
 
+    # Рекорды трассы: лучший круг в каждом классе за всю историю трассы
+    track_results = RaceResult.objects.filter(
+        group__page__track=track,
+        group__page__live=True,
+    ).select_related('driver', 'group__race_class', 'group__page')
+
+    records_by_class = {}
+    for result in track_results:
+        lap_ms = result.best_lap_all_ms
+        if lap_ms is None:
+            continue
+        race_class = result.group.race_class
+        current = records_by_class.get(race_class.id)
+        if current is None or lap_ms < current['lap_ms']:
+            occurrence = result.group.page.occurrences.first()
+            records_by_class[race_class.id] = {
+                'race_class': race_class,
+                'lap_ms': lap_ms,
+                'driver': result.driver,
+                'date': occurrence.start if occurrence else None,
+                'session': result.best_lap_session,
+                'event_url': result.group.page.url,
+            }
+
+    track_records = sorted(records_by_class.values(), key=lambda r: r['race_class'].name)
+
     return render(request, "coderedcms/snippets/track_page.html", {
         "track": track,
         "object": track,
         "page": track,
         "past_events": past_events,
         "upcoming_events": upcoming_events,
+        "track_records": track_records,
         "site": current_site,
     })
 def chassis_detail_view(request, slug):
