@@ -230,6 +230,12 @@ EMAIL_TIMEOUT = 5
 BASE_URL = 'http://127.0.0.1:8000'  # для продакшена заменить на реальный домен
 
 
+# Форма предпросмотра импорта результатов (website/import_utils.py) генерирует
+# ~18 полей на строку CSV — при классах с 60+ пилотами дефолтный лимит Django (1000)
+# превышается, и запрос падает с Bad Request (400) без пояснения.
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
+
+
 # ── Social Auth (social-auth-app-django) ──────────────────────────────────────
 
 AUTHENTICATION_BACKENDS = [
