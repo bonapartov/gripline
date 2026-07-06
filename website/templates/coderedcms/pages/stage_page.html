@@ -224,7 +224,9 @@
             </div>
         </div>
     </div>
-    
+
+    {% include "includes/weather_widget.html" with weather=page.get_stage_weather %}
+
     <!-- КЛАССЫ ЭТАПА -->
     <div class="class-list">
         {% for event in page.get_child_classes %}

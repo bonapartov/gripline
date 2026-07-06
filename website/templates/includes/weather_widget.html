@@ -1,0 +1,104 @@
+{% if weather %}
+<style>
+    .weather-widget {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+    }
+    .weather-badge {
+        font-size: 0.7rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        white-space: nowrap;
+    }
+    .weather-badge-forecast {
+        background-color: rgba(13, 202, 240, 0.15);
+        color: #0dcaf0;
+        border: 1px solid #0dcaf0;
+    }
+    .weather-badge-estimate {
+        background-color: rgba(255, 193, 7, 0.15);
+        color: #ffc107;
+        border: 1px dashed #ffc107;
+    }
+    .weather-badge-archive {
+        background-color: #2a2a35;
+        color: #adb5bd;
+        border: 1px solid #3a3a45;
+    }
+    .weather-temp {
+        font-size: 1.5rem;
+        font-weight: 900;
+        color: #fff;
+    }
+    .weather-hour-slot {
+        background-color: #0d0d15;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 0.5rem 0.75rem;
+        min-width: 64px;
+    }
+    .weather-disclaimer {
+        border-left: 3px solid #ffc107;
+        padding-left: 0.75rem;
+    }
+</style>
+
+{% if compact %}
+    <div class="d-flex align-items-center gap-2 flex-wrap mt-2">
+        <i class="fas {{ weather.icon }} text-info"></i>
+        <span class="text-white fw-bold">{{ weather.temp_min }}°…{{ weather.temp_max }}°C</span>
+        <span class="text-muted small">{{ weather.description }}</span>
+        <span class="weather-badge weather-badge-{{ weather.category }}">{{ weather.badge_label }}</span>
+    </div>
+{% else %}
+    <div class="weather-widget">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-3">
+                <i class="fas {{ weather.icon }} fa-2x text-info"></i>
+                <div>
+                    <div class="weather-temp">{{ weather.temp_min }}° … {{ weather.temp_max }}°C</div>
+                    <div class="text-muted small">{{ weather.description }}</div>
+                </div>
+            </div>
+            <span class="weather-badge weather-badge-{{ weather.category }}">{{ weather.badge_label }}</span>
+        </div>
+
+        <div class="d-flex flex-wrap gap-3 mt-3">
+            {% if weather.humidity_avg %}
+            <span class="text-info small"><i class="fas fa-droplet me-1"></i>влажность {{ weather.humidity_avg }}%</span>
+            {% endif %}
+            {% if weather.wind_speed_avg %}
+            <span class="text-info small"><i class="fas fa-wind me-1"></i>ветер {{ weather.wind_speed_avg|floatformat:1 }} м/с</span>
+            {% endif %}
+            {% if weather.precipitation_total %}
+            <span class="text-info small"><i class="fas fa-cloud-rain me-1"></i>осадки {{ weather.precipitation_total|floatformat:1 }} мм</span>
+            {% endif %}
+        </div>
+
+        {% if weather.hourly %}
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            {% for slot in weather.hourly %}
+            <div class="weather-hour-slot text-center">
+                <div class="small text-muted">{{ slot.time }}</div>
+                <i class="fas {{ slot.icon }} text-info my-1"></i>
+                <div class="fw-bold text-white">{{ slot.temp }}°</div>
+                {% if slot.precipitation %}<div class="small text-info">{{ slot.precipitation|floatformat:1 }} мм</div>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if weather.disclaimer %}
+        <div class="weather-disclaimer small text-muted mt-3">
+            <i class="fas fa-info-circle me-1"></i>{{ weather.disclaimer }}
+        </div>
+        {% endif %}
+    </div>
+{% endif %}
+{% endif %}

@@ -136,31 +136,37 @@
                             <div class="d-flex gap-3 flex-wrap justify-content-end">
                                 {% if group.air_temperature %}
                                 <span class="text-info" title="Температура">
-                                    🌡️ {{ group.air_temperature|floatformat:1 }}°C
+                                    <i class="fas fa-temperature-half me-1"></i>{{ group.air_temperature|floatformat:1 }}°C
                                 </span>
                                 {% endif %}
 
                                 {% if group.humidity %}
                                 <span class="text-info" title="Влажность">
-                                    💧 {{ group.humidity }}%
+                                    <i class="fas fa-droplet me-1"></i>{{ group.humidity }}%
                                 </span>
                                 {% endif %}
 
                                 {% if group.wind_speed %}
                                 <span class="text-info" title="Скорость ветра">
-                                    🌀 {{ group.wind_speed|floatformat:1 }} м/с
+                                    <i class="fas fa-wind me-1"></i>{{ group.wind_speed|floatformat:1 }} м/с
                                 </span>
                                 {% endif %}
 
                                 {% if group.pressure %}
                                 <span class="text-info" title="Давление">
-                                    📊 {{ group.pressure }} гПа
+                                    <i class="fas fa-gauge me-1"></i>{{ group.pressure }} мм рт.ст.
                                 </span>
                                 {% endif %}
 
                                 {% if group.uv_index %}
                                 <span class="text-info" title="УФ-индекс">
-                                    ☀️ {{ group.uv_index|floatformat:1 }}
+                                    <i class="fas fa-sun me-1"></i>{{ group.uv_index|floatformat:1 }}
+                                </span>
+                                {% endif %}
+
+                                {% if group.precipitation %}
+                                <span class="text-info" title="Осадки">
+                                    <i class="fas fa-cloud-rain me-1"></i>{{ group.precipitation|floatformat:1 }} мм
                                 </span>
                                 {% endif %}
                             </div>

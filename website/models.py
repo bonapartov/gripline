@@ -2123,7 +2123,11 @@ class HomePage(CoderedWebPage):
                     'url': upcoming_stage.url,
                     'is_current': False,
                 }
-        
+
+        if next_event:
+            from .weather_utils import get_stage_weather
+            next_event['weather'] = get_stage_weather(next_event['event'])
+
         context['next_event'] = next_event
 
         # --- БЛОК 2: Последние новости (без статей матчасти) ---
@@ -2302,6 +2306,11 @@ class StagePage(CoderedWebPage):
             'start': self.start_date,
             'end': self.end_date,
         }
+
+    def get_stage_weather(self):
+        """Погода для этапа (прогноз/оценка/архив) — вызывается из шаблона как page.get_stage_weather."""
+        from .weather_utils import get_stage_weather
+        return get_stage_weather(self)
 
     def get_child_classes(self):
         """
