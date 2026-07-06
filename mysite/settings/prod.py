@@ -13,6 +13,9 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # Add your site's domain name(s) here.
 ALLOWED_HOSTS = ['gripline.ru', 'www.gripline.ru', 'cleantogo.ru', 'www.admin.cleantogo.ru']
 
+# Базовый URL сайта для ссылок в письмах (base.py содержит localhost-адрес для локальной разработки)
+BASE_URL = 'https://gripline.ru'
+
 # PostgreSQL Database (overrides base.py)
 DATABASES = {
     'default': {
