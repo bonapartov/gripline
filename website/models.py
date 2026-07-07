@@ -31,6 +31,7 @@ from django.http import HttpResponse
 from wagtail.fields import StreamField
 from coderedcms.blocks import CONTENT_STREAMBLOCKS
 from wagtailmarkdown.blocks import MarkdownBlock
+from django.utils.html import format_html, format_html_join
 
 # ---------- СТРАНИЦЫ (PAGES) ----------
 
@@ -200,6 +201,51 @@ class EventPage(CoderedEventPage):
         APIField('admin_title'),
     ]
 
+class ColorSwatchWidget(forms.Widget):
+    """Пикер цвета палитрой готовых образцов — по аналогии с выбором цвета в ЛК организатора."""
+
+    PALETTE = [
+        '#e63946', '#ea580c', '#d97706',
+        '#16a34a', '#0891b2', '#2563eb',
+        '#4f46e5', '#7c3aed', '#db2777',
+        '#65a30d', '#0e7490', '#b91c1c',
+        '#ffc107', '#0dcaf0',
+    ]
+
+    def render(self, name, value, attrs=None, renderer=None):
+        value = value or '#ffc107'
+        widget_id = (attrs or {}).get('id') or f'id_{name}'
+        swatches = format_html_join(
+            '',
+            '<span class="gl-color-swatch{}" style="background:{};" data-color="{}" title="{}"></span>',
+            ((' selected' if c == value else '', c, c, c) for c in self.PALETTE),
+        )
+        return format_html(
+            '''<input type="hidden" name="{name}" id="{id}" value="{value}">
+<div class="gl-color-swatches" data-target="{id}">{swatches}</div>
+<style>
+    .gl-color-swatches {{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }}
+    .gl-color-swatch {{ width: 32px; height: 32px; border-radius: 6px; cursor: pointer; border: 3px solid transparent; transition: transform .15s, border-color .15s; }}
+    .gl-color-swatch:hover {{ transform: scale(1.12); }}
+    .gl-color-swatch.selected {{ border-color: #333; transform: scale(1.12); }}
+</style>
+<script>
+    (function() {{
+        document.querySelectorAll('.gl-color-swatches[data-target="{id}"] .gl-color-swatch').forEach(function(el) {{
+            el.addEventListener('click', function() {{
+                var box = this.parentElement;
+                var target = document.getElementById(box.dataset.target);
+                target.value = this.dataset.color;
+                box.querySelectorAll('.gl-color-swatch').forEach(function(s) {{ s.classList.remove('selected'); }});
+                this.classList.add('selected');
+            }});
+        }});
+    }})();
+</script>''',
+            name=name, id=widget_id, value=value, swatches=swatches,
+        )
+
+
 class ChampionshipPage(CoderedWebPage):
     class Meta:
         verbose_name = "Чемпионат (Хаб)"
@@ -229,7 +275,7 @@ class ChampionshipPage(CoderedWebPage):
     # Основные поля
     content_panels = CoderedWebPage.content_panels + [
         FieldPanel('is_completed'),
-        FieldPanel('calendar_color', widget=forms.TextInput(attrs={'type': 'color'})),
+        FieldPanel('calendar_color', widget=ColorSwatchWidget),
         InlinePanel('championship_competition_types', label="Типы соревнований"),
     ]
 
