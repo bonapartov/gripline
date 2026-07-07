@@ -261,21 +261,12 @@ class ChampionshipPage(CoderedWebPage):
         help_text="Отметьте, если все этапы проведены"
     )
 
-    # Цвет чемпионата в общем календаре (используется для раскраски ячеек и разделения дня на секторы)
-    calendar_color = models.CharField(
-        "Цвет в календаре",
-        max_length=7,
-        default="#ffc107",
-        help_text="HEX-код цвета ячейки в общем календаре, например #ffc107"
-    )
-
     # Убираем competition_types как ManyToMany поле
     # Будем использовать отдельную модель через InlinePanel
 
     # Основные поля
     content_panels = CoderedWebPage.content_panels + [
         FieldPanel('is_completed'),
-        FieldPanel('calendar_color', widget=ColorSwatchWidget),
         InlinePanel('championship_competition_types', label="Типы соревнований"),
     ]
 
@@ -1947,8 +1938,7 @@ class EventCalendarPage(CoderedWebPage):
                 if org_s:
                     ed['color'] = org_s.championship.color or '#ffc107'
                 else:
-                    champ = ed.get('championship')
-                    ed['color'] = getattr(champ, 'calendar_color', None) or '#ffc107'
+                    ed['color'] = getattr(stage_page, 'calendar_color', None) or '#ffc107'
                 filtered.append(ed)
                 filtered_event_ids.add(ed['event'].id)
             enriched_events = filtered
@@ -2336,10 +2326,20 @@ class StagePage(CoderedWebPage):
     )
     # cover_image НЕ добавляем — оно уже есть в CoderedWebPage
 
+    # Цвет этапа в общем календаре (используется для раскраски ячеек и разделения дня на секторы,
+    # когда на одну дату приходится несколько разных этапов)
+    calendar_color = models.CharField(
+        "Цвет в календаре",
+        max_length=7,
+        default="#ffc107",
+        help_text="Цвет ячейки в общем календаре для этого этапа"
+    )
+
     content_panels = CoderedWebPage.content_panels + [
         FieldPanel('start_date'),
         FieldPanel('end_date'),
         FieldPanel('track'),
+        FieldPanel('calendar_color', widget=ColorSwatchWidget),
         # cover_image уже есть в родительских панелях
     ]
 
