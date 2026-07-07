@@ -215,12 +215,21 @@ class ChampionshipPage(CoderedWebPage):
         help_text="Отметьте, если все этапы проведены"
     )
 
+    # Цвет чемпионата в общем календаре (используется для раскраски ячеек и разделения дня на секторы)
+    calendar_color = models.CharField(
+        "Цвет в календаре",
+        max_length=7,
+        default="#ffc107",
+        help_text="HEX-код цвета ячейки в общем календаре, например #ffc107"
+    )
+
     # Убираем competition_types как ManyToMany поле
     # Будем использовать отдельную модель через InlinePanel
 
     # Основные поля
     content_panels = CoderedWebPage.content_panels + [
         FieldPanel('is_completed'),
+        FieldPanel('calendar_color', widget=forms.TextInput(attrs={'type': 'color'})),
         InlinePanel('championship_competition_types', label="Типы соревнований"),
     ]
 
@@ -1889,7 +1898,11 @@ class EventCalendarPage(CoderedWebPage):
                     if not org_s.is_published or not org_s.championship.is_published:
                         continue
                 ed['org_stage'] = org_s if (org_s and org_s.registration_enabled) else None
-                ed['color'] = org_s.championship.color or '#ffc107' if org_s else '#ffc107'
+                if org_s:
+                    ed['color'] = org_s.championship.color or '#ffc107'
+                else:
+                    champ = ed.get('championship')
+                    ed['color'] = getattr(champ, 'calendar_color', None) or '#ffc107'
                 filtered.append(ed)
                 filtered_event_ids.add(ed['event'].id)
             enriched_events = filtered
