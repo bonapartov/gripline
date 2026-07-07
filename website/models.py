@@ -213,8 +213,9 @@ class ColorSwatchWidget(forms.Widget):
     ]
 
     def render(self, name, value, attrs=None, renderer=None):
-        value = value or '#ffc107'
+        value = value or ''
         widget_id = (attrs or {}).get('id') or f'id_{name}'
+        unset_selected = '' if value else ' selected'
         swatches = format_html_join(
             '',
             '<span class="gl-color-swatch{}" style="background:{};" data-color="{}" title="{}"></span>',
@@ -222,12 +223,16 @@ class ColorSwatchWidget(forms.Widget):
         )
         return format_html(
             '''<input type="hidden" name="{name}" id="{id}" value="{value}">
-<div class="gl-color-swatches" data-target="{id}">{swatches}</div>
+<div class="gl-color-swatches" data-target="{id}">
+    <span class="gl-color-swatch gl-color-unset{unset_selected}" data-color="" title="Не задан — унаследуется от родителя">&times;</span>
+    {swatches}
+</div>
 <style>
     .gl-color-swatches {{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }}
     .gl-color-swatch {{ width: 32px; height: 32px; border-radius: 6px; cursor: pointer; border: 3px solid transparent; transition: transform .15s, border-color .15s; }}
     .gl-color-swatch:hover {{ transform: scale(1.12); }}
     .gl-color-swatch.selected {{ border-color: #333; transform: scale(1.12); }}
+    .gl-color-unset {{ background: repeating-linear-gradient(45deg, #888, #888 4px, #ccc 4px, #ccc 8px); display: flex; align-items: center; justify-content: center; font-weight: bold; color: #222; }}
 </style>
 <script>
     (function() {{
@@ -242,7 +247,7 @@ class ColorSwatchWidget(forms.Widget):
         }});
     }})();
 </script>''',
-            name=name, id=widget_id, value=value, swatches=swatches,
+            name=name, id=widget_id, value=value, swatches=swatches, unset_selected=unset_selected,
         )
 
 
@@ -261,12 +266,23 @@ class ChampionshipPage(CoderedWebPage):
         help_text="Отметьте, если все этапы проведены"
     )
 
+    # Цвет чемпионата в общем календаре. Наследуется всеми этапами, у которых цвет не задан явно,
+    # но не отменяет индивидуальный цвет, выбранный на конкретном этапе (StagePage.calendar_color).
+    calendar_color = models.CharField(
+        "Цвет в календаре",
+        max_length=7,
+        blank=True,
+        default="",
+        help_text="Цвет по умолчанию для всех этапов чемпионата, у которых цвет не задан индивидуально"
+    )
+
     # Убираем competition_types как ManyToMany поле
     # Будем использовать отдельную модель через InlinePanel
 
     # Основные поля
     content_panels = CoderedWebPage.content_panels + [
         FieldPanel('is_completed'),
+        FieldPanel('calendar_color', widget=ColorSwatchWidget),
         InlinePanel('championship_competition_types', label="Типы соревнований"),
     ]
 
@@ -1938,7 +1954,9 @@ class EventCalendarPage(CoderedWebPage):
                 if org_s:
                     ed['color'] = org_s.championship.color or '#ffc107'
                 else:
-                    ed['color'] = getattr(stage_page, 'calendar_color', None) or '#ffc107'
+                    stage_color = getattr(stage_page, 'calendar_color', '')
+                    champ_color = getattr(ed.get('championship'), 'calendar_color', '')
+                    ed['color'] = stage_color or champ_color or '#ffc107'
                 filtered.append(ed)
                 filtered_event_ids.add(ed['event'].id)
             enriched_events = filtered
@@ -2327,12 +2345,14 @@ class StagePage(CoderedWebPage):
     # cover_image НЕ добавляем — оно уже есть в CoderedWebPage
 
     # Цвет этапа в общем календаре (используется для раскраски ячеек и разделения дня на секторы,
-    # когда на одну дату приходится несколько разных этапов)
+    # когда на одну дату приходится несколько разных этапов). Если не задан — наследуется цвет
+    # родительского чемпионата (ChampionshipPage.calendar_color).
     calendar_color = models.CharField(
         "Цвет в календаре",
         max_length=7,
-        default="#ffc107",
-        help_text="Цвет ячейки в общем календаре для этого этапа"
+        blank=True,
+        default="",
+        help_text="Если не задан — используется цвет чемпионата"
     )
 
     content_panels = CoderedWebPage.content_panels + [
