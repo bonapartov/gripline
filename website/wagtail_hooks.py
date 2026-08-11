@@ -386,7 +386,7 @@ def insert_admin_js():
                                 const total = data.overhead_len + teaserField.value.length;
                                 const over = total > limit;
                                 counter.textContent = total + ' / ' + limit +
-                                    (data.has_image ? ' (с учётом фото и ссылки)' : ' (с учётом ссылки)') +
+                                    (data.has_image ? ' (с учётом заголовка, фото и ссылки)' : ' (с учётом заголовка и ссылки)') +
                                     (over && data.has_image ? ' — фото не поместится, уйдёт только текст' : '');
                                 counter.style.color = over ? '#dc3545' : '';
                                 counter.style.fontWeight = over ? 'bold' : 'normal';

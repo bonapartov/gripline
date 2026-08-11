@@ -40,13 +40,15 @@ def get_telegram_settings_for_page(page):
 
 
 def get_message_overhead(page):
-    """Длина всего в сообщении, кроме самого тизера: эмодзи, тег, текст ссылки
-    и служебные переводы строк. URL ссылки в подсчёт не входит — Telegram
-    считает длину уже после подстановки видимого текста <a>, не href.
-    Используется live-счётчиком символов тизера в Wagtail Admin."""
+    """Длина всего в сообщении, кроме самого тизера: эмодзи, заголовок статьи,
+    тег, текст ссылки и служебные переводы строк. URL ссылки в подсчёт не
+    входит — Telegram считает длину уже после подстановки видимого текста
+    <a> и <b>, не href. Используется live-счётчиком символов тизера
+    в Wagtail Admin."""
     tag, emoji = get_telegram_settings_for_page(page)
     link_text = TelegramSettings.get().link_text
-    return len(emoji) + len(tag) + len(link_text) + 4  # +4: пробел, \n\n, \n
+    # +6: пробел после эмодзи, \n\n после заголовка, \n\n перед тегом, \n перед ссылкой
+    return len(emoji) + len(page.title) + len(tag) + len(link_text) + 6
 
 
 def build_telegram_message(page):
@@ -61,8 +63,9 @@ def build_telegram_message(page):
     link_text = TelegramSettings.get().link_text
     link = f'<a href="{html.escape(url)}">{html.escape(link_text)}</a>'
 
+    safe_title = html.escape(page.title)
     safe_teaser = html.escape(page.telegram_teaser)
-    text = f"{emoji} {safe_teaser}\n\n{tag}\n{link}".strip()
+    text = f"{emoji} <b>{safe_title}</b>\n\n{safe_teaser}\n\n{tag}\n{link}".strip()
     return text
 
 
