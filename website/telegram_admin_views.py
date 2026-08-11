@@ -9,7 +9,7 @@ from django.utils import timezone
 from wagtail.models import Page
 
 from .models import ArticlePage
-from .telegram import send_to_telegram
+from .telegram import CAPTION_LIMIT, MESSAGE_LIMIT, get_message_overhead, send_to_telegram
 
 DOUBLE_CLICK_GUARD_SECONDS = 10
 
@@ -27,6 +27,7 @@ def telegram_status(request, page_id):
         return JsonResponse({"applicable": False})
 
     can_publish = article.permissions_for_user(request.user).can_publish()
+    has_image = bool(getattr(article, 'cover_image', None))
 
     return JsonResponse({
         "applicable": True,
@@ -34,6 +35,9 @@ def telegram_status(request, page_id):
         "live": article.live,
         "posted_at": article.telegram_posted_at.isoformat() if article.telegram_posted_at else None,
         "can_publish": can_publish,
+        "overhead_len": get_message_overhead(article),
+        "has_image": has_image,
+        "teaser_limit": CAPTION_LIMIT if has_image else MESSAGE_LIMIT,
     })
 
 

@@ -374,6 +374,29 @@ def insert_admin_js():
                     .then(data => {
                         if (!data.applicable) return;
 
+                        // === СЧЁТЧИК СИМВОЛОВ ТИЗЕРА (с учётом фото/ссылки) ===
+                        const teaserField = document.getElementById('id_telegram_teaser');
+                        if (teaserField && typeof data.overhead_len === 'number') {
+                            const limit = data.teaser_limit;
+                            const counter = document.createElement('div');
+                            counter.className = 'telegram-teaser-counter';
+                            counter.style.cssText = 'font-size:12px; margin-top:4px; text-align:right;';
+
+                            function updateCounter() {
+                                const total = data.overhead_len + teaserField.value.length;
+                                const over = total > limit;
+                                counter.textContent = total + ' / ' + limit +
+                                    (data.has_image ? ' (с учётом фото и ссылки)' : ' (с учётом ссылки)') +
+                                    (over && data.has_image ? ' — фото не поместится, уйдёт только текст' : '');
+                                counter.style.color = over ? '#dc3545' : '';
+                                counter.style.fontWeight = over ? 'bold' : 'normal';
+                            }
+
+                            teaserField.addEventListener('input', updateCounter);
+                            updateCounter();
+                            teaserField.insertAdjacentElement('afterend', counter);
+                        }
+
                         const btn = document.createElement('button');
                         btn.type = 'button';
                         btn.className = 'button bicolor icon icon-mail telegram-send-button';

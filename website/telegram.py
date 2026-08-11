@@ -19,6 +19,7 @@ logger = logging.getLogger('telegram_announce')
 
 REQUEST_TIMEOUT = 10  # секунд — не давать админ-запросу зависнуть, если Telegram API недоступен
 CAPTION_LIMIT = 1024  # лимит Telegram на подпись к фото
+MESSAGE_LIMIT = 4096  # лимит Telegram на текстовое сообщение (без фото)
 
 
 def get_telegram_settings_for_page(page):
@@ -36,6 +37,16 @@ def get_telegram_settings_for_page(page):
         return telegram_settings.tag_news, telegram_settings.emoji_news
 
     return '', ''
+
+
+def get_message_overhead(page):
+    """Длина всего в сообщении, кроме самого тизера: эмодзи, тег, текст ссылки
+    и служебные переводы строк. URL ссылки в подсчёт не входит — Telegram
+    считает длину уже после подстановки видимого текста <a>, не href.
+    Используется live-счётчиком символов тизера в Wagtail Admin."""
+    tag, emoji = get_telegram_settings_for_page(page)
+    link_text = TelegramSettings.get().link_text
+    return len(emoji) + len(tag) + len(link_text) + 4  # +4: пробел, \n\n, \n
 
 
 def build_telegram_message(page):
