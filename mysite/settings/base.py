@@ -45,8 +45,6 @@ INSTALLED_APPS = [
     # Wagtail CRX (CodeRed Extensions)
     "coderedcms",
     "django_bootstrap5",
-    "tg_bot",        # админ-бот
-    "tg_user_bot",   # пользовательский бот
     "import_export",
     "modelcluster",
     "taggit",
