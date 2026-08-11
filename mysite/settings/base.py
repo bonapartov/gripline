@@ -141,6 +141,13 @@ DATABASES = {
 # Секрет — только из окружения, никогда не в БД/админке.
 TELEGRAM_ANNOUNCE_BOT_TOKEN = os.getenv("TELEGRAM_ANNOUNCE_BOT_TOKEN")
 
+# Прокси для запросов к Telegram Bot API — нужен там, где хостер/провайдер
+# блокирует прямые соединения к api.telegram.org (напр. на проде, TCP:443
+# до Telegram глушится на уровне сети, хотя ICMP и остальной интернет
+# работают). Локально не задан — прямое соединение работает. Формат:
+# socks5h://127.0.0.1:10808 (локальный SOCKS5 от Xray, поднятого на сервере).
+TELEGRAM_PROXY_URL = os.getenv("TELEGRAM_PROXY_URL")
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

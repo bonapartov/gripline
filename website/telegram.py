@@ -72,6 +72,9 @@ def send_to_telegram(page, requesting_user):
     telegram_settings = TelegramSettings.get()
     message = build_telegram_message(page)
     image = getattr(page, 'cover_image', None)
+    # Прокси нужен там, где хостер блокирует прямые соединения к Telegram
+    # (см. settings.TELEGRAM_PROXY_URL). Локально не задан — идём напрямую.
+    proxies = {"https": settings.TELEGRAM_PROXY_URL} if settings.TELEGRAM_PROXY_URL else None
 
     try:
         if image and len(message) <= CAPTION_LIMIT:
@@ -89,6 +92,7 @@ def send_to_telegram(page, requesting_user):
                         "parse_mode": "HTML",
                     },
                     files={"photo": (os.path.basename(rendition.file.name), f)},
+                    proxies=proxies,
                     timeout=REQUEST_TIMEOUT,
                 )
         else:
@@ -103,6 +107,7 @@ def send_to_telegram(page, requesting_user):
                     "parse_mode": "HTML",
                     "disable_web_page_preview": False,
                 },
+                proxies=proxies,
                 timeout=REQUEST_TIMEOUT,
             )
         resp.raise_for_status()
