@@ -137,6 +137,29 @@ DATABASES = {
     }
 }
 
+# Токен бота для анонс-постинга в Telegram-канал (см. website/telegram.py).
+# Секрет — только из окружения, никогда не в БД/админке.
+TELEGRAM_ANNOUNCE_BOT_TOKEN = os.getenv("TELEGRAM_ANNOUNCE_BOT_TOKEN")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "loggers": {
+        # Никогда не логировать TELEGRAM_ANNOUNCE_BOT_TOKEN и полный текст
+        # исключений без фильтрации — см. website/telegram.py::send_to_telegram.
+        "telegram_announce": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

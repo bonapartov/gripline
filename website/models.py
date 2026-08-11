@@ -49,6 +49,26 @@ class ArticlePage(CoderedArticlePage):
         use_json_field=True,
     )
 
+    telegram_teaser = models.TextField(
+        max_length=900,
+        blank=True,
+        verbose_name="Тизер для Telegram",
+        help_text=(
+            "Короткий тизер для Telegram (3–5 предложений). "
+            "Лимит ~900 символов — оставляет запас под ссылку и подпись к фото "
+            "(Telegram ограничивает подпись к фото 1024 символами)."
+        ),
+    )
+    telegram_posted_at = models.DateTimeField(null=True, blank=True, editable=False)
+    telegram_posted_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        editable=False, related_name='+',
+    )
+
+    content_panels = CoderedArticlePage.content_panels + [
+        FieldPanel('telegram_teaser'),
+    ]
+
 class ArticleIndexPage(CoderedArticleIndexPage):
     class Meta:
         verbose_name = "Article Landing Page"
@@ -1627,6 +1647,60 @@ class AnalyticsSettings(models.Model):
             f"AnalyticsSettings (λ={self.lambda_active}/{self.lambda_inactive}, "
             f"inactive={self.inactive_threshold_days}d)"
         )
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
+class TelegramSettings(models.Model):
+    """
+    Singleton-модель настроек анонс-постинга в Telegram-канал.
+    Доступна через TelegramSettings.get().
+    Токен бота НЕ хранится здесь — только в переменной окружения
+    TELEGRAM_ANNOUNCE_BOT_TOKEN (см. website/telegram.py).
+    """
+
+    channel_id = models.CharField(
+        max_length=64,
+        blank=True,
+        verbose_name="Channel ID",
+        help_text="Например: @gripline_channel или числовой chat_id.",
+    )
+    tag_matchast = models.CharField(
+        max_length=32,
+        default="#матчасть",
+        verbose_name="Тег — Матчасть",
+    )
+    emoji_matchast = models.CharField(
+        max_length=8,
+        default="🔧",
+        verbose_name="Эмодзи — Матчасть",
+    )
+    tag_news = models.CharField(
+        max_length=32,
+        default="#новости",
+        verbose_name="Тег — Новости",
+    )
+    emoji_news = models.CharField(
+        max_length=8,
+        default="🏁",
+        verbose_name="Эмодзи — Новости",
+    )
+    link_text = models.CharField(
+        max_length=64,
+        default="Читать статью →",
+        verbose_name="Текст ссылки на статью",
+        help_text="Показывается вместо длинного URL в тексте поста.",
+    )
+
+    class Meta:
+        verbose_name = "Настройки Telegram"
+        verbose_name_plural = "Настройки Telegram"
+
+    def __str__(self):
+        return "Настройки Telegram-канала"
 
     @classmethod
     def get(cls):

@@ -1,5 +1,5 @@
 from wagtail_modeladmin.options import (ModelAdmin, ModelAdminGroup, modeladmin_register)
-from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage
+from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, ArticlePage
 from wagtail import hooks
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -7,6 +7,7 @@ from django.urls import path, reverse
 from .import_utils import import_results, import_preview, import_confirm, import_add_driver
 from wagtail.admin.menu import MenuItem
 from .admin_views import analytics_dashboard, analytics_status
+from .telegram_admin_views import telegram_status, telegram_send
 
 class DriverAdmin(ModelAdmin):
     model = Driver
@@ -131,6 +132,17 @@ class AnalyticsGroup(ModelAdminGroup):
     menu_icon = 'fa-bar-chart'
     items = (AnalyticsSettingsAdmin,)
 
+class TelegramSettingsAdmin(ModelAdmin):
+    model = TelegramSettings
+    menu_label = 'Telegram'
+    menu_icon = 'fa-paper-plane'
+    list_display = ('channel_id', 'tag_matchast', 'tag_news')
+
+class TelegramGroup(ModelAdminGroup):
+    menu_label = 'Telegram'
+    menu_icon = 'fa-paper-plane'
+    items = (TelegramSettingsAdmin,)
+
 # Регистрируем группы
 modeladmin_register(PilotsGroup)
 modeladmin_register(TeamsGroup)
@@ -138,6 +150,7 @@ modeladmin_register(EquipmentGroup)
 modeladmin_register(TyresGroup)
 modeladmin_register(TracksGroup)
 modeladmin_register(AnalyticsGroup)
+modeladmin_register(TelegramGroup)
 
 @hooks.register('register_admin_urls')
 def register_import_urls():
@@ -148,6 +161,8 @@ def register_import_urls():
         path('import/add-driver/', import_add_driver, name='event_import_add_driver'),
         path('analytics/', analytics_dashboard, name='analytics_dashboard'),
         path('analytics/status/', analytics_status, name='analytics_status'),
+        path('article/<int:page_id>/telegram-status/', telegram_status, name='article_telegram_status'),
+        path('article/<int:page_id>/telegram-send/', telegram_send, name='article_telegram_send'),
     ]
 
 @hooks.register('register_admin_menu_item')
@@ -340,6 +355,85 @@ def insert_admin_js():
                         }
                     });
                 }
+            }, 500);
+
+            // === КНОПКА "ОТПРАВИТЬ В TELEGRAM" (страницы статей) ===
+            setTimeout(function() {
+                const header = document.querySelector('header');
+                if (!header || !window.location.pathname.includes('/edit/')) return;
+                const pageId = window.location.pathname.split('/')[3];
+                if (!pageId || isNaN(pageId)) return;
+
+                function getCookie(name) {
+                    const parts = ('; ' + document.cookie).split('; ' + name + '=');
+                    return parts.length === 2 ? parts.pop().split(';').shift() : '';
+                }
+
+                fetch('/admin/article/' + pageId + '/telegram-status/')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data.applicable) return;
+
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'button bicolor icon icon-mail telegram-send-button';
+
+                        function render() {
+                            if (!data.teaser_filled) {
+                                btn.disabled = true;
+                                btn.title = 'Заполните тизер для Telegram';
+                            } else if (!data.live) {
+                                btn.disabled = true;
+                                btn.title = 'Страница ещё не опубликована';
+                            } else if (!data.can_publish) {
+                                btn.disabled = true;
+                                btn.title = 'Нет прав на публикацию этой страницы';
+                            } else {
+                                btn.disabled = false;
+                                btn.title = data.posted_at
+                                    ? 'Уже отправлялось ' + new Date(data.posted_at).toLocaleString('ru-RU')
+                                    : '';
+                            }
+                            btn.textContent = data.posted_at ? 'Повторно отправить в Telegram' : 'Отправить в Telegram';
+                        }
+                        render();
+
+                        btn.addEventListener('click', function() {
+                            if (data.posted_at && !confirm(
+                                'Эта статья уже была отправлена в Telegram ' +
+                                new Date(data.posted_at).toLocaleString('ru-RU') +
+                                '. Отправить повторно? Это создаст дубль поста в канале.'
+                            )) {
+                                return;
+                            }
+                            btn.disabled = true;
+                            btn.textContent = 'Отправка...';
+                            fetch('/admin/article/' + pageId + '/telegram-send/', {
+                                method: 'POST',
+                                headers: { 'X-CSRFToken': getCookie('csrftoken') },
+                            })
+                                .then(r => r.json())
+                                .then(result => {
+                                    alert(result.message);
+                                    if (result.success) {
+                                        data.posted_at = new Date().toISOString();
+                                    }
+                                    render();
+                                })
+                                .catch(function() {
+                                    alert('Ошибка отправки — проверьте соединение');
+                                    render();
+                                });
+                        });
+
+                        const actions = header.querySelector('.actions');
+                        if (actions) {
+                            actions.appendChild(btn);
+                        } else {
+                            header.appendChild(btn);
+                        }
+                    })
+                    .catch(function() {});
             }, 500);
 
             // === ПОИСК ПИЛОТОВ ===
