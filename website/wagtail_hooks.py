@@ -411,27 +411,25 @@ def insert_admin_js():
         document.addEventListener('DOMContentLoaded', function() {
             // === ИМПОРТ РЕЗУЛЬТАТОВ И БЕЙДЖИ ===
             setTimeout(function() {
-                const header = document.querySelector('header');
-                if (header && window.location.pathname.includes('/edit/')) {
+                if (window.location.pathname.includes('/edit/')) {
                     const pageId = window.location.pathname.split('/')[3];
                     if (pageId && !isNaN(pageId)) {
                         // Кнопка только на страницах типа Event Page (именно на них
                         // работает import_results — см. import_utils.py) — проверяем
                         // тип через встроенный Wagtail admin API перед вставкой.
+                        // Кнопка кладётся в футер, рядом с группой кнопок
+                        // "Сохранить черновик / Опубликовать" — не в шапку.
                         fetch('/admin/api/main/pages/' + pageId + '/')
                             .then(function(r) { return r.json(); })
                             .then(function(data) {
                                 if (!data.meta || data.meta.type !== 'website.EventPage') return;
+                                const actionsNav = document.querySelector('nav.footer__container');
+                                if (!actionsNav) return;
                                 const button = document.createElement('a');
                                 button.href = '/admin/event/' + pageId + '/import/';
                                 button.className = 'button bicolor icon icon-download import-button';
                                 button.innerHTML = 'Импорт результатов';
-                                const actions = header.querySelector('.actions');
-                                if (actions) {
-                                    actions.appendChild(button);
-                                } else {
-                                    header.appendChild(button);
-                                }
+                                actionsNav.appendChild(button);
                             })
                             .catch(function() {});
                     }
