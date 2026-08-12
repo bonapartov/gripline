@@ -11,42 +11,16 @@ import os
 
 import requests
 from django.conf import settings
-from django.db.models import Q
 from django.utils import timezone
 
-from .models import TelegramSettings, TelegramTag
+from .models import TelegramSettings
+from .social_tags import get_active_tags_for_page, get_auto_tags_for_page, get_category_tag_for_page
 
 logger = logging.getLogger('telegram_announce')
 
 REQUEST_TIMEOUT = 10  # секунд — не давать админ-запросу зависнуть, если Telegram API недоступен
 CAPTION_LIMIT = 1024  # лимит Telegram на подпись к фото
 MESSAGE_LIMIT = 4096  # лимит Telegram на текстовое сообщение (без фото)
-
-
-def get_category_tag_for_page(page):
-    """Тег, чей parent_page совпадает с фактическим родителем статьи — его
-    эмодзи используется как баннер перед заголовком поста. Если таких
-    тегов несколько — берём первый по алфавиту (детерминированно)."""
-    parent = page.get_parent()
-    return TelegramTag.objects.filter(parent_page_id=parent.id).order_by('tag').first()
-
-
-def get_auto_tags_for_page(page):
-    """Теги без родительской страницы (публикуются на всех постах) + теги,
-    у которых parent_page совпадает с фактическим родителем этой статьи."""
-    parent = page.get_parent()
-    return list(
-        TelegramTag.objects.filter(Q(parent_page__isnull=True) | Q(parent_page_id=parent.id)).order_by('tag')
-    )
-
-
-def get_active_tags_for_page(page):
-    """Все теги поста: автоматические (по родительской странице/без неё) +
-    вручную добавленные на самой статье, без дублей. Публикуются все сразу."""
-    auto_tags = get_auto_tags_for_page(page)
-    auto_ids = {t.pk for t in auto_tags}
-    manual_tags = [t for t in page.telegram_extra_tags.all() if t.pk not in auto_ids]
-    return auto_tags + manual_tags
 
 
 def get_message_overhead(page):
@@ -67,7 +41,7 @@ def get_message_overhead(page):
 
 
 def build_telegram_message(page):
-    """Собирает текст сообщения. telegram_teaser — свободный ввод редактора,
+    """Собирает текст сообщения. social_teaser — свободный ввод редактора,
     обязательно экранируется перед вставкой в HTML-разметку Telegram."""
     category_tag = get_category_tag_for_page(page)
     emoji = html.escape(category_tag.emoji) if category_tag and category_tag.emoji else ''
@@ -87,7 +61,7 @@ def build_telegram_message(page):
     link = f'<a href="{html.escape(url)}">{html.escape(link_text)}</a>'
 
     safe_title = html.escape(page.title)
-    safe_teaser = html.escape(page.telegram_teaser)
+    safe_teaser = html.escape(page.social_teaser)
     text = f"{emoji} <b>{safe_title}</b>\n\n{safe_teaser}\n\n{tag_line}\n{link}".strip()
     return text
 

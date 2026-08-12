@@ -1,5 +1,5 @@
 from wagtail_modeladmin.options import (ModelAdmin, ModelAdminGroup, modeladmin_register)
-from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, TelegramTag, ArticlePage
+from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, MaxSettings, SocialTag, ArticlePage
 from wagtail import hooks
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -12,6 +12,8 @@ from django.utils import timezone
 from .admin_views import analytics_dashboard, analytics_status
 from .telegram_admin_views import telegram_status, telegram_send
 from .telegram import send_to_telegram
+from .max_admin_views import max_status, max_send
+from .max import send_to_max
 
 class DriverAdmin(ModelAdmin):
     model = Driver
@@ -142,20 +144,40 @@ class TelegramSettingsAdmin(ModelAdmin):
     menu_icon = 'fa-paper-plane'
     list_display = ('channel_id', 'link_text')
 
-class TelegramTagAdmin(ModelAdmin):
-    model = TelegramTag
+class TelegramGroup(ModelAdminGroup):
+    menu_label = 'Telegram'
+    menu_icon = 'fa-paper-plane'
+    items = (TelegramSettingsAdmin,)
+    # Своего пункта в меню не создаёт — вложен в «Соцсети» через
+    # register_social_networks_menu ниже (URL/права всё равно регистрируются
+    # через register_with_wagtail(), просто без автоматического menu item).
+    add_to_admin_menu = False
+
+class MaxSettingsAdmin(ModelAdmin):
+    model = MaxSettings
+    menu_label = 'Настройки'
+    menu_icon = 'fa-comment'
+    list_display = ('chat_id', 'link_text')
+
+class MaxGroup(ModelAdminGroup):
+    menu_label = 'MAX'
+    menu_icon = 'fa-comment'
+    items = (MaxSettingsAdmin,)
+    add_to_admin_menu = False
+
+class SocialTagAdmin(ModelAdmin):
+    model = SocialTag
     menu_label = 'Теги'
     menu_icon = 'fa-tags'
     list_display = ('tag', 'emoji', 'parent_page')
     list_filter = ('parent_page',)
 
-class TelegramGroup(ModelAdminGroup):
-    menu_label = 'Telegram'
-    menu_icon = 'fa-paper-plane'
-    items = (TelegramSettingsAdmin, TelegramTagAdmin)
-    # Своего пункта в меню не создаёт — вложен в «Соцсети» через
-    # register_social_networks_menu ниже (URL/права всё равно регистрируются
-    # через register_with_wagtail(), просто без автоматического menu item).
+class SocialTagGroup(ModelAdminGroup):
+    # Теги общие для всех соцсетей — top-level пункт в "Соцсети", не вложен
+    # ни в Telegram, ни в MAX (иначе редактор не поймёт, что тег общий).
+    menu_label = 'Теги'
+    menu_icon = 'fa-tags'
+    items = (SocialTagAdmin,)
     add_to_admin_menu = False
 
 # Регистрируем группы
@@ -169,6 +191,12 @@ modeladmin_register(AnalyticsGroup)
 telegram_group = TelegramGroup()
 telegram_group.register_with_wagtail()
 
+max_group = MaxGroup()
+max_group.register_with_wagtail()
+
+social_tag_group = SocialTagGroup()
+social_tag_group.register_with_wagtail()
+
 def _menu_icon_kwargs(menu_icon):
     """Повторяет логику иконок wagtail_modeladmin.GroupMenuItem: старые
     fa-* иконки идут через CSS-класс, а не через современный icon_name."""
@@ -178,15 +206,24 @@ def _menu_icon_kwargs(menu_icon):
 
 @hooks.register('register_admin_menu_item')
 def register_social_networks_menu():
-    """«Соцсети» в боковом меню — на первом уровне вложенности пока только
-    Telegram (Настройки + Теги), но структура готова под другие соцсети:
-    добавить новый SubmenuMenuItem рядом с telegram_item в списке ниже."""
-    telegram_submenu = Menu(items=telegram_group.get_submenu_items())
+    """«Соцсети» в боковом меню: Telegram, MAX — каждый со своими
+    "Настройками", и общий top-level пункт "Теги" (один набор тегов на все
+    соцсети). Добавление новой соцсети — новая ModelAdminGroup с
+    add_to_admin_menu=False + новый SubmenuMenuItem рядом с telegram_item/
+    max_item ниже."""
     telegram_item = SubmenuMenuItem(
-        'Telegram', telegram_submenu, name='telegram', order=1,
+        'Telegram', Menu(items=telegram_group.get_submenu_items()), name='telegram', order=1,
         **_menu_icon_kwargs('fa-paper-plane'),
     )
-    social_menu = Menu(items=[telegram_item])
+    max_item = SubmenuMenuItem(
+        'MAX', Menu(items=max_group.get_submenu_items()), name='max', order=2,
+        **_menu_icon_kwargs('fa-comment'),
+    )
+    tags_item = SubmenuMenuItem(
+        'Теги', Menu(items=social_tag_group.get_submenu_items()), name='social-tags', order=3,
+        **_menu_icon_kwargs('fa-tags'),
+    )
+    social_menu = Menu(items=[telegram_item, max_item, tags_item])
     return SubmenuMenuItem(
         'Соцсети', social_menu, name='soc-networks', order=999,
         **_menu_icon_kwargs('fa-share-alt'),
@@ -206,8 +243,9 @@ class PublishOnSiteMenuItem(PublishMenuItem):
 
 class PublishEverywhereMenuItem(ActionMenuItem):
     """Публикует страницу как обычно (action-publish, тот же реальный publish),
-    но с отдельным value — по нему send_telegram_on_publish_everywhere ниже
-    понимает, что после публикации нужно ещё отправить анонс в Telegram."""
+    но с отдельным value — по нему send_announcements_on_publish_everywhere
+    ниже понимает, что после публикации нужно ещё отправить анонсы в
+    Telegram и MAX."""
     label = 'Опубликовать везде'
     name = 'action-publish'
     template_name = 'wagtailadmin/pages/action_menu/publish_everywhere.html'
@@ -240,23 +278,39 @@ def customize_article_publish_menu(menu_items, request, context):
             break
 
 @hooks.register('after_publish_page')
-def send_telegram_on_publish_everywhere(request, page):
+def send_announcements_on_publish_everywhere(request, page):
+    """«Опубликовать везде» — публикует страницу как обычно и дополнительно
+    отправляет анонс в Telegram и MAX. Каналы независимы: падение одного не
+    блокирует попытку другого (свой try/except на каждый), у каждого своя
+    отметка *_posted_at, чтобы не задублировать пост при повторной
+    публикации статьи."""
     if request.POST.get('action-publish') != PUBLISH_EVERYWHERE_VALUE:
         return
     if not isinstance(page, ArticlePage):
         return
-    if not page.telegram_teaser:
-        messages.warning(request, 'Страница опубликована, но не отправлена в Telegram — не заполнен тизер для Telegram.')
+    if not page.social_teaser:
+        messages.warning(request, 'Страница опубликована, но не отправлена в соцсети — не заполнен тизер.')
         return
+
     if page.telegram_posted_at:
-        messages.info(request, 'Страница опубликована. В Telegram уже отправлялась ранее — для повторной отправки используйте кнопку «Отправить в Telegram».')
-        return
-    try:
-        send_to_telegram(page, request.user)
-    except Exception:
-        messages.error(request, 'Страница опубликована, но отправка в Telegram не удалась — проверьте логи.')
+        messages.info(request, 'В Telegram уже отправлялось ранее — для повторной отправки используйте кнопку «Отправить в Telegram».')
     else:
-        messages.success(request, 'Опубликовано и отправлено в Telegram-канал.')
+        try:
+            send_to_telegram(page, request.user)
+        except Exception:
+            messages.error(request, 'Публикация: отправка в Telegram не удалась — проверьте логи.')
+        else:
+            messages.success(request, 'Отправлено в Telegram-канал.')
+
+    if page.max_posted_at:
+        messages.info(request, 'В MAX уже отправлялось ранее — для повторной отправки используйте кнопку «Отправить в MAX».')
+    else:
+        try:
+            send_to_max(page, request.user)
+        except Exception:
+            messages.error(request, 'Публикация: отправка в MAX не удалась — проверьте логи.')
+        else:
+            messages.success(request, 'Отправлено в MAX-канал.')
 
 @hooks.register('register_admin_urls')
 def register_import_urls():
@@ -269,6 +323,8 @@ def register_import_urls():
         path('analytics/status/', analytics_status, name='analytics_status'),
         path('article/<int:page_id>/telegram-status/', telegram_status, name='article_telegram_status'),
         path('article/<int:page_id>/telegram-send/', telegram_send, name='article_telegram_send'),
+        path('article/<int:page_id>/max-status/', max_status, name='article_max_status'),
+        path('article/<int:page_id>/max-send/', max_send, name='article_max_send'),
     ]
 
 @hooks.register('register_admin_menu_item')
@@ -470,7 +526,7 @@ def insert_admin_js():
                 }
             }, 500);
 
-            // === КНОПКА "ОТПРАВИТЬ В TELEGRAM" (страницы статей) ===
+            // === КНОПКИ "ОТПРАВИТЬ В TELEGRAM" / "ОТПРАВИТЬ В MAX" (страницы статей) ===
             setTimeout(function() {
                 const header = document.querySelector('header');
                 if (!header || !window.location.pathname.includes('/edit/')) return;
@@ -482,122 +538,160 @@ def insert_admin_js():
                     return parts.length === 2 ? parts.pop().split(';').shift() : '';
                 }
 
-                fetch('/admin/article/' + pageId + '/telegram-status/')
-                    .then(r => r.json())
-                    .then(data => {
-                        if (!data.applicable) return;
+                const actions = header.querySelector('.actions') || header;
+                const teaserField = document.getElementById('id_social_teaser');
+                const extraTagsField = document.getElementById('id_social_extra_tags');
 
-                        // === СТРОКА "УЖЕ ПРИМЕНЕНЫ" НАД МУЛЬТИСЕЛЕКТОМ ДОП. ТЕГОВ ===
-                        const teaserField = document.getElementById('id_telegram_teaser');
-                        const extraTagsField = document.getElementById('id_telegram_extra_tags');
-                        if (extraTagsField && Array.isArray(data.auto_tags)) {
-                            const autoTagsLine = document.createElement('div');
-                            autoTagsLine.className = 'telegram-auto-tags';
-                            autoTagsLine.style.cssText = 'font-size:12px; margin-bottom:6px; opacity:0.75;';
-                            autoTagsLine.textContent = data.auto_tags.length
-                                ? 'Уже применены автоматически: ' + data.auto_tags.map(function(t) {
-                                    return (t.emoji ? t.emoji + ' ' : '') + t.tag;
-                                }).join(' ')
-                                : 'Для этого раздела автоматических тегов не задано.';
-                            extraTagsField.insertAdjacentElement('beforebegin', autoTagsLine);
+                // Строка "уже применены автоматически" общая для обоих каналов
+                // (теги — общая сущность), рендерим один раз, из того ответа,
+                // который придёт первым.
+                let autoTagsRendered = false;
+                function renderAutoTagsLine(data) {
+                    if (autoTagsRendered || !extraTagsField || !Array.isArray(data.auto_tags)) return;
+                    autoTagsRendered = true;
+                    const autoTagsLine = document.createElement('div');
+                    autoTagsLine.className = 'social-auto-tags';
+                    autoTagsLine.style.cssText = 'font-size:12px; margin-bottom:6px; opacity:0.75;';
+                    autoTagsLine.textContent = data.auto_tags.length
+                        ? 'Уже применены автоматически: ' + data.auto_tags.map(function(t) {
+                            return (t.emoji ? t.emoji + ' ' : '') + t.tag;
+                        }).join(' ')
+                        : 'Для этого раздела автоматических тегов не задано.';
+                    extraTagsField.insertAdjacentElement('beforebegin', autoTagsLine);
+                }
+
+                function extraTagsLen() {
+                    // overhead_len уже включает автоматические теги раздела —
+                    // вручную выбранные на статье теги в мультиселекте туда не
+                    // входят (выбор меняется без перезагрузки страницы), поэтому
+                    // считаем их длину прямо здесь, по текущим selectedOptions.
+                    if (!extraTagsField) return 0;
+                    let total = 0;
+                    for (const opt of extraTagsField.selectedOptions) {
+                        total += opt.textContent.trim().length + 1; // +1 — разделяющий пробел
+                    }
+                    return total;
+                }
+
+                // Два независимых счётчика (у каждого канала свой лимит), оба
+                // слушают общее поле тизера и общий мультиселект тегов.
+                function setupCounter(label, data) {
+                    if (!teaserField || typeof data.overhead_len !== 'number') return;
+                    const counter = document.createElement('div');
+                    counter.className = 'social-teaser-counter';
+                    counter.style.cssText = 'font-size:12px; margin-top:4px; text-align:right;';
+
+                    function updateCounter() {
+                        const total = data.overhead_len + teaserField.value.length + extraTagsLen();
+                        const over = total > data.teaser_limit;
+                        counter.textContent = label + ': ' + total + ' / ' + data.teaser_limit +
+                            (data.has_image ? ' (с учётом заголовка, фото, тегов и ссылки)' : ' (с учётом заголовка, тегов и ссылки)') +
+                            (over && data.has_image ? ' — фото не поместится, уйдёт только текст' : '');
+                        counter.style.color = over ? '#dc3545' : '';
+                        counter.style.fontWeight = over ? 'bold' : 'normal';
+                    }
+
+                    teaserField.addEventListener('input', updateCounter);
+                    extraTagsField && extraTagsField.addEventListener('change', updateCounter);
+                    updateCounter();
+                    teaserField.insertAdjacentElement('afterend', counter);
+                }
+
+                // Кнопки создаются сразу в фиксированном порядке (Telegram → MAX),
+                // до резолва fetch — иначе порядок кнопок скакал бы в зависимости
+                // от того, какой запрос ответит раньше.
+                function createChannelButton(config) {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'button bicolor icon icon-mail ' + config.cssClass;
+                    btn.disabled = true;
+                    btn.textContent = 'Загрузка...';
+                    actions.appendChild(btn);
+
+                    let data = null;
+
+                    function render() {
+                        if (!data) return;
+                        if (!data.teaser_filled) {
+                            btn.disabled = true;
+                            btn.title = 'Заполните тизер для соцсетей';
+                        } else if (!data.live) {
+                            btn.disabled = true;
+                            btn.title = 'Страница ещё не опубликована';
+                        } else if (!data.can_publish) {
+                            btn.disabled = true;
+                            btn.title = 'Нет прав на публикацию этой страницы';
+                        } else {
+                            btn.disabled = false;
+                            btn.title = data.posted_at
+                                ? 'Уже отправлялось ' + new Date(data.posted_at).toLocaleString('ru-RU')
+                                : '';
                         }
+                        btn.textContent = data.posted_at ? config.repeatLabel : config.sendLabel;
+                    }
 
-                        // === СЧЁТЧИК СИМВОЛОВ ТИЗЕРА (с учётом фото/ссылки/тегов) ===
-                        if (teaserField && typeof data.overhead_len === 'number') {
-                            const limit = data.teaser_limit;
-                            const counter = document.createElement('div');
-                            counter.className = 'telegram-teaser-counter';
-                            counter.style.cssText = 'font-size:12px; margin-top:4px; text-align:right;';
-
-                            function extraTagsLen() {
-                                // overhead_len уже включает автоматические теги раздела —
-                                // вручную выбранные на статье теги в мультиселекте туда не
-                                // входят (выбор меняется без перезагрузки страницы), поэтому
-                                // считаем их длину прямо здесь, по текущим selectedOptions.
-                                if (!extraTagsField) return 0;
-                                let total = 0;
-                                for (const opt of extraTagsField.selectedOptions) {
-                                    total += opt.textContent.trim().length + 1; // +1 — разделяющий пробел
+                    btn.addEventListener('click', function() {
+                        if (!data) return;
+                        if (data.posted_at && !confirm(
+                            'Эта статья уже была отправлена в ' + config.channelName + ' ' +
+                            new Date(data.posted_at).toLocaleString('ru-RU') +
+                            '. Отправить повторно? Это создаст дубль поста в канале.'
+                        )) {
+                            return;
+                        }
+                        btn.disabled = true;
+                        btn.textContent = 'Отправка...';
+                        fetch(config.sendUrl, {
+                            method: 'POST',
+                            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+                        })
+                            .then(r => r.json())
+                            .then(result => {
+                                alert(result.message);
+                                if (result.success) {
+                                    data.posted_at = new Date().toISOString();
                                 }
-                                return total;
-                            }
+                                render();
+                            })
+                            .catch(function() {
+                                alert('Ошибка отправки — проверьте соединение');
+                                render();
+                            });
+                    });
 
-                            function updateCounter() {
-                                const total = data.overhead_len + teaserField.value.length + extraTagsLen();
-                                const over = total > limit;
-                                counter.textContent = total + ' / ' + limit +
-                                    (data.has_image ? ' (с учётом заголовка, фото, тегов и ссылки)' : ' (с учётом заголовка, тегов и ссылки)') +
-                                    (over && data.has_image ? ' — фото не поместится, уйдёт только текст' : '');
-                                counter.style.color = over ? '#dc3545' : '';
-                                counter.style.fontWeight = over ? 'bold' : 'normal';
-                            }
-
-                            teaserField.addEventListener('input', updateCounter);
-                            if (extraTagsField) extraTagsField.addEventListener('change', updateCounter);
-                            updateCounter();
-                            teaserField.insertAdjacentElement('afterend', counter);
-                        }
-
-                        const btn = document.createElement('button');
-                        btn.type = 'button';
-                        btn.className = 'button bicolor icon icon-mail telegram-send-button';
-
-                        function render() {
-                            if (!data.teaser_filled) {
-                                btn.disabled = true;
-                                btn.title = 'Заполните тизер для Telegram';
-                            } else if (!data.live) {
-                                btn.disabled = true;
-                                btn.title = 'Страница ещё не опубликована';
-                            } else if (!data.can_publish) {
-                                btn.disabled = true;
-                                btn.title = 'Нет прав на публикацию этой страницы';
-                            } else {
-                                btn.disabled = false;
-                                btn.title = data.posted_at
-                                    ? 'Уже отправлялось ' + new Date(data.posted_at).toLocaleString('ru-RU')
-                                    : '';
-                            }
-                            btn.textContent = data.posted_at ? 'Повторно отправить в Telegram' : 'Отправить в Telegram';
-                        }
-                        render();
-
-                        btn.addEventListener('click', function() {
-                            if (data.posted_at && !confirm(
-                                'Эта статья уже была отправлена в Telegram ' +
-                                new Date(data.posted_at).toLocaleString('ru-RU') +
-                                '. Отправить повторно? Это создаст дубль поста в канале.'
-                            )) {
+                    fetch(config.statusUrl)
+                        .then(r => r.json())
+                        .then(function(resolvedData) {
+                            if (!resolvedData.applicable) {
+                                btn.remove();
                                 return;
                             }
-                            btn.disabled = true;
-                            btn.textContent = 'Отправка...';
-                            fetch('/admin/article/' + pageId + '/telegram-send/', {
-                                method: 'POST',
-                                headers: { 'X-CSRFToken': getCookie('csrftoken') },
-                            })
-                                .then(r => r.json())
-                                .then(result => {
-                                    alert(result.message);
-                                    if (result.success) {
-                                        data.posted_at = new Date().toISOString();
-                                    }
-                                    render();
-                                })
-                                .catch(function() {
-                                    alert('Ошибка отправки — проверьте соединение');
-                                    render();
-                                });
+                            data = resolvedData;
+                            renderAutoTagsLine(data);
+                            setupCounter(config.channelName, data);
+                            render();
+                        })
+                        .catch(function() {
+                            btn.remove();
                         });
+                }
 
-                        const actions = header.querySelector('.actions');
-                        if (actions) {
-                            actions.appendChild(btn);
-                        } else {
-                            header.appendChild(btn);
-                        }
-                    })
-                    .catch(function() {});
+                createChannelButton({
+                    channelName: 'Telegram',
+                    sendLabel: 'Отправить в Telegram',
+                    repeatLabel: 'Повторно отправить в Telegram',
+                    statusUrl: '/admin/article/' + pageId + '/telegram-status/',
+                    sendUrl: '/admin/article/' + pageId + '/telegram-send/',
+                    cssClass: 'telegram-send-button',
+                });
+                createChannelButton({
+                    channelName: 'MAX',
+                    sendLabel: 'Отправить в MAX',
+                    repeatLabel: 'Повторно отправить в MAX',
+                    statusUrl: '/admin/article/' + pageId + '/max-status/',
+                    sendUrl: '/admin/article/' + pageId + '/max-send/',
+                    cssClass: 'max-send-button',
+                });
             }, 500);
 
             // === ПОИСК ПИЛОТОВ ===

@@ -37,14 +37,14 @@ from django.utils.html import format_html, format_html_join
 # ---------- СТРАНИЦЫ (PAGES) ----------
 
 class ArticlePageForm(WagtailAdminPageForm):
-    """Мультиселект telegram_extra_tags должен показывать только теги,
+    """Мультиселект social_extra_tags должен показывать только теги,
     которые ещё не применяются автоматически (без раздела или с разделом,
     совпадающим с фактическим родителем статьи) — иначе редактор может
     выбрать тег, который и так уже будет опубликован."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        field = self.fields.get('telegram_extra_tags')
+        field = self.fields.get('social_extra_tags')
         if field is None:
             return
 
@@ -52,8 +52,8 @@ class ArticlePageForm(WagtailAdminPageForm):
         auto_tags_filter = models.Q(parent_page__isnull=True)
         if parent is not None:
             auto_tags_filter |= models.Q(parent_page_id=parent.id)
-        auto_tag_ids = TelegramTag.objects.filter(auto_tags_filter).values_list('pk', flat=True)
-        field.queryset = TelegramTag.objects.exclude(pk__in=auto_tag_ids)
+        auto_tag_ids = SocialTag.objects.filter(auto_tags_filter).values_list('pk', flat=True)
+        field.queryset = SocialTag.objects.exclude(pk__in=auto_tag_ids)
 
 
 class ArticlePage(CoderedArticlePage):
@@ -70,31 +70,37 @@ class ArticlePage(CoderedArticlePage):
         use_json_field=True,
     )
 
-    telegram_teaser = models.TextField(
+    social_teaser = models.TextField(
         max_length=900,
         blank=True,
-        verbose_name="Тизер для Telegram",
+        verbose_name="Тизер для соцсетей",
         help_text=(
-            "Короткий тизер для Telegram (3–5 предложений). "
-            "Лимит ~900 символов — оставляет запас под ссылку и подпись к фото "
-            "(Telegram ограничивает подпись к фото 1024 символами)."
+            "Короткий тизер для анонса в соцсетях (Telegram, MAX и др.), 3–5 "
+            "предложений. Лимит ~900 символов — оставляет запас под ссылку, "
+            "теги и подпись к фото (самый тесный из лимитов площадок — "
+            "подпись к фото в Telegram, 1024 символа)."
         ),
     )
-    telegram_extra_tags = ParentalManyToManyField(
-        'website.TelegramTag',
+    social_extra_tags = ParentalManyToManyField(
+        'website.SocialTag',
         blank=True,
-        verbose_name="Доп. теги для Telegram",
-        help_text="Добавляются к автоматическим тегам раздела для этого конкретного поста.",
+        verbose_name="Доп. теги для соцсетей",
+        help_text="Добавляются к автоматическим тегам раздела для этого конкретного поста — во всех соцсетях сразу.",
     )
     telegram_posted_at = models.DateTimeField(null=True, blank=True, editable=False)
     telegram_posted_by = models.ForeignKey(
         User, null=True, blank=True, on_delete=models.SET_NULL,
         editable=False, related_name='+',
     )
+    max_posted_at = models.DateTimeField(null=True, blank=True, editable=False)
+    max_posted_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        editable=False, related_name='+',
+    )
 
     content_panels = CoderedArticlePage.content_panels + [
-        FieldPanel('telegram_teaser'),
-        FieldPanel('telegram_extra_tags'),
+        FieldPanel('social_teaser'),
+        FieldPanel('social_extra_tags'),
     ]
 
     base_form_class = ArticlePageForm
@@ -1684,10 +1690,11 @@ class AnalyticsSettings(models.Model):
         return obj
 
 
-class TelegramTag(models.Model):
+class SocialTag(models.Model):
     """
-    Тег для анонс-постинга в Telegram-канал. Список произвольной длины,
-    редактируется в Wagtail Admin → Telegram → Теги.
+    Тег для анонс-постинга в соцсети (Telegram, MAX и др.) — общий на все
+    каналы. Список произвольной длины, редактируется в Wagtail Admin →
+    Соцсети → Теги.
 
     Категория — это ссылка на конкретную родительскую страницу (например,
     страницу «Матчасть» или «Новости»), а не жёстко зашитый список — так
@@ -1718,12 +1725,12 @@ class TelegramTag(models.Model):
             "этот тег (например, Матчасть или Новости). Если не выбрана — тег "
             "публикуется на всех постах."
         ),
-        related_name='telegram_tags',
+        related_name='social_tags',
     )
 
     class Meta:
-        verbose_name = "Тег Telegram"
-        verbose_name_plural = "Теги Telegram"
+        verbose_name = "Тег соцсетей"
+        verbose_name_plural = "Теги соцсетей"
         ordering = ['parent_page', 'tag']
 
     def __str__(self):
@@ -1736,7 +1743,7 @@ class TelegramSettings(models.Model):
     Доступна через TelegramSettings.get().
     Токен бота НЕ хранится здесь — только в переменной окружения
     TELEGRAM_ANNOUNCE_BOT_TOKEN (см. website/telegram.py).
-    Теги — в отдельной модели TelegramTag, не здесь.
+    Теги — в отдельной общей модели SocialTag (общая для всех соцсетей), не здесь.
     """
 
     channel_id = models.CharField(
@@ -1758,6 +1765,45 @@ class TelegramSettings(models.Model):
 
     def __str__(self):
         return "Настройки Telegram-канала"
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
+class MaxSettings(models.Model):
+    """
+    Singleton-модель настроек анонс-постинга в канал MAX.
+    Доступна через MaxSettings.get().
+    Токен бота НЕ хранится здесь — только в переменной окружения
+    MAX_ANNOUNCE_BOT_TOKEN (см. website/max.py).
+    Теги — в отдельной общей модели SocialTag (общая для всех соцсетей), не здесь.
+    """
+
+    chat_id = models.CharField(
+        max_length=32,
+        blank=True,
+        verbose_name="Chat ID",
+        help_text=(
+            "Числовой ID канала MAX. В отличие от Telegram, у MAX нет @username — "
+            "id получается одноразовой командой 'python manage.py max_get_chat_id' "
+            "после того как бот добавлен администратором в канал."
+        ),
+    )
+    link_text = models.CharField(
+        max_length=64,
+        default="Читать статью →",
+        verbose_name="Текст ссылки на статью",
+        help_text="Показывается вместо длинного URL в тексте поста.",
+    )
+
+    class Meta:
+        verbose_name = "Настройки MAX"
+        verbose_name_plural = "Настройки MAX"
+
+    def __str__(self):
+        return "Настройки MAX-канала"
 
     @classmethod
     def get(cls):

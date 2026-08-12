@@ -148,6 +148,16 @@ TELEGRAM_ANNOUNCE_BOT_TOKEN = os.getenv("TELEGRAM_ANNOUNCE_BOT_TOKEN")
 # socks5h://127.0.0.1:10808 (локальный SOCKS5 от Xray, поднятого на сервере).
 TELEGRAM_PROXY_URL = os.getenv("TELEGRAM_PROXY_URL")
 
+# Токен бота для анонс-постинга в канал MAX (см. website/max.py).
+# Секрет — только из окружения, никогда не в БД/админке.
+MAX_ANNOUNCE_BOT_TOKEN = os.getenv("MAX_ANNOUNCE_BOT_TOKEN")
+
+# Базовый URL MAX Bot API — вынесен в env, а не захардкожен: на момент
+# написания в документации фигурируют варианты домена с "2" и без —
+# уточнение не должно требовать деплоя кода. MAX доступен с прод-сервера
+# напрямую, прокси (в отличие от Telegram) не нужен.
+MAX_API_BASE_URL = os.getenv("MAX_API_BASE_URL", "https://platform-api2.max.ru")
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -160,6 +170,13 @@ LOGGING = {
         # Никогда не логировать TELEGRAM_ANNOUNCE_BOT_TOKEN и полный текст
         # исключений без фильтрации — см. website/telegram.py::send_to_telegram.
         "telegram_announce": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        # Никогда не логировать MAX_ANNOUNCE_BOT_TOKEN и полный текст
+        # исключений без фильтрации — см. website/max.py::send_to_max.
+        "max_announce": {
             "handlers": ["console"],
             "level": "INFO",
             "propagate": False,
