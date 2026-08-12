@@ -1,5 +1,5 @@
 from wagtail_modeladmin.options import (ModelAdmin, ModelAdminGroup, modeladmin_register)
-from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, MaxSettings, SocialTag, ArticlePage
+from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, MaxSettings, VkSettings, SocialTag, ArticlePage
 from wagtail import hooks
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -14,6 +14,8 @@ from .telegram_admin_views import telegram_status, telegram_send
 from .telegram import send_to_telegram
 from .max_admin_views import max_status, max_send
 from .max import send_to_max
+from .vk_admin_views import vk_status, vk_send
+from .vk import send_to_vk
 
 class DriverAdmin(ModelAdmin):
     model = Driver
@@ -165,6 +167,18 @@ class MaxGroup(ModelAdminGroup):
     items = (MaxSettingsAdmin,)
     add_to_admin_menu = False
 
+class VkSettingsAdmin(ModelAdmin):
+    model = VkSettings
+    menu_label = 'Настройки'
+    menu_icon = 'fa-globe'
+    list_display = ('group_id', 'link_text')
+
+class VkGroup(ModelAdminGroup):
+    menu_label = 'VK'
+    menu_icon = 'fa-globe'
+    items = (VkSettingsAdmin,)
+    add_to_admin_menu = False
+
 class SocialTagAdmin(ModelAdmin):
     model = SocialTag
     menu_label = 'Теги'
@@ -194,6 +208,9 @@ telegram_group.register_with_wagtail()
 max_group = MaxGroup()
 max_group.register_with_wagtail()
 
+vk_group = VkGroup()
+vk_group.register_with_wagtail()
+
 social_tag_group = SocialTagGroup()
 social_tag_group.register_with_wagtail()
 
@@ -206,11 +223,11 @@ def _menu_icon_kwargs(menu_icon):
 
 @hooks.register('register_admin_menu_item')
 def register_social_networks_menu():
-    """«Соцсети» в боковом меню: Telegram, MAX — каждый со своими
+    """«Соцсети» в боковом меню: Telegram, MAX, VK — каждый со своими
     "Настройками", и общий top-level пункт "Теги" (один набор тегов на все
     соцсети). Добавление новой соцсети — новая ModelAdminGroup с
     add_to_admin_menu=False + новый SubmenuMenuItem рядом с telegram_item/
-    max_item ниже."""
+    max_item/vk_item ниже."""
     telegram_item = SubmenuMenuItem(
         'Telegram', Menu(items=telegram_group.get_submenu_items()), name='telegram', order=1,
         **_menu_icon_kwargs('fa-paper-plane'),
@@ -219,11 +236,15 @@ def register_social_networks_menu():
         'MAX', Menu(items=max_group.get_submenu_items()), name='max', order=2,
         **_menu_icon_kwargs('fa-comment'),
     )
+    vk_item = SubmenuMenuItem(
+        'VK', Menu(items=vk_group.get_submenu_items()), name='vk', order=3,
+        **_menu_icon_kwargs('fa-globe'),
+    )
     tags_item = SubmenuMenuItem(
-        'Теги', Menu(items=social_tag_group.get_submenu_items()), name='social-tags', order=3,
+        'Теги', Menu(items=social_tag_group.get_submenu_items()), name='social-tags', order=4,
         **_menu_icon_kwargs('fa-tags'),
     )
-    social_menu = Menu(items=[telegram_item, max_item, tags_item])
+    social_menu = Menu(items=[telegram_item, max_item, vk_item, tags_item])
     return SubmenuMenuItem(
         'Соцсети', social_menu, name='soc-networks', order=999,
         **_menu_icon_kwargs('fa-share-alt'),
@@ -280,9 +301,9 @@ def customize_article_publish_menu(menu_items, request, context):
 @hooks.register('after_publish_page')
 def send_announcements_on_publish_everywhere(request, page):
     """«Опубликовать везде» — публикует страницу как обычно и дополнительно
-    отправляет анонс в Telegram и MAX. Каналы независимы: падение одного не
-    блокирует попытку другого (свой try/except на каждый), у каждого своя
-    отметка *_posted_at, чтобы не задублировать пост при повторной
+    отправляет анонс в Telegram, MAX и VK. Каналы независимы: падение одного
+    не блокирует попытку другого (свой try/except на каждый), у каждого
+    своя отметка *_posted_at, чтобы не задублировать пост при повторной
     публикации статьи."""
     if request.POST.get('action-publish') != PUBLISH_EVERYWHERE_VALUE:
         return
@@ -312,6 +333,16 @@ def send_announcements_on_publish_everywhere(request, page):
         else:
             messages.success(request, 'Отправлено в MAX-канал.')
 
+    if page.vk_posted_at:
+        messages.info(request, 'В VK уже отправлялось ранее — для повторной отправки используйте кнопку «Отправить в VK».')
+    else:
+        try:
+            send_to_vk(page, request.user)
+        except Exception:
+            messages.error(request, 'Публикация: отправка в VK не удалась — проверьте логи.')
+        else:
+            messages.success(request, 'Опубликовано в сообществе VK.')
+
 @hooks.register('register_admin_urls')
 def register_import_urls():
     return [
@@ -325,6 +356,8 @@ def register_import_urls():
         path('article/<int:page_id>/telegram-send/', telegram_send, name='article_telegram_send'),
         path('article/<int:page_id>/max-status/', max_status, name='article_max_status'),
         path('article/<int:page_id>/max-send/', max_send, name='article_max_send'),
+        path('article/<int:page_id>/vk-status/', vk_status, name='article_vk_status'),
+        path('article/<int:page_id>/vk-send/', vk_send, name='article_vk_send'),
     ]
 
 @hooks.register('register_admin_menu_item')
@@ -691,6 +724,14 @@ def insert_admin_js():
                     statusUrl: '/admin/article/' + pageId + '/max-status/',
                     sendUrl: '/admin/article/' + pageId + '/max-send/',
                     cssClass: 'max-send-button',
+                });
+                createChannelButton({
+                    channelName: 'VK',
+                    sendLabel: 'Отправить в VK',
+                    repeatLabel: 'Повторно отправить в VK',
+                    statusUrl: '/admin/article/' + pageId + '/vk-status/',
+                    sendUrl: '/admin/article/' + pageId + '/vk-send/',
+                    cssClass: 'vk-send-button',
                 });
             }, 500);
 

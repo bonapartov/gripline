@@ -158,6 +158,17 @@ MAX_ANNOUNCE_BOT_TOKEN = os.getenv("MAX_ANNOUNCE_BOT_TOKEN")
 # напрямую, прокси (в отличие от Telegram) не нужен.
 MAX_API_BASE_URL = os.getenv("MAX_API_BASE_URL", "https://platform-api2.max.ru")
 
+# Токен доступа для анонс-постинга в сообщество VK (см. website/vk.py).
+# Секрет — только из окружения, никогда не в БД/админке. Получается либо
+# ключом доступа сообщества (Управление → Работа с API), либо через
+# OAuth Standalone-приложения — см. ручные шаги в плане деплоя.
+VK_ANNOUNCE_ACCESS_TOKEN = os.getenv("VK_ANNOUNCE_ACCESS_TOKEN")
+
+# Версия VK API — обязательный параметр в каждом запросе, вынесена в env,
+# чтобы обновлять без деплоя кода. VK доступен с прод-сервера напрямую,
+# прокси не нужен (российский сервис, та же логика, что MAX).
+VK_API_VERSION = os.getenv("VK_API_VERSION", "5.199")
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -177,6 +188,13 @@ LOGGING = {
         # Никогда не логировать MAX_ANNOUNCE_BOT_TOKEN и полный текст
         # исключений без фильтрации — см. website/max.py::send_to_max.
         "max_announce": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        # Никогда не логировать VK_ANNOUNCE_ACCESS_TOKEN и полный текст
+        # исключений без фильтрации — см. website/vk.py::send_to_vk.
+        "vk_announce": {
             "handlers": ["console"],
             "level": "INFO",
             "propagate": False,

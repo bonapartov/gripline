@@ -97,6 +97,11 @@ class ArticlePage(CoderedArticlePage):
         User, null=True, blank=True, on_delete=models.SET_NULL,
         editable=False, related_name='+',
     )
+    vk_posted_at = models.DateTimeField(null=True, blank=True, editable=False)
+    vk_posted_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        editable=False, related_name='+',
+    )
 
     content_panels = CoderedArticlePage.content_panels + [
         FieldPanel('social_teaser'),
@@ -1804,6 +1809,44 @@ class MaxSettings(models.Model):
 
     def __str__(self):
         return "Настройки MAX-канала"
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
+class VkSettings(models.Model):
+    """
+    Singleton-модель настроек анонс-постинга в сообщество VK.
+    Доступна через VkSettings.get().
+    Токен доступа НЕ хранится здесь — только в переменной окружения
+    VK_ANNOUNCE_ACCESS_TOKEN (см. website/vk.py).
+    Теги — в отдельной общей модели SocialTag (общая для всех соцсетей), не здесь.
+    """
+
+    group_id = models.CharField(
+        max_length=32,
+        blank=True,
+        verbose_name="Group ID",
+        help_text=(
+            "Числовой ID сообщества VK (без минуса). Получается одноразовой "
+            "командой 'python manage.py vk_get_group_id --screen-name gripline'."
+        ),
+    )
+    link_text = models.CharField(
+        max_length=64,
+        default="Читать статью →",
+        verbose_name="Текст ссылки на статью",
+        help_text="Показывается вместо длинного URL в тексте поста.",
+    )
+
+    class Meta:
+        verbose_name = "Настройки VK"
+        verbose_name_plural = "Настройки VK"
+
+    def __str__(self):
+        return "Настройки VK-сообщества"
 
     @classmethod
     def get(cls):
