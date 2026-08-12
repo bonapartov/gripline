@@ -6,8 +6,12 @@ from django.utils.safestring import mark_safe
 from django.urls import path, reverse
 from .import_utils import import_results, import_preview, import_confirm, import_add_driver
 from wagtail.admin.menu import MenuItem, Menu, SubmenuMenuItem
+from wagtail.admin.action_menu import ActionMenuItem, PublishMenuItem
+from django.contrib import messages
+from django.utils import timezone
 from .admin_views import analytics_dashboard, analytics_status
 from .telegram_admin_views import telegram_status, telegram_send
+from .telegram import send_to_telegram
 
 class DriverAdmin(ModelAdmin):
     model = Driver
@@ -187,6 +191,72 @@ def register_social_networks_menu():
         'Соцсети', social_menu, name='soc-networks', order=999,
         **_menu_icon_kwargs('fa-share-alt'),
     )
+
+# === КНОПКИ ПУБЛИКАЦИИ СТАТЬИ: "НА САЙТЕ" / "ВЕЗДЕ" (+ TELEGRAM) ===
+
+PUBLISH_EVERYWHERE_VALUE = 'action-publish-everywhere'
+
+class PublishOnSiteMenuItem(PublishMenuItem):
+    """Копия стандартного PublishMenuItem с другим лейблом. Не переиспользуем
+    сам PublishMenuItem — он singleton на все типы страниц (кэшируется в
+    wagtail.admin.action_menu.BASE_PAGE_ACTION_MENU_ITEMS), менять .label
+    на нём напрямую поменяло бы подпись кнопки везде в админке, не только
+    у статей."""
+    label = 'Опубликовать на сайте'
+
+class PublishEverywhereMenuItem(ActionMenuItem):
+    """Публикует страницу как обычно (action-publish, тот же реальный publish),
+    но с отдельным value — по нему send_telegram_on_publish_everywhere ниже
+    понимает, что после публикации нужно ещё отправить анонс в Telegram."""
+    label = 'Опубликовать везде'
+    name = 'action-publish'
+    template_name = 'wagtailadmin/pages/action_menu/publish_everywhere.html'
+    icon_name = 'upload'
+
+    def is_shown(self, context):
+        page = context.get('page')
+        if not isinstance(page, ArticlePage):
+            return False
+        perms_tester = self.get_user_page_permissions_tester(context)
+        return not context['locked_for_user'] and perms_tester.can_publish()
+
+    def get_context_data(self, parent_context):
+        context = super().get_context_data(parent_context)
+        page = context.get('page')
+        context['is_scheduled'] = bool(page and page.go_live_at and page.go_live_at > timezone.now())
+        return context
+
+@hooks.register('construct_page_action_menu')
+def customize_article_publish_menu(menu_items, request, context):
+    """Только для ArticlePage: переименовывает «Опубликовать» в «Опубликовать
+    на сайте» и добавляет рядом «Опубликовать везде»."""
+    page = context.get('page')
+    if not isinstance(page, ArticlePage):
+        return
+    for i, item in enumerate(menu_items):
+        if type(item) is PublishMenuItem:
+            menu_items[i] = PublishOnSiteMenuItem(order=item.order)
+            menu_items.insert(i + 1, PublishEverywhereMenuItem(order=item.order))
+            break
+
+@hooks.register('after_publish_page')
+def send_telegram_on_publish_everywhere(request, page):
+    if request.POST.get('action-publish') != PUBLISH_EVERYWHERE_VALUE:
+        return
+    if not isinstance(page, ArticlePage):
+        return
+    if not page.telegram_teaser:
+        messages.warning(request, 'Страница опубликована, но не отправлена в Telegram — не заполнен тизер для Telegram.')
+        return
+    if page.telegram_posted_at:
+        messages.info(request, 'Страница опубликована. В Telegram уже отправлялась ранее — для повторной отправки используйте кнопку «Отправить в Telegram».')
+        return
+    try:
+        send_to_telegram(page, request.user)
+    except Exception:
+        messages.error(request, 'Страница опубликована, но отправка в Telegram не удалась — проверьте логи.')
+    else:
+        messages.success(request, 'Опубликовано и отправлено в Telegram-канал.')
 
 @hooks.register('register_admin_urls')
 def register_import_urls():
