@@ -1,11 +1,11 @@
 from wagtail_modeladmin.options import (ModelAdmin, ModelAdminGroup, modeladmin_register)
-from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, ArticlePage
+from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, TelegramTag, ArticlePage
 from wagtail import hooks
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.urls import path, reverse
 from .import_utils import import_results, import_preview, import_confirm, import_add_driver
-from wagtail.admin.menu import MenuItem
+from wagtail.admin.menu import MenuItem, Menu, SubmenuMenuItem
 from .admin_views import analytics_dashboard, analytics_status
 from .telegram_admin_views import telegram_status, telegram_send
 
@@ -134,14 +134,25 @@ class AnalyticsGroup(ModelAdminGroup):
 
 class TelegramSettingsAdmin(ModelAdmin):
     model = TelegramSettings
-    menu_label = 'Telegram'
+    menu_label = 'Настройки'
     menu_icon = 'fa-paper-plane'
-    list_display = ('channel_id', 'tag_matchast', 'tag_news')
+    list_display = ('channel_id', 'link_text')
+
+class TelegramTagAdmin(ModelAdmin):
+    model = TelegramTag
+    menu_label = 'Теги'
+    menu_icon = 'fa-tags'
+    list_display = ('tag', 'emoji', 'parent_page')
+    list_filter = ('parent_page',)
 
 class TelegramGroup(ModelAdminGroup):
     menu_label = 'Telegram'
     menu_icon = 'fa-paper-plane'
-    items = (TelegramSettingsAdmin,)
+    items = (TelegramSettingsAdmin, TelegramTagAdmin)
+    # Своего пункта в меню не создаёт — вложен в «Соцсети» через
+    # register_social_networks_menu ниже (URL/права всё равно регистрируются
+    # через register_with_wagtail(), просто без автоматического menu item).
+    add_to_admin_menu = False
 
 # Регистрируем группы
 modeladmin_register(PilotsGroup)
@@ -150,7 +161,32 @@ modeladmin_register(EquipmentGroup)
 modeladmin_register(TyresGroup)
 modeladmin_register(TracksGroup)
 modeladmin_register(AnalyticsGroup)
-modeladmin_register(TelegramGroup)
+
+telegram_group = TelegramGroup()
+telegram_group.register_with_wagtail()
+
+def _menu_icon_kwargs(menu_icon):
+    """Повторяет логику иконок wagtail_modeladmin.GroupMenuItem: старые
+    fa-* иконки идут через CSS-класс, а не через современный icon_name."""
+    if menu_icon[:3] == 'fa-':
+        return {'classname': 'icon icon-%s' % menu_icon}
+    return {'icon_name': menu_icon}
+
+@hooks.register('register_admin_menu_item')
+def register_social_networks_menu():
+    """«Соцсети» в боковом меню — на первом уровне вложенности пока только
+    Telegram (Настройки + Теги), но структура готова под другие соцсети:
+    добавить новый SubmenuMenuItem рядом с telegram_item в списке ниже."""
+    telegram_submenu = Menu(items=telegram_group.get_submenu_items())
+    telegram_item = SubmenuMenuItem(
+        'Telegram', telegram_submenu, name='telegram', order=1,
+        **_menu_icon_kwargs('fa-paper-plane'),
+    )
+    social_menu = Menu(items=[telegram_item])
+    return SubmenuMenuItem(
+        'Соцсети', social_menu, name='soc-networks', order=999,
+        **_menu_icon_kwargs('fa-share-alt'),
+    )
 
 @hooks.register('register_admin_urls')
 def register_import_urls():
@@ -374,25 +410,53 @@ def insert_admin_js():
                     .then(data => {
                         if (!data.applicable) return;
 
-                        // === СЧЁТЧИК СИМВОЛОВ ТИЗЕРА (с учётом фото/ссылки) ===
+                        // === СТРОКА "УЖЕ ПРИМЕНЕНЫ" НАД МУЛЬТИСЕЛЕКТОМ ДОП. ТЕГОВ ===
                         const teaserField = document.getElementById('id_telegram_teaser');
+                        const extraTagsField = document.getElementById('id_telegram_extra_tags');
+                        if (extraTagsField && Array.isArray(data.auto_tags)) {
+                            const autoTagsLine = document.createElement('div');
+                            autoTagsLine.className = 'telegram-auto-tags';
+                            autoTagsLine.style.cssText = 'font-size:12px; margin-bottom:6px; opacity:0.75;';
+                            autoTagsLine.textContent = data.auto_tags.length
+                                ? 'Уже применены автоматически: ' + data.auto_tags.map(function(t) {
+                                    return (t.emoji ? t.emoji + ' ' : '') + t.tag;
+                                }).join(' ')
+                                : 'Для этого раздела автоматических тегов не задано.';
+                            extraTagsField.insertAdjacentElement('beforebegin', autoTagsLine);
+                        }
+
+                        // === СЧЁТЧИК СИМВОЛОВ ТИЗЕРА (с учётом фото/ссылки/тегов) ===
                         if (teaserField && typeof data.overhead_len === 'number') {
                             const limit = data.teaser_limit;
                             const counter = document.createElement('div');
                             counter.className = 'telegram-teaser-counter';
                             counter.style.cssText = 'font-size:12px; margin-top:4px; text-align:right;';
 
+                            function extraTagsLen() {
+                                // overhead_len уже включает автоматические теги раздела —
+                                // вручную выбранные на статье теги в мультиселекте туда не
+                                // входят (выбор меняется без перезагрузки страницы), поэтому
+                                // считаем их длину прямо здесь, по текущим selectedOptions.
+                                if (!extraTagsField) return 0;
+                                let total = 0;
+                                for (const opt of extraTagsField.selectedOptions) {
+                                    total += opt.textContent.trim().length + 1; // +1 — разделяющий пробел
+                                }
+                                return total;
+                            }
+
                             function updateCounter() {
-                                const total = data.overhead_len + teaserField.value.length;
+                                const total = data.overhead_len + teaserField.value.length + extraTagsLen();
                                 const over = total > limit;
                                 counter.textContent = total + ' / ' + limit +
-                                    (data.has_image ? ' (с учётом заголовка, фото и ссылки)' : ' (с учётом заголовка и ссылки)') +
+                                    (data.has_image ? ' (с учётом заголовка, фото, тегов и ссылки)' : ' (с учётом заголовка, тегов и ссылки)') +
                                     (over && data.has_image ? ' — фото не поместится, уйдёт только текст' : '');
                                 counter.style.color = over ? '#dc3545' : '';
                                 counter.style.fontWeight = over ? 'bold' : 'normal';
                             }
 
                             teaserField.addEventListener('input', updateCounter);
+                            if (extraTagsField) extraTagsField.addEventListener('change', updateCounter);
                             updateCounter();
                             teaserField.insertAdjacentElement('afterend', counter);
                         }

@@ -11,9 +11,10 @@ import os
 
 import requests
 from django.conf import settings
+from django.db.models import Q
 from django.utils import timezone
 
-from .models import ArticleIndexPage, TechArticleIndexPage, TelegramSettings
+from .models import TelegramSettings, TelegramTag
 
 logger = logging.getLogger('telegram_announce')
 
@@ -22,40 +23,62 @@ CAPTION_LIMIT = 1024  # лимит Telegram на подпись к фото
 MESSAGE_LIMIT = 4096  # лимит Telegram на текстовое сообщение (без фото)
 
 
-def get_telegram_settings_for_page(page):
-    """Тег и эмодзи для страницы — по родителю (Матчасть/Новости), не по классу.
+def get_category_tag_for_page(page):
+    """Тег, чей parent_page совпадает с фактическим родителем статьи — его
+    эмодзи используется как баннер перед заголовком поста. Если таких
+    тегов несколько — берём первый по алфавиту (детерминированно)."""
+    parent = page.get_parent()
+    return TelegramTag.objects.filter(parent_page_id=parent.id).order_by('tag').first()
 
-    ArticlePage — единый класс и для новостей, и для статей матчасти,
-    различаются только родительской страницей.
-    """
-    telegram_settings = TelegramSettings.get()
-    parent = page.get_parent().specific
 
-    if isinstance(parent, TechArticleIndexPage):
-        return telegram_settings.tag_matchast, telegram_settings.emoji_matchast
-    if isinstance(parent, ArticleIndexPage):
-        return telegram_settings.tag_news, telegram_settings.emoji_news
+def get_auto_tags_for_page(page):
+    """Теги без родительской страницы (публикуются на всех постах) + теги,
+    у которых parent_page совпадает с фактическим родителем этой статьи."""
+    parent = page.get_parent()
+    return list(
+        TelegramTag.objects.filter(Q(parent_page__isnull=True) | Q(parent_page_id=parent.id)).order_by('tag')
+    )
 
-    return '', ''
+
+def get_active_tags_for_page(page):
+    """Все теги поста: автоматические (по родительской странице/без неё) +
+    вручную добавленные на самой статье, без дублей. Публикуются все сразу."""
+    auto_tags = get_auto_tags_for_page(page)
+    auto_ids = {t.pk for t in auto_tags}
+    manual_tags = [t for t in page.telegram_extra_tags.all() if t.pk not in auto_ids]
+    return auto_tags + manual_tags
 
 
 def get_message_overhead(page):
-    """Длина всего в сообщении, кроме самого тизера: эмодзи, заголовок статьи,
-    тег, текст ссылки и служебные переводы строк. URL ссылки в подсчёт не
-    входит — Telegram считает длину уже после подстановки видимого текста
-    <a> и <b>, не href. Используется live-счётчиком символов тизера
-    в Wagtail Admin."""
-    tag, emoji = get_telegram_settings_for_page(page)
+    """Длина всего в сообщении, кроме самого тизера и вручную добавленных на
+    статье тегов: эмодзи, заголовок статьи, автоматические теги, текст
+    ссылки и служебные переводы строк. Вручную добавленные теги не входят —
+    их длина считается на клиенте (см. live-счётчик в Wagtail Admin), т.к.
+    выбор в мультиселекте меняется без перезагрузки страницы. URL ссылки в
+    подсчёт не входит — Telegram считает длину уже после подстановки
+    видимого текста <a> и <b>, не href."""
+    category_tag = get_category_tag_for_page(page)
+    emoji = category_tag.emoji if category_tag else ''
+    auto_tags = get_auto_tags_for_page(page)
+    tag_line = ' '.join((f"{t.emoji} {t.tag}" if t.emoji else t.tag) for t in auto_tags)
     link_text = TelegramSettings.get().link_text
-    # +6: пробел после эмодзи, \n\n после заголовка, \n\n перед тегом, \n перед ссылкой
-    return len(emoji) + len(page.title) + len(tag) + len(link_text) + 6
+    # +6: пробел после эмодзи, \n\n после заголовка, \n\n перед тегами, \n перед ссылкой
+    return len(emoji) + len(page.title) + len(tag_line) + len(link_text) + 6
 
 
 def build_telegram_message(page):
     """Собирает текст сообщения. telegram_teaser — свободный ввод редактора,
     обязательно экранируется перед вставкой в HTML-разметку Telegram."""
-    tag, emoji = get_telegram_settings_for_page(page)
-    campaign = tag.lstrip('#')
+    category_tag = get_category_tag_for_page(page)
+    emoji = html.escape(category_tag.emoji) if category_tag and category_tag.emoji else ''
+    tags = get_active_tags_for_page(page)
+    tag_line = ' '.join(
+        (f"{html.escape(t.emoji)} {html.escape(t.tag)}" if t.emoji else html.escape(t.tag))
+        for t in tags
+    )
+    # UTM-слаг — по слагу фактической родительской страницы, не по хардкоду
+    # типа страницы: новый раздел сайта получит свой campaign автоматически.
+    campaign = page.get_parent().slug
 
     url = f"https://gripline.ru{page.url}?utm_source=telegram&utm_medium=social&utm_campaign={campaign}"
     # Ссылка через <a href> с коротким текстом — иначе Telegram показывает
@@ -65,7 +88,7 @@ def build_telegram_message(page):
 
     safe_title = html.escape(page.title)
     safe_teaser = html.escape(page.telegram_teaser)
-    text = f"{emoji} <b>{safe_title}</b>\n\n{safe_teaser}\n\n{tag}\n{link}".strip()
+    text = f"{emoji} <b>{safe_title}</b>\n\n{safe_teaser}\n\n{tag_line}\n{link}".strip()
     return text
 
 

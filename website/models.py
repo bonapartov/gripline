@@ -8,7 +8,7 @@ from coderedcms.models import (
     CoderedEventIndexPage, CoderedEventOccurrence, CoderedEventPage,
     CoderedFormPage, CoderedLocationIndexPage, CoderedLocationPage,
     CoderedWebPage)
-from modelcluster.fields import ParentalKey
+from modelcluster.fields import ParentalKey, ParentalManyToManyField
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from django.db import models
@@ -16,6 +16,7 @@ from modelcluster.models import ClusterableModel
 from wagtail.api import APIField
 from wagtail.snippets.models import register_snippet
 from wagtail.admin.panels import FieldPanel, FieldRowPanel, HelpPanel, InlinePanel, MultiFieldPanel
+from wagtail.admin.forms.pages import WagtailAdminPageForm
 from wagtail.models import DraftStateMixin, RevisionMixin, PreviewableMixin, Orderable
 from django.urls import reverse
 from django.utils.text import slugify
@@ -34,6 +35,26 @@ from wagtailmarkdown.blocks import MarkdownBlock
 from django.utils.html import format_html, format_html_join
 
 # ---------- СТРАНИЦЫ (PAGES) ----------
+
+class ArticlePageForm(WagtailAdminPageForm):
+    """Мультиселект telegram_extra_tags должен показывать только теги,
+    которые ещё не применяются автоматически (без раздела или с разделом,
+    совпадающим с фактическим родителем статьи) — иначе редактор может
+    выбрать тег, который и так уже будет опубликован."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field = self.fields.get('telegram_extra_tags')
+        if field is None:
+            return
+
+        parent = self.parent_page or (self.instance.get_parent() if self.instance.pk else None)
+        auto_tags_filter = models.Q(parent_page__isnull=True)
+        if parent is not None:
+            auto_tags_filter |= models.Q(parent_page_id=parent.id)
+        auto_tag_ids = TelegramTag.objects.filter(auto_tags_filter).values_list('pk', flat=True)
+        field.queryset = TelegramTag.objects.exclude(pk__in=auto_tag_ids)
+
 
 class ArticlePage(CoderedArticlePage):
     class Meta:
@@ -59,6 +80,12 @@ class ArticlePage(CoderedArticlePage):
             "(Telegram ограничивает подпись к фото 1024 символами)."
         ),
     )
+    telegram_extra_tags = ParentalManyToManyField(
+        'website.TelegramTag',
+        blank=True,
+        verbose_name="Доп. теги для Telegram",
+        help_text="Добавляются к автоматическим тегам раздела для этого конкретного поста.",
+    )
     telegram_posted_at = models.DateTimeField(null=True, blank=True, editable=False)
     telegram_posted_by = models.ForeignKey(
         User, null=True, blank=True, on_delete=models.SET_NULL,
@@ -67,7 +94,10 @@ class ArticlePage(CoderedArticlePage):
 
     content_panels = CoderedArticlePage.content_panels + [
         FieldPanel('telegram_teaser'),
+        FieldPanel('telegram_extra_tags'),
     ]
+
+    base_form_class = ArticlePageForm
 
 class ArticleIndexPage(CoderedArticleIndexPage):
     class Meta:
@@ -1654,12 +1684,59 @@ class AnalyticsSettings(models.Model):
         return obj
 
 
+class TelegramTag(models.Model):
+    """
+    Тег для анонс-постинга в Telegram-канал. Список произвольной длины,
+    редактируется в Wagtail Admin → Telegram → Теги.
+
+    Категория — это ссылка на конкретную родительскую страницу (например,
+    страницу «Матчасть» или «Новости»), а не жёстко зашитый список — так
+    при появлении нового раздела сайта ему можно назначить тег без правки
+    кода, и привязка существующих тегов (например, «Матчасть») не зашита
+    в коде и может быть переназначена через админку.
+    """
+
+    tag = models.CharField(
+        max_length=32,
+        verbose_name="Тег",
+        help_text="Например: #юниоры",
+    )
+    emoji = models.CharField(
+        max_length=8,
+        blank=True,
+        verbose_name="Эмодзи",
+        help_text="Например: 🔧. Необязательно, показывается перед тегом в посте.",
+    )
+    parent_page = models.ForeignKey(
+        Page,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        verbose_name="Раздел",
+        help_text=(
+            "Родительская страница, в которой должны быть статьи, чтобы получить "
+            "этот тег (например, Матчасть или Новости). Если не выбрана — тег "
+            "публикуется на всех постах."
+        ),
+        related_name='telegram_tags',
+    )
+
+    class Meta:
+        verbose_name = "Тег Telegram"
+        verbose_name_plural = "Теги Telegram"
+        ordering = ['parent_page', 'tag']
+
+    def __str__(self):
+        return self.tag
+
+
 class TelegramSettings(models.Model):
     """
     Singleton-модель настроек анонс-постинга в Telegram-канал.
     Доступна через TelegramSettings.get().
     Токен бота НЕ хранится здесь — только в переменной окружения
     TELEGRAM_ANNOUNCE_BOT_TOKEN (см. website/telegram.py).
+    Теги — в отдельной модели TelegramTag, не здесь.
     """
 
     channel_id = models.CharField(
@@ -1667,26 +1744,6 @@ class TelegramSettings(models.Model):
         blank=True,
         verbose_name="Channel ID",
         help_text="Например: @gripline_channel или числовой chat_id.",
-    )
-    tag_matchast = models.CharField(
-        max_length=32,
-        default="#матчасть",
-        verbose_name="Тег — Матчасть",
-    )
-    emoji_matchast = models.CharField(
-        max_length=8,
-        default="🔧",
-        verbose_name="Эмодзи — Матчасть",
-    )
-    tag_news = models.CharField(
-        max_length=32,
-        default="#новости",
-        verbose_name="Тег — Новости",
-    )
-    emoji_news = models.CharField(
-        max_length=8,
-        default="🏁",
-        verbose_name="Эмодзи — Новости",
     )
     link_text = models.CharField(
         max_length=64,
