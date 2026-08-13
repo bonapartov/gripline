@@ -142,7 +142,17 @@ def send_to_vk(page, requesting_user):
 
     try:
         if image:
-            attachments.append(upload_image_to_vk(image, vk_settings.group_id))
+            try:
+                attachments.append(upload_image_to_vk(image, vk_settings.group_id))
+            except requests.RequestException:
+                # Ключ доступа сообщества не умеет photos.* (error 27,
+                # "method is unavailable with group auth") — для фото нужен
+                # user-токен через OAuth, которого пока нет. До готовности
+                # публикуем без фото вместо падения целиком.
+                logger.warning(
+                    "VK photo upload failed for page %s, falling back to text-only post",
+                    page.pk,
+                )
 
         response = _vk_call('wall.post', {
             'owner_id': f"-{vk_settings.group_id}",
