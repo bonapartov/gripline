@@ -62,6 +62,13 @@ class Command(BaseCommand):
 
             for update in updates:
                 self.stdout.write(str(update))
+                # Фильтруем строго по update_type == 'bot_added' — иначе
+                # можно случайно поймать chat_id личной переписки от события
+                # 'bot_started' (кто-то просто открыл чат с ботом) вместо
+                # chat_id канала. Событие канала дополнительно отличается
+                # флагом is_channel=True и отрицательным chat_id.
+                if update.get('update_type') != 'bot_added':
+                    continue
                 chat_id = self._find_chat_id(update)
                 if chat_id is not None:
                     self.stdout.write(self.style.SUCCESS(
