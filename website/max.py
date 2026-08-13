@@ -91,7 +91,12 @@ def _upload_image_bytes(upload_url, rendition):
             timeout=REQUEST_TIMEOUT,
         )
     resp.raise_for_status()
-    return resp.json()["token"]
+    # Ответ — не плоский {"token": ...}, а {"photos": {"<photoId>": {"token": ...}}},
+    # где photoId — внутренний идентификатор, выданный на шаге 1 (в upload_url) и
+    # не нужный дальше. Грузим всегда ровно один файл за вызов — берём единственное
+    # значение словаря. Подтверждено реальным вызовом MAX API (2026-08-13).
+    photos = resp.json()["photos"]
+    return next(iter(photos.values()))["token"]
 
 
 def upload_image_to_max(image):
