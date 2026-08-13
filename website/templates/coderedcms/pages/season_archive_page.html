@@ -14,7 +14,13 @@
     </div>
 
     <div class="container mb-5">
-        {% include "coderedcms/snippets/championship_results_table.html" %}
+        {% if active_champ %}
+            {% include "coderedcms/snippets/championship_results_table.html" %}
+        {% else %}
+            <div class="card bg-dark border-secondary p-5 text-center">
+                <p class="text-muted m-0">Чемпионатов пока нет.</p>
+            </div>
+        {% endif %}
     </div>
 
     <div class="container pb-5">

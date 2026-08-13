@@ -291,6 +291,14 @@ class EventPage(TransliteratedSlugMixin, CoderedEventPage):
             return parent.get_parent().specific
         return None
 
+    @property
+    def race_results(self):
+        """Все RaceResult этой страницы across все классы (race_class_groups) —
+        используется в мини-таблице протокола (website/includes/event_results_mini_table.html)."""
+        return RaceResult.objects.filter(group__page=self).select_related(
+            'driver', 'team', 'group__race_class'
+        ).order_by('group__race_class__name', 'position')
+
     api_fields = [
         APIField('admin_title'),
     ]
@@ -2670,6 +2678,14 @@ class StagePage(TransliteratedSlugMixin, CoderedWebPage):
             if event.race_class_groups.exists():
                 return True
         return False
+
+    @property
+    def race_results(self):
+        """Все RaceResult across все дочерние EventPage (классы) этого этапа —
+        используется в мини-таблице протокола (website/includes/event_results_mini_table.html)."""
+        return RaceResult.objects.filter(group__page__in=self.get_child_classes()).select_related(
+            'driver', 'team', 'group__race_class'
+        ).order_by('group__race_class__name', 'position')
 
     def get_context(self, request, *args, **kwargs):
         context = super().get_context(request, *args, **kwargs)
