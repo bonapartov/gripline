@@ -36,6 +36,39 @@ from django.utils.html import format_html, format_html_join
 
 # ---------- СТРАНИЦЫ (PAGES) ----------
 
+class TransliteratedSlugMixin:
+    """Транслитерирует slug в ASCII при первом сохранении новой страницы.
+
+    Wagtail по умолчанию (WAGTAIL_ALLOW_UNICODE_SLUGS) разрешает кириллицу в
+    slug и автозаполняет его из заголовка как есть — из-за этого URL
+    превращается в percent-encoded кашу при копировании ссылки или в
+    анонсах в соцсети (Telegram/MAX/VK). Остальные модели проекта (Driver,
+    Team, RaceClass, Brand) уже транслитерируют через unidecode — приводим
+    страницы к тому же виду.
+
+    Обязательно ПЕРВЫЙ в списке родителей, перед CoderedXxxPage/Page:
+    Page.save() сам вызывает set_url_path() (считает url_path по текущему
+    slug) до super().save() — если транслитерировать slug сигналом
+    pre_save (который сработает уже внутри super().save()), url_path
+    останется старым, кириллическим, несмотря на то что сам slug в базе
+    станет ASCII. Меняя slug здесь, до вызова super().save(), успеваем до
+    того, как Page.save() посчитает url_path.
+
+    Срабатывает только на первом сохранении (self.pk is None) — уже
+    опубликованные страницы не трогаем, иначе меняются расшаренные внешние
+    ссылки на существующие статьи/разделы.
+    """
+    def save(self, *args, **kwargs):
+        if self.pk is None and self.slug:
+            try:
+                self.slug.encode('ascii')
+            except UnicodeEncodeError:
+                transliterated = slugify(unidecode(self.slug))
+                if transliterated:
+                    self.slug = transliterated
+        super().save(*args, **kwargs)
+
+
 class ArticlePageForm(WagtailAdminPageForm):
     """Мультиселект social_extra_tags должен показывать только теги,
     которые ещё не применяются автоматически (без раздела или с разделом,
@@ -56,7 +89,7 @@ class ArticlePageForm(WagtailAdminPageForm):
         field.queryset = SocialTag.objects.exclude(pk__in=auto_tag_ids)
 
 
-class ArticlePage(CoderedArticlePage):
+class ArticlePage(TransliteratedSlugMixin, CoderedArticlePage):
     class Meta:
         verbose_name = "Article"
         ordering = ["-first_published_at"]
@@ -110,7 +143,7 @@ class ArticlePage(CoderedArticlePage):
 
     base_form_class = ArticlePageForm
 
-class ArticleIndexPage(CoderedArticleIndexPage):
+class ArticleIndexPage(TransliteratedSlugMixin, CoderedArticleIndexPage):
     class Meta:
         verbose_name = "Article Landing Page"
     index_query_pagemodel = "website.ArticlePage"
@@ -166,7 +199,7 @@ class ArticleIndexPage(CoderedArticleIndexPage):
         
         return classifiers_dict
 
-class TechArticleIndexPage(CoderedArticleIndexPage):
+class TechArticleIndexPage(TransliteratedSlugMixin, CoderedArticleIndexPage):
     class Meta:
         verbose_name = "Матчасть (индекс)"
     subpage_types = ["website.ArticlePage"]
@@ -211,7 +244,7 @@ class TechArticleIndexPage(CoderedArticleIndexPage):
         return classifiers_dict
 
 
-class EventPage(CoderedEventPage):
+class EventPage(TransliteratedSlugMixin, CoderedEventPage):
     class Meta:
         verbose_name = "Event Page"
     parent_page_types = ["website.EventIndexPage", "website.ChampionshipPage", "website.StagePage"]
@@ -312,7 +345,7 @@ class ColorSwatchWidget(forms.Widget):
         )
 
 
-class ChampionshipPage(CoderedWebPage):
+class ChampionshipPage(TransliteratedSlugMixin, CoderedWebPage):
     class Meta:
         verbose_name = "Чемпионат (Хаб)"
 
@@ -584,7 +617,7 @@ class ChampionshipCompetitionType(models.Model):
     def __str__(self):
         return self.competition_type.name
 
-class EventIndexPage(CoderedEventIndexPage):
+class EventIndexPage(TransliteratedSlugMixin, CoderedEventIndexPage):
     class Meta:
         verbose_name = "Events Landing Page"
     index_query_pagemodel = "website.EventPage"
@@ -594,7 +627,7 @@ class EventIndexPage(CoderedEventIndexPage):
 class EventOccurrence(CoderedEventOccurrence):
     event = ParentalKey(EventPage, related_name="occurrences")
 
-class SeasonArchivePage(CoderedWebPage):
+class SeasonArchivePage(TransliteratedSlugMixin, CoderedWebPage):
     class Meta:
         verbose_name = "Главная страница результатов"
     subpage_types = ["website.ChampionshipPage"]
@@ -996,7 +1029,7 @@ class Track(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, 
         verbose_name = "Трасса"
         verbose_name_plural = "Трассы"
 
-class TrackIndexPage(CoderedWebPage):
+class TrackIndexPage(TransliteratedSlugMixin, CoderedWebPage):
     """
     Страница со списком всех трасс
     """
@@ -1536,7 +1569,7 @@ class RaceResult(Orderable):
 
 # ---------- ВСПОМОГАТЕЛЬНЫЕ МОДЕЛИ ----------
 
-class FormPage(CoderedFormPage):
+class FormPage(TransliteratedSlugMixin, CoderedFormPage):
     class Meta:
         verbose_name = "Form"
     template = "coderedcms/pages/form_page.html"
@@ -1547,25 +1580,25 @@ class FormPageField(CoderedFormField):
 class FormConfirmEmail(CoderedEmail):
     page = ParentalKey("FormPage", related_name="confirmation_emails")
 
-class LocationPage(CoderedLocationPage):
+class LocationPage(TransliteratedSlugMixin, CoderedLocationPage):
     class Meta:
         verbose_name = "Location Page"
     template = "coderedcms/pages/location_page.html"
     parent_page_types = ["website.LocationIndexPage"]
 
-class LocationIndexPage(CoderedLocationIndexPage):
+class LocationIndexPage(TransliteratedSlugMixin, CoderedLocationIndexPage):
     class Meta:
         verbose_name = "Location Landing Page"
     index_query_pagemodel = "website.LocationPage"
     subpage_types = ["website.LocationPage"]
     template = "coderedcms/pages/location_index_page.html"
 
-class WebPage(CoderedWebPage):
+class WebPage(TransliteratedSlugMixin, CoderedWebPage):
     class Meta:
         verbose_name = "Web Page"
     template = "coderedcms/pages/web_page.html"
 
-class WeightsPage(CoderedWebPage):
+class WeightsPage(TransliteratedSlugMixin, CoderedWebPage):
     """
     Страница для отображения таблицы весов
     """
@@ -1854,7 +1887,7 @@ class VkSettings(models.Model):
         return obj
 
 
-class EngineIndexPage(CoderedWebPage):
+class EngineIndexPage(TransliteratedSlugMixin, CoderedWebPage):
     """
     Страница со списком всех двигателей
     """
@@ -1890,7 +1923,7 @@ class UpdateLog(models.Model):
     def __str__(self):
         return f"Обновление от {self.updated_at.strftime('%d.%m.%Y %H:%M')}"
 
-class WeightsTablePage(CoderedWebPage):
+class WeightsTablePage(TransliteratedSlugMixin, CoderedWebPage):
     """
     Страница для отображения таблицы весов контекстной модели
     """
@@ -1901,7 +1934,7 @@ class WeightsTablePage(CoderedWebPage):
     subpage_types = []
     template = "coderedcms/snippets/weights_table.html"
 
-class PulseIndexPage(CoderedWebPage):
+class PulseIndexPage(TransliteratedSlugMixin, CoderedWebPage):
     """
     Главная страница Пульс - агрегатор чемпионатов с визуализацией по годам
     """
@@ -1995,7 +2028,7 @@ class PulseIndexPage(CoderedWebPage):
     
         return context
 
-class RatingInfoPage(CoderedWebPage):
+class RatingInfoPage(TransliteratedSlugMixin, CoderedWebPage):
     """
     Страница с информацией о расчёте рейтингов
     """
@@ -2045,7 +2078,7 @@ class RatingInfoPage(CoderedWebPage):
 
         return context
 
-class EventCalendarPage(CoderedWebPage):
+class EventCalendarPage(TransliteratedSlugMixin, CoderedWebPage):
     """
     Страница календаря мероприятий с двумя режимами: сетка и календарь
     """
@@ -2324,7 +2357,7 @@ class EventCalendarPage(CoderedWebPage):
         return context
 
 
-class HomePage(CoderedWebPage):
+class HomePage(TransliteratedSlugMixin, CoderedWebPage):
     """
     Главная страница Gripline с 4 блоками:
     - Hero: ближайшее событие + счётчик
@@ -2532,7 +2565,7 @@ class HomePage(CoderedWebPage):
 
         return context
 
-class StagePage(CoderedWebPage):
+class StagePage(TransliteratedSlugMixin, CoderedWebPage):
     """
     Страница-хаб для этапа чемпионата.
     Объединяет все классовые страницы (EventPage) одного этапа.
