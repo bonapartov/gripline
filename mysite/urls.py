@@ -2,13 +2,20 @@ from django.contrib import admin
 from django.urls import include, path, reverse_lazy
 from django.conf import settings
 from django.conf.urls.static import static
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import views as auth_views
 from website.models import Driver, Chassis, RaceResult, Track
 from website.views import staff_detail_view, staff_api
 from website.views import rating_stats_api
 from demo.views import choose_role
 from accounts.views import vk_id_redirect_landing
+
+# Файл-верификация владения сайтом для Дзена (Управление → Новости → Экспорт)
+def zen_verification(request):
+    return HttpResponse(
+        '<meta name="zen-verification" content="Ck2NiV5T63yRxmLSNqnNsWPNbojROLVv8LdeR5ocYvyoHGlfNrKthzlo6FVlTRpN" />',
+        content_type='text/html',
+    )
 
 # Функция для API статистики
 def stats_api(request):
@@ -21,6 +28,8 @@ def stats_api(request):
     return JsonResponse(data)
     
 urlpatterns = [
+    path('zen_Ck2NiV5T63yRxmLSNqnNsWPNbojROLVv8LdeR5ocYvyoHGlfNrKthzlo6FVlTRpN.html', zen_verification, name='zen_verification'),
+
     # Перехват redirectUrl VK ID SDK ДО social_django — обмен code на
     # access_token для «узнанной» VK-сессии довершается в браузере,
     # а не через классический server-side complete-view python-social-auth.
