@@ -254,6 +254,29 @@ def register_social_networks_menu():
 
 PUBLISH_EVERYWHERE_VALUE = 'action-publish-everywhere'
 
+def _is_article_page_context(context):
+    """True если экшен-меню сейчас относится к ArticlePage — и на создании
+    (view == 'create'), и на редактировании существующей страницы.
+
+    На создании Wagtail не кладёт 'page' в context вообще (PageActionMenu
+    в create.py вызывается без page=...) — там есть только parent_page,
+    поэтому isinstance(context.get('page'), ArticlePage) всегда False на
+    этом экране. Модель, которую создают, там же в URL create-вью
+    (/admin/pages/add/<app>/<model>/<parent_id>/) — берём её из
+    request.resolver_match.kwargs, как это делает сам Wagtail для
+    определения self.page_class в CreateView.
+    """
+    if context.get('view') == 'create':
+        request = context.get('request')
+        match = getattr(request, 'resolver_match', None)
+        if not match:
+            return False
+        return (
+            match.kwargs.get('content_type_app_name') == 'website'
+            and match.kwargs.get('content_type_model_name') == 'articlepage'
+        )
+    return isinstance(context.get('page'), ArticlePage)
+
 class PublishOnSiteMenuItem(PublishMenuItem):
     """Копия стандартного PublishMenuItem с другим лейблом. Не переиспользуем
     сам PublishMenuItem — он singleton на все типы страниц (кэшируется в
@@ -273,9 +296,17 @@ class PublishEverywhereMenuItem(ActionMenuItem):
     icon_name = 'upload'
 
     def is_shown(self, context):
-        page = context.get('page')
-        if not isinstance(page, ArticlePage):
+        if not _is_article_page_context(context):
             return False
+        if context['view'] == 'create':
+            # На создании ещё нет context['page'] (см. _is_article_page_context) —
+            # права проверяются так же, как у стандартного PublishMenuItem: через
+            # родительскую страницу.
+            return (
+                context['parent_page']
+                .permissions_for_user(context['request'].user)
+                .can_publish_subpage()
+            )
         perms_tester = self.get_user_page_permissions_tester(context)
         return not context['locked_for_user'] and perms_tester.can_publish()
 
@@ -288,9 +319,9 @@ class PublishEverywhereMenuItem(ActionMenuItem):
 @hooks.register('construct_page_action_menu')
 def customize_article_publish_menu(menu_items, request, context):
     """Только для ArticlePage: переименовывает «Опубликовать» в «Опубликовать
-    на сайте» и добавляет рядом «Опубликовать везде»."""
-    page = context.get('page')
-    if not isinstance(page, ArticlePage):
+    на сайте» и добавляет рядом «Опубликовать везде». Работает и на создании
+    новой страницы, и на редактировании — см. _is_article_page_context."""
+    if not _is_article_page_context(context):
         return
     for i, item in enumerate(menu_items):
         if type(item) is PublishMenuItem:
