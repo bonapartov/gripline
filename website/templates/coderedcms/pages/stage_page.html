@@ -1,5 +1,10 @@
 {% extends "coderedcms/pages/web_page.html" %}
-{% load wagtailcore_tags wagtailimages_tags %}
+{% load wagtailcore_tags wagtailimages_tags website_tags %}
+
+{% block struct_seo_extra %}
+{{ page.seo_struct_event_json }}
+{% breadcrumb_schema %}
+{% endblock %}
 
 {% block content %}
 <style>

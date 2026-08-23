@@ -247,6 +247,21 @@ def driver_detail_view(request, slug):
 
     class_ratings = _get_driver_class_ratings(driver)
 
+    from website.schema import driver_person_dict, render_json_ld, _absolute_url
+
+    current_team_id = _compute_driver_current_teams().get(driver.id)
+    current_team = Team.objects.filter(id=current_team_id).first() if current_team_id else None
+    driver_schema_json_ld = render_json_ld(
+        driver_person_dict(driver, current_site, current_team=current_team)
+    )
+    driver_breadcrumb_items = [
+        {"name": "Главная", "url": _absolute_url(current_site, "/")},
+        # /drivers/ (индекс сниппета) отдаёт 403 анонимам/краулерам — используем
+        # реальную публичную страницу вместо неё.
+        {"name": "Пилоты", "url": _absolute_url(current_site, "/top/drivers/")},
+        {"name": driver.full_name, "url": _absolute_url(current_site, driver.get_absolute_url())},
+    ]
+
     return render(request, "coderedcms/snippets/driver_page.html", {
         "driver": driver,
         "object": driver,
@@ -265,6 +280,8 @@ def driver_detail_view(request, slug):
         "last_update": last_update,
         "driver_class_periods": driver_class_periods,
         "class_ratings": class_ratings,
+        "schema_json_ld": driver_schema_json_ld,
+        "breadcrumb_items": driver_breadcrumb_items,
     })
 
 def _compute_driver_current_teams():
@@ -446,6 +463,20 @@ def team_detail_view(request, slug):
     else:
         join_status = 'no_auth'
 
+    from website.schema import team_sportsteam_dict, render_json_ld, _absolute_url
+
+    team_schema_json_ld = render_json_ld(
+        team_sportsteam_dict(team, current_site, members=team_drivers)
+    )
+    team_breadcrumb_items = [
+        {"name": "Главная", "url": _absolute_url(current_site, "/")},
+        # /teams/ (индекс сниппета) отдаёт 403 анонимам/краулерам, и публичной
+        # страницы со списком команд (аналог TrackIndexPage) в проекте нет —
+        # оставляем как есть, известное ограничение.
+        {"name": "Команды", "url": _absolute_url(current_site, "/teams/")},
+        {"name": team.name, "url": _absolute_url(current_site, team.get_absolute_url())},
+    ]
+
     return render(request, "coderedcms/snippets/team_page.html", {
         "team": team,
         "driver_classes": sorted_driver_classes,
@@ -454,6 +485,8 @@ def team_detail_view(request, slug):
         "all_drivers": all_drivers,
         "user_driver": user_driver,
         "join_status": join_status,
+        "schema_json_ld": team_schema_json_ld,
+        "breadcrumb_items": team_breadcrumb_items,
     })
 
 def track_detail_view(request, slug):
@@ -538,6 +571,17 @@ def track_detail_view(request, slug):
 
     track_records = sorted(records_by_class.values(), key=lambda r: r['race_class'].name)
 
+    from website.schema import track_place_dict, render_json_ld, _absolute_url
+
+    track_schema_json_ld = render_json_ld(track_place_dict(track, current_site))
+    track_breadcrumb_items = [
+        {"name": "Главная", "url": _absolute_url(current_site, "/")},
+        # /tracks/ (индекс сниппета) отдаёт 403 анонимам/краулерам — используем
+        # реальную публичную TrackIndexPage вместо неё.
+        {"name": "Трассы", "url": _absolute_url(current_site, "/trassy/")},
+        {"name": track.name, "url": _absolute_url(current_site, track.get_absolute_url())},
+    ]
+
     return render(request, "coderedcms/snippets/track_page.html", {
         "track": track,
         "object": track,
@@ -546,6 +590,8 @@ def track_detail_view(request, slug):
         "upcoming_events": upcoming_events,
         "track_records": track_records,
         "site": current_site,
+        "schema_json_ld": track_schema_json_ld,
+        "breadcrumb_items": track_breadcrumb_items,
     })
 def chassis_detail_view(request, slug):
     chassis = get_object_or_404(Chassis, slug=slug)

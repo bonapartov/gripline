@@ -2,6 +2,22 @@ from django import template
 
 register = template.Library()
 
+@register.simple_tag(takes_context=True)
+def breadcrumb_schema(context):
+    """
+    JSON-LD BreadcrumbList. Берёт готовый список из контекста (breadcrumb_items —
+    для view без Wagtail-страницы, например driver_page.html) либо строит его
+    из page.get_ancestors() для обычных Wagtail-страниц.
+    """
+    from website.schema import build_breadcrumb_items, breadcrumb_list_dict, render_json_ld
+
+    items = context.get('breadcrumb_items')
+    if not items:
+        page = context.get('page') or context.get('self')
+        items = build_breadcrumb_items(page)
+
+    return render_json_ld(breadcrumb_list_dict(items))
+
 @register.filter
 def get_item(dictionary, key):
     """Возвращает значение по ключу или None"""

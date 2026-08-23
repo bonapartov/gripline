@@ -33,6 +33,7 @@ from wagtail.fields import StreamField
 from coderedcms.blocks import CONTENT_STREAMBLOCKS
 from wagtailmarkdown.blocks import MarkdownBlock
 from django.utils.html import format_html, format_html_join
+from wagtailseo.models import SeoType
 
 # ---------- СТРАНИЦЫ (PAGES) ----------
 
@@ -95,6 +96,64 @@ class ArticlePage(TransliteratedSlugMixin, CoderedArticlePage):
         ordering = ["-first_published_at"]
     parent_page_types = ["website.ArticleIndexPage", "website.TechArticleIndexPage"]
     template = "coderedcms/pages/article_page.html"
+
+    # Включает генерацию Article-разметки в wagtailseo (seo_struct_article_dict),
+    # см. seo_og_type в SeoMixin.
+    seo_content_type = SeoType.ARTICLE
+
+    # Соответствие термина классификатора "Уровень" значению TechArticle.proficiencyLevel.
+    SEO_PROFICIENCY_LEVEL_MAP = {
+        "Базовый": "Beginner",
+        "Средний": "Intermediate",
+        "Продвинутый": "Advanced",
+    }
+
+    @property
+    def seo_struct_article_dict(self) -> dict:
+        """
+        Достраивает Article-разметку от wagtailseo: TechArticle для Матчасти,
+        NewsArticle для Новостей (различаем по родительской странице — модель
+        ArticlePage общая для обоих разделов), редакционный автор по умолчанию,
+        proficiencyLevel/about для Матчасти из классификаторов "Уровень"/"Категории".
+        """
+        sd_dict = super().seo_struct_article_dict
+
+        parent = self.get_parent().specific
+        is_tech = isinstance(parent, TechArticleIndexPage)
+        sd_dict["@type"] = "TechArticle" if is_tech else "NewsArticle"
+
+        # seo_author (из CoderedArticlePage) в отсутствие явного автора падает
+        # обратно на author/owner страницы — оба технические поля Wagtail
+        # (кто опубликовал), не редакционная подпись: на проде author_id
+        # заполнен только у 14/104 статей и везде указывает на служебный
+        # аккаунт админа, не на настоящего автора. Единственный надёжный
+        # сигнал "у статьи есть именной автор" — явно заполненный author_display.
+        if not self.author_display:
+            site = self.get_site()
+            sd_dict["author"] = {
+                "@type": "Organization",
+                "name": "Gripline",
+                "url": site.root_url if site else "",
+            }
+
+        if is_tech:
+            level_term = self.classifier_terms.filter(
+                classifier__name="Уровень"
+            ).first()
+            if level_term:
+                proficiency = self.SEO_PROFICIENCY_LEVEL_MAP.get(level_term.name)
+                if proficiency:
+                    sd_dict["proficiencyLevel"] = proficiency
+
+            categories = list(
+                self.classifier_terms.filter(
+                    classifier__name="Категории"
+                ).values_list("name", flat=True)
+            )
+            if categories:
+                sd_dict["about"] = categories
+
+        return sd_dict
 
     body = StreamField(
         CONTENT_STREAMBLOCKS + [("markdown", MarkdownBlock(icon="code"))],
@@ -2651,6 +2710,43 @@ class StagePage(TransliteratedSlugMixin, CoderedWebPage):
         """Погода для этапа (прогноз/оценка/архив) — вызывается из шаблона как page.get_stage_weather."""
         from .weather_utils import get_stage_weather
         return get_stage_weather(self)
+
+    @property
+    def seo_struct_event_dict(self) -> dict:
+        """SportsEvent structured data. eventStatus считается из get_status(),
+        не хранится отдельно — обновляется автоматически по датам этапа."""
+        status_map = {
+            'future': 'https://schema.org/EventScheduled',
+            'current': 'https://schema.org/EventScheduled',
+            'past': 'https://schema.org/EventCompleted',
+        }
+        data = {
+            "@context": "https://schema.org",
+            "@type": "SportsEvent",
+            "name": self.title,
+            "url": self.full_url,
+            "startDate": self.start_date,
+            "endDate": self.end_date,
+            "eventStatus": status_map[self.get_status()['status']],
+            "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+        }
+        if self.track:
+            site = self.get_site()
+            track_url = (
+                site.root_url.rstrip('/') + self.track.get_absolute_url()
+                if site else self.track.get_absolute_url()
+            )
+            data["location"] = {
+                "@type": "SportsActivityLocation",
+                "name": self.track.name,
+                "url": track_url,
+            }
+        return data
+
+    @property
+    def seo_struct_event_json(self):
+        from website.schema import render_json_ld
+        return render_json_ld(self.seo_struct_event_dict)
 
     def get_child_classes(self):
         """

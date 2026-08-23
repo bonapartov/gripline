@@ -328,3 +328,8 @@
     </div>
 </div>
 {% endblock %}
+
+{% block struct_seo %}
+{{ schema_json_ld }}
+{% breadcrumb_schema %}
+{% endblock %}
