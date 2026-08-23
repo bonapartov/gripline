@@ -7,10 +7,11 @@
     <div class="container">
         <h1 class="text-center mb-5 display-4 font-weight-bold">{{ self.title }}</h1>
 
-        <div class="nav nav-pills justify-content-center mb-0 p-2" style="border-radius: 4px; background-color: #2a2a35 !important;">
+        <div class="nav nav-pills justify-content-center mb-0 p-2" id="championship-class-nav" style="border-radius: 4px; background-color: #2a2a35 !important;">
     {% for class in available_classes %}
         <a class="nav-link"
-           href="?race_class={{ class.name }}"
+           href="?race_class={{ class.name|urlencode }}"
+           data-race-class="{{ class.name }}"
            style="border-radius: 4px;
                   transition: all 0.2s;
                   border: 2px solid {% if class.name == selected_class %}#ffc107{% else %}#3a3a45{% endif %};
@@ -25,7 +26,51 @@
     {% endfor %}
 </div>
 
+        <div id="championship-results-container">
         {% include "coderedcms/snippets/championship_results_table.html" %}
+        </div>
     </div>
 </div>
+<script>
+(function() {
+    const nav = document.getElementById('championship-class-nav');
+    const container = document.getElementById('championship-results-container');
+    if (!nav || !container) return;
+
+    nav.addEventListener('click', function(e) {
+        const link = e.target.closest('a[data-race-class]');
+        if (!link) return;
+        e.preventDefault();
+
+        nav.querySelectorAll('a').forEach(a => {
+            a.style.borderColor = '#3a3a45';
+            a.style.color = '#adb5bd';
+        });
+        link.style.borderColor = '#ffc107';
+        link.style.color = 'white';
+
+        container.style.opacity = '0.4';
+        container.style.pointerEvents = 'none';
+
+        const url = '?race_class=' + encodeURIComponent(link.dataset.raceClass);
+        history.pushState(null, '', url);
+
+        fetch(url)
+            .then(r => r.text())
+            .then(html => {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                const newContainer = doc.getElementById('championship-results-container');
+                if (newContainer) {
+                    container.innerHTML = newContainer.innerHTML;
+                }
+                container.style.opacity = '1';
+                container.style.pointerEvents = '';
+            })
+            .catch(() => {
+                container.style.opacity = '1';
+                container.style.pointerEvents = '';
+            });
+    });
+})();
+</script>
 {% endblock %}
