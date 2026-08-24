@@ -364,10 +364,13 @@
 	{% if next_event %}
 	<div class="hero-section">
 
-		<!-- Фон: фото этапа если есть, иначе тёмный -->
+		<!-- Фон: фото этапа; если у этапа своего фото нет — берём фото чемпионата; иначе тёмный -->
 		<div class="hero-bg"
 			{% if next_event.event.cover_image %}
 				{% image next_event.event.cover_image fill-1400x500 format-webp preserve-svg as hero_img %}
+				style="background-image: url('{{ hero_img.url }}');"
+			{% elif next_event.championship.cover_image %}
+				{% image next_event.championship.cover_image fill-1400x500 format-webp preserve-svg as hero_img %}
 				style="background-image: url('{{ hero_img.url }}');"
 			{% endif %}
 		></div>
