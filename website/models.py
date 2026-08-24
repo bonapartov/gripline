@@ -38,7 +38,7 @@ from wagtailseo.models import SeoType
 # ---------- СТРАНИЦЫ (PAGES) ----------
 
 class TransliteratedSlugMixin:
-    """Транслитерирует slug в ASCII при первом сохранении новой страницы.
+    """Транслитерирует slug в ASCII, пока страница ещё не опубликована.
 
     Wagtail по умолчанию (WAGTAIL_ALLOW_UNICODE_SLUGS) разрешает кириллицу в
     slug и автозаполняет его из заголовка как есть — из-за этого URL
@@ -55,12 +55,18 @@ class TransliteratedSlugMixin:
     станет ASCII. Меняя slug здесь, до вызова super().save(), успеваем до
     того, как Page.save() посчитает url_path.
 
-    Срабатывает только на первом сохранении (self.pk is None) — уже
-    опубликованные страницы не трогаем, иначе меняются расшаренные внешние
-    ссылки на существующие статьи/разделы.
+    Проверка `self.pk is None` (только первый save) не годится: экран
+    «Новая страница» в Wagtail 7.3 создаёт запись в БД сразу по мере ввода
+    заголовка (autosave/hydrate-flow) — на этом этапе title ещё неполный.
+    Полный заголовок и итоговый slug приходят позже, уже через EditView, у
+    страницы к этому моменту уже есть pk — старая проверка такие сохранения
+    пропускала, и кириллический slug из клиентского JS уходил в базу как
+    есть. Используем `not self.first_published_at` — срабатывает на любом
+    save черновика (сколько бы их ни было), но не трогает уже
+    опубликованные страницы, чтобы не ломать расшаренные внешние ссылки.
     """
     def save(self, *args, **kwargs):
-        if self.pk is None and self.slug:
+        if not self.first_published_at and self.slug:
             try:
                 self.slug.encode('ascii')
             except UnicodeEncodeError:
