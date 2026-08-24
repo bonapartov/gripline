@@ -367,7 +367,7 @@
 		<!-- Фон: фото этапа если есть, иначе тёмный -->
 		<div class="hero-bg"
 			{% if next_event.event.cover_image %}
-				{% image next_event.event.cover_image fill-1400x500 as hero_img %}
+				{% image next_event.event.cover_image fill-1400x500 format-webp preserve-svg as hero_img %}
 				style="background-image: url('{{ hero_img.url }}');"
 			{% endif %}
 		></div>
@@ -465,8 +465,8 @@
             {% for article in latest_articles %}
             <a href="{{ article.url }}" class="news-card">
                 {% if article.cover_image %}
-                    {% image article.cover_image width-400 as img %}
-                    <img src="{{ img.url }}" class="news-card-img" alt="{{ article.title }}">
+                    {% image article.cover_image width-400 format-webp preserve-svg as img %}
+                    <img src="{{ img.url }}" class="news-card-img" alt="{{ article.title }}" width="{{ img.width }}" height="{{ img.height }}" loading="lazy">
                 {% else %}
                     <div class="news-card-img-placeholder">
                         <i class="fas fa-newspaper fa-2x text-secondary"></i>
@@ -513,8 +513,8 @@
                         {{ driver.rank }}
                     </div>
                     {% if driver.photo %}
-                        {% image driver.photo fill-40x40 as dp %}
-                        <img src="{{ dp.url }}" class="driver-photo-small" alt="{{ driver.full_name }}">
+                        {% image driver.photo fill-40x40 format-webp preserve-svg as dp %}
+                        <img src="{{ dp.url }}" class="driver-photo-small" alt="{{ driver.full_name }}" width="{{ dp.width }}" height="{{ dp.height }}" loading="lazy">
                     {% else %}
                         <div class="driver-photo-placeholder-small">
                             <i class="fas fa-user text-secondary" style="font-size: 0.8rem;"></i>
@@ -618,8 +618,8 @@
         {% for article in latest_tech_articles %}
         <a href="{{ article.url }}" class="news-card">
             {% if article.cover_image %}
-                {% image article.cover_image width-400 as img %}
-                <img src="{{ img.url }}" class="news-card-img" alt="{{ article.title }}">
+                {% image article.cover_image width-400 format-webp preserve-svg as img %}
+                <img src="{{ img.url }}" class="news-card-img" alt="{{ article.title }}" width="{{ img.width }}" height="{{ img.height }}" loading="lazy">
             {% else %}
                 <div class="news-card-img-placeholder">
                     <i class="fas fa-wrench fa-2x text-secondary"></i>
