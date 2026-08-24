@@ -1,5 +1,25 @@
 {% extends "coderedcms/pages/base.html" %}
-{% load static %}
+{% load static coderedcms_tags %}
+
+{% block frontend_assets %}
+{# Асинхронная загрузка вместо блокирующего <link>: PageSpeed Insights отмечал
+   Bootstrap CSS как самый тяжёлый render-blocking ресурс (~2500мс на
+   мобильном). preload+swap убирает его из критического пути рендера —
+   контент может отрисоваться до применения стилей (короткая вспышка
+   неоформленного вида на медленных сетях), но LCP/FCP выигрывают ощутимо. #}
+<link rel="preload" href="{% static 'coderedcms/vendor/bootstrap/dist/css/bootstrap.min.css' %}?v={% coderedcms_version %}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="{% static 'coderedcms/vendor/bootstrap/dist/css/bootstrap.min.css' %}?v={% coderedcms_version %}"></noscript>
+{% endblock %}
+
+{% block coderedcms_assets %}
+{% django_setting "DEBUG" as debug %}
+{% if debug %}
+<link rel="stylesheet" href="{% static 'coderedcms/css/crx-front.css' %}?v={% coderedcms_version %}">
+{% else %}
+<link rel="preload" href="{% static 'coderedcms/css/crx-front.min.css' %}?v={% coderedcms_version %}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="{% static 'coderedcms/css/crx-front.min.css' %}?v={% coderedcms_version %}"></noscript>
+{% endif %}
+{% endblock %}
 
 {% block custom_assets %}
 <meta name="google-site-verification" content="YNdq9iQBhN1R10JnDT4tk9ktX0vJDqqhTPrMTeFgbic" />

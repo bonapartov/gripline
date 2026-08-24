@@ -1,7 +1,8 @@
-{% load wagtailcore_tags wagtailsettings_tags wagtailimages_tags coderedcms_tags i18n %}
+{% load static wagtailcore_tags wagtailsettings_tags wagtailimages_tags coderedcms_tags i18n %}
 {% wagtail_site as site %}
 {% django_setting "CRX_DISABLE_LAYOUT" as disable_layout %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<link rel="preload" href="{% static 'website/vendor/fontawesome/css/all.min.css' %}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="{% static 'website/vendor/fontawesome/css/all.min.css' %}"></noscript>
 
 {% if not disable_layout %}
 <nav class="navbar {% get_navbar_css %}">
