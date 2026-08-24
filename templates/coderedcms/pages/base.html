@@ -2,11 +2,13 @@
 {% load static coderedcms_tags %}
 
 {% block frontend_assets %}
-{# Асинхронная загрузка вместо блокирующего <link>: PageSpeed Insights отмечал
-   Bootstrap CSS как самый тяжёлый render-blocking ресурс (~2500мс на
-   мобильном). preload+swap убирает его из критического пути рендера —
-   контент может отрисоваться до применения стилей (короткая вспышка
-   неоформленного вида на медленных сетях), но LCP/FCP выигрывают ощутимо. #}
+{% comment %}
+Асинхронная загрузка вместо блокирующего <link>: PageSpeed Insights отмечал
+Bootstrap CSS как самый тяжёлый render-blocking ресурс (~2500мс на
+мобильном). preload+swap убирает его из критического пути рендера —
+контент может отрисоваться до применения стилей (короткая вспышка
+неоформленного вида на медленных сетях), но LCP/FCP выигрывают ощутимо.
+{% endcomment %}
 <link rel="preload" href="{% static 'coderedcms/vendor/bootstrap/dist/css/bootstrap.min.css' %}?v={% coderedcms_version %}" as="style" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="{% static 'coderedcms/vendor/bootstrap/dist/css/bootstrap.min.css' %}?v={% coderedcms_version %}"></noscript>
 {% endblock %}
