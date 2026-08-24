@@ -291,7 +291,9 @@
 
 <div class="force-width-1700 mt-8">
     <h1 class="site-title-dynamic">{{ page.title }}</h1>
-    
+
+    {% block matchast_search %}{% endblock %}
+
     {% if classifiers_data %}
         <!-- ДВЕ КОЛОНКИ: фильтры слева + новости справа -->
         <div class="two-columns">

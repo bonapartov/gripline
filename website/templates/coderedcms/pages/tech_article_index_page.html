@@ -1,1 +1,155 @@
 {% extends "coderedcms/pages/article_index_page.html" %}
+{% load wagtailcore_tags %}
+
+{% block matchast_search %}
+<style>
+    .matchast-search-wrapper {
+        position: relative;
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto 40px auto;
+    }
+
+    .matchast-search-input {
+        background-color: #15151c;
+        border: 1px solid #2a2a35;
+        color: white;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        width: 100%;
+        font-size: 1rem;
+    }
+
+    .matchast-search-input:focus {
+        border-color: #ffc107;
+        outline: none;
+        box-shadow: none;
+    }
+
+    .matchast-search-dropdown {
+        display: none;
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        max-height: 320px;
+        overflow-y: auto;
+        background: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        z-index: 1000;
+    }
+
+    .matchast-search-result-item {
+        padding: 10px 14px;
+        cursor: pointer;
+        border-bottom: 1px solid #2a2a35;
+    }
+
+    .matchast-search-result-item:last-child {
+        border-bottom: none;
+    }
+
+    .matchast-search-result-item:hover {
+        background-color: #2a2a35;
+    }
+
+    .matchast-search-result-title {
+        color: white;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .matchast-search-result-date {
+        color: #6c757d;
+        font-size: 0.8rem;
+        margin-top: 2px;
+    }
+</style>
+
+<div class="matchast-search-wrapper">
+    <input type="text"
+           id="matchast_search_input"
+           class="form-control matchast-search-input"
+           placeholder="🔍 Поиск по матчасти..."
+           autocomplete="off">
+    <div class="matchast-search-dropdown" id="matchast_search_results"></div>
+</div>
+
+<script>
+// Датасет статей Матчасти для живого поиска (client-side, без AJAX)
+const matchastData = [
+    {% for post in articles %}
+    {
+        title: "{{ post.title|escapejs }}",
+        teaser: "{{ post.social_teaser|escapejs }}",
+        url: "{% pageurl post %}",
+        date: "{% if post.seo_published_at %}{{ post.seo_published_at|date:'d.m.Y' }}{% else %}{{ post.first_published_at|date:'d.m.Y' }}{% endif %}"
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+];
+
+function matchastParseDate(str) {
+    const [d, m, y] = str.split('.').map(Number);
+    return new Date(y, m - 1, d).getTime();
+}
+
+function matchastSearch(query) {
+    const q = query.toLowerCase().trim();
+    if (q.length < 3) return [];
+
+    const scored = matchastData
+        .map(function(a) {
+            const titleLower = a.title.toLowerCase();
+            const teaserLower = a.teaser.toLowerCase();
+            let weight = 0;
+            if (titleLower.startsWith(q)) weight = 3;
+            else if (titleLower.includes(q)) weight = 2;
+            else if (teaserLower.includes(q)) weight = 1;
+            return weight ? Object.assign({}, a, { weight: weight }) : null;
+        })
+        .filter(Boolean);
+
+    scored.sort(function(a, b) {
+        if (b.weight !== a.weight) return b.weight - a.weight;
+        return matchastParseDate(b.date) - matchastParseDate(a.date);
+    });
+
+    return scored.slice(0, 5);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('matchast_search_input');
+    const results = document.getElementById('matchast_search_results');
+    if (!input || !results) return;
+
+    input.addEventListener('input', function() {
+        if (this.value.trim().length < 3) {
+            results.style.display = 'none';
+            results.innerHTML = '';
+            return;
+        }
+
+        const matches = matchastSearch(this.value);
+
+        if (matches.length === 0) {
+            results.innerHTML = '<div class="matchast-search-result-item">Ничего не найдено</div>';
+        } else {
+            results.innerHTML = matches.map(function(a) {
+                return '<div class="matchast-search-result-item" onclick="location.href=\'' + a.url + '\'">' +
+                    '<div class="matchast-search-result-title">' + a.title + '</div>' +
+                    '<div class="matchast-search-result-date">' + a.date + '</div>' +
+                    '</div>';
+            }).join('');
+        }
+        results.style.display = 'block';
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !results.contains(e.target)) {
+            results.style.display = 'none';
+        }
+    });
+});
+</script>
+{% endblock %}
