@@ -74,7 +74,10 @@
             });
             var entityKey = contentWithEntity.getLastCreatedEntityKey();
             var selection = state.getSelection();
-            var newContent = Modifier.insertText(
+            // См. pilot-mention.js: Modifier.insertText требует схлопнутое
+            // выделение и бросает исключение на диапазоне (кнопка в тулбаре
+            // над выделенным текстом). replaceText работает в обоих случаях.
+            var newContent = Modifier.replaceText(
                 contentWithEntity, selection, team.name, undefined, entityKey
             );
             this.props.onComplete(EditorState.push(state, newContent, 'insert-characters'));

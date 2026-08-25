@@ -79,7 +79,13 @@
             });
             var entityKey = contentWithEntity.getLastCreatedEntityKey();
             var selection = state.getSelection();
-            var newContent = Modifier.insertText(
+            // Modifier.insertText требует схлопнутое выделение (просто курсор) и
+            // бросает invariant-исключение на диапазоне — а сюда можно попасть и
+            // с выделенным текстом (кнопка в плавающем тулбаре над выделением, а
+            // не только через «/»-команду с курсором). replaceText работает в
+            // обоих случаях: на схлопнутом диапазоне ведёт себя как insertText,
+            // на непустом — корректно заменяет выделенный текст.
+            var newContent = Modifier.replaceText(
                 contentWithEntity, selection, driver.full_name, undefined, entityKey
             );
             this.props.onComplete(EditorState.push(state, newContent, 'insert-characters'));
