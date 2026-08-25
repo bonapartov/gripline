@@ -79,16 +79,23 @@
             });
             var entityKey = contentWithEntity.getLastCreatedEntityKey();
             var selection = state.getSelection();
-            // Modifier.insertText требует схлопнутое выделение (просто курсор) и
-            // бросает invariant-исключение на диапазоне — а сюда можно попасть и
-            // с выделенным текстом (кнопка в плавающем тулбаре над выделением, а
-            // не только через «/»-команду с курсором). replaceText работает в
-            // обоих случаях: на схлопнутом диапазоне ведёт себя как insertText,
-            // на непустом — корректно заменяет выделенный текст.
-            var newContent = Modifier.replaceText(
-                contentWithEntity, selection, driver.full_name, undefined, entityKey
-            );
-            this.props.onComplete(EditorState.push(state, newContent, 'insert-characters'));
+            // Два входа: «/»-команда — курсор просто стоит на месте (схлопнутое
+            // выделение), вставляем ФИО как новый текст. Кнопка в плавающем
+            // тулбаре над выделением — там уже есть текст ("Михаила" в "У
+            // Михаила..."), и его нужно оставить как есть (падеж, склонение),
+            // просто сделав ссылкой — не подменять на каноничное имя пилота
+            // из базы (Modifier.replaceText здесь испортило бы грамматику).
+            var changeType, newContent;
+            if (selection.isCollapsed()) {
+                changeType = 'insert-characters';
+                newContent = Modifier.insertText(
+                    contentWithEntity, selection, driver.full_name, undefined, entityKey
+                );
+            } else {
+                changeType = 'apply-entity';
+                newContent = Modifier.applyEntity(contentWithEntity, selection, entityKey);
+            }
+            this.props.onComplete(EditorState.push(state, newContent, changeType));
         };
 
         PilotMentionSource.prototype.render = function () {

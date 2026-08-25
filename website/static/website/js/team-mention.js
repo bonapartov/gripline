@@ -74,13 +74,20 @@
             });
             var entityKey = contentWithEntity.getLastCreatedEntityKey();
             var selection = state.getSelection();
-            // См. pilot-mention.js: Modifier.insertText требует схлопнутое
-            // выделение и бросает исключение на диапазоне (кнопка в тулбаре
-            // над выделенным текстом). replaceText работает в обоих случаях.
-            var newContent = Modifier.replaceText(
-                contentWithEntity, selection, team.name, undefined, entityKey
-            );
-            this.props.onComplete(EditorState.push(state, newContent, 'insert-characters'));
+            // См. pilot-mention.js: если текст уже выделен (кнопка в тулбаре
+            // над выделением), оставляем его как есть и просто делаем ссылкой
+            // — не подменяем на каноничное название команды из базы.
+            var changeType, newContent;
+            if (selection.isCollapsed()) {
+                changeType = 'insert-characters';
+                newContent = Modifier.insertText(
+                    contentWithEntity, selection, team.name, undefined, entityKey
+                );
+            } else {
+                changeType = 'apply-entity';
+                newContent = Modifier.applyEntity(contentWithEntity, selection, entityKey);
+            }
+            this.props.onComplete(EditorState.push(state, newContent, changeType));
         };
 
         TeamMentionSource.prototype.render = function () {
