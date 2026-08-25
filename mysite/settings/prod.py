@@ -55,6 +55,20 @@ CACHES = {
 STATIC_ROOT = BASE_DIR / "static"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Хешированные имена файлов (style.a1b2c3d4.css) — при каждом collectstatic
+# меняется имя изменённого файла, значит меняется и URL в {% static %}.
+# 30-дневный Cache-Control на /static/ (nginx) перестаёт быть риском отдать
+# протухший JS/CSS: старый URL с прежним хешем просто больше никем не
+# запрашивается после деплоя.
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.ManifestStaticFilesStorage",
+    },
+}
+
 DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
 
