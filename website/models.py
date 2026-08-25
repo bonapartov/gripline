@@ -31,6 +31,7 @@ from zoneinfo import ZoneInfo
 from django.http import HttpResponse
 from wagtail.fields import StreamField
 from coderedcms.blocks import CONTENT_STREAMBLOCKS
+from coderedcms.blocks.html_blocks import RichTextBlock as CrxRichTextBlock
 from wagtailmarkdown.blocks import MarkdownBlock
 from django.utils.html import format_html, format_html_join
 from wagtailseo.models import SeoType
@@ -94,6 +95,35 @@ class ArticlePageForm(WagtailAdminPageForm):
             auto_tags_filter |= models.Q(parent_page_id=parent.id)
         auto_tag_ids = SocialTag.objects.filter(auto_tags_filter).values_list('pk', flat=True)
         field.queryset = SocialTag.objects.exclude(pk__in=auto_tag_ids)
+
+
+def _article_body_streamblocks():
+    """CONTENT_STREAMBLOCKS с локальной копией блока "text": добавляет
+    pilot_mention/team_mention (см. website/wagtail_hooks.py) только для
+    ArticlePage.body — CONTENT_STREAMBLOCKS общий объект для всех типов
+    страниц проекта, менять его напрямую включило бы автокомплит пилотов/
+    команд в rich text везде, а не только в статьях.
+
+    Список стандартных фич захардкожен, а не взят через
+    wagtail.rich_text.features.get_default_features() — тот вызов на этапе
+    импорта website/models.py триггерит сканирование wagtail_hooks.py по
+    всем приложениям, а organizers/wagtail_hooks.py -> organizers/models.py
+    импортирует обратно website.models, который в этот момент ещё сам не
+    доимпортировался (circular import). Значения сверены вручную через
+    `wagtail.rich_text.features.get_default_features()` в shell — при
+    обновлении Wagtail/coderedcms проверить, что список не разошёлся.
+    """
+    features = [
+        "embed", "hr", "link", "bold", "italic", "h2", "h3", "h4",
+        "ol", "ul", "document-link", "image",
+    ] + ["pilot_mention", "team_mention"]
+    result = []
+    for name, block in CONTENT_STREAMBLOCKS:
+        if name == "text":
+            result.append(("text", CrxRichTextBlock(icon="cr-font", features=features)))
+        else:
+            result.append((name, block))
+    return result
 
 
 class ArticlePage(TransliteratedSlugMixin, CoderedArticlePage):
@@ -162,7 +192,7 @@ class ArticlePage(TransliteratedSlugMixin, CoderedArticlePage):
         return sd_dict
 
     body = StreamField(
-        CONTENT_STREAMBLOCKS + [("markdown", MarkdownBlock(icon="code"))],
+        _article_body_streamblocks() + [("markdown", MarkdownBlock(icon="code"))],
         null=True,
         blank=True,
         use_json_field=True,

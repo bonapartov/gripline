@@ -2105,6 +2105,7 @@ def drivers_api(request):
                 'first_name': d.first_name,
                 'last_name': d.last_name,
                 'city': d.city or '',
+                'absolute_url': d.get_absolute_url(),
             }
             for d in drivers
         ]
@@ -2312,6 +2313,7 @@ def teams_api(request):
             {
                 'id': t.id,
                 'name': t.name,
+                'absolute_url': t.get_absolute_url(),
             }
             for t in teams
         ]

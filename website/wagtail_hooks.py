@@ -16,6 +16,12 @@ from .max_admin_views import max_status, max_send
 from .max import send_to_max
 from .vk_admin_views import vk_status, vk_send
 from .vk import send_to_vk
+import wagtail.admin.rich_text.editors.draftail.features as draftail_features
+from draftjs_exporter.dom import DOM
+from wagtail.admin.rich_text.converters.html_to_contentstate import InlineEntityElementHandler
+from wagtail.rich_text import LinkHandler
+from django.utils.html import escape
+from django.templatetags.static import static
 
 class DriverAdmin(ModelAdmin):
     model = Driver
@@ -872,3 +878,165 @@ def order_event_pages_by_admin_title(parent_page, pages, request):
         return pages.order_by('coderedpage__eventpage__admin_title')
 
     return pages
+
+
+# ==================== АВТОССЫЛКИ НА ПИЛОТОВ И КОМАНД В СТАТЬЯХ ====================
+#
+# Live-автокомплит в теле статьи (ArticlePage.body): в блоке "text" (Draftail)
+# редактор печатает "/пилот" или "/команда" — открывается встроенная в
+# Wagtail 7.3 командная палитра (Notion-style, живёт в самом draftail.js),
+# внутри неё — наш поиск по фамилии/названию, выбор вставляет ссылку.
+#
+# Ссылка хранится не как готовый href, а как <a linktype="driver" id="42">
+# / <a linktype="team" id="7"> — тот же паттерн, что использует сам Wagtail
+# для ссылок на страницы (PageLinkHandler, wagtail/rich_text/pages.py):
+# реальный URL подставляется при РЕНДЕРЕ через DriverLinkHandler/
+# TeamLinkHandler.expand_db_attributes(), поэтому смена slug у пилота/команды
+# не превращает уже опубликованные упоминания в мёртвые ссылки.
+#
+# Фича НЕ добавлена в features.default_features — доступна только там, где
+# явно перечислена: ArticlePage.body, блок "text" (см. website/models.py,
+# _article_body_streamblocks()).
+
+
+class DriverLinkHandler(LinkHandler):
+    """<a linktype="driver" id="42"> -> реальный URL при рендере."""
+    identifier = "driver"
+
+    @staticmethod
+    def get_model():
+        return Driver
+
+    @classmethod
+    def expand_db_attributes(cls, attrs):
+        try:
+            driver = Driver.objects.get(id=attrs["id"])
+        except (Driver.DoesNotExist, KeyError, ValueError):
+            return "<a>"
+        return '<a href="%s" target="_blank" rel="noopener">' % escape(driver.get_absolute_url())
+
+    @classmethod
+    def extract_references(cls, attrs):
+        yield Driver, attrs["id"], "", ""
+
+
+class TeamLinkHandler(LinkHandler):
+    """<a linktype="team" id="7"> -> реальный URL при рендере."""
+    identifier = "team"
+
+    @staticmethod
+    def get_model():
+        return Team
+
+    @classmethod
+    def expand_db_attributes(cls, attrs):
+        try:
+            team = Team.objects.get(id=attrs["id"])
+        except (Team.DoesNotExist, KeyError, ValueError):
+            return "<a>"
+        return '<a href="%s" target="_blank" rel="noopener">' % escape(team.get_absolute_url())
+
+    @classmethod
+    def extract_references(cls, attrs):
+        yield Team, attrs["id"], "", ""
+
+
+class PilotMentionElementHandler(InlineEntityElementHandler):
+    """Обратная загрузка <a linktype="driver"> в Draftail-сущность PILOT_MENTION
+    при повторном открытии статьи в редакторе."""
+    mutability = "MUTABLE"
+
+    def get_attribute_data(self, attrs):
+        driver_id = attrs.get("id")
+        driver = Driver.objects.filter(id=driver_id).first() if driver_id else None
+        return {"id": driver_id, "fullName": driver.full_name if driver else None}
+
+
+class TeamMentionElementHandler(InlineEntityElementHandler):
+    """Обратная загрузка <a linktype="team"> в Draftail-сущность TEAM_MENTION
+    при повторном открытии статьи в редакторе."""
+    mutability = "MUTABLE"
+
+    def get_attribute_data(self, attrs):
+        team_id = attrs.get("id")
+        team = Team.objects.filter(id=team_id).first() if team_id else None
+        return {"id": team_id, "name": team.name if team else None}
+
+
+def pilot_mention_entity(props):
+    return DOM.create_element("a", {"linktype": "driver", "id": props["id"]}, props["children"])
+
+
+def team_mention_entity(props):
+    return DOM.create_element("a", {"linktype": "team", "id": props["id"]}, props["children"])
+
+
+@hooks.register("register_rich_text_features")
+def register_pilot_mention_feature(features):
+    features.register_link_type(DriverLinkHandler)
+    features.register_editor_plugin(
+        "draftail", "pilot_mention",
+        draftail_features.EntityFeature(
+            {
+                "type": "PILOT_MENTION",
+                "icon": "user",
+                "description": "Упомянуть пилота",
+                "attributes": ["id", "fullName"],
+            },
+            js=["website/js/driver-search.js", "website/js/pilot-mention.js"],
+            css={"all": ["website/css/mention.css"]},
+        ),
+    )
+    features.register_converter_rule("contentstate", "pilot_mention", {
+        "from_database_format": {
+            'a[linktype="driver"]': PilotMentionElementHandler("PILOT_MENTION"),
+        },
+        "to_database_format": {
+            "entity_decorators": {"PILOT_MENTION": pilot_mention_entity},
+        },
+    })
+    # Сознательно НЕ в features.default_features — строго opt-in.
+
+
+@hooks.register("register_rich_text_features")
+def register_team_mention_feature(features):
+    features.register_link_type(TeamLinkHandler)
+    features.register_editor_plugin(
+        "draftail", "team_mention",
+        draftail_features.EntityFeature(
+            {
+                "type": "TEAM_MENTION",
+                "icon": "group",
+                "description": "Упомянуть команду",
+                "attributes": ["id", "name"],
+            },
+            js=["website/js/team-search.js", "website/js/team-mention.js"],
+            css={"all": ["website/css/mention.css"]},
+        ),
+    )
+    features.register_converter_rule("contentstate", "team_mention", {
+        "from_database_format": {
+            'a[linktype="team"]': TeamMentionElementHandler("TEAM_MENTION"),
+        },
+        "to_database_format": {
+            "entity_decorators": {"TEAM_MENTION": team_mention_entity},
+        },
+    })
+    # Сознательно НЕ в features.default_features — строго opt-in.
+
+
+@hooks.register("insert_editor_js")
+def mention_markdown_js():
+    """Автокомплит пилотов/команд для markdown-блока ArticlePage.body
+    (EasyMDE, не Draftail — своя реализация, см. website/static/website/js/
+    mention-markdown.js). Хук срабатывает на каждой странице редактирования
+    (как кнопка "Отправить в Telegram" выше), но безвреден там, где
+    .codemirror-инстанса нет — просто ничего не находит."""
+    return format_html(
+        '<script src="{}"></script><script src="{}"></script><script src="{}"></script>'
+        '<link rel="stylesheet" href="{}">',
+        static("website/js/driver-search.js"),
+        static("website/js/team-search.js"),
+        static("website/js/mention-markdown.js"),
+        static("website/css/mention.css"),
+    )

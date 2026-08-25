@@ -1,0 +1,85 @@
+/* Автокомплит пилотов/команд в теле статьи (Draftail + markdown) —
+   website/wagtail_hooks.py::register_pilot_mention_feature/register_team_mention_feature,
+   website/static/website/js/pilot-mention.js, team-mention.js, mention-markdown.js */
+
+.mention-source {
+    position: relative;
+    background: #1a1a25;
+    border: 1px solid #2a2a35;
+    border-radius: 6px;
+    padding: 8px;
+    min-width: 260px;
+    max-width: 340px;
+}
+
+.mention-source--markdown {
+    position: absolute;
+    z-index: 10000;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.mention-source__input {
+    width: 100%;
+    background: #15151c;
+    border: 1px solid #2a2a35;
+    color: #fff;
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-size: 0.9rem;
+    box-sizing: border-box;
+}
+
+.mention-source__input:focus {
+    outline: none;
+    border-color: #ffc107;
+}
+
+.mention-source__results {
+    list-style: none;
+    margin: 6px 0 0;
+    padding: 0;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.mention-source__results li {
+    margin: 0;
+    padding: 0;
+}
+
+.mention-source__results button,
+.mention-source__result {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    color: #fff;
+    padding: 6px 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.mention-source__results button:hover,
+.mention-source__result:hover {
+    background: #2a2a35;
+}
+
+.mention-source__result-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: #1a1a25;
+    background: #ffc107;
+    border-radius: 3px;
+    padding: 1px 5px;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.mention-decorator {
+    color: #ffc107;
+    text-decoration: underline dotted;
+}
