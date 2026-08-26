@@ -133,12 +133,11 @@
                             <div class="small text-muted mb-1">
                                 Данные на {{ group.page.occurrences.all.first.end|date:"d.m.Y" }} - {{ group.race_time|time:"H:i" }}
                             </div>
+                            {% if group.air_temperature %}
                             <div class="d-flex gap-3 flex-wrap justify-content-end">
-                                {% if group.air_temperature %}
                                 <span class="text-info" title="Температура">
                                     <i class="fas fa-temperature-half me-1"></i>{{ group.air_temperature|floatformat:1 }}°C
                                 </span>
-                                {% endif %}
 
                                 {% if group.humidity %}
                                 <span class="text-info" title="Влажность">
@@ -170,6 +169,14 @@
                                 </span>
                                 {% endif %}
                             </div>
+                            {% else %}
+                                {% comment %}
+                                Архив ещё не заполнен (обычно — этап ещё не состоялся): показываем
+                                прогноз/статистическую оценку. Ничего не пишет в БД — только вёрстка,
+                                см. RaceClassResultGroup.get_forecast_weather() / weather_utils.py.
+                                {% endcomment %}
+                                {% include "includes/weather_widget.html" with weather=group.get_forecast_weather compact=True %}
+                            {% endif %}
                         </div>
                     </div>
 

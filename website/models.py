@@ -1528,6 +1528,12 @@ class RaceClassResultGroup(Orderable, ClusterableModel):
                                .values_list('race_number', flat=True)
         )
 
+    def get_forecast_weather(self):
+        """Прогноз/оценка погоды на дату этапа — только пока архив (air_temperature
+        и т.д.) ещё не заполнен. Вызывается из шаблона как group.get_forecast_weather."""
+        from .weather_utils import get_group_forecast_weather
+        return get_group_forecast_weather(self)
+
     class Meta:
         verbose_name = "Группа результатов"
         verbose_name_plural = "Группы результатов"
