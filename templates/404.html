@@ -5,15 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>404 — Трасса потеряна | Gripline</title>
-    <link rel="stylesheet" href="{% static 'website/css/tokens.css' %}">
     <link rel="stylesheet" href="{% static 'website/vendor/fontawesome/css/all.min.css' %}">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            background: var(--gl-surface-body);
-            color: var(--gl-fg-2);
-            font-family: var(--gl-font-display);
+            background: #15151c;
+            color: #eceff1;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -35,31 +34,16 @@
             font-size: 1.4rem;
             font-weight: 900;
             letter-spacing: 0.05em;
-            color: var(--gl-brand-yellow);
+            color: #ffc107;
             text-decoration: none;
             margin-bottom: 2.5rem;
             display: inline-block;
         }
 
-        .page-404__image {
-            width: 100%;
-            max-width: 680px;
-            border-radius: 16px;
-            overflow: hidden;
-            margin-bottom: 2rem;
-            box-shadow: var(--gl-shadow-card);
-        }
-
-        .page-404__image img {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-
         .page-404__code {
             font-size: 5rem;
             font-weight: 900;
-            color: var(--gl-brand-yellow);
+            color: #ffc107;
             line-height: 1;
             margin-bottom: 0.5rem;
         }
@@ -67,13 +51,13 @@
         .page-404__title {
             font-size: 1.6rem;
             font-weight: 700;
-            color: var(--gl-fg-1);
+            color: #ffffff;
             margin-bottom: 0.75rem;
         }
 
         .page-404__subtitle {
             font-size: 1rem;
-            color: var(--gl-fg-3);
+            color: #b0bec5;
             margin-bottom: 2rem;
         }
 
@@ -88,8 +72,8 @@
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            background: var(--gl-brand-yellow);
-            color: var(--gl-fg-on-yellow);
+            background: #ffc107;
+            color: #1a1a25;
             font-weight: 700;
             font-size: 0.95rem;
             text-decoration: none;
@@ -99,8 +83,8 @@
         }
 
         .btn-primary-gl:hover {
-            background: var(--gl-brand-yellow-hover);
-            color: var(--gl-fg-on-yellow);
+            background: #ffca2c;
+            color: #1a1a25;
         }
 
         .btn-outline-gl {
@@ -108,19 +92,19 @@
             align-items: center;
             gap: 0.5rem;
             background: transparent;
-            color: var(--gl-fg-2);
+            color: #eceff1;
             font-weight: 600;
             font-size: 0.95rem;
             text-decoration: none;
             padding: 0.65rem 1.5rem;
             border-radius: 8px;
-            border: 1px solid var(--gl-border-divider);
+            border: 1px solid #3a3a45;
             transition: border-color 0.2s, color 0.2s;
         }
 
         .btn-outline-gl:hover {
-            border-color: var(--gl-fg-3);
-            color: var(--gl-fg-1);
+            border-color: #b0bec5;
+            color: #ffffff;
         }
 
         @media (max-width: 575px) {
@@ -132,10 +116,6 @@
 <body>
     <div class="page-404">
         <a href="/" class="page-404__logo">GRIPLINE</a>
-
-        <div class="page-404__image">
-            <img src="{% static 'website/img/404.png' %}" alt="404 — трасса потеряна">
-        </div>
 
         <div class="page-404__code">404</div>
         <h1 class="page-404__title">Ой, трасса потеряна!</h1>
