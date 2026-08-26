@@ -40,6 +40,21 @@
             display: inline-block;
         }
 
+        .page-404__image {
+            width: 100%;
+            max-width: 680px;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.30);
+        }
+
+        .page-404__image img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
         .page-404__code {
             font-size: 5rem;
             font-weight: 900;
@@ -116,6 +131,10 @@
 <body>
     <div class="page-404">
         <a href="/" class="page-404__logo">GRIPLINE</a>
+
+        <div class="page-404__image">
+            <img src="{% static 'website/img/404.png' %}" alt="404 — трасса потеряна">
+        </div>
 
         <div class="page-404__code">404</div>
         <h1 class="page-404__title">Ой, трасса потеряна!</h1>
