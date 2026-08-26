@@ -24,11 +24,14 @@ def fetch_weather_data(latitude, longitude, target_date, target_time):
         dict: Словарь с погодными данными или None в случае ошибки
     """
 
+    from .models import WeatherSettings
+    settings_obj = WeatherSettings.get()
+
     # Формируем дату в формате YYYY-MM-DD
     date_str = target_date.strftime("%Y-%m-%d")
 
     # URL для Historical Weather API
-    url = "https://archive-api.open-meteo.com/v1/archive"
+    url = settings_obj.archive_api_url
 
     # Параметры запроса
     params = {
@@ -44,7 +47,7 @@ def fetch_weather_data(latitude, longitude, target_date, target_time):
             "shortwave_radiation",
             "precipitation"
         ],
-        "timezone": "Europe/Moscow"  # Можно сделать настраиваемым позже
+        "timezone": settings_obj.timezone
     }
 
     try:
@@ -105,13 +108,9 @@ def fetch_weather_data(latitude, longitude, target_date, target_time):
 # оценка по прошлым годам / архив фактической погоды.
 # ============================================================
 
-ARCHIVE_API_URL = "https://archive-api.open-meteo.com/v1/archive"
-FORECAST_API_URL = "https://api.open-meteo.com/v1/forecast"
-
-FORECAST_HORIZON_DAYS = 15  # за пределами — статистическая оценка (climatology)
-CLIMATOLOGY_YEARS = 5       # сколько прошлых лет усредняем для оценки
-DAY_START_HOUR = 9
-DAY_END_HOUR = 18
+# Горизонт прогноза, число лет для климатологии, часовой диапазон дня и оба
+# URL Open-Meteo — настраиваются через WeatherSettings.get() (website/models.py),
+# читаются на каждом вызове ниже, здесь захардкожены больше не остаются.
 
 # WMO weathercode (Open-Meteo) → человекочитаемое описание + иконка Font Awesome 6 Solid
 WMO_CODE_MAP = {
@@ -167,12 +166,19 @@ def _dominant_code(codes):
 
 
 def _fetch_hourly_range(base_url, latitude, longitude, target_date,
-                         start_hour=DAY_START_HOUR, end_hour=DAY_END_HOUR):
+                         start_hour=None, end_hour=None):
     """
     Один запрос к Open-Meteo (forecast или archive — определяется base_url)
     за один календарный день. Возвращает почасовые массивы в диапазоне
     [start_hour, end_hour], либо None при ошибке/отсутствии данных.
     """
+    from .models import WeatherSettings
+    settings_obj = WeatherSettings.get()
+    if start_hour is None:
+        start_hour = settings_obj.day_start_hour
+    if end_hour is None:
+        end_hour = settings_obj.day_end_hour
+
     date_str = target_date.strftime("%Y-%m-%d")
     params = {
         "latitude": latitude,
@@ -187,7 +193,7 @@ def _fetch_hourly_range(base_url, latitude, longitude, target_date,
             "weathercode",
         ],
         "wind_speed_unit": "ms",  # совпадает с маркировкой "м/с" на RaceClassResultGroup
-        "timezone": "Europe/Moscow",
+        "timezone": settings_obj.timezone,
     }
 
     try:
@@ -298,21 +304,30 @@ def _merge_hourly_samples(samples):
 
 def fetch_forecast_weather(latitude, longitude, target_date):
     """Реальный прогноз погоды (в пределах горизонта Open-Meteo, обычно ~15 дней)."""
-    hourly_slice = _fetch_hourly_range(FORECAST_API_URL, latitude, longitude, target_date)
+    from .models import WeatherSettings
+    url = WeatherSettings.get().forecast_api_url
+    hourly_slice = _fetch_hourly_range(url, latitude, longitude, target_date)
     return _build_widget_data(hourly_slice, category="forecast", badge_label="ПРОГНОЗ")
 
 
 def fetch_archive_day_weather(latitude, longitude, target_date):
     """Фактическая (архивная) погода за прошедшую дату."""
-    hourly_slice = _fetch_hourly_range(ARCHIVE_API_URL, latitude, longitude, target_date)
+    from .models import WeatherSettings
+    url = WeatherSettings.get().archive_api_url
+    hourly_slice = _fetch_hourly_range(url, latitude, longitude, target_date)
     return _build_widget_data(hourly_slice, category="archive", badge_label="АРХИВ")
 
 
-def fetch_climatology_estimate(latitude, longitude, target_date, years=CLIMATOLOGY_YEARS):
+def fetch_climatology_estimate(latitude, longitude, target_date, years=None):
     """
     Статистическая оценка погоды для дат за пределами горизонта прогноза:
     усредняем архивные данные за тот же календарный день/месяц за последние N лет.
     """
+    from .models import WeatherSettings
+    settings_obj = WeatherSettings.get()
+    if years is None:
+        years = settings_obj.climatology_years
+
     samples = []
     for i in range(1, years + 1):
         try:
@@ -320,7 +335,7 @@ def fetch_climatology_estimate(latitude, longitude, target_date, years=CLIMATOLO
         except ValueError:
             # 29 февраля в невисокосном прошлом году
             past_date = target_date.replace(year=target_date.year - i, day=28)
-        samples.append(_fetch_hourly_range(ARCHIVE_API_URL, latitude, longitude, past_date))
+        samples.append(_fetch_hourly_range(settings_obj.archive_api_url, latitude, longitude, past_date))
 
     merged = _merge_hourly_samples(samples)
     disclaimer = (
@@ -370,7 +385,9 @@ def get_stage_weather(stage):
                 cache.set(cache_key, data, timeout=None)
             return data
 
-        category = "forecast" if days_until <= FORECAST_HORIZON_DAYS else "estimate"
+        from .models import WeatherSettings
+        forecast_horizon_days = WeatherSettings.get().forecast_horizon_days
+        category = "forecast" if days_until <= forecast_horizon_days else "estimate"
         cache_key = f"weather:stage:{stage.pk}:{category}:{stage_date.isoformat()}:{today.isoformat()}"
         cached = cache.get(cache_key)
         if cached is not None:

@@ -1882,7 +1882,7 @@ class SocialTag(models.Model):
     """
     Тег для анонс-постинга в соцсети (Telegram, MAX и др.) — общий на все
     каналы. Список произвольной длины, редактируется в Wagtail Admin →
-    Соцсети → Теги.
+    Интеграции → Теги.
 
     Категория — это ссылка на конкретную родительскую страницу (например,
     страницу «Матчасть» или «Новости»), а не жёстко зашитый список — так
@@ -2030,6 +2030,66 @@ class VkSettings(models.Model):
 
     def __str__(self):
         return "Настройки VK-сообщества"
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
+class WeatherSettings(models.Model):
+    """
+    Singleton-модель настроек погодного виджета Open-Meteo.
+    Доступна через WeatherSettings.get().
+    Раньше значения были захардкожены в website/weather_utils.py
+    (ARCHIVE_API_URL, FORECAST_API_URL, FORECAST_HORIZON_DAYS,
+    CLIMATOLOGY_YEARS, DAY_START_HOUR, DAY_END_HOUR, timezone "Europe/Moscow"
+    в двух местах) — вынесены сюда, чтобы менять без деплоя.
+    """
+
+    archive_api_url = models.URLField(
+        default="https://archive-api.open-meteo.com/v1/archive",
+        verbose_name="URL архивного API",
+        help_text="Исторические данные — для прошедших этапов.",
+    )
+    forecast_api_url = models.URLField(
+        default="https://api.open-meteo.com/v1/forecast",
+        verbose_name="URL API прогноза",
+        help_text="Прогноз — для этапов в пределах горизонта прогноза.",
+    )
+    timezone = models.CharField(
+        max_length=64,
+        default="Europe/Moscow",
+        verbose_name="Часовой пояс",
+        help_text="Передаётся в Open-Meteo как параметр timezone (IANA-имя).",
+    )
+    forecast_horizon_days = models.PositiveSmallIntegerField(
+        default=15,
+        verbose_name="Горизонт прогноза, дней",
+        help_text="За пределами — используется статистическая оценка по прошлым годам.",
+    )
+    climatology_years = models.PositiveSmallIntegerField(
+        default=5,
+        verbose_name="Лет для статистической оценки",
+        help_text="Сколько прошлых лет усредняется для оценки погоды, если этап дальше горизонта прогноза.",
+    )
+    day_start_hour = models.PositiveSmallIntegerField(
+        default=9,
+        verbose_name="Начало дня, час",
+        help_text="Нижняя граница часового диапазона для сводки погоды на день этапа.",
+    )
+    day_end_hour = models.PositiveSmallIntegerField(
+        default=18,
+        verbose_name="Конец дня, час",
+        help_text="Верхняя граница часового диапазона для сводки погоды на день этапа.",
+    )
+
+    class Meta:
+        verbose_name = "Настройки погоды"
+        verbose_name_plural = "Настройки погоды"
+
+    def __str__(self):
+        return "Настройки погодного виджета"
 
     @classmethod
     def get(cls):

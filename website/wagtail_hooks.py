@@ -1,5 +1,5 @@
 from wagtail_modeladmin.options import (ModelAdmin, ModelAdminGroup, modeladmin_register)
-from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, MaxSettings, VkSettings, SocialTag, ArticlePage
+from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, MaxSettings, VkSettings, WeatherSettings, SocialTag, ArticlePage
 from wagtail import hooks
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -156,8 +156,8 @@ class TelegramGroup(ModelAdminGroup):
     menu_label = 'Telegram'
     menu_icon = 'fa-paper-plane'
     items = (TelegramSettingsAdmin,)
-    # Своего пункта в меню не создаёт — вложен в «Соцсети» через
-    # register_social_networks_menu ниже (URL/права всё равно регистрируются
+    # Своего пункта в меню не создаёт — вложен в «Интеграции» через
+    # register_integrations_menu ниже (URL/права всё равно регистрируются
     # через register_with_wagtail(), просто без автоматического menu item).
     add_to_admin_menu = False
 
@@ -193,11 +193,23 @@ class SocialTagAdmin(ModelAdmin):
     list_filter = ('parent_page',)
 
 class SocialTagGroup(ModelAdminGroup):
-    # Теги общие для всех соцсетей — top-level пункт в "Соцсети", не вложен
+    # Теги общие для всех соцсетей — top-level пункт в "Интеграции", не вложен
     # ни в Telegram, ни в MAX (иначе редактор не поймёт, что тег общий).
     menu_label = 'Теги'
     menu_icon = 'fa-tags'
     items = (SocialTagAdmin,)
+    add_to_admin_menu = False
+
+class WeatherSettingsAdmin(ModelAdmin):
+    model = WeatherSettings
+    menu_label = 'Настройки'
+    menu_icon = 'fa-cloud'
+    list_display = ('timezone', 'forecast_horizon_days', 'climatology_years')
+
+class WeatherGroup(ModelAdminGroup):
+    menu_label = 'Погода'
+    menu_icon = 'fa-cloud'
+    items = (WeatherSettingsAdmin,)
     add_to_admin_menu = False
 
 # Регистрируем группы
@@ -220,6 +232,9 @@ vk_group.register_with_wagtail()
 social_tag_group = SocialTagGroup()
 social_tag_group.register_with_wagtail()
 
+weather_group = WeatherGroup()
+weather_group.register_with_wagtail()
+
 def _menu_icon_kwargs(menu_icon):
     """Повторяет логику иконок wagtail_modeladmin.GroupMenuItem: старые
     fa-* иконки идут через CSS-класс, а не через современный icon_name."""
@@ -228,12 +243,14 @@ def _menu_icon_kwargs(menu_icon):
     return {'icon_name': menu_icon}
 
 @hooks.register('register_admin_menu_item')
-def register_social_networks_menu():
-    """«Соцсети» в боковом меню: Telegram, MAX, VK — каждый со своими
-    "Настройками", и общий top-level пункт "Теги" (один набор тегов на все
-    соцсети). Добавление новой соцсети — новая ModelAdminGroup с
+def register_integrations_menu():
+    """«Интеграции» в боковом меню — внешние сервисы: Telegram, MAX, VK
+    (у каждого свои "Настройки"), общий top-level пункт "Теги" (один набор
+    тегов на все соцсети) и "Погода" (Open-Meteo). Раньше пункт назывался
+    "Соцсети" — переименован, когда сюда добавили Погоду (не соцсеть).
+    Добавление нового провайдера — новая ModelAdminGroup с
     add_to_admin_menu=False + новый SubmenuMenuItem рядом с telegram_item/
-    max_item/vk_item ниже."""
+    max_item/vk_item/weather_item ниже."""
     telegram_item = SubmenuMenuItem(
         'Telegram', Menu(items=telegram_group.get_submenu_items()), name='telegram', order=1,
         **_menu_icon_kwargs('fa-paper-plane'),
@@ -250,9 +267,13 @@ def register_social_networks_menu():
         'Теги', Menu(items=social_tag_group.get_submenu_items()), name='social-tags', order=4,
         **_menu_icon_kwargs('fa-tags'),
     )
-    social_menu = Menu(items=[telegram_item, max_item, vk_item, tags_item])
+    weather_item = SubmenuMenuItem(
+        'Погода', Menu(items=weather_group.get_submenu_items()), name='weather', order=5,
+        **_menu_icon_kwargs('fa-cloud'),
+    )
+    integrations_menu = Menu(items=[telegram_item, max_item, vk_item, tags_item, weather_item])
     return SubmenuMenuItem(
-        'Соцсети', social_menu, name='soc-networks', order=999,
+        'Интеграции', integrations_menu, name='integrations', order=999,
         **_menu_icon_kwargs('fa-share-alt'),
     )
 
