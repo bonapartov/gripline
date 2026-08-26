@@ -179,8 +179,10 @@
 
                         {# 6. Динамические колонки с этапами #}
                         {% for event in events %}
-                            <th class="text-center small text-info" style="min-width: 80px;" title="{{ event.title }}">
-                                {{ event.title|upper|truncatechars:12 }}
+                            <th class="text-center small" style="min-width: 80px;" title="{{ event.title }}">
+                                <a href="{{ event.url }}" target="_blank" class="text-info text-decoration-none">
+                                    {{ event.title|upper|truncatechars:12 }}
+                                </a>
                             </th>
                         {% endfor %}
 
