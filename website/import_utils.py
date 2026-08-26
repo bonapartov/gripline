@@ -5,7 +5,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from .models import Driver, Team, RaceResult, Chassis
+from .models import Driver, Team, RaceResult, Chassis, LapPosition
 
 SESSION_CONFIGS = {
     'combined': {
@@ -44,7 +44,17 @@ SESSION_CONFIGS = {
         'has_start_position': False,
         'has_team_chassis': True,
     },
+    'lap_chart': {
+        'label': 'Ход гонки (таблица кругов)',
+        'hint': 'session_type (pre_final/final), lap (0 = старт), position, race_number',
+        'has_timing': False,
+        'has_start_position': False,
+        'has_team_chassis': False,
+    },
 }
+
+# Отображаемые названия сессий для preview lap_chart (совпадают с LapPosition.SESSION_CHOICES)
+LAP_CHART_SESSION_LABELS = {'pre_final': 'Предфинал', 'final': 'Финал'}
 
 # Типы сессий, из которых реально складывается комбинированный файл (порядок отображения групп)
 GROUP_ORDER = ['qual', 'pre_final', 'final', 'protocol']
@@ -222,6 +232,18 @@ def import_results(request, page_id=None):
             session_type = form.cleaned_data['session_type']
             csv_file = request.FILES['csv_file']
 
+            if session_type == 'lap_chart':
+                has_protocol = RaceResult.objects.filter(
+                    group_id=group_id, race_number__isnull=False
+                ).exclude(race_number='').exists()
+                if not has_protocol:
+                    messages.error(
+                        request,
+                        'Сначала импортируйте протокол (protocol) для этой группы — '
+                        'lap_chart резолвит пилотов по стартовому номеру из протокола.'
+                    )
+                    return redirect('event_import', page_id=page.id)
+
             decoded_file = csv_file.read().decode('utf-8-sig')
             io_string = io.StringIO(decoded_file)
             reader = csv.DictReader(io_string, delimiter=',')
@@ -243,9 +265,155 @@ def import_results(request, page_id=None):
     })
 
 
-def import_preview(request):
+def _build_lap_chart_entries(rows, group_id):
+    """Группирует плоские строки lap_chart CSV (session_type,lap,position,race_number)
+    в записи по (race_number, session_type), резолвя пилота через race_number
+    из уже импортированного protocol этой группы (не по имени)."""
+    grouped = {}
+    order = []
+    for row in rows:
+        race_number = (row.get('race_number') or '').strip()
+        row_session_type = (row.get('session_type') or '').strip()
+        if not race_number or row_session_type not in LAP_CHART_SESSION_LABELS:
+            continue
+        try:
+            lap = int(row.get('lap', ''))
+            position = int(row.get('position', ''))
+        except (TypeError, ValueError):
+            continue
+
+        key = (race_number, row_session_type)
+        if key not in grouped:
+            grouped[key] = {'race_number': race_number, 'session_type': row_session_type, 'laps': {}}
+            order.append(key)
+        grouped[key]['laps'][lap] = position
+
+    drivers_by_number = {
+        r.race_number: r.driver
+        for r in RaceResult.objects.filter(group_id=group_id, race_number__isnull=False)
+                                    .exclude(race_number='').select_related('driver')
+    }
+
+    entries = []
+    for key in order:
+        e = grouped[key]
+        driver = drivers_by_number.get(e['race_number'])
+        entries.append({
+            'race_number': e['race_number'],
+            'session_type': e['session_type'],
+            'session_label': LAP_CHART_SESSION_LABELS[e['session_type']],
+            'laps': dict(sorted(e['laps'].items())),
+            'driver': driver,
+            'resolved': driver is not None,
+        })
+    return entries
+
+
+def _lap_chart_preview(request):
     rows = request.session.get('import_rows', [])
+    group_id = request.session.get('import_group_id')
+
+    if not rows:
+        messages.error(request, 'Сессия истекла')
+        return redirect('wagtailadmin_home')
+
+    entries = _build_lap_chart_entries(rows, group_id)
+
+    if request.method == 'POST':
+        included = [
+            {
+                'driver_id': e['driver'].id,
+                'race_number': e['race_number'],
+                'session_type': e['session_type'],
+                'session_label': e['session_label'],
+                'laps': e['laps'],
+            }
+            for idx, e in enumerate(entries)
+            if e['resolved'] and request.POST.get(f'include_{idx}') == 'on'
+        ]
+
+        if not included:
+            messages.error(
+                request,
+                'Нет ни одной строки для импорта — все номера не резолвились или сняты галочки.'
+            )
+        else:
+            request.session['import_selections'] = included
+            request.session['import_session_type'] = 'lap_chart'
+            return redirect('event_import_confirm')
+
+    unresolved_count = sum(1 for e in entries if not e['resolved'])
+    return render(request, 'admin/import_preview_lap_chart.html', {
+        'entries': entries,
+        'unresolved_count': unresolved_count,
+        'session_label': SESSION_CONFIGS['lap_chart']['label'],
+    })
+
+
+def _lap_chart_confirm(request):
+    selections = request.session.get('import_selections', [])
+
+    if request.method != 'POST':
+        return render(request, 'admin/import_confirm_lap_chart.html', {
+            'selections': selections,
+            'session_label': SESSION_CONFIGS['lap_chart']['label'],
+        })
+
+    if not selections:
+        messages.error(request, 'Сессия истекла. Начните импорт заново.')
+        return redirect('wagtailadmin_home')
+
+    page_id = request.session.get('import_page_id')
+    group_id = request.session.get('import_group_id')
+    created_count = 0
+    updated_count = 0
+    error_count = 0
+    errors = []
+
+    for entry in selections:
+        try:
+            driver = Driver.objects.get(id=entry['driver_id'])
+            for lap, position in entry['laps'].items():
+                obj, was_created = LapPosition.objects.update_or_create(
+                    group_id=group_id,
+                    driver=driver,
+                    session_type=entry['session_type'],
+                    lap=int(lap),
+                    defaults={'position': int(position)},
+                )
+                if was_created:
+                    created_count += 1
+                else:
+                    updated_count += 1
+        except Exception as e:
+            error_count += 1
+            errors.append(str(e))
+
+    for key in ['import_rows', 'import_group_id', 'import_page_id', 'import_selections', 'import_session_type']:
+        request.session.pop(key, None)
+
+    for error in errors:
+        messages.error(request, f'Ошибка: {error}')
+
+    messages.success(
+        request,
+        f'lap_chart: {created_count} создано, {updated_count} обновлено'
+        + (f', ошибок: {error_count}' if error_count else '') + '.'
+    )
+
+    if page_id:
+        return redirect('wagtailadmin_pages:edit', page_id)
+    else:
+        from django.urls import reverse
+        return redirect(reverse('admin:website_raceresult_changelist'))
+
+
+def import_preview(request):
     session_type = request.session.get('import_session_type', 'protocol')
+    if session_type == 'lap_chart':
+        return _lap_chart_preview(request)
+
+    rows = request.session.get('import_rows', [])
     is_combined = session_type == 'combined'
     cfg = SESSION_CONFIGS.get(session_type, SESSION_CONFIGS['protocol'])
 
@@ -429,6 +597,9 @@ def _build_defaults(row, session_type, team, chassis_obj):
 
 
 def import_confirm(request):
+    if request.session.get('import_session_type', 'protocol') == 'lap_chart':
+        return _lap_chart_confirm(request)
+
     if request.method != 'POST':
         selections = request.session.get('import_selections', [])
         session_type = request.session.get('import_session_type', 'protocol')

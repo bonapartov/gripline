@@ -1,0 +1,81 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<style>
+    .session-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 4px;
+        background: #007bff;
+        color: white;
+        font-size: 13px;
+        margin-bottom: 12px;
+    }
+    .lc-entry-table th { background:#f0f0f0; padding:8px; text-align:left; }
+    .lc-entry-table td { padding:8px; border-bottom:1px solid #eee; vertical-align: top; }
+    .lc-session-tag {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        color: white;
+    }
+    .lc-session-tag.pre_final { background: #ffc107; color: #212529; }
+    .lc-session-tag.final { background: #28a745; }
+    .lc-laps {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        max-width: 520px;
+    }
+    .lc-lap-chip {
+        font-family: monospace;
+        font-size: 12px;
+        background: #f0f0f0;
+        border-radius: 3px;
+        padding: 2px 6px;
+        white-space: nowrap;
+    }
+</style>
+
+<div style="padding:20px;">
+    <span class="session-badge">{{ session_label }}</span>
+    <h2 style="margin-top:8px;">Подтверждение импорта</h2>
+    <p>Будет записано <strong>{{ selections|length }}</strong> пилото-сессий (позиции по всем их кругам).</p>
+
+    <table style="width:100%; border-collapse:collapse; margin-bottom:20px;" class="lc-entry-table">
+        <thead>
+            <tr>
+                <th>№</th>
+                <th>Сессия</th>
+                <th>Круги</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sel in selections %}
+            <tr>
+                <td>{{ sel.race_number }}</td>
+                <td><span class="lc-session-tag {{ sel.session_type }}">{{ sel.session_label }}</span></td>
+                <td>
+                    <div class="lc-laps">
+                        {% for lap, position in sel.laps.items %}
+                            <span class="lc-lap-chip">{% if lap == 0 or lap == "0" %}ст{% else %}{{ lap }}{% endif %}:{{ position }}</span>
+                        {% endfor %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <form method="post" action="">
+        {% csrf_token %}
+        <input type="hidden" name="confirm" value="1">
+        <button type="submit" class="button"
+                style="padding:10px 20px; background:#28a745; color:white; border:none; cursor:pointer;">
+            ✓ Подтвердить импорт
+        </button>
+        <a href="{% url 'event_import_preview' %}" style="margin-left:20px;">← Вернуться к предпросмотру</a>
+    </form>
+</div>
+{% endblock %}

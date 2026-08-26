@@ -1,0 +1,105 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<style>
+    .session-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 4px;
+        background: #007bff;
+        color: white;
+        font-size: 13px;
+        margin-bottom: 12px;
+    }
+    .lc-entry-table th { background:#f0f0f0; padding:8px; text-align:left; }
+    .lc-entry-table td { padding:8px; border-bottom:1px solid #eee; vertical-align: top; }
+    .lc-entry-table tr.not-found-row { background-color: rgba(255, 193, 7, 0.08); }
+    .lc-entry-table tr.found-row { background-color: rgba(40, 167, 69, 0.04); }
+    .lc-session-tag {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        color: white;
+    }
+    .lc-session-tag.pre_final { background: #ffc107; color: #212529; }
+    .lc-session-tag.final { background: #28a745; }
+    .lc-laps {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        max-width: 520px;
+    }
+    .lc-lap-chip {
+        font-family: monospace;
+        font-size: 12px;
+        background: #f0f0f0;
+        border-radius: 3px;
+        padding: 2px 6px;
+        white-space: nowrap;
+    }
+    .lc-not-found-msg { color: #856404; font-size: 13px; }
+</style>
+
+<div style="padding:20px;">
+    <span class="session-badge">{{ session_label }}</span>
+    <h2 style="margin-top:8px;">Предпросмотр импорта ({{ entries|length }} пилотов/сессий)</h2>
+    <p>Резолв идёт по стартовому номеру из уже загруженного протокола — имена не сопоставляются вручную.
+       Проверьте порядок кругов и снимите галочку у строк, которые не нужно импортировать.</p>
+
+    {% if unresolved_count %}
+        <p style="color:#856404; background:#fff3cd; border:1px solid #ffeeba; padding:8px 12px; border-radius:4px;">
+            {{ unresolved_count }} номер(ов) не найдены в протоколе этой группы — такие строки не будут импортированы.
+            Отмеченных чекбоксом у них нет.
+        </p>
+    {% endif %}
+
+    <form method="post" id="import-form">
+        {% csrf_token %}
+
+        <table style="width:100%; border-collapse:collapse; margin-bottom:16px;" class="lc-entry-table">
+            <thead>
+                <tr>
+                    <th style="width:36px;"></th>
+                    <th>№</th>
+                    <th>Пилот</th>
+                    <th>Сессия</th>
+                    <th>Круги</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in entries %}
+                <tr class="{% if entry.resolved %}found-row{% else %}not-found-row{% endif %}">
+                    <td>
+                        {% if entry.resolved %}
+                            <input type="checkbox" name="include_{{ forloop.counter0 }}" checked>
+                        {% endif %}
+                    </td>
+                    <td>{{ entry.race_number }}</td>
+                    <td>
+                        {% if entry.resolved %}
+                            {{ entry.driver.full_name }}
+                        {% else %}
+                            <span class="lc-not-found-msg">Пилот с номером {{ entry.race_number }} не найден в протоколе</span>
+                        {% endif %}
+                    </td>
+                    <td><span class="lc-session-tag {{ entry.session_type }}">{{ entry.session_label }}</span></td>
+                    <td>
+                        <div class="lc-laps">
+                            {% for lap, position in entry.laps.items %}
+                                <span class="lc-lap-chip">{% if lap == 0 or lap == "0" %}ст{% else %}{{ lap }}{% endif %}:{{ position }}</span>
+                            {% endfor %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div style="margin-top:20px;">
+            <button type="submit" class="button" style="padding:10px 20px;">Продолжить</button>
+            <a href="javascript:history.back()" style="margin-left:20px;">← Назад</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

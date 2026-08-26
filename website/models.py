@@ -1517,6 +1517,17 @@ class RaceClassResultGroup(Orderable, ClusterableModel):
     def sorted_results(self):
         return self.class_results.order_by('-points', 'position')
 
+    def lap_chart_race_numbers(self):
+        """race_number'ы, для которых есть данные LapPosition (сессия final) —
+        чтобы не рисовать кнопку «Ход гонки» там, где нечего показывать
+        (см. lap_chart_api в website/views.py)."""
+        driver_ids = self.lap_positions.filter(session_type='final').values_list('driver_id', flat=True)
+        return set(
+            self.class_results.filter(driver_id__in=driver_ids, race_number__isnull=False)
+                               .exclude(race_number='')
+                               .values_list('race_number', flat=True)
+        )
+
     class Meta:
         verbose_name = "Группа результатов"
         verbose_name_plural = "Группы результатов"
@@ -1668,6 +1679,42 @@ class RaceResult(Orderable):
         verbose_name = "Результат"
         verbose_name_plural = "Результаты"
         ordering = ['position']
+
+
+class LapPosition(models.Model):
+    """Позиция пилота на трассе после конкретного круга (lap=0 — старт).
+
+    Заполняется импортом lap_chart (website/import_utils.py) — отдельно от
+    RaceResult, так как это N записей на пилота (по кругу), а не одна.
+    Резолв пилота при импорте идёт по race_number из уже загруженного
+    protocol той же группы, а не по имени."""
+
+    SESSION_CHOICES = [
+        ('pre_final', 'Предфинал'),
+        ('final', 'Финал'),
+    ]
+
+    group = models.ForeignKey(
+        RaceClassResultGroup,
+        on_delete=models.CASCADE,
+        related_name='lap_positions'
+    )
+    driver = models.ForeignKey(
+        Driver,
+        on_delete=models.CASCADE,
+        related_name='lap_positions'
+    )
+    session_type = models.CharField(max_length=16, choices=SESSION_CHOICES)
+    lap = models.PositiveSmallIntegerField("Круг (0 = старт)")
+    position = models.PositiveSmallIntegerField("Позиция")
+
+    class Meta:
+        verbose_name = "Позиция по кругу"
+        verbose_name_plural = "Позиции по кругам"
+        unique_together = ('group', 'driver', 'session_type', 'lap')
+        indexes = [
+            models.Index(fields=['group', 'session_type']),
+        ]
 
 
 # ---------- ВСПОМОГАТЕЛЬНЫЕ МОДЕЛИ ----------

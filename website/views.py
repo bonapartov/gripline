@@ -2801,3 +2801,70 @@ def rating_stats_api(request):
         },
     }
     return JsonResponse(data)
+
+
+def lap_chart_api(request, group_id):
+    """Данные для GriplineLapChart.init() — позиции пилотов по кругам сессии.
+
+    race_number резолвится через RaceResult этой же группы (тот же паттерн,
+    что при импорте lap_chart — см. import_utils.py::_build_lap_chart_entries).
+    """
+    from collections import defaultdict
+    from .models import RaceClassResultGroup, LapPosition
+
+    session_type = request.GET.get('session', 'final')
+    if session_type not in ('final', 'pre_final'):
+        return JsonResponse({'error': 'invalid session param'}, status=400)
+
+    group = get_object_or_404(RaceClassResultGroup, pk=group_id)
+
+    positions = (
+        LapPosition.objects
+        .filter(group=group, session_type=session_type)
+        .select_related('driver')
+        .order_by('driver_id', 'lap')
+    )
+    if not positions.exists():
+        return JsonResponse({'error': 'no lap_chart data for this group/session'}, status=404)
+
+    race_numbers = dict(
+        RaceResult.objects
+        .filter(group=group, race_number__isnull=False)
+        .exclude(race_number='')
+        .values_list('driver_id', 'race_number')
+    )
+
+    by_driver = defaultdict(dict)
+    driver_names = {}
+    for p in positions:
+        by_driver[p.driver_id][p.lap] = p.position
+        driver_names[p.driver_id] = p.driver.full_name
+
+    stages = max(lap for laps in by_driver.values() for lap in laps)
+    max_position = max(pos for laps in by_driver.values() for pos in laps.values())
+
+    drivers_payload = []
+    for driver_id, laps in by_driver.items():
+        num = race_numbers.get(driver_id)
+        if num is None:
+            continue
+
+        pos_series = [laps.get(i) for i in range(stages + 1)]
+        if any(v is None for v in pos_series):
+            # Неполная серия (пилот сошёл раньше конца сессии) — виджет ожидает
+            # непрерывный массив без дыр, интерполяция pointAt() их не умеет.
+            # MVP: такие пилоты не показываются на графике (см. открытый вопрос
+            # в ТЗ lap_chart_api — доработка виджета для обрыва линии отдельной
+            # задачей, не входит в этот эндпоинт).
+            continue
+
+        try:
+            num = int(num)
+        except (TypeError, ValueError):
+            pass
+
+        drivers_payload.append({'num': num, 'name': driver_names[driver_id], 'pos': pos_series})
+
+    drivers_payload.sort(key=lambda d: d['pos'][-1])
+
+    return JsonResponse({'stages': stages, 'maxPosition': max_position, 'drivers': drivers_payload})

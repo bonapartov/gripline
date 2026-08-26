@@ -1,5 +1,5 @@
 {% extends "coderedcms/pages/web_page.html" %}
-{% load wagtailcore_tags wagtailimages_tags coderedcms_tags website_tags %}
+{% load wagtailcore_tags wagtailimages_tags coderedcms_tags website_tags static %}
 
 {% block content %}
 {# Убираем стандартную обложку, чтобы не двоился заголовок #}
@@ -173,6 +173,7 @@
                         </div>
                     </div>
 
+                    {% with lap_chart_numbers=group.lap_chart_race_numbers %}
                     <div class="table-responsive mb-5">
                         <table class="table table-dark table-hover border-secondary">
                             <thead>
@@ -267,6 +268,7 @@
                                     <th>Пилот</th>
                                     <th>Команда</th>
                                     <th>Шасси</th>
+                                    <th class="text-center">Ход гонки</th>
                                     <th class="text-end">Лучший круг</th>
                                     <th class="text-end">Идеальный круг</th>
                                     <th class="text-end">Очки</th>
@@ -307,6 +309,16 @@
                                                 —
                                             {% endif %}
                                         </td>
+                                        <td class="align-middle text-center">
+                                            {% if result.race_number in lap_chart_numbers %}
+                                                <button type="button" class="gl-lapchart-trigger btn btn-sm btn-outline-info py-0 px-2"
+                                                        data-group-id="{{ group.id }}"
+                                                        data-race-number="{{ result.race_number }}"
+                                                        aria-label="Ход гонки: {{ result.driver.full_name }}">
+                                                    <i class="fas fa-play"></i>
+                                                </button>
+                                            {% endif %}
+                                        </td>
                                         <td class="align-middle text-end">
                                             {% if result.best_lap_session == 'qual' %}
                                                 <span class="badge bg-primary me-1" style="font-size:10px;" title="Квалификация">К</span>
@@ -335,6 +347,7 @@
                             </tbody>
                         </table>
                     </div>
+                    {% endwith %}
                 {% endfor %}
             {% else %}
                 <div class="card bg-dark border-secondary p-5 text-center">
@@ -358,4 +371,91 @@
     /* Убираем лишние отступы, которые может добавлять CMS */
     .block-container { padding: 0 !important; }
 </style>
+
+{# Модалка «Ход гонки» — одна на страницу, переиспользуется для всех кнопок play
+   во всех классах/группах. Данные всегда сессии final (см. докблок виджета) #}
+<div class="modal fade" id="lapChartModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-warning">
+                    <i class="fas fa-flag-checkered me-2"></i>Ход гонки
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body" id="lapChartModalBody">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-warning" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'website/js/gripline_lap_chart_widget.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var triggers = document.querySelectorAll('.gl-lapchart-trigger');
+    if (!triggers.length) { return; }
+
+    var modalEl = document.getElementById('lapChartModal');
+    var modal = new bootstrap.Modal(modalEl);
+    var bodyEl = document.getElementById('lapChartModalBody');
+    var cache = {}; // groupId -> ответ API (кэш на уровне страницы — сессия final не меняется)
+
+    function renderLoading() {
+        bodyEl.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-warning" role="status">' +
+            '<span class="visually-hidden">Загрузка...</span></div></div>';
+    }
+
+    function renderError(message) {
+        bodyEl.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-exclamation-triangle me-2"></i>' + message + '</div>';
+    }
+
+    function renderWidget(data, raceNumber) {
+        bodyEl.innerHTML = '<div id="lapChartWidget"></div>';
+        var options = {
+            stages: data.stages,
+            maxPosition: data.maxPosition,
+            drivers: data.drivers,
+            initialSelected: raceNumber
+        };
+        GriplineLapChart.init(document.getElementById('lapChartWidget'), options);
+    }
+
+    triggers.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var groupId = btn.getAttribute('data-group-id');
+            var raceNumber = parseInt(btn.getAttribute('data-race-number'), 10);
+
+            modal.show();
+
+            if (cache[groupId]) {
+                renderWidget(cache[groupId], raceNumber);
+                return;
+            }
+
+            renderLoading();
+            fetch('/api/v2/lap-chart/' + groupId + '/?session=final')
+                .then(function (resp) {
+                    if (!resp.ok) {
+                        throw new Error(resp.status === 404
+                            ? 'Данные хода гонки для этого класса ещё не загружены'
+                            : 'Ошибка загрузки данных');
+                    }
+                    return resp.json();
+                })
+                .then(function (data) {
+                    cache[groupId] = data;
+                    renderWidget(data, raceNumber);
+                })
+                .catch(function (err) {
+                    renderError(err.message);
+                });
+        });
+    });
+});
+</script>
 {% endblock %}
