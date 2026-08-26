@@ -423,6 +423,8 @@ document.addEventListener('DOMContentLoaded', function () {
         bodyEl.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-exclamation-triangle me-2"></i>' + message + '</div>';
     }
 
+    var AUTOPLAY_DELAY_MS = 500;
+
     function renderWidget(data, raceNumber) {
         bodyEl.innerHTML = '<div id="lapChartWidget"></div>';
         var options = {
@@ -431,7 +433,8 @@ document.addEventListener('DOMContentLoaded', function () {
             drivers: data.drivers,
             initialSelected: raceNumber
         };
-        GriplineLapChart.init(document.getElementById('lapChartWidget'), options);
+        var instance = GriplineLapChart.init(document.getElementById('lapChartWidget'), options);
+        setTimeout(function () { instance.play(); }, AUTOPLAY_DELAY_MS);
     }
 
     triggers.forEach(function (btn) {
