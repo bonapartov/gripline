@@ -275,7 +275,7 @@
                                     <th>Пилот</th>
                                     <th>Команда</th>
                                     <th>Шасси</th>
-                                    <th class="text-center">Ход гонки</th>
+                                    {% if lap_chart_numbers %}<th class="text-center">Ход гонки</th>{% endif %}
                                     <th class="text-end">Лучший круг</th>
                                     <th class="text-end">Идеальный круг</th>
                                     <th class="text-end">Очки</th>
@@ -316,6 +316,7 @@
                                                 —
                                             {% endif %}
                                         </td>
+                                        {% if lap_chart_numbers %}
                                         <td class="align-middle text-center">
                                             {% if result.race_number in lap_chart_numbers %}
                                                 <button type="button" class="gl-lapchart-trigger btn btn-sm btn-outline-info py-0 px-2"
@@ -326,6 +327,7 @@
                                                 </button>
                                             {% endif %}
                                         </td>
+                                        {% endif %}
                                         <td class="align-middle text-end">
                                             {% if result.best_lap_session == 'qual' %}
                                                 <span class="badge bg-primary me-1" style="font-size:10px;" title="Квалификация">К</span>
