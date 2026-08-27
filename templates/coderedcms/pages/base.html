@@ -25,6 +25,9 @@ Bootstrap CSS как самый тяжёлый render-blocking ресурс (~25
 
 {% block custom_assets %}
 <meta name="google-site-verification" content="YNdq9iQBhN1R10JnDT4tk9ktX0vJDqqhTPrMTeFgbic" />
+{# Токены дизайн-системы Gripline — всегда первым, до custom.css #}
+<link rel="stylesheet" href="{% static 'website/css/tokens.css' %}">
+{# Пользовательские стили поверх токенов #}
 <link rel="stylesheet" href="{% static 'website/css/custom.css' %}">
 <style>
     .btn-outline-success {
