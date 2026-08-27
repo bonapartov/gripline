@@ -72,7 +72,7 @@ def analytics_dashboard(request):
         )
 
         proc = subprocess.Popen(
-            [python, manage_py, 'update_ratings', '--entity', 'all', '--model', 'all'],
+            [python, manage_py, 'update_all_analytics', '--entity', 'all', '--model', 'all'],
             stdout=open(_LOG_FILE, 'w'),
             stderr=subprocess.STDOUT,
             close_fds=True,
