@@ -733,9 +733,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     var SESSION_BADGE = {
-        qual: '<span class="badge bg-primary text-white" style="font-size:10px;border-radius:4px;" title="Квалификация">К</span>',
-        pre_final: '<span class="badge bg-warning text-dark" style="font-size:10px;border-radius:4px;" title="Предфинал">Пф</span>',
-        final: '<span class="badge bg-success" style="font-size:10px;border-radius:4px;" title="Финал">Ф</span>'
+        qual: '<span class="badge bg-primary text-white" style="font-size:10px;border-radius:4px;width:45px;" title="Квалификация">К</span>',
+        pre_final: '<span class="badge bg-warning text-dark" style="font-size:10px;border-radius:4px;width:45px;" title="Предфинал">Пф</span>',
+        final: '<span class="badge bg-success" style="font-size:10px;border-radius:4px;width:45px;" title="Финал">Ф</span>'
     };
 
     function positionBadge(row) {
@@ -764,7 +764,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (gain > 0) { pfArrow = '<span class="text-success fw-bold">▲' + gain + '</span>'; }
             else if (gain < 0) { pfArrow = '<span class="text-danger fw-bold">▼' + Math.abs(gain) + '</span>'; }
             return '<span class="text-muted font-monospace">' + row.pre_final_start_pos + '→' + row.pre_final_position + '</span> ' + pfArrow +
-                ' <span class="badge bg-warning text-dark" style="font-size:10px; border-radius:4px;" title="Предфинал">Пф</span>';
+                ' <span class="badge bg-warning text-dark" style="font-size:10px; border-radius:4px; width:45px;" title="Предфинал">Пф</span>';
         }
         return '<span class="text-muted">—</span>';
     }
@@ -776,9 +776,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function sessionBadges(row) {
         var html = '';
-        if (row.qual_position) { html += '<span class="badge bg-primary text-white" style="font-size:10px; border-radius:4px;" title="Квалификация: #' + row.qual_position + '">К</span>'; }
-        if (row.pre_final_position) { html += '<span class="badge bg-warning text-dark" style="font-size:10px; border-radius:4px;" title="Предфинал: #' + row.pre_final_position + '">Пф</span>'; }
-        if (row.position) { html += '<span class="badge bg-success" style="font-size:10px; border-radius:4px;" title="Финал: #' + row.position + '">Ф</span>'; }
+        if (row.qual_position) { html += '<span class="badge bg-primary text-white" style="font-size:10px; border-radius:4px; width:45px;" title="Квалификация: #' + row.qual_position + '">К</span>'; }
+        if (row.pre_final_position) { html += '<span class="badge bg-warning text-dark" style="font-size:10px; border-radius:4px; width:45px;" title="Предфинал: #' + row.pre_final_position + '">Пф</span>'; }
+        if (row.position) { html += '<span class="badge bg-success" style="font-size:10px; border-radius:4px; width:45px;" title="Финал: #' + row.position + '">Ф</span>'; }
         return html;
     }
 
