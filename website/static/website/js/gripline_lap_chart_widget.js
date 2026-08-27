@@ -23,19 +23,22 @@
  * gripline_tz_konverter_lap_chart_v1.md) джойном по race_number с protocol
  * той же сессии для получения имени пилота.
  *
- * Паттерн размещения на странице этапа: столбец с иконкой play в таблице
- * результатов (между «Шасси» и «Лучший круг») — клик по строке пилота
- * открывает модалку с этим виджетом, где сразу выбран (select) этот пилот
- * (selected = race_number при инициализации, см. GriplineLapChart.init
- * — сейчас по умолчанию выбирается первый пилот в drivers; при открытии
- * из таблицы нужно после init() вызвать instance.select(raceNumber), либо
- * передать options.initialSelected). Данные сессии — всегда Финал, вне
- * зависимости от того, какая сессия сейчас отображается в таблице очков.
+ * Паттерн размещения: одна и та же модалка (см. #lapChartModal) переиспользуется
+ * из двух мест — таблицы результатов на странице этапа (website/templates/
+ * coderedcms/pages/event_page.html, кнопка play между «Шасси» и «Лучший
+ * круг») и истории выступлений на странице пилота (website/templates/
+ * coderedcms/snippets/driver_page.html, ссылка «Ход гонки →»). В обоих
+ * случаях клик открывает модалку с этим виджетом, где сразу выбран (select)
+ * нужный пилот (selected = race_number при инициализации, см.
+ * GriplineLapChart.init — сейчас по умолчанию выбирается первый пилот в
+ * drivers; при открытии из таблицы нужно после init() вызвать
+ * instance.select(raceNumber), либо передать options.initialSelected).
+ * Данные сессии — всегда Финал, вне зависимости от того, какая сессия
+ * сейчас отображается в таблице очков.
  *
- * viewBox 760×260 подобран под широкую модалку на десктопе (примерно
- * ширина чата/центральной колонки контента) — при сжатии контейнера SVG
- * масштабируется как единое целое (width:100%), так что на мобильном модалка
- * просто ужимается, без отдельной адаптивной раскладки.
+ * viewBox 900×380 подобран под modal-xl на десктопе — при сжатии контейнера
+ * SVG масштабируется как единое целое (width:100%), так что на мобильном
+ * модалка просто ужимается, без отдельной адаптивной раскладки.
  */
 (function (global) {
   'use strict';
@@ -58,6 +61,29 @@
   }
 
   function lerp(a, b, f) { return a + (b - a) * f; }
+
+  // Catmull-Rom -> кубический Bezier: та же мягкость кривой, что и
+  // tension:0.25 в Chart.js, но без зависимости от библиотеки.
+  function smoothPath(points) {
+    if (points.length < 2) { return ''; }
+    if (points.length === 2) {
+      return 'M' + points[0].x + ',' + points[0].y + ' L' + points[1].x + ',' + points[1].y;
+    }
+    var t = 0.2;
+    var d = 'M' + points[0].x + ',' + points[0].y + ' ';
+    for (var i = 0; i < points.length - 1; i += 1) {
+      var p0 = points[i === 0 ? 0 : i - 1];
+      var p1 = points[i];
+      var p2 = points[i + 1];
+      var p3 = points[i + 2 < points.length ? i + 2 : i + 1];
+      var cp1x = p1.x + (p2.x - p0.x) * t;
+      var cp1y = p1.y + (p2.y - p0.y) * t;
+      var cp2x = p2.x - (p3.x - p1.x) * t;
+      var cp2y = p2.y - (p3.y - p1.y) * t;
+      d += 'C' + cp1x + ',' + cp1y + ' ' + cp2x + ',' + cp2y + ' ' + p2.x + ',' + p2.y + ' ';
+    }
+    return d;
+  }
 
   function init(container, options) {
     var stages = options.stages;
@@ -94,8 +120,8 @@
     info.appendChild(infoDelta);
     container.appendChild(info);
 
-    var pLeft = 44, pRight = 730, pTop = 15, pBottom = 225;
-    var svg = svgEl('svg', { viewBox: '0 0 760 260', width: '100%', style: 'display:block;' });
+    var pLeft = 54, pRight = 862, pTop = 20, pBottom = 330;
+    var svg = svgEl('svg', { viewBox: '0 0 900 380', width: '100%', style: 'display:block;' });
     var gGrid = svgEl('g', {});
     var gLap = svgEl('g', {});
     var gLines = svgEl('g', {});
@@ -113,7 +139,7 @@
     gridSteps.forEach(function (p) {
       var l = svgEl('line', { x1: pLeft, x2: pRight, y1: y(p), y2: y(p), stroke: COLORS.grid, 'stroke-width': 1 });
       gGrid.appendChild(l);
-      var t = svgEl('text', { x: pLeft - 8, y: y(p) + 4, 'text-anchor': 'end', fill: COLORS.textMuted, style: 'font-size:11px;' });
+      var t = svgEl('text', { x: pLeft - 10, y: y(p) + 4, 'text-anchor': 'end', fill: COLORS.textMuted, style: 'font-size:12px;' });
       t.textContent = p;
       gGrid.appendChild(t);
     });
@@ -124,7 +150,7 @@
         stroke: COLORS.lapLine, 'stroke-width': 1, 'stroke-dasharray': '2,3'
       });
       gLap.appendChild(ll);
-      var at = svgEl('text', { x: x(i), y: pBottom + 20, 'text-anchor': 'middle', fill: COLORS.textMuted, style: 'font-size:11px;' });
+      var at = svgEl('text', { x: x(i), y: pBottom + 24, 'text-anchor': 'middle', fill: COLORS.textMuted, style: 'font-size:12px;' });
       at.textContent = i === 0 ? 'ст' : i;
       gAxis.appendChild(at);
     }
@@ -133,15 +159,15 @@
     var lineEls = {}, headEls = {}, chipEls = {};
 
     drivers.forEach(function (d) {
-      var pl = svgEl('polyline', { fill: 'none', style: 'cursor:pointer;' });
+      var pl = svgEl('path', { fill: 'none', style: 'cursor:pointer;' });
       pl.addEventListener('click', function () { select(d.num); });
       gLines.appendChild(pl);
       lineEls[d.num] = pl;
 
       var g = svgEl('g', { style: 'cursor:pointer;' });
       g.addEventListener('click', function () { select(d.num); });
-      var c = svgEl('circle', { r: 9 });
-      var t = svgEl('text', { 'text-anchor': 'middle', dy: 3, style: 'font-size:9px;font-weight:600;' });
+      var c = svgEl('circle', { r: 11 });
+      var t = svgEl('text', { 'text-anchor': 'middle', dy: 4, style: 'font-size:10px;font-weight:600;' });
       t.textContent = d.num;
       g.appendChild(c); g.appendChild(t);
       gHeads.appendChild(g);
@@ -181,18 +207,18 @@
       drivers.forEach(function (d) {
         var isSel = selected === d.num;
         var dim = selected !== null && !isSel;
-        var pts = '';
-        for (var i = 0; i <= Math.floor(tt); i += 1) { pts += x(i) + ',' + y(d.pos[i]) + ' '; }
+        var pts = [];
+        for (var i = 0; i <= Math.floor(tt); i += 1) { pts.push({ x: x(i), y: y(d.pos[i]) }); }
         var head = pointAt(d, tt);
-        pts += head.x + ',' + head.y;
-        lineEls[d.num].setAttribute('points', pts);
+        pts.push(head);
+        lineEls[d.num].setAttribute('d', smoothPath(pts));
         lineEls[d.num].setAttribute('style',
           'stroke:' + (isSel ? COLORS.accent : COLORS.line) +
-          ';stroke-width:' + (isSel ? 3 : 1.75) +
+          ';stroke-width:' + (isSel ? 3.5 : 1.5) +
           ';stroke-opacity:' + (dim ? 0.15 : (isSel ? 1 : 0.6)) + ';');
         headEls[d.num].g.setAttribute('transform', 'translate(' + head.x + ',' + head.y + ')');
         headEls[d.num].c.setAttribute('style', 'fill:' + (isSel ? COLORS.accent : COLORS.line) + ';opacity:' + (dim ? 0.25 : 1) + ';');
-        headEls[d.num].t.setAttribute('style', 'font-size:9px;font-weight:600;fill:' + COLORS.bg + ';opacity:' + (dim ? 0.25 : 1) + ';');
+        headEls[d.num].t.setAttribute('style', 'font-size:10px;font-weight:600;fill:' + COLORS.bg + ';opacity:' + (dim ? 0.25 : 1) + ';');
         chipEls[d.num].classList.toggle('active', isSel);
       });
       scrub.value = tt;

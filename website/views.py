@@ -119,6 +119,7 @@ class EngineViewSet(SnippetViewSet):
         ]
 
 def driver_detail_view(request, slug):
+    import json
     driver = get_object_or_404(Driver, slug=slug)
 
     # Пытаемся найти текущий сайт, чтобы CMS могла подтянуть верное меню
@@ -245,7 +246,78 @@ def driver_detail_view(request, slug):
     # Сортируем классы по алфавиту
     driver_class_periods.sort(key=lambda x: x['class_name'])
 
+    # Дата рождения на публичной странице — только если пилот явно разрешил
+    # (UserProfile.birth_date_public), иначе профиль вообще не подтягиваем.
+    from accounts.models import UserProfile
+    driver_profile = UserProfile.objects.filter(driver=driver, birth_date_public=True).first()
+
     class_ratings = _get_driver_class_ratings(driver)
+    track_records = _get_driver_track_records(driver)
+    career_highlights = _get_driver_career_highlights(
+        driver, results, wins, podiums, total_starts, podium_percentage
+    )
+
+    # Самая свежая по дате гонки карточка рейтинга — для «Текущей формы» на Обзоре
+    latest_class_rating = None
+    if class_ratings:
+        dated = [cr for cr in class_ratings if cr['last_race_date']]
+        latest_class_rating = max(dated, key=lambda cr: cr['last_race_date']) if dated else class_ratings[0]
+
+    # --- История выступлений: одна JSON-выдача, вся фильтрация/пагинация на клиенте ---
+    STATUS_LABELS = {'DNF': 'DNF', 'DQ': 'DQ', 'DNS': 'DNS'}
+    history_data = []
+    available_seasons = set()
+    for res in results:
+        event_date = getattr(res, 'event_date', None) or res.group.page.last_published_at or res.group.page.first_published_at
+        season = event_date.year if event_date else None
+        if season:
+            available_seasons.add(season)
+
+        status = res.final_status
+        position_gain = (res.start_position - res.position) if (res.start_position and res.position) else None
+
+        best_lap_ms, best_lap_session = None, None
+        if res.best_lap_ms:
+            best_lap_ms, best_lap_session = res.best_lap_ms, 'final'
+        elif res.pre_final_best_lap_ms:
+            best_lap_ms, best_lap_session = res.pre_final_best_lap_ms, 'pre_final'
+        elif res.qual_best_lap_ms:
+            best_lap_ms, best_lap_session = res.qual_best_lap_ms, 'qual'
+
+        has_lap_chart = bool(
+            res.race_number and res.race_number in res.group.lap_chart_race_numbers()
+        )
+
+        history_data.append({
+            'date': event_date.isoformat() if event_date else None,
+            'date_display': event_date.strftime('%d.%m.%Y') if event_date else '—',
+            'season': season,
+            'class_id': res.group.race_class_id,
+            'class_name': res.group.race_class.name,
+            'competition_name': res.group.page.title,
+            'competition_url': res.group.page.url,
+            'race_number': res.race_number or None,
+            'position': res.position,
+            'status': status,
+            'status_label': STATUS_LABELS.get(status),
+            'start_position': res.start_position,
+            'position_gain': position_gain,
+            'chassis_name': res.chassis_new.name if res.chassis_new else None,
+            'chassis_url': res.chassis_new.get_absolute_url() if res.chassis_new else None,
+            'team_name': res.team.name if res.team else None,
+            'team_url': res.team.get_absolute_url() if res.team else None,
+            'best_lap_ms': best_lap_ms,
+            'best_lap_session': best_lap_session,
+            'points': res.points,
+            'group_id': res.group_id,
+            'group_size': res.group_size,
+            'has_lap_chart': has_lap_chart,
+        })
+    available_seasons = sorted(available_seasons, reverse=True)
+    available_history_classes = sorted(
+        {(h['class_id'], h['class_name']) for h in history_data},
+        key=lambda c: c[1]
+    )
 
     from website.schema import driver_person_dict, render_json_ld, _absolute_url
 
@@ -280,6 +352,13 @@ def driver_detail_view(request, slug):
         "last_update": last_update,
         "driver_class_periods": driver_class_periods,
         "class_ratings": class_ratings,
+        "track_records": track_records,
+        "career_highlights": career_highlights,
+        "latest_class_rating": latest_class_rating,
+        "history_data": history_data,
+        "available_seasons": available_seasons,
+        "available_history_classes": available_history_classes,
+        "driver_profile": driver_profile,
         "schema_json_ld": driver_schema_json_ld,
         "breadcrumb_items": driver_breadcrumb_items,
     })
@@ -1192,6 +1271,160 @@ def _get_driver_class_ratings(driver):
 
     class_ratings.sort(key=lambda x: x['class_name'])
     return class_ratings
+
+
+def _get_driver_track_records(driver):
+    """Рекорды трасс пилота: по каждой паре (трасса, класс), где пилот когда-либо
+    держал рекорд круга, определяет статус — действующий/закреплён/перебит.
+    Рекорд принадлежит тому, кто когда-либо показал новый минимум круга в
+    классе на трассе; статус даты — календарный год, в котором установлен
+    ТЕКУЩИЙ рекорд (не год, когда его показал именно этот пилот, если рекорд
+    с тех пор перебивали).
+    """
+    from collections import defaultdict
+
+    all_results = RaceResult.objects.select_related(
+        'driver', 'group__race_class', 'group__page'
+    ).prefetch_related('group__page__occurrences')
+
+    by_key = defaultdict(list)
+    for r in all_results:
+        lap = r.best_lap_all_ms
+        if not lap:
+            continue
+        event = r.group.page
+        track = getattr(event, 'track', None)
+        if not track:
+            continue
+        occurrence = event.occurrences.order_by('-end').first()
+        event_date = (
+            (occurrence.end if occurrence and occurrence.end else None)
+            or event.last_published_at
+            or event.first_published_at
+        )
+        if not event_date:
+            continue
+        by_key[(track.id, r.group.race_class_id)].append({
+            'date': event_date,
+            'driver_id': r.driver_id,
+            'driver': r.driver,
+            'lap_ms': lap,
+            'track': track,
+            'race_class': r.group.race_class,
+        })
+
+    current_year = timezone.now().year
+    records = []
+
+    for entries in by_key.values():
+        entries.sort(key=lambda e: e['date'])
+
+        running_min = None
+        final_holder = None
+        ever_holder_ids = set()
+
+        for e in entries:
+            if running_min is None or e['lap_ms'] < running_min:
+                running_min = e['lap_ms']
+                final_holder = e
+                ever_holder_ids.add(e['driver_id'])
+
+        if driver.id not in ever_holder_ids:
+            continue
+
+        record_year = final_holder['date'].year
+
+        if final_holder['driver_id'] == driver.id:
+            status = 'active' if record_year == current_year else 'locked'
+            records.append({
+                'track': final_holder['track'],
+                'class_name': final_holder['race_class'].name,
+                'lap_ms': running_min,
+                'year': record_year,
+                'status': status,
+            })
+        else:
+            records.append({
+                'track': final_holder['track'],
+                'class_name': final_holder['race_class'].name,
+                'lap_ms': running_min,
+                'year': record_year,
+                'status': 'beaten',
+                'holder_name': final_holder['driver'].full_name,
+            })
+
+    status_order = {'active': 0, 'locked': 1, 'beaten': 2}
+    records.sort(key=lambda r: (status_order[r['status']], -r['year']))
+    return records
+
+
+def _get_driver_career_highlights(driver, results, wins, podiums, total_starts, podium_percentage):
+    """Собирает 4 бейджа Career highlights для страницы пилота.
+
+    Возвращает [] если данных нет вообще (блок не рендерится).
+    """
+    from .models import ChampionshipPage
+
+    highlights = {}
+
+    # --- Титул: 1-е место в классе по итогам сезона (календарный год) ---
+    best_title = None
+    for champ in ChampionshipPage.objects.live():
+        for year in champ.get_years():
+            champions_by_class = champ.get_champions_by_class(year)
+            for class_id, data in champions_by_class.items():
+                if not data['champions']:
+                    continue
+                winner = data['champions'][0]
+                if winner['driver'].id == driver.id:
+                    if best_title is None or year > best_title['year']:
+                        best_title = {
+                            'championship': champ,
+                            'year': year,
+                            'class_name': data['name'],
+                        }
+    if best_title:
+        highlights['title'] = best_title
+
+    # --- Лучший результат: лучшая позиция за карьеру + счётчик побед ---
+    non_dnf = [r for r in results if r.final_status != 'DNF' and r.final_status != 'DQ']
+    if non_dnf:
+        best_position = min(r.position for r in non_dnf)
+        recent_best = max(
+            (r for r in non_dnf if r.position == best_position),
+            key=lambda r: getattr(r, 'event_date', None) or r.group.page.last_published_at or r.group.page.first_published_at,
+        )
+        highlights['best_result'] = {
+            'position': best_position,
+            'wins': wins,
+            'result': recent_best,
+        }
+
+    # --- Личный лучший круг за карьеру ---
+    lap_results = [r for r in results if r.best_lap_all_ms]
+    if lap_results:
+        best_lap_result = min(lap_results, key=lambda r: r.best_lap_all_ms)
+        event = best_lap_result.group.page
+        has_lap_chart = bool(
+            best_lap_result.race_number
+            and best_lap_result.race_number in best_lap_result.group.lap_chart_race_numbers()
+        )
+        highlights['best_lap'] = {
+            'lap_ms': best_lap_result.best_lap_all_ms,
+            'track': getattr(event, 'track', None),
+            'class_name': best_lap_result.group.race_class.name,
+            'result': best_lap_result,
+            'has_lap_chart': has_lap_chart,
+        }
+
+    # --- Подиумы: накопительный счётчик + доля от стартов ---
+    if total_starts > 0:
+        highlights['podiums'] = {
+            'count': podiums,
+            'percentage': podium_percentage,
+        }
+
+    return highlights
 
 
 def top_drivers_view(request):

@@ -1588,6 +1588,19 @@ class RaceResult(Orderable):
     pre_final_s2_ms       = models.IntegerField("S2, мс", null=True, blank=True)
     pre_final_s3_ms       = models.IntegerField("S3, мс", null=True, blank=True)
 
+    # --- Статусы схода/дисквалификации по сессиям ---
+    # Пусто = финишировал штатно. points остаётся источником правды по очкам —
+    # организатор может начислить очки за сошедшего в финале, если он набрал их
+    # в квалификации/предфинале, поэтому статус не пересчитывает points сам.
+    STATUS_CHOICES = [
+        ('DNF', 'DNF — не финишировал'),
+        ('DQ', 'DQ — дисквалифицирован'),
+        ('DNS', 'DNS — не стартовал'),
+    ]
+    qual_status       = models.CharField("Статус квалификации", max_length=3, choices=STATUS_CHOICES, blank=True, default='')
+    pre_final_status  = models.CharField("Статус предфинала", max_length=3, choices=STATUS_CHOICES, blank=True, default='')
+    final_status      = models.CharField("Статус финала", max_length=3, choices=STATUS_CHOICES, blank=True, default='')
+
     panels = [
         FieldRowPanel([
             FieldPanel('driver', widget=forms.Select(attrs={'class': 'driver-search-select', 'data-search': 'true'})),
@@ -1606,6 +1619,7 @@ class RaceResult(Orderable):
                 FieldPanel('tie_breaker'),
                 FieldPanel('penalty'),
             ]),
+            FieldPanel('final_status'),
         ], heading="Финал"),
         MultiFieldPanel([
             FieldRowPanel([
@@ -1623,6 +1637,7 @@ class RaceResult(Orderable):
                 FieldPanel('qual_s2_ms'),
                 FieldPanel('qual_s3_ms'),
             ]),
+            FieldPanel('qual_status'),
         ], heading="Квалификация"),
         MultiFieldPanel([
             FieldRowPanel([
@@ -1633,6 +1648,7 @@ class RaceResult(Orderable):
                 FieldPanel('pre_final_s2_ms'),
                 FieldPanel('pre_final_s3_ms'),
             ]),
+            FieldPanel('pre_final_status'),
         ], heading="Предфинал"),
     ]
 

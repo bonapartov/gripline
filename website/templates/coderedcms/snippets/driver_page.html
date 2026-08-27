@@ -3,7 +3,6 @@
 
 {% block content %}
 <style>
-    /* Единый стандарт ширины */
     .force-width-1500 {
         max-width: 1500px !important;
         margin-left: auto !important;
@@ -11,728 +10,904 @@
         padding-left: 1rem !important;
         padding-right: 1rem !important;
     }
-    /* Стили таблицы из общей стилистики */
     .table-hover tbody tr:hover {
         background-color: rgba(13, 202, 240, 0.1) !important;
         transition: 0.3s;
     }
-    .badge { width: 45px; font-weight: 800; }
-    .driver-photo {
-        object-fit: cover;
-        border-radius: 10px;
+    .badge { font-weight: 800; }
+    .driver-photo { object-fit: cover; border-radius: 8px; }
+    .bg-bronze { background-color: var(--gl-brand-bronze, #cd7f32) !important; color: white !important; }
+
+    /* --- Хедер --- */
+    .gl-photo-slot {
+        width: 96px; height: 120px; flex-shrink: 0;
+        background: var(--gl-surface-card, #1a1a25);
+        border: 1px solid var(--gl-border-card, #2a2a35);
+        border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
     }
-    .bg-bronze {
-        background-color: #cd7f32 !important;
-        color: white !important;
+    .gl-share-btn {
+        background: transparent; border: 1px solid var(--gl-brand-yellow, #ffc107);
+        color: var(--gl-brand-yellow, #ffc107); border-radius: 6px;
+        padding: 0.5rem 0.9rem; font-size: 0.8rem; font-weight: 700;
     }
-    .pos-gain { font-size: 0.62rem; line-height: 1; margin-top: 3px; }
+    .gl-share-btn:hover { background: var(--gl-brand-yellow, #ffc107); color: var(--gl-fg-on-yellow, #1a1a25); }
+    .gl-class-chip {
+        background: rgba(0,0,0,0.25); border: 1px solid var(--gl-border-card, #2a2a35);
+        border-radius: 4px; padding: 0.2rem 0.5rem; font-size: 0.7rem;
+        color: var(--gl-brand-cyan, #0dcaf0); text-transform: uppercase; font-weight: 700;
+    }
+
+    /* --- Вкладки --- */
+    .gl-tabs {
+        display: flex; overflow-x: auto; border-bottom: 1px solid var(--gl-border-card, #2a2a35);
+        margin-bottom: 1.5rem;
+    }
+    .gl-tab {
+        background: none; border: none; border-bottom: 3px solid transparent;
+        color: var(--gl-fg-muted, #6c757d); font-weight: 800; text-transform: uppercase;
+        font-size: 0.78rem; letter-spacing: 0.06em; padding: 0.8rem 1rem; white-space: nowrap;
+        cursor: pointer;
+    }
+    .gl-tab.active { color: var(--gl-brand-yellow, #ffc107); border-bottom-color: var(--gl-brand-yellow, #ffc107); }
+    .gl-tab-panel { display: none; }
+    .gl-tab-panel.active { display: block; }
+
+    /* --- Card общий стиль для новых блоков --- */
+    .gl-card {
+        background: var(--gl-surface-card, #1a1a25);
+        border: 1px solid var(--gl-border-card, #2a2a35);
+        border-radius: 8px;
+        padding: 1rem;
+    }
+    .gl-card-title {
+        color: var(--gl-brand-yellow, #ffc107); font-size: 0.8rem; text-transform: uppercase;
+        font-weight: 800; letter-spacing: 0.06em; border-bottom: 1px solid var(--gl-border-card, #2a2a35);
+        padding-bottom: 0.5rem; margin-bottom: 0.75rem;
+    }
+
+    /* --- Career highlights --- */
+    .gl-hl-row {
+        display: flex; gap: 0.6rem; overflow-x: auto; scroll-snap-type: x proximity;
+        padding-bottom: 6px;
+    }
+    .gl-hl-row::-webkit-scrollbar { height: 5px; }
+    .gl-hl-row::-webkit-scrollbar-track { background: #1c1c1c; }
+    .gl-hl-row::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 3px; }
+    .gl-hl-card {
+        flex-shrink: 0; min-width: 158px; scroll-snap-align: start;
+        background: var(--gl-surface-card, #1a1a25); border: 1px solid var(--gl-border-card, #2a2a35);
+        border-radius: 8px; padding: 0.75rem; cursor: pointer;
+    }
+    .gl-hl-card:hover { border-color: var(--gl-brand-yellow, #ffc107); }
+    .gl-hl-card.active { border-color: var(--gl-brand-yellow, #ffc107); }
+    .gl-hl-card .gl-hl-label { color: var(--gl-fg-muted, #6c757d); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .gl-hl-card .gl-hl-value { color: var(--gl-fg-2, #eceff1); font-size: 0.95rem; font-weight: 800; }
+    .gl-hl-card .gl-hl-meta { color: var(--gl-fg-muted, #6c757d); font-size: 0.7rem; }
+    .gl-hl-panel {
+        background: var(--gl-surface-card, #1a1a25); border: 1px solid var(--gl-brand-yellow, #ffc107);
+        border-radius: 8px; padding: 0.85rem 1rem; margin-top: 0.75rem; display: none;
+    }
+    .gl-hl-panel.active { display: block; }
+    .gl-hl-panel-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 0.5rem 1rem; margin: 0.5rem 0;
+    }
+    .gl-hl-panel-pair {
+        display: flex; justify-content: space-between; border-bottom: 1px solid var(--gl-border-card, #2a2a35);
+        padding-bottom: 0.2rem;
+    }
+
+    /* --- Рекорды трасс --- */
+    .gl-track-row {
+        display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;
+        padding: 0.6rem 0.75rem; border-radius: 6px; margin-bottom: 0.4rem;
+    }
+    .gl-track-row.status-active { border: 1px solid var(--gl-brand-yellow, #ffc107); background: rgba(255,193,7,0.07); }
+    .gl-track-row.status-locked { border: 1px solid var(--gl-border-card, #2a2a35); background: rgba(0,0,0,0.2); }
+    .gl-track-row.status-beaten { border: 1px solid var(--gl-border-card, #2a2a35); background: rgba(0,0,0,0.2); opacity: 0.55; }
+    .gl-track-status {
+        font-size: 0.65rem; text-transform: uppercase; font-weight: 800; min-width: 112px; text-align: right;
+    }
+
+    /* --- История: фильтры/пагинация --- */
+    .gl-filter-select {
+        background: var(--gl-surface-card, #1a1a25); color: var(--gl-fg-2, #eceff1);
+        border: 1px solid var(--gl-border-card, #2a2a35); border-radius: 6px;
+        padding: 0.45rem 0.7rem; font-size: 0.85rem; min-width: 150px;
+    }
+    .gl-page-btn {
+        border: 1px solid var(--gl-border-card, #2a2a35); border-radius: 6px; background: transparent;
+        color: var(--gl-fg-2, #eceff1); padding: 0.4rem 0.75rem; font-size: 0.8rem;
+    }
+    .gl-page-btn.active { background: var(--gl-brand-yellow, #ffc107); color: var(--gl-fg-on-yellow, #1a1a25); font-weight: 700; border-color: var(--gl-brand-yellow, #ffc107); }
+    .gl-page-btn:hover:not(.active) { border-color: var(--gl-brand-yellow, #ffc107); color: var(--gl-brand-yellow, #ffc107); }
+    .gl-page-btn:disabled { opacity: 0.4; }
+
+    /* --- Периоды: таймлайн --- */
+    .gl-timeline-track { height: 6px; background: var(--gl-border-card, #2a2a35); border-radius: 3px; position: relative; margin-top: 6px; }
+    .gl-timeline-fill { height: 100%; border-radius: 3px; position: absolute; top: 0; }
 </style>
 
-<div class="force-width-1500 my-5 text-white">
-    <div class="row mb-5">
-        <div class="col-md-4 col-lg-3">
-            {% if driver.photo %}
-                {% image driver.photo fill-400x500 as pilot_photo %}
-                <img src="{{ pilot_photo.url }}" class="img-fluid driver-photo shadow-lg border border-secondary" alt="{{ driver.full_name }}">
-            {% else %}
-                <div class="bg-dark rounded d-flex align-items-center justify-content-center border border-secondary" style="aspect-ratio: 4/5;">
-                    <span class="text-muted">Нет фото</span>
-                </div>
-            {% endif %}
+<div class="force-width-1500 my-4 text-white">
 
-             <div class="mb-4">
+    {# ==================== ХЕДЕР ==================== #}
+    <div class="d-flex flex-wrap gap-3 mb-3">
+        <div class="gl-photo-slot">
+            {% if driver.photo %}
+                {% image driver.photo fill-96x120 as pilot_photo %}
+                <img src="{{ pilot_photo.url }}" class="img-fluid driver-photo" style="width:100%;height:100%;" alt="{{ driver.full_name }}">
+            {% else %}
+                <i class="fas fa-user" style="font-size:1.75rem; color:var(--gl-fg-muted,#6c757d);"></i>
+            {% endif %}
+        </div>
+
+        <div class="flex-grow-1" style="min-width:220px;">
+            <h1 class="fw-black text-uppercase mb-1" style="font-size:clamp(1.6rem, 4.2vw, 2.6rem); font-weight:900; line-height:1; letter-spacing:-0.01em;">{{ driver.full_name }}</h1>
+            <div class="d-flex align-items-center flex-wrap gap-2 mb-2" style="font-size:0.95rem;">
+                <span class="text-info"><i class="fas fa-map-marker-alt me-1"></i>{{ driver.city|default:"Город не указан" }}</span>
+                {% if driver_profile and driver_profile.birth_date %}
+                <span style="color:#3a3a3a;">•</span>
+                <span class="text-muted">{{ driver_profile.birth_date|date:"d.m.Y" }}</span>
+                {% endif %}
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                {% for period in driver_class_periods %}
+                <span class="gl-class-chip">{{ period.class_name }}</span>
+                {% endfor %}
                 {% for social in driver.social_links.all %}
-                    <a href="{{ social.link_url }}" target="_blank" class="btn btn-outline-light btn-sm me-2 mb-2">
-                        <i class="fas fa-link me-1"></i> {{ social.network_name }}
-                    </a>
+                <a href="{{ social.link_url }}" target="_blank" class="gl-class-chip text-decoration-none">
+                    <i class="fas fa-link me-1"></i>{{ social.network_name }}
+                </a>
                 {% endfor %}
             </div>
         </div>
 
-        <div class="col-md-8 col-lg-9">
-            <h1 class="display-4 fw-bold mb-1 text-uppercase">{{ driver.full_name }}</h1>
-            <p class="text-info fs-5 mb-3">
-                <i class="fas fa-map-marker-alt me-2"></i>{{ driver.city|default:"Город не указан" }}
-            </p>
-            {% if driver_profile and driver_profile.birth_date %}
-            <p class="text-muted fs-6 mb-3">
-                <i class="fas fa-birthday-cake me-2"></i>{{ driver_profile.birth_date|date:"d.m.Y" }}
-            </p>
-            {% endif %}
-
-
-
-            <div class="card bg-dark border-secondary p-3 mb-3">
-                <h5 class="text-warning border-bottom border-secondary pb-2 mb-3 text-uppercase">Биография</h5>
-                <div class="text-light">
-                    {{ driver.bio|safe|default:"Информация о пилоте скоро будет дополнена." }}
-                </div>
-            </div>
-
-            {# График результатов пилота #}
-              <div class="row">
-                  <div class="col-12">
-                      <div class="card bg-dark border-secondary p-4">
-                          <h4 class="text-warning border-bottom border-secondary pb-2 mb-4 text-uppercase fw-bold">Прогресс по этапам</h4>
-
-                          <div style="height: 200px; position: relative;">
-                              <canvas id="driverChart"></canvas>
-                          </div>
-                      </div>
-                  </div>
-              </div>
-
-              <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-              <script>
-                  document.addEventListener('DOMContentLoaded', function() {
-                      const ctx = document.getElementById('driverChart').getContext('2d');
-
-                      const results = [
-                          {% for res in results reversed %}
-                              {
-                                  event: "{% with occurrence=res.group.page.occurrences.all.first %}{% if occurrence and occurrence.end %}{{ occurrence.end|date:'m.Y' }}{% else %}{{ res.group.page.first_published_at|date:'m.Y' }}{% endif %}{% endwith %}",
-                                  class_name: "{{ res.group.race_class.name }}",
-                                  position: {{ res.position }},
-                                  group_size: {{ res.group_size|default:1 }},
-                              }{% if not forloop.last %},{% endif %}
-                          {% endfor %}
-                      ];
-
-                      // Normalized position: 100% = 1st place, 0% = last place
-                      function normPos(pos, total) {
-                          return total > 1 ? (total - pos) / (total - 1) * 100 : 50;
-                      }
-
-                      new Chart(ctx, {
-                          type: 'line',
-                          data: {
-                              labels: results.map(r => r.event),
-                              datasets: [{
-                                  label: 'Позиция в гонке',
-                                  data: results.map(r => normPos(r.position, r.group_size)),
-                                  borderColor: '#0dcaf0',
-                                  backgroundColor: 'rgba(13, 202, 240, 0.1)',
-                                  tension: 0.3,
-                                  fill: true,
-                                  pointBackgroundColor: results.map(r =>
-                                      r.position === 1 ? '#ffc107' :
-                                      r.position === 2 ? '#adb5bd' :
-                                      r.position === 3 ? '#cd7f32' : '#0dcaf0'
-                                  ),
-                                  pointBorderColor: '#fff',
-                                  pointRadius: 6,
-                                  pointHoverRadius: 8,
-                              }]
-                          },
-                          options: {
-                              responsive: true,
-                              maintainAspectRatio: false,
-                              layout: { padding: { top: 16 } },
-                              plugins: {
-                                  legend: { display: false },
-                                  tooltip: {
-                                      callbacks: {
-                                          label: function(context) {
-                                              const r = results[context.dataIndex];
-                                              return [
-                                                  `Место: ${r.position} из ${r.group_size}`,
-                                                  `Класс: ${r.class_name}`,
-                                                  `Результат: ${Math.round(normPos(r.position, r.group_size))}%`,
-                                              ];
-                                          }
-                                      }
-                                  }
-                              },
-                              scales: {
-                                  y: {
-                                      min: 0,
-                                      max: 100,
-                                      grid: { color: 'rgba(255,255,255,0.1)' },
-                                      ticks: {
-                                          color: '#adb5bd',
-                                          callback: v => v + '%'
-                                      },
-                                      title: { display: true, text: '← хуже | лучше →', color: '#6c757d', font: { size: 10 } }
-                                  },
-                                  x: {
-                                      grid: { display: false },
-                                      ticks: { color: '#adb5bd', maxRotation: 45, minRotation: 45 }
-                                  }
-                              }
-                          }
-                      });
-                  });
-              </script>
-              <script>
-                  document.addEventListener('DOMContentLoaded', function() {
-                      document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
-                          new bootstrap.Tooltip(el);
-                      });
-                  });
-              </script>
-
+        <div class="ms-auto">
+            <button type="button" class="gl-share-btn" id="glShareBtn"><i class="fas fa-share-nodes me-1"></i>Поделиться результатом</button>
         </div>
     </div>
 
+    {# ==================== ВКЛАДКИ ==================== #}
+    <div class="gl-tabs" id="glTabs">
+        <button class="gl-tab" data-tab="overview">Обзор</button>
+        <button class="gl-tab" data-tab="rating">Рейтинг и аналитика</button>
+        <button class="gl-tab" data-tab="history">История выступлений</button>
+    </div>
 
-     {# Блок статистики пилота - перед таблицей (одна строка) #}
-      <div class="row mb-5">
-          <!-- Статистика пилота -->
-          <div class="col-12 mb-4">
-              <div class="card bg-dark border-secondary p-4">
-                  <h4 class="text-warning border-bottom border-secondary pb-2 mb-4 text-uppercase fw-bold">Статистика пилота</h4>
-                  <div class="row text-center g-3">
-                      <div class="col">
-                          <div class="bg-black bg-opacity-25 rounded-3 py-3 px-2 h-100 border border-secondary">
-                              <div class="display-6 fw-bold text-white">{{ total_starts|default:"0" }}</div>
-                              <div class="text-info small text-uppercase">Старты</div>
-                          </div>
-                      </div>
-                      <div class="col">
-                          <div class="bg-black bg-opacity-25 rounded-3 py-3 px-2 h-100 border border-secondary">
-                              <div class="display-6 fw-bold text-white">{{ wins|default:"0" }}</div>
-                              <div class="text-info small text-uppercase">Победы</div>
-                          </div>
-                      </div>
-                      <div class="col">
-                          <div class="bg-black bg-opacity-25 rounded-3 py-3 px-2 h-100 border border-secondary">
-                              <div class="display-6 fw-bold text-white">{{ podiums|default:"0" }}</div>
-                              <div class="text-info small text-uppercase">Подиумы</div>
-                          </div>
-                      </div>
-                      <div class="col">
-                          <div class="bg-black bg-opacity-25 rounded-3 py-3 px-2 h-100 border border-secondary">
-                              <div class="display-6 fw-bold text-white">{{ win_percentage|default:"0" }}%</div>
-                              <div class="text-info small text-uppercase">% Побед</div>
-                          </div>
-                      </div>
-                      <div class="col">
-                          <div class="bg-black bg-opacity-25 rounded-3 py-3 px-2 h-100 border border-secondary">
-                              <div class="display-6 fw-bold text-white">{{ podium_percentage|default:"0" }}%</div>
-                              <div class="text-info small text-uppercase">% Подиумов</div>
-                          </div>
-                      </div>
-                  </div>
-              </div>
-          </div>
-
-          <!-- Рейтинг по классам -->
-          <div class="col-12">
-              <div class="card bg-dark border-secondary p-4">
-                  <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-2 mb-4">
-                      <h4 class="text-warning text-uppercase fw-bold mb-0">Рейтинг по классам</h4>
-                      <div class="d-flex align-items-center gap-3">
-                          {% if last_update %}
-                          <span class="text-muted small"><i class="fas fa-clock me-1"></i>{{ last_update|date:"d.m.Y H:i" }}</span>
-                          {% endif %}
-                          <a href="/rating-info/" class="btn btn-outline-info btn-sm text-uppercase">
-                              <i class="fas fa-calculator me-1"></i>Методология
-                          </a>
-                      </div>
-                  </div>
-
-                  {% if class_ratings %}
-                  {% for cr in class_ratings %}
-                  <div class="rounded-3 p-3 mb-3 border {% if cr.low_data %}border-warning border-opacity-50{% else %}border-secondary{% endif %}" style="background:rgba(0,0,0,0.25);">
-
-                      <!-- Заголовок класса -->
-                      <div class="d-flex align-items-center gap-2 mb-3">
-                          <span class="text-info text-uppercase fw-bold">{{ cr.class_name }}</span>
-                          {% if cr.low_data %}
-                          <span title="Мало стартов — рейтинг предварительный">⚠️</span>
-                          {% endif %}
-                          {% if cr.rank == 1 %}
-                          <span class="text-warning ms-1 fw-bold" style="font-size:0.85rem;"><i class="fas fa-crown me-1"></i>Лидер класса</span>
-                          {% endif %}
-                          {% if cr.last_race_date %}
-                          <span class="text-muted ms-auto" style="font-size:0.8rem;">последний старт: {{ cr.last_race_date|date:"m.Y" }}</span>
-                          {% endif %}
-                      </div>
-
-                      <!-- Основные метрики -->
-                      <div class="row g-3 align-items-stretch">
-
-                          <!-- Рейтинг -->
-                          <div class="col-6 col-md-2">
-                              <div class="text-center">
-                                  <div class="text-white fw-bold" style="font-size:2.4rem; line-height:1;">{{ cr.normalized_score }}</div>
-                                  <div class="text-muted small">из 100 баллов</div>
-                              </div>
-                          </div>
-
-                          <!-- Место -->
-                          <div class="col-6 col-md-2">
-                              <div class="text-center">
-                                  <div class="fw-bold text-warning" style="font-size:2rem; line-height:1;">#{{ cr.rank }}</div>
-                                  <div class="text-muted small">из {{ cr.total }} пилотов</div>
-                              </div>
-                          </div>
-
-                          <!-- Тренд формы -->
-                          <div class="col-6 col-md-2">
-                              <div class="text-center">
-                                  {% if cr.form_trend == 'up' %}
-                                  <div class="text-success fw-bold" style="font-size:1.6rem;">▲</div>
-                                  <div class="text-success small">На подъёме</div>
-                                  {% elif cr.form_trend == 'down' %}
-                                  <div class="text-danger fw-bold" style="font-size:1.6rem;">▼</div>
-                                  <div class="text-danger small">Спад формы</div>
-                                  {% elif cr.form_trend == 'stable' %}
-                                  <div class="text-secondary fw-bold" style="font-size:1.6rem;">▬</div>
-                                  <div class="text-secondary small">Стабильно</div>
-                                  {% else %}
-                                  <div class="text-muted" style="font-size:1.6rem;">—</div>
-                                  <div class="text-muted small">Мало данных</div>
-                                  {% endif %}
-                                  <div class="text-muted" style="font-size:0.7rem;">{{ cr.starts }} стартов</div>
-                              </div>
-                          </div>
-
-                          <!-- Статистика в классе -->
-                          <div class="col-6 col-md-3">
-                              <div class="d-flex flex-column gap-1 h-100 justify-content-center" style="font-size:1rem; border-left:1px solid #2a2a35; padding-left:1rem;">
-                                  <div class="d-flex justify-content-between">
-                                      <span class="text-muted">Победы</span>
-                                      <span class="text-white fw-bold">{{ cr.wins }} <span class="text-muted fw-normal">({{ cr.win_pct }}%)</span></span>
-                                  </div>
-                                  <div class="d-flex justify-content-between">
-                                      <span class="text-muted">Подиумы</span>
-                                      <span class="text-white fw-bold">{{ cr.podiums }} <span class="text-muted fw-normal">({{ cr.podium_pct }}%)</span></span>
-                                  </div>
-                                  <div class="d-flex justify-content-between">
-                                      <span class="text-muted">Стартов</span>
-                                      <span class="text-white fw-bold">{{ cr.starts }}</span>
-                                  </div>
-                              </div>
-                          </div>
-
-                          <!-- Соседи -->
-                          <div class="col-12 col-md-3">
-                              <div class="d-flex flex-column gap-2 justify-content-center h-100" style="font-size:0.82rem; border-left:1px solid #2a2a35; padding-left:1rem;">
-                                  {% if cr.driver_above %}
-                                  <div class="d-flex justify-content-between align-items-center">
-                                      <span>
-                                          <i class="fas fa-chevron-up text-success me-1" style="font-size:0.65rem;"></i>
-                                          <a href="/drivers/{{ cr.driver_above.slug }}/" class="text-muted text-decoration-none">{{ cr.driver_above.full_name }}</a>
-                                      </span>
-                                      <span class="d-flex align-items-center gap-2 ms-2">
-                                          <span class="text-danger text-nowrap">−{{ cr.gap_to_above }} б.</span>
-                                          <a href="/compare-drivers/?driver1={{ driver.id }}&driver2={{ cr.driver_above.driver_id }}" class="text-nowrap" style="font-size:0.75rem; background:var(--gl-brand-yellow); color:var(--gl-fg-on-yellow); padding:2px 8px; border-radius:var(--gl-radius-sm); text-decoration:none; font-weight:var(--gl-weight-bold); white-space:nowrap;" title="Сравнить"><i class="fas fa-right-left me-1"></i>vs</a>
-                                      </span>
-                                  </div>
-                                  {% endif %}
-                                  {% if cr.driver_below %}
-                                  <div class="d-flex justify-content-between align-items-center">
-                                      <span>
-                                          <i class="fas fa-chevron-down text-danger me-1" style="font-size:0.65rem;"></i>
-                                          <a href="/drivers/{{ cr.driver_below.slug }}/" class="text-muted text-decoration-none">{{ cr.driver_below.full_name }}</a>
-                                      </span>
-                                      <span class="d-flex align-items-center gap-2 ms-2">
-                                          <span class="text-success text-nowrap">+{{ cr.gap_to_below }} б.</span>
-                                          <a href="/compare-drivers/?driver1={{ driver.id }}&driver2={{ cr.driver_below.driver_id }}" class="text-nowrap" style="font-size:0.75rem; background:var(--gl-brand-yellow); color:var(--gl-fg-on-yellow); padding:2px 8px; border-radius:var(--gl-radius-sm); text-decoration:none; font-weight:var(--gl-weight-bold); white-space:nowrap;" title="Сравнить"><i class="fas fa-right-left me-1"></i>vs</a>
-                                      </span>
-                                  </div>
-                                  {% endif %}
-                                  {% if not cr.driver_above and not cr.driver_below %}
-                                  <span class="text-muted small">Единственный в классе</span>
-                                  {% endif %}
-                              </div>
-                          </div>
-
-                      </div>
-
-                      <!-- Инсайты -->
-                      <div class="mt-3 pt-3 border-top border-secondary">
-                          <div class="d-flex align-items-center gap-2 mb-2">
-                              <span class="text-muted small text-uppercase" style="letter-spacing:0.05em;">Личная статистика</span>
-                              <span class="text-muted" style="font-size:0.75rem;" data-bs-toggle="tooltip" data-bs-placement="top"
-                                  title="% побед и подиумов сравнивается со средним значением по классу среди пилотов с 3+ стартами. Немезис и «уверенно против» — пилоты, с которыми больше всего очных встреч в одном заезде, и у кого устойчивый перевес.">
-                                  <i class="fas fa-circle-info"></i> как считается?
-                              </span>
-                          </div>
-
-                          {% if cr.low_data %}
-                          <div class="text-muted small fst-italic px-1" style="opacity:0.6;">
-                              <i class="fas fa-hourglass-half me-1"></i>Статистика появится после {{ cr.starts }} / 3 гонок в этом классе
-                          </div>
-                          {% else %}
-                          <div class="row g-2">
-
-                              {% if cr.median_win_pct > 0 %}
-                              <div class="col-12 col-md">
-                                  <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid {% if cr.win_pct > cr.median_win_pct %}var(--gl-signal-green){% else %}var(--gl-surface-divider){% endif %};">
-                                      <i class="fas fa-trophy text-warning" style="font-size:1.1rem;"></i>
-                                      <div>
-                                          <div class="text-muted small">% побед vs класс</div>
-                                          <div class="fw-bold {% if cr.win_pct > cr.median_win_pct %}text-success{% else %}text-white{% endif %}">
-                                              {{ cr.win_pct }}%
-                                              <span class="text-muted fw-normal small">/ среднее {{ cr.median_win_pct }}%</span>
-                                          </div>
-                                      </div>
-                                  </div>
-                              </div>
-                              {% endif %}
-
-                              {% if cr.median_podium_pct > 0 %}
-                              <div class="col-12 col-md">
-                                  <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid {% if cr.podium_pct > cr.median_podium_pct %}var(--gl-signal-green){% else %}var(--gl-surface-divider){% endif %};">
-                                      <i class="fas fa-medal text-warning" style="font-size:1.1rem;"></i>
-                                      <div>
-                                          <div class="text-muted small">% подиумов vs класс</div>
-                                          <div class="fw-bold {% if cr.podium_pct > cr.median_podium_pct %}text-success{% else %}text-white{% endif %}">
-                                              {{ cr.podium_pct }}%
-                                              <span class="text-muted fw-normal small">/ среднее {{ cr.median_podium_pct }}%</span>
-                                          </div>
-                                      </div>
-                                  </div>
-                              </div>
-                              {% endif %}
-
-                              {% if cr.nemesis %}
-                              <div class="col-12 col-md">
-                                  <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid var(--gl-signal-danger);">
-                                      <i class="fas fa-user-slash text-danger" style="font-size:1.1rem;"></i>
-                                      <div>
-                                          <div class="text-muted small">Немезис <span style="font-size:0.7rem;">(чаще впереди в очных стартах)</span></div>
-                                          <div>
-                                              <a href="/drivers/{{ cr.nemesis.slug }}/" class="fw-bold text-danger text-decoration-none">{{ cr.nemesis.name }}</a>
-                                              <span class="text-muted small ms-1">— он впереди в {{ cr.nemesis.losses }} из {{ cr.nemesis.meetings }}</span>
-                                          </div>
-                                      </div>
-                                  </div>
-                              </div>
-                              {% endif %}
-
-                              {% if cr.victim %}
-                              <div class="col-12 col-md">
-                                  <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid var(--gl-brand-cyan);">
-                                      <i class="fas fa-shield-halved text-info" style="font-size:1.1rem;"></i>
-                                      <div>
-                                          <div class="text-muted small">Уверенно против <span style="font-size:0.7rem;">(чаще впереди в очных стартах)</span></div>
-                                          <div>
-                                              <a href="/drivers/{{ cr.victim.slug }}/" class="fw-bold text-info text-decoration-none">{{ cr.victim.name }}</a>
-                                              <span class="text-muted small ms-1">— ты впереди в {{ cr.victim.wins }} из {{ cr.victim.meetings }}</span>
-                                          </div>
-                                      </div>
-                                  </div>
-                              </div>
-                              {% endif %}
-
-                          </div>
-                          {% endif %}
-                      </div>
-
-                  </div>
-                  {% endfor %}
-                  {% else %}
-                  <div class="text-center text-muted py-4">Рейтинг ещё не рассчитан</div>
-                  {% endif %}
-              </div>
-          </div>
-      </div>
-	  
-	  <!-- Периоды выступлений по классам -->
-		
-			<div class="col-12">
-				<div class="card bg-dark border-secondary p-4">
-					<h4 class="text-warning border-bottom border-secondary pb-2 mb-4 text-uppercase fw-bold">Периоды выступлений по классам</h4>
-					
-					<div class="row g-3">
-						{% for period in driver_class_periods %}
-						<div class="col-md-4 col-lg-3">
-							<div class="bg-black bg-opacity-25 rounded-3 p-3 h-100 border border-secondary">
-								<div class="text-info small text-uppercase mb-2">{{ period.class_name }}</div>
-								<div class="text-warning fs-5 fw-bold period-cell">{{ period.period }}</div>
-							</div>
-						</div>
-						{% empty %}
-						<div class="col-12">
-							<div class="text-center text-muted py-4">
-								Нет данных о выступлениях по классам
-							</div>
-						</div>
-						{% endfor %}
-					</div>
-				</div>
-			</div>
-		
-{% if personal_records %}
-<!-- Личные рекорды -->
-<div class="col-12 mb-4">
-    <div class="card p-4">
-        <h4 class="text-warning border-bottom border-secondary pb-2 mb-4 text-uppercase fw-bold">
-            <i class="fas fa-stopwatch me-2"></i>Личные рекорды
-        </h4>
-        <div class="row g-3">
-            {% for pr in personal_records %}
-            <div class="col-12 col-md-6 col-xl-4">
-                <div class="rounded-3 p-3 border border-secondary" style="background:rgba(0,0,0,0.25);">
-                    <div class="text-info small text-uppercase fw-bold mb-3">{{ pr.class_name }}</div>
-                    <div class="row g-2" style="font-size:0.85rem;">
-                        {% if pr.best_lap %}
-                        <div class="col-6">
-                            <div class="text-muted small">Лучший круг</div>
-                            <div class="text-white fw-bold font-monospace">{{ pr.best_lap }}</div>
-                        </div>
-                        {% endif %}
-                        {% if pr.ideal_lap %}
-                        <div class="col-6">
-                            <div class="text-muted small">Идеальный круг</div>
-                            <div class="text-warning fw-bold font-monospace">{{ pr.ideal_lap }}</div>
-                        </div>
-                        {% endif %}
-                        {% if pr.best_s1 or pr.best_s2 or pr.best_s3 %}
-                        <div class="col-12">
-                            <div class="d-flex gap-3 mt-1">
-                                {% if pr.best_s1 %}
-                                <div>
-                                    <div class="text-muted" style="font-size:0.7rem;">S1</div>
-                                    <div class="text-secondary font-monospace" style="font-size:0.8rem;">{{ pr.best_s1 }}</div>
-                                </div>
-                                {% endif %}
-                                {% if pr.best_s2 %}
-                                <div>
-                                    <div class="text-muted" style="font-size:0.7rem;">S2</div>
-                                    <div class="text-secondary font-monospace" style="font-size:0.8rem;">{{ pr.best_s2 }}</div>
-                                </div>
-                                {% endif %}
-                                {% if pr.best_s3 %}
-                                <div>
-                                    <div class="text-muted" style="font-size:0.7rem;">S3</div>
-                                    <div class="text-secondary font-monospace" style="font-size:0.8rem;">{{ pr.best_s3 }}</div>
-                                </div>
-                                {% endif %}
+    {# ==================== ВКЛАДКА: ОБЗОР ==================== #}
+    <div class="gl-tab-panel" id="tab-overview" data-tab-panel="overview">
+        <div class="row g-3 mb-3">
+            <div class="col-12 col-md-6">
+                <div class="gl-card h-100">
+                    <div class="d-flex justify-content-between align-items-baseline gl-card-title" style="border-bottom:1px solid var(--gl-border-card,#2a2a35);">
+                        <span>Биография</span>
+                        <span class="text-muted" style="font-size:0.65rem; text-transform:none; letter-spacing:normal;">{% if driver.biography %}состояние: заполнено{% else %}состояние: пусто{% endif %}</span>
+                    </div>
+                    {% if driver.biography %}
+                        <div class="text-light" style="font-size:0.9rem; line-height:1.55;">{{ driver.biography|safe }}</div>
+                    {% else %}
+                        <div class="d-flex gap-2 align-items-start mb-3">
+                            <i class="fas fa-helmet-safety text-warning" style="font-size:1.4rem;"></i>
+                            <div>
+                                <div style="color:var(--gl-fg-2,#eceff1); font-size:0.9rem; font-weight:600;">Это ваш профиль?</div>
+                                <div class="text-muted" style="font-size:0.82rem;">Войдите, чтобы заполнить биографию, добавить фото и подключить соцсети.</div>
                             </div>
                         </div>
+                        <a href="/accounts/login/" class="btn btn-success btn-sm" style="font-weight:700;"><i class="fas fa-sign-in-alt me-1"></i>Войти</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+                <div class="gl-card h-100">
+                    <div class="gl-card-title">Статистика пилота</div>
+                    <div class="row g-2 text-center">
+                        <div class="col-4 col-md">
+                            <div class="rounded-2 py-2 px-1" style="background:rgba(0,0,0,0.25); border:1px solid var(--gl-border-card,#2a2a35);">
+                                <div class="fw-bold text-white" style="font-size:1.4rem;">{{ total_starts|default:"0" }}</div>
+                                <div class="text-info" style="font-size:0.62rem; text-transform:uppercase;">Старты</div>
+                            </div>
+                        </div>
+                        <div class="col-4 col-md">
+                            <div class="rounded-2 py-2 px-1" style="background:rgba(0,0,0,0.25); border:1px solid var(--gl-border-card,#2a2a35);">
+                                <div class="fw-bold text-white" style="font-size:1.4rem;">{{ wins|default:"0" }}</div>
+                                <div class="text-info" style="font-size:0.62rem; text-transform:uppercase;">Победы</div>
+                            </div>
+                        </div>
+                        <div class="col-4 col-md">
+                            <div class="rounded-2 py-2 px-1" style="background:rgba(0,0,0,0.25); border:1px solid var(--gl-border-card,#2a2a35);">
+                                <div class="fw-bold text-white" style="font-size:1.4rem;">{{ podiums|default:"0" }}</div>
+                                <div class="text-info" style="font-size:0.62rem; text-transform:uppercase;">Подиумы</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md">
+                            <div class="rounded-2 py-2 px-1" style="background:rgba(0,0,0,0.25); border:1px solid var(--gl-border-card,#2a2a35);">
+                                <div class="fw-bold text-white" style="font-size:1.4rem;">{{ win_percentage|default:"0" }}%</div>
+                                <div class="text-info" style="font-size:0.62rem; text-transform:uppercase;">% Побед</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md">
+                            <div class="rounded-2 py-2 px-1" style="background:rgba(0,0,0,0.25); border:1px solid var(--gl-border-card,#2a2a35);">
+                                <div class="fw-bold text-white" style="font-size:1.4rem;">{{ podium_percentage|default:"0" }}%</div>
+                                <div class="text-info" style="font-size:0.62rem; text-transform:uppercase;">% Подиумов</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if career_highlights %}
+        <div class="gl-card mb-3">
+            <div class="d-flex align-items-baseline gap-2 gl-card-title" style="border-bottom:none; margin-bottom:0.5rem;">
+                <span>Career highlights</span>
+                <span class="text-muted" style="font-size:0.65rem; text-transform:none; letter-spacing:normal;">блок не рендерится, если данных нет</span>
+            </div>
+            <div class="gl-hl-row" id="glHlRow">
+                {% if career_highlights.title %}
+                <div class="gl-hl-card" data-hl="title">
+                    <div class="d-flex justify-content-between align-items-start mb-1">
+                        <i class="fas fa-crown text-warning"></i><span class="text-muted" style="font-size:0.75rem;">▸</span>
+                    </div>
+                    <div class="gl-hl-label">Титул</div>
+                    <div class="gl-hl-value">{{ career_highlights.title.championship.title }}</div>
+                    <div class="gl-hl-meta">{{ career_highlights.title.year }} · {{ career_highlights.title.class_name }}</div>
+                </div>
+                {% endif %}
+                {% if career_highlights.best_result %}
+                <div class="gl-hl-card" data-hl="best_result">
+                    <div class="d-flex justify-content-between align-items-start mb-1">
+                        <i class="fas fa-trophy text-warning"></i><span class="text-muted" style="font-size:0.75rem;">▸</span>
+                    </div>
+                    <div class="gl-hl-label">Лучший результат</div>
+                    <div class="gl-hl-value">{{ career_highlights.best_result.position }}-е место</div>
+                    <div class="gl-hl-meta">{{ career_highlights.best_result.wins }} побед в карьере</div>
+                </div>
+                {% endif %}
+                {% if career_highlights.best_lap %}
+                <div class="gl-hl-card" data-hl="best_lap">
+                    <div class="d-flex justify-content-between align-items-start mb-1">
+                        <i class="fas fa-stopwatch text-info"></i><span class="text-muted" style="font-size:0.75rem;">▸</span>
+                    </div>
+                    <div class="gl-hl-label">Личный лучший круг</div>
+                    <div class="gl-hl-value font-monospace">{{ career_highlights.best_lap.lap_ms|laptime }}</div>
+                    <div class="gl-hl-meta">{{ career_highlights.best_lap.track.name|default:"—" }}</div>
+                </div>
+                {% endif %}
+                {% if career_highlights.podiums %}
+                <div class="gl-hl-card" data-hl="podiums">
+                    <div class="d-flex justify-content-between align-items-start mb-1">
+                        <i class="fas fa-medal text-info"></i><span class="text-muted" style="font-size:0.75rem;">▸</span>
+                    </div>
+                    <div class="gl-hl-label">Подиумы</div>
+                    <div class="gl-hl-value">{{ career_highlights.podiums.count }}</div>
+                    <div class="gl-hl-meta">{{ career_highlights.podiums.percentage }}% от стартов</div>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if career_highlights.title %}
+            <div class="gl-hl-panel" data-hl-panel="title">
+                <div class="text-muted" style="font-size:0.75rem; text-transform:uppercase;">Титул</div>
+                <div class="fw-bold" style="font-size:0.92rem; color:var(--gl-fg-2,#eceff1);">{{ career_highlights.title.championship.title }} — {{ career_highlights.title.year }}</div>
+                <div class="gl-hl-panel-grid">
+                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.78rem;">Класс</span><span style="font-size:0.8rem; font-weight:700;">{{ career_highlights.title.class_name }}</span></div>
+                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.78rem;">Год</span><span style="font-size:0.8rem; font-weight:700;">{{ career_highlights.title.year }}</span></div>
+                </div>
+                <a href="{{ career_highlights.title.championship.url }}" class="text-info text-decoration-none fw-bold" style="font-size:0.8rem;">Смотреть сезон →</a>
+            </div>
+            {% endif %}
+
+            {% if career_highlights.best_result %}
+            <div class="gl-hl-panel" data-hl-panel="best_result">
+                <div class="text-muted" style="font-size:0.75rem; text-transform:uppercase;">Лучший результат</div>
+                <div class="fw-bold" style="font-size:0.92rem; color:var(--gl-fg-2,#eceff1);">
+                    {% if career_highlights.best_result.result.position == 1 %}Последняя победа{% else %}Лучший результат{% endif %} — {{ career_highlights.best_result.result.group.page.title }}
+                </div>
+                <div class="gl-hl-panel-grid">
+                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.78rem;">Дата</span><span class="font-monospace" style="font-size:0.8rem; font-weight:700;">{% with occ=career_highlights.best_result.result.group.page.occurrences.all.first %}{% if occ.end %}{{ occ.end|date:"d.m.Y" }}{% else %}{{ career_highlights.best_result.result.group.page.first_published_at|date:"d.m.Y" }}{% endif %}{% endwith %}</span></div>
+                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.78rem;">Класс</span><span style="font-size:0.8rem; font-weight:700;">{{ career_highlights.best_result.result.group.race_class.name }}</span></div>
+                    {% if career_highlights.best_result.result.start_position %}
+                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.78rem;">Стартовал</span><span style="font-size:0.8rem; font-weight:700;">{{ career_highlights.best_result.result.start_position }}-м</span></div>
+                    {% endif %}
+                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.78rem;">Очков</span><span style="font-size:0.8rem; font-weight:700;">{{ career_highlights.best_result.result.points|floatformat:"0" }}</span></div>
+                </div>
+                <a href="#" class="text-info text-decoration-none fw-bold gl-open-history" data-class-id="{{ career_highlights.best_result.result.group.race_class_id }}" style="font-size:0.8rem;">Открыть в истории →</a>
+            </div>
+            {% endif %}
+
+            {% if career_highlights.best_lap %}
+            <div class="gl-hl-panel" data-hl-panel="best_lap">
+                <div class="text-muted" style="font-size:0.75rem; text-transform:uppercase;">Личный лучший круг</div>
+                <div class="fw-bold" style="font-size:0.92rem; color:var(--gl-fg-2,#eceff1);">{{ career_highlights.best_lap.lap_ms|laptime }}</div>
+                <div class="gl-hl-panel-grid">
+                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.78rem;">Трасса</span><span style="font-size:0.8rem; font-weight:700;">{{ career_highlights.best_lap.track.name|default:"—" }}</span></div>
+                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.78rem;">Класс</span><span style="font-size:0.8rem; font-weight:700;">{{ career_highlights.best_lap.class_name }}</span></div>
+                </div>
+                {% if career_highlights.best_lap.has_lap_chart %}
+                <a href="#" class="text-info text-decoration-none fw-bold gl-lapchart-trigger" data-group-id="{{ career_highlights.best_lap.result.group_id }}" data-race-number="{{ career_highlights.best_lap.result.race_number }}" style="font-size:0.8rem;">Ход гонки →</a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if career_highlights.podiums %}
+            <div class="gl-hl-panel" data-hl-panel="podiums">
+                <div class="text-muted" style="font-size:0.75rem; text-transform:uppercase;">Подиумы</div>
+                <div class="fw-bold" style="font-size:0.92rem; color:var(--gl-fg-2,#eceff1);">{{ career_highlights.podiums.count }} подиумов из {{ total_starts }} стартов</div>
+                <a href="#" class="text-info text-decoration-none fw-bold gl-open-history" data-class-id="" style="font-size:0.8rem;">Открыть в истории →</a>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if latest_class_rating %}
+        <div class="gl-card mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-muted" style="font-size:0.65rem; text-transform:uppercase;">последний старт: {{ latest_class_rating.last_race_date|date:"m.Y" }}</span>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-4">
+                <div class="text-info fw-bold text-uppercase" style="font-size:0.9rem;">{{ latest_class_rating.class_name }}</div>
+                <div><span class="font-monospace fw-bold" style="font-size:2rem;">{{ latest_class_rating.normalized_score }}</span><span class="text-muted" style="font-size:0.7rem;"> из 100</span></div>
+                <div><span class="text-warning fw-bold" style="font-size:1.5rem;">#{{ latest_class_rating.rank }}</span><span class="text-muted" style="font-size:0.7rem;"> из {{ latest_class_rating.total }}</span></div>
+                <div>
+                    {% if latest_class_rating.form_trend == 'up' %}<span class="text-success fw-bold">▲</span> <span class="text-success small">На подъёме</span>
+                    {% elif latest_class_rating.form_trend == 'down' %}<span class="text-danger fw-bold">▼</span> <span class="text-danger small">Спад</span>
+                    {% else %}<span class="text-muted">—</span> <span class="text-muted small">Стабильно</span>{% endif %}
+                </div>
+                <a href="#" class="text-info text-decoration-none fw-bold ms-auto gl-goto-tab" data-tab="rating" style="font-size:0.8rem;">Смотреть весь рейтинг →</a>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if track_records %}
+        <div class="gl-card mb-3">
+            <div class="d-flex align-items-baseline gap-2 gl-card-title" style="border-bottom:none;">
+                <span>Рекорды трасс</span>
+                <span class="text-muted" style="font-size:0.65rem; text-transform:none;">действующих: {{ track_records|length }}</span>
+            </div>
+            <div class="text-muted mb-2" style="font-size:0.65rem;">Рекорд держится до конца календарного года, пока его не перебьют.</div>
+            {% for rec in track_records %}
+            <div class="gl-track-row status-{{ rec.status }}">
+                <div class="flex-grow-1" style="min-width:150px; font-size:0.85rem; font-weight:700;">
+                    {% if rec.track.get_absolute_url %}<a href="{{ rec.track.get_absolute_url }}" class="text-decoration-none" style="color:inherit;">{{ rec.track.name }}</a>{% else %}{{ rec.track.name }}{% endif %}
+                </div>
+                <div class="font-monospace fw-bold" style="font-size:0.95rem; {% if rec.status == 'active' %}color:var(--gl-brand-yellow,#ffc107);{% elif rec.status == 'beaten' %}color:var(--gl-fg-muted,#6c757d);{% else %}color:var(--gl-fg-3,#b0bec5);{% endif %}">{{ rec.lap_ms|laptime }}</div>
+                <div class="text-muted text-uppercase" style="font-size:0.7rem; font-weight:700;">{{ rec.class_name }}</div>
+                <div class="font-monospace text-muted" style="font-size:0.78rem;">{{ rec.year }}</div>
+                {% if rec.status == 'active' %}
+                <div class="gl-track-status text-warning">Действующий</div>
+                {% elif rec.status == 'locked' %}
+                <div class="gl-track-status text-muted">Закреплён за {{ rec.year }}</div>
+                {% else %}
+                <div class="gl-track-status text-muted">Перебит</div>
+                <div class="w-100 text-muted" style="font-size:0.75rem;">Рекорд у {{ rec.holder_name }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    {# ==================== ВКЛАДКА: РЕЙТИНГ И АНАЛИТИКА ==================== #}
+    <div class="gl-tab-panel" id="tab-rating" data-tab-panel="rating">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            {% if last_update %}
+            <span class="text-muted small"><i class="fas fa-clock me-1"></i>{{ last_update|date:"d.m.Y H:i" }}</span>
+            {% endif %}
+            <a href="/rating-info/" class="btn btn-outline-info btn-sm text-uppercase ms-auto">
+                <i class="fas fa-calculator me-1"></i>Методология
+            </a>
+        </div>
+
+        {% if class_ratings %}
+        {% for cr in class_ratings %}
+        <div class="rounded-3 p-3 mb-3 border {% if cr.low_data %}border-warning border-opacity-50{% else %}border-secondary{% endif %}" style="background:rgba(0,0,0,0.25);">
+
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <span class="text-info text-uppercase fw-bold">{{ cr.class_name }}</span>
+                {% if cr.low_data %}
+                <span title="Мало стартов — рейтинг предварительный">⚠️</span>
+                {% endif %}
+                {% if cr.rank == 1 %}
+                <span class="text-warning ms-1 fw-bold" style="font-size:0.85rem;"><i class="fas fa-crown me-1"></i>Лидер класса</span>
+                {% endif %}
+                {% if cr.last_race_date %}
+                <span class="text-muted ms-auto" style="font-size:0.8rem;">последний старт: {{ cr.last_race_date|date:"m.Y" }}</span>
+                {% endif %}
+            </div>
+
+            <div class="row g-3 align-items-stretch">
+                <div class="col-6 col-md-2">
+                    <div class="text-center">
+                        <div class="text-white fw-bold" style="font-size:2.2rem; line-height:1;">{{ cr.normalized_score }}</div>
+                        <div class="text-muted small">из 100 баллов</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-2">
+                    <div class="text-center">
+                        <div class="fw-bold text-warning" style="font-size:1.8rem; line-height:1;">#{{ cr.rank }}</div>
+                        <div class="text-muted small">из {{ cr.total }} пилотов</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-2">
+                    <div class="text-center">
+                        {% if cr.form_trend == 'up' %}
+                        <div class="text-success fw-bold" style="font-size:1.6rem;">▲</div>
+                        <div class="text-success small">На подъёме</div>
+                        {% elif cr.form_trend == 'down' %}
+                        <div class="text-danger fw-bold" style="font-size:1.6rem;">▼</div>
+                        <div class="text-danger small">Спад формы</div>
+                        {% elif cr.form_trend == 'stable' %}
+                        <div class="text-secondary fw-bold" style="font-size:1.6rem;">—</div>
+                        <div class="text-secondary small">Стабильно</div>
+                        {% else %}
+                        <div class="text-muted" style="font-size:1.6rem;">—</div>
+                        <div class="text-muted small">Мало данных</div>
+                        {% endif %}
+                        <div class="text-muted" style="font-size:0.7rem;">{{ cr.starts }} стартов</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="d-flex flex-column gap-1 h-100 justify-content-center" style="font-size:1rem; border-left:1px solid #2a2a35; padding-left:1rem;">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Победы</span>
+                            <span class="text-white fw-bold">{{ cr.wins }} <span class="text-muted fw-normal">({{ cr.win_pct }}%)</span></span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Подиумы</span>
+                            <span class="text-white fw-bold">{{ cr.podiums }} <span class="text-muted fw-normal">({{ cr.podium_pct }}%)</span></span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Стартов</span>
+                            <span class="text-white fw-bold">{{ cr.starts }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="d-flex flex-column gap-2 justify-content-center h-100" style="font-size:0.82rem; border-left:1px solid #2a2a35; padding-left:1rem;">
+                        {% if cr.driver_above %}
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>
+                                <i class="fas fa-chevron-up text-success me-1" style="font-size:0.65rem;"></i>
+                                <a href="/drivers/{{ cr.driver_above.slug }}/" class="text-muted text-decoration-none">{{ cr.driver_above.full_name }}</a>
+                            </span>
+                            <span class="d-flex align-items-center gap-2 ms-2">
+                                <span class="text-danger text-nowrap">−{{ cr.gap_to_above }} б.</span>
+                                <a href="/compare-drivers/?driver1={{ driver.id }}&driver2={{ cr.driver_above.driver_id }}" class="text-nowrap" style="font-size:0.75rem; background:var(--gl-brand-yellow); color:var(--gl-fg-on-yellow); padding:2px 8px; border-radius:var(--gl-radius-sm); text-decoration:none; font-weight:var(--gl-weight-bold); white-space:nowrap;" title="Сравнить"><i class="fas fa-right-left me-1"></i>vs</a>
+                            </span>
+                        </div>
+                        {% endif %}
+                        {% if cr.driver_below %}
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>
+                                <i class="fas fa-chevron-down text-danger me-1" style="font-size:0.65rem;"></i>
+                                <a href="/drivers/{{ cr.driver_below.slug }}/" class="text-muted text-decoration-none">{{ cr.driver_below.full_name }}</a>
+                            </span>
+                            <span class="d-flex align-items-center gap-2 ms-2">
+                                <span class="text-success text-nowrap">+{{ cr.gap_to_below }} б.</span>
+                                <a href="/compare-drivers/?driver1={{ driver.id }}&driver2={{ cr.driver_below.driver_id }}" class="text-nowrap" style="font-size:0.75rem; background:var(--gl-brand-yellow); color:var(--gl-fg-on-yellow); padding:2px 8px; border-radius:var(--gl-radius-sm); text-decoration:none; font-weight:var(--gl-weight-bold); white-space:nowrap;" title="Сравнить"><i class="fas fa-right-left me-1"></i>vs</a>
+                            </span>
+                        </div>
+                        {% endif %}
+                        {% if not cr.driver_above and not cr.driver_below %}
+                        <span class="text-muted small">Единственный в классе</span>
                         {% endif %}
                     </div>
                 </div>
             </div>
-            {% endfor %}
+
+            <div class="mt-3 pt-3 border-top border-secondary">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="text-muted small text-uppercase" style="letter-spacing:0.05em;">Личная статистика</span>
+                    <span class="text-muted" style="font-size:0.75rem;" data-bs-toggle="tooltip" data-bs-placement="top"
+                        title="% побед и подиумов сравнивается со средним значением по классу среди пилотов с 3+ стартами. Немезис и «уверенно против» — пилоты, с которыми больше всего очных встреч в одном заезде, и у кого устойчивый перевес.">
+                        <i class="fas fa-circle-info"></i> как считается?
+                    </span>
+                </div>
+
+                {% if cr.low_data %}
+                <div class="text-muted small fst-italic px-1" style="opacity:0.6;">
+                    <i class="fas fa-hourglass-half me-1"></i>Статистика появится после {{ cr.starts }} / 3 гонок в этом классе
+                </div>
+                {% else %}
+                <div class="row g-2">
+                    {% if cr.median_win_pct > 0 %}
+                    <div class="col-12 col-md">
+                        <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid {% if cr.win_pct > cr.median_win_pct %}var(--gl-signal-green){% else %}var(--gl-surface-divider){% endif %};">
+                            <i class="fas fa-trophy text-warning" style="font-size:1.1rem;"></i>
+                            <div>
+                                <div class="text-muted small">% побед vs класс</div>
+                                <div class="fw-bold {% if cr.win_pct > cr.median_win_pct %}text-success{% else %}text-white{% endif %}">
+                                    {{ cr.win_pct }}%
+                                    <span class="text-muted fw-normal small">/ среднее {{ cr.median_win_pct }}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if cr.median_podium_pct > 0 %}
+                    <div class="col-12 col-md">
+                        <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid {% if cr.podium_pct > cr.median_podium_pct %}var(--gl-signal-green){% else %}var(--gl-surface-divider){% endif %};">
+                            <i class="fas fa-medal text-warning" style="font-size:1.1rem;"></i>
+                            <div>
+                                <div class="text-muted small">% подиумов vs класс</div>
+                                <div class="fw-bold {% if cr.podium_pct > cr.median_podium_pct %}text-success{% else %}text-white{% endif %}">
+                                    {{ cr.podium_pct }}%
+                                    <span class="text-muted fw-normal small">/ среднее {{ cr.median_podium_pct }}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if cr.nemesis %}
+                    <div class="col-12 col-md">
+                        <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid var(--gl-signal-danger);">
+                            <i class="fas fa-user-slash text-danger" style="font-size:1.1rem;"></i>
+                            <div>
+                                <div class="text-muted small">Немезис <span style="font-size:0.7rem;">(чаще впереди в очных стартах)</span></div>
+                                <div>
+                                    <a href="/drivers/{{ cr.nemesis.slug }}/" class="fw-bold text-danger text-decoration-none">{{ cr.nemesis.name }}</a>
+                                    <span class="text-muted small ms-1">— он впереди в {{ cr.nemesis.losses }} из {{ cr.nemesis.meetings }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if cr.victim %}
+                    <div class="col-12 col-md">
+                        <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid var(--gl-brand-cyan);">
+                            <i class="fas fa-shield-halved text-info" style="font-size:1.1rem;"></i>
+                            <div>
+                                <div class="text-muted small">Уверенно против <span style="font-size:0.7rem;">(чаще впереди в очных стартах)</span></div>
+                                <div>
+                                    <a href="/drivers/{{ cr.victim.slug }}/" class="fw-bold text-info text-decoration-none">{{ cr.victim.name }}</a>
+                                    <span class="text-muted small ms-1">— ты впереди в {{ cr.victim.wins }} из {{ cr.victim.meetings }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="mt-3 pt-3 border-top border-secondary">
+                <div class="text-uppercase fw-bold mb-1" style="font-size:0.72rem; color:var(--gl-fg-2,#eceff1); letter-spacing:0.06em;">Динамика рейтинга</div>
+                <div class="text-muted mb-2" style="font-size:0.7rem;">результат по этапам, класс «{{ cr.class_name }}»</div>
+                <div style="height:180px; position:relative;">
+                    <canvas id="ratingChart{{ cr.class_id }}"></canvas>
+                </div>
+            </div>
         </div>
-    </div>
-</div>
-{% endif %}
+        {% endfor %}
+        {% else %}
+        <div class="text-center text-muted py-4">Рейтинг ещё не рассчитан</div>
+        {% endif %}
 
-<!-- История выступлений -->
-    <div class="row">
-        <div class="col-12">
-
-            <h3 class="text-warning border-bottom border-warning pb-2 mb-4 text-uppercase fw-bold">История выступлений</h3>
-
-            <div class="table-responsive">
-                <table class="table table-dark table-hover border-secondary" style="table-layout: fixed; width: 100%;">
-                    <thead>
-                        <tr class="text-muted small uppercase border-bottom border-secondary">
-                            <th style="width: 70px;" class="text-center" style="width: 60px; vertical-align: middle;">
-                                        <svg version="1.0" xmlns="http://www.w3.org/2000/svg"
-                                        width="34.000000pt" viewBox="0 0 484.000000 248.000000"
-                                        preserveAspectRatio="xMidYMid meet">
-                                        <g transform="translate(0.000000,248.000000) scale(0.100000,-0.100000)"
-                                        fill="#ffffff" stroke="none">
-                                        <path d="M2085 2436 c-16 -7 -39 -23 -49 -35 -11 -11 -51 -114 -91 -229 l-71
-                                        -207 -260 -5 c-341 -7 -305 18 -409 -284 -36 -103 -65 -193 -65 -198 0 -6 101
-                                        -8 259 -6 256 3 258 3 246 -17 -7 -11 -40 -103 -74 -205 -34 -102 -65 -190
-                                        -69 -197 -5 -8 -80 -13 -265 -15 -141 -2 -257 -1 -257 3 0 3 5 10 10 15 9 9
-                                        140 389 140 406 0 4 -111 8 -246 8 -266 0 -297 -5 -331 -56 -12 -19 -153 -415
-                                        -153 -430 0 -3 117 -4 259 -2 171 2 257 0 253 -7 -4 -5 -38 -102 -77 -215
-                                        l-70 -205 -260 -5 c-246 -5 -262 -6 -290 -27 -17 -12 -36 -32 -43 -45 -12 -23
-                                        -142 -400 -142 -412 0 -3 110 -6 245 -6 224 0 249 2 284 19 21 11 45 30 53 43
-                                        8 13 45 114 82 226 l68 202 248 0 249 0 -20 -34 c-15 -25 -149 -406 -149 -423
-                                        0 -2 109 -3 243 -3 216 0 246 2 284 19 23 11 48 30 57 43 14 21 146 401 146
-                                        420 0 4 -113 8 -252 8 l-251 0 21 23 c12 12 48 102 82 202 34 99 66 192 72
-                                        208 l10 27 250 0 249 0 -20 -27 c-18 -25 -151 -400 -151 -425 0 -6 100 -8 259
-                                        -6 186 2 257 0 250 -8 -5 -6 -38 -96 -73 -200 -36 -104 -68 -197 -71 -207 -7
-                                        -16 9 -17 246 -17 234 0 257 2 286 20 18 10 39 30 48 43 14 22 145 400 145
-                                        419 0 11 -448 10 -488 -1 -35 -10 -39 -6 -17 23 8 10 44 108 80 217 l67 199
-                                        248 0 c137 0 256 3 265 7 16 6 16 4 1 -18 -18 -28 -149 -410 -142 -416 2 -2
-                                        114 -4 250 -4 258 0 278 3 318 48 10 11 42 91 72 179 30 87 62 180 71 206 l17
-                                        48 241 0 c216 0 247 2 284 19 23 11 48 30 57 43 8 13 47 115 85 226 l70 203
-                                        -263 -3 -263 -3 14 21 c13 20 143 399 143 416 0 12 -459 10 -499 -2 -68 -19
-                                        -85 -48 -162 -271 l-72 -209 -238 0 c-130 0 -246 -3 -256 -7 -15 -5 -15 -3 4
-                                        18 17 18 163 409 163 435 0 3 -119 4 -264 2 -243 -3 -263 -2 -250 13 8 9 43
-                                        101 78 205 35 104 67 197 71 207 7 16 -9 17 -241 17 -184 -1 -257 -4 -279 -14z
-                                        m300 -490 c-12 -18 -145 -398 -145 -413 0 -2 113 -3 252 -3 251 0 251 0 233
-                                        -20 -10 -11 -51 -114 -91 -228 l-72 -207 -251 -5 c-138 -3 -251 -3 -251 -1 0
-                                        3 8 14 18 25 18 20 152 396 152 424 0 15 -436 18 -488 3 -35 -10 -39 -6 -17
-                                        23 8 10 44 108 80 217 l67 199 256 3 c141 1 260 3 265 5 4 1 0 -9 -8 -22z
-                                        m1426 -400 c-7 -8 -42 -106 -80 -218 l-68 -203 -261 -5 c-144 -3 -262 -3 -262
-                                        1 0 3 5 10 10 15 6 6 41 102 79 215 l68 204 259 5 c142 3 261 4 263 3 2 -2 -2
-                                        -9 -8 -17z"/>
-                                        <path d="M3151 2324 c-11 -14 -34 -69 -52 -122 -17 -53 -34 -103 -37 -109 -3
-                                        -10 30 -13 145 -13 142 0 151 1 170 23 18 19 93 211 93 238 0 5 -67 9 -149 9
-                                        -148 0 -150 0 -170 -26z"/>
-                                        <path d="M4535 1848 c-11 -6 -23 -16 -27 -22 -10 -15 -68 -188 -68 -204 0 -17
-                                        225 -17 260 1 20 10 33 35 62 117 20 58 37 108 37 113 1 12 -242 8 -264 -5z"/>
-                                        <path d="M4251 1023 c-17 -15 -101 -225 -101 -254 0 -5 64 -9 145 -9 179 0
-                                        176 -2 229 156 20 60 36 112 36 117 0 4 -65 7 -144 7 -122 0 -147 -3 -165 -17z"/>
-                                        <path d="M3685 631 c-37 -16 -55 -47 -95 -167 -22 -65 -40 -122 -40 -126 0 -4
-                                        71 -8 159 -8 201 0 195 -4 250 163 23 67 41 128 41 135 0 9 -36 12 -147 11
-                                        -82 0 -157 -4 -168 -8z"/>
-                                        </g>
-                                        </svg>
-                                    </th>
-                            <th style="width: 50px;">Дата</th>
-                            <th style="width: 100px;" class="text-center" style="width: 60px; vertical-align: middle;">
-                                        <svg version="1.0" xmlns="http://www.w3.org/2000/svg"
-                                            width="18pt" height="18pt" viewBox="0 0 600.000000 627.000000"
-                                            preserveAspectRatio="xMidYMid meet">
-                                            <g transform="translate(0.000000,627.000000) scale(0.100000,-0.100000)"
-                                            fill="#ffffff" stroke="none">
-                                            <path d="M2741 6260 c-420 -35 -785 -136 -1126 -310 -821 -419 -1403 -1187
-                                            -1560 -2060 -14 -74 -29 -180 -35 -235 -16 -152 -24 -1064 -12 -1319 11 -215
-                                            12 -221 42 -282 37 -76 115 -151 228 -217 87 -51 462 -222 1092 -497 74 -32
-                                            295 -129 490 -216 195 -86 400 -176 455 -199 55 -23 200 -88 322 -144 122 -55
-                                            225 -101 228 -101 3 0 81 -34 173 -76 92 -43 262 -119 377 -171 898 -403 936
-                                            -418 1085 -430 109 -8 210 10 307 57 126 59 271 163 621 443 308 246 387 335
-                                            505 572 l54 110 7 920 c6 955 -1 1357 -29 1570 -107 808 -519 1509 -1176 2002
-                                            -401 301 -911 501 -1453 568 -150 19 -456 27 -595 15z m635 -404 c352 -47 755
-                                            -201 1079 -414 431 -282 785 -721 983 -1218 46 -115 100 -294 104 -344 l3 -35
-                                            -65 1 c-36 1 -135 18 -220 38 -85 21 -292 68 -460 107 -168 38 -370 85 -450
-                                            104 -186 44 -333 59 -528 53 -151 -5 -162 -6 -273 -44 -312 -107 -547 -326
-                                            -680 -633 -53 -125 -69 -212 -69 -389 0 -358 97 -599 324 -809 101 -92 189
-                                            -143 531 -304 160 -75 470 -223 690 -329 220 -105 445 -212 500 -236 158 -71
-                                            639 -318 643 -331 5 -18 -63 -79 -331 -296 -446 -362 -485 -387 -599 -387 -47
-                                            0 -88 8 -140 26 -102 37 -444 184 -693 299 -115 54 -262 120 -325 147 -63 27
-                                            -221 98 -350 158 -129 59 -365 164 -525 233 -261 112 -888 388 -1355 597 -96
-                                            43 -274 122 -395 175 -229 101 -353 164 -376 191 -34 41 -11 1198 32 1569 24
-                                            215 126 518 255 764 110 209 267 414 460 602 399 387 828 601 1419 709 98 18
-                                            141 19 405 15 178 -2 339 -10 406 -19z m729 -2102 c66 -13 363 -81 660 -153
-                                            297 -71 593 -141 658 -155 173 -39 189 -46 199 -81 10 -34 -10 -1757 -20
-                                            -1825 -12 -77 11 -86 -772 292 -245 119 -483 232 -530 253 -177 78 -695 336
-                                            -797 397 -177 105 -276 225 -303 369 -13 69 -13 331 1 405 35 189 251 411 478
-                                            490 140 49 215 50 426 8z"/>
-                                            <path d="M1615 4066 c-75 -19 -121 -41 -191 -91 -81 -58 -143 -134 -196 -243
-                                            l-43 -86 1 -110 c1 -129 20 -208 72 -310 114 -219 389 -340 641 -281 362 86
-                                            545 493 375 834 -59 118 -183 227 -312 273 -73 26 -272 34 -347 14z m230 -385
-                                            c47 -22 89 -64 104 -104 28 -73 0 -169 -65 -227 -31 -27 -41 -30 -102 -30 -79
-                                            0 -136 23 -175 69 -77 92 -46 235 65 290 53 26 119 27 173 2z"/>
-                                            </g>
-                                        </svg>
-                                    </th>
-                            <th style="width: 400px;">Соревнование / Класс</th>
-                            <th style="width: 150px;">Шасси</th>
-                            <th style="width: 250px;">Команда</th>
-                            <th style="width: 100px;" class="text-center">Динамика</th>
-                            <th style="width: 100px;" class="text-center">Круг</th>
-                            <th style="width: 100px;" class="text-end">Очки</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for res in results %}
-                            <tr>
-                                <td class="align-middle text-center">
-                                    <span class="badge {% if res.position == 1 %}bg-warning text-dark{% elif res.position == 2 %}bg-light text-dark{% elif res.position == 3 %}bg-bronze{% else %}bg-secondary{% endif %} px-3">
-                                        {{ res.position }}
-                                    </span>
-                                </td>
-
-                                <td class="align-middle text-muted small">
-                                    {% with occ=res.group.page.occurrences.all.first %}
-                                        {% if occ.end %}
-                                            {{ occ.end|date:"d.m.Y" }}
-                                        {% else %}
-                                            {{ res.group.page.first_published_at|date:"d.m.Y" }}
-                                        {% endif %}
-                                    {% endwith %}
-                                </td>
-
-                                <td class="align-middle text-center fw-bold text-info">
-                                    {{ res.race_number|default:"—" }}
-                                </td>
-
-                                <td class="align-middle">
-                                    <a href="{{ res.group.page.url }}" class="text-white text-decoration-none d-flex align-items-center flex-wrap gap-1">
-                                        <span class="fw-bold text-nowrap">{{ res.group.page.title }}</span>
-                                        <span class="mx-1 text-secondary opacity-50">|</span>
-                                        <span class="small text-info text-uppercase text-nowrap">{{ res.group.race_class.name }}</span>
-                                        {% if res.qual_position %}<span class="badge bg-primary text-white" style="font-size:10px; border-radius:4px;" title="Квалификация: #{{ res.qual_position }}">К</span>{% endif %}
-                                        {% if res.pre_final_position %}<span class="badge bg-warning text-dark" style="font-size:10px; border-radius:4px;" title="Предфинал: #{{ res.pre_final_position }}">Пф</span>{% endif %}
-                                        {% if res.position %}<span class="badge bg-success" style="font-size:10px; border-radius:4px;" title="Финал: #{{ res.position }}">Ф</span>{% endif %}
-                                    </a>
-                                </td>
-
-                                <td class="align-middle text-muted small text-truncate">
-                                    {% if res.chassis_new %}
-                                        <a href="{{ res.chassis_new.get_absolute_url }}" class="text-muted text-decoration-none">
-                                            {{ res.chassis_new.name }}
-                                        </a>
-                                    {% else %}
-                                        —
-                                    {% endif %}
-                                </td>
-
-                                <td class="align-middle text-truncate">
-                                    {% if res.team %}
-                                        <a href="{{ res.team.get_absolute_url }}" class="text-warning text-decoration-none text-truncate d-block">
-                                            {{ res.team.name }}
-                                        </a>
-                                    {% else %}
-                                        <span class="text-muted italic small">Личный зачёт</span>
-                                    {% endif %}
-                                </td>
-
-                                <td class="align-middle text-center small">
-                                    {% if res.start_position and res.position %}
-                                        <div class="d-flex align-items-center justify-content-center gap-1" style="font-size:0.85rem;">
-                                            <span class="text-muted">{{ res.start_position }}→{{ res.position }}</span>
-                                            {% if res.position_gain > 0 %}
-                                                <span class="text-success fw-bold">▲{{ res.position_gain }}</span>
-                                            {% elif res.position_gain < 0 %}
-                                                <span class="text-danger fw-bold">▼{{ res.position_gain|slice:"1:" }}</span>
-                                            {% else %}
-                                                <span class="text-secondary">—</span>
-                                            {% endif %}
-                                            <span class="badge bg-success" style="font-size:10px; border-radius:4px; width:45px;" title="Финал">Ф</span>
-                                        </div>
-                                    {% elif res.pre_final_start_pos and res.pre_final_position %}
-                                        <div class="d-flex align-items-center justify-content-center gap-1" style="font-size:0.85rem;">
-                                            <span class="text-muted">{{ res.pre_final_start_pos }}→{{ res.pre_final_position }}</span>
-                                            {% if res.pre_final_start_pos > res.pre_final_position %}
-                                                <span class="text-success fw-bold">▲{{ res.pre_final_start_pos|add:"-"|add:res.pre_final_position }}</span>
-                                            {% elif res.pre_final_start_pos < res.pre_final_position %}
-                                                <span class="text-danger fw-bold">▼{{ res.pre_final_position|add:"-"|add:res.pre_final_start_pos }}</span>
-                                            {% else %}
-                                                <span class="text-secondary">—</span>
-                                            {% endif %}
-                                            <span class="badge bg-warning text-dark" style="font-size:10px; border-radius:4px;" title="Предфинал">Пф</span>
-                                        </div>
-                                    {% else %}
-                                        <span class="text-muted">—</span>
-                                    {% endif %}
-                                </td>
-
-                                <td class="align-middle text-center text-muted small">
-                                    {% if res.best_lap_ms %}
-                                        <div class="d-flex align-items-center justify-content-center gap-1">
-                                            <span class="font-monospace">{{ res.best_lap_ms|laptime }}</span><span class="badge bg-success flex-shrink-0" style="font-size:10px; border-radius:4px; width:45px;" title="Финал">Ф</span>
-                                        </div>
-                                    {% elif res.pre_final_best_lap_ms %}
-                                        <div class="d-flex align-items-center justify-content-center gap-1">
-                                            <span class="font-monospace">{{ res.pre_final_best_lap_ms|laptime }}</span><span class="badge bg-warning text-dark flex-shrink-0" style="font-size:10px; border-radius:4px; width:45px;" title="Предфинал">Пф</span>
-                                        </div>
-                                    {% elif res.qual_best_lap_ms %}
-                                        <div class="d-flex align-items-center justify-content-center gap-1">
-                                            <span class="font-monospace">{{ res.qual_best_lap_ms|laptime }}</span><span class="badge bg-primary text-white flex-shrink-0" style="font-size:10px; border-radius:4px; width:45px;" title="Квалификация">К</span>
-                                        </div>
-                                    {% else %}—{% endif %}
-                                </td>
-
-                                <td class="align-middle text-end fw-bold text-warning fs-5">
-                                    {{ res.points|floatformat:"0" }}
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="9" class="text-center p-5 text-muted">Данные о заездах отсутствуют</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <div class="gl-card mt-3">
+            <div class="gl-card-title">Периоды выступлений по классам</div>
+            <div class="row g-3">
+                {% for period in driver_class_periods %}
+                <div class="col-md-4 col-lg-3">
+                    <div class="rounded-3 p-3 h-100" style="background:rgba(0,0,0,0.25); border:1px solid var(--gl-border-card,#2a2a35);">
+                        <div class="text-info small text-uppercase mb-1">{{ period.class_name }}</div>
+                        <div class="text-warning fw-bold font-monospace" style="font-size:1.05rem;">{{ period.period }}</div>
+                        <div class="gl-timeline-track"><div class="gl-timeline-fill" style="width:100%; background:var(--gl-brand-yellow,#ffc107);"></div></div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12"><div class="text-center text-muted py-4">Нет данных о выступлениях по классам</div></div>
+                {% endfor %}
             </div>
         </div>
     </div>
+
+    {# ==================== ВКЛАДКА: ИСТОРИЯ ВЫСТУПЛЕНИЙ ==================== #}
+    <div class="gl-tab-panel" id="tab-history" data-tab-panel="history">
+        <div class="d-flex flex-wrap align-items-end gap-3 mb-3">
+            <div>
+                <div class="text-muted mb-1" style="font-size:0.62rem; text-transform:uppercase; letter-spacing:0.06em;">Сезон</div>
+                <select class="gl-filter-select" id="glFilterSeason">
+                    <option value="">Все сезоны</option>
+                    {% for season in available_seasons %}<option value="{{ season }}">{{ season }}</option>{% endfor %}
+                </select>
+            </div>
+            <div>
+                <div class="text-muted mb-1" style="font-size:0.62rem; text-transform:uppercase; letter-spacing:0.06em;">Класс</div>
+                <select class="gl-filter-select" id="glFilterClass">
+                    <option value="">Все классы</option>
+                    {% for cid, cname in available_history_classes %}<option value="{{ cid }}">{{ cname }}</option>{% endfor %}
+                </select>
+            </div>
+            <span class="text-muted ms-auto" style="font-size:0.78rem;" id="glHistoryCount"></span>
+        </div>
+
+        <div class="table-responsive" style="border:1px solid var(--gl-border-card,#2a2a35); border-radius:8px;">
+            <table class="table table-dark table-hover mb-0" style="min-width:900px; font-size:0.85rem;">
+                <thead>
+                    <tr class="text-muted small text-uppercase" style="background:rgba(0,0,0,0.25);">
+                        <th style="width:64px;" class="text-center">
+                            <svg viewBox="0 0 484 248" width="24" height="12.4"><g transform="translate(0,248) scale(0.1,-0.1)" fill="#ffffff"><path d="M2085 2436 c-16 -7 -39 -23 -49 -35 -11 -11 -51 -114 -91 -229 l-71 -207 -260 -5 c-341 -7 -305 18 -409 -284 -36 -103 -65 -193 -65 -198 0 -6 101 -8 259 -6 256 3 258 3 246 -17 -7 -11 -40 -103 -74 -205 -34 -102 -65 -190 -69 -197 -5 -8 -80 -13 -265 -15 -141 -2 -257 -1 -257 3 0 3 5 10 10 15 9 9 140 389 140 406 0 4 -111 8 -246 8 -266 0 -297 -5 -331 -56 -12 -19 -153 -415 -153 -430 0 -3 117 -4 259 -2 171 2 257 0 253 -7 -4 -5 -38 -102 -77 -215 l-70 -205 -260 -5 c-246 -5 -262 -6 -290 -27 -17 -12 -36 -32 -43 -45 -12 -23 -142 -400 -142 -412 0 -3 110 -6 245 -6 224 0 249 2 284 19 21 11 45 30 53 43 8 13 45 114 82 226 l68 202 248 0 249 0 -20 -34 c-15 -25 -149 -406 -149 -423 0 -2 109 -3 243 -3 216 0 246 2 284 19 23 11 48 30 57 43 14 21 146 401 146 420 0 4 -113 8 -252 8 l-251 0 21 23 c12 12 48 102 82 202 34 99 66 192 72 208 l10 27 250 0 249 0 -20 -27 c-18 -25 -151 -400 -151 -425 0 -6 100 -8 259 -6 186 2 257 0 250 -8 -5 -6 -38 -96 -73 -200 -36 -104 -68 -197 -71 -207 -7 -16 9 -17 246 -17 234 0 257 2 286 20 18 10 39 30 48 43 14 22 145 400 145 419 0 11 -448 10 -488 -1 -35 -10 -39 -6 -17 23 8 10 44 108 80 217 l67 199 248 0 c137 0 256 3 265 7 16 6 16 4 1 -18 -18 -28 -149 -410 -142 -416 2 -2 114 -4 250 -4 258 0 278 3 318 48 10 11 42 91 72 179 30 87 62 180 71 206 l17 48 241 0 c216 0 247 2 284 19 23 11 48 30 57 43 8 13 47 115 85 226 l70 203 -263 -3 -263 -3 14 21 c13 20 143 399 143 416 0 12 -459 10 -499 -2 -68 -19 -85 -48 -162 -271 l-72 -209 -238 0 c-130 0 -246 -3 -256 -7 -15 -5 -15 -3 4 18 17 18 163 409 163 435 0 3 -119 4 -264 2 -243 -3 -263 -2 -250 13 8 9 43 101 78 205 35 104 67 197 71 207 7 16 -9 17 -241 17 -184 -1 -257 -4 -279 -14z"/></g></svg>
+                        </th>
+                        <th style="width:92px;">Дата</th>
+                        <th style="width:56px;" class="text-center">
+                            <svg viewBox="0 0 600 627" width="18" height="18.8"><g transform="translate(0,627) scale(0.1,-0.1)" fill="#ffffff"><path d="M2741 6260 c-420 -35 -785 -136 -1126 -310 -821 -419 -1403 -1187 -1560 -2060 -14 -74 -29 -180 -35 -235 -16 -152 -24 -1064 -12 -1319 11 -215 12 -221 42 -282 37 -76 115 -151 228 -217 87 -51 462 -222 1092 -497 74 -32 295 -129 490 -216 195 -86 400 -176 455 -199 55 -23 200 -88 322 -144 122 -55 225 -101 228 -101 3 0 81 -34 173 -76 92 -43 262 -119 377 -171 898 -403 936 -418 1085 -430 109 -8 210 10 307 57 126 59 271 163 621 443 308 246 387 335 505 572 l54 110 7 920 c6 955 -1 1357 -29 1570 -107 808 -519 1509 -1176 2002 -401 301 -911 501 -1453 568 -150 19 -456 27 -595 15z"/></g></svg>
+                        </th>
+                        <th>Соревнование / Класс</th>
+                        <th style="width:150px;">Шасси</th>
+                        <th style="width:150px;">Команда</th>
+                        <th style="width:104px;" class="text-center">Динамика</th>
+                        <th style="width:96px;" class="text-center">Круг</th>
+                        <th style="width:62px;" class="text-end">Очки</th>
+                        <th style="width:118px;" class="text-end">Ход гонки</th>
+                    </tr>
+                </thead>
+                <tbody id="glHistoryBody"></tbody>
+            </table>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <span class="text-muted" style="font-size:0.78rem;" id="glPageInfo"></span>
+            <div class="d-flex gap-2" id="glPagination"></div>
+        </div>
+    </div>
 </div>
+
+{% include "includes/lap_chart_modal.html" %}
+
+{{ history_data|json_script:"driverHistoryData" }}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // ---------- Вкладки (hash-based) ----------
+    var tabs = document.querySelectorAll('.gl-tab');
+    var panels = document.querySelectorAll('.gl-tab-panel');
+    var chartsInitialized = { rating: false, history: false };
+
+    function activateTab(name) {
+        tabs.forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === name); });
+        panels.forEach(function (p) { p.classList.toggle('active', p.getAttribute('data-tab-panel') === name); });
+        if (name === 'rating' && !chartsInitialized.rating) { chartsInitialized.rating = true; initRatingCharts(); }
+        if (name === 'history' && !chartsInitialized.history) { chartsInitialized.history = true; renderHistory(); }
+    }
+
+    tabs.forEach(function (t) {
+        t.addEventListener('click', function () {
+            var name = t.getAttribute('data-tab');
+            window.location.hash = name;
+            activateTab(name);
+        });
+    });
+    document.querySelectorAll('.gl-goto-tab').forEach(function (el) {
+        el.addEventListener('click', function (e) {
+            e.preventDefault();
+            var name = el.getAttribute('data-tab');
+            window.location.hash = name;
+            activateTab(name);
+        });
+    });
+
+    // ---------- Career highlights: раскрытие панели ----------
+    document.querySelectorAll('.gl-hl-card').forEach(function (card) {
+        card.addEventListener('click', function () {
+            var key = card.getAttribute('data-hl');
+            var isActive = card.classList.contains('active');
+            document.querySelectorAll('.gl-hl-card').forEach(function (c) { c.classList.remove('active'); });
+            document.querySelectorAll('.gl-hl-panel').forEach(function (p) { p.classList.remove('active'); });
+            if (!isActive) {
+                card.classList.add('active');
+                var panel = document.querySelector('.gl-hl-panel[data-hl-panel="' + key + '"]');
+                if (panel) { panel.classList.add('active'); }
+            }
+        });
+    });
+
+    // ---------- Ссылки "Открыть в истории" ----------
+    document.querySelectorAll('.gl-open-history').forEach(function (el) {
+        el.addEventListener('click', function (e) {
+            e.preventDefault();
+            var classId = el.getAttribute('data-class-id');
+            window.location.hash = 'history';
+            activateTab('history');
+            if (classId) {
+                var sel = document.getElementById('glFilterClass');
+                sel.value = classId;
+                applyFilters();
+            }
+        });
+    });
+
+    // ---------- Данные истории ----------
+    var historyData = JSON.parse(document.getElementById('driverHistoryData').textContent);
+    var filtered = historyData.slice();
+    var currentPage = 1;
+    var PAGE_SIZE = 8;
+
+    function formatLap(ms) {
+        if (!ms) { return null; }
+        var minutes = Math.floor(ms / 60000);
+        var seconds = (ms % 60000) / 1000;
+        return minutes + ':' + seconds.toFixed(3).padStart(6, '0');
+    }
+
+    var SESSION_BADGE = {
+        qual: '<span class="badge bg-primary text-white" style="font-size:10px;border-radius:4px;" title="Квалификация">К</span>',
+        pre_final: '<span class="badge bg-warning text-dark" style="font-size:10px;border-radius:4px;" title="Предфинал">Пф</span>',
+        final: '<span class="badge bg-success" style="font-size:10px;border-radius:4px;" title="Финал">Ф</span>'
+    };
+
+    function positionBadge(row) {
+        if (row.status) {
+            return '<span class="badge bg-secondary" style="width:45px;background:#3a1a1a !important;color:#ff6b6b;" title="' + row.status_label + '">' + row.status_label + '</span>';
+        }
+        var cls = 'bg-secondary';
+        if (row.position === 1) { cls = 'bg-warning text-dark'; }
+        else if (row.position === 2) { cls = 'bg-light text-dark'; }
+        else if (row.position === 3) { cls = 'bg-bronze'; }
+        return '<span class="badge ' + cls + '" style="width:45px;">' + row.position + '</span>';
+    }
+
+    function dynamicsCell(row) {
+        if (row.status) { return '<span class="text-muted">—</span>'; }
+        if (row.start_position == null || row.position_gain == null) { return '<span class="text-muted">—</span>'; }
+        var arrow = '<span class="text-secondary">—</span>';
+        if (row.position_gain > 0) { arrow = '<span class="text-success fw-bold">▲' + row.position_gain + '</span>'; }
+        else if (row.position_gain < 0) { arrow = '<span class="text-danger fw-bold">▼' + Math.abs(row.position_gain) + '</span>'; }
+        return '<span class="text-muted font-monospace">' + row.start_position + '→' + row.position + '</span> ' + arrow;
+    }
+
+    function lapCell(row) {
+        if (!row.best_lap_ms) { return '—'; }
+        return '<span class="font-monospace">' + formatLap(row.best_lap_ms) + '</span> ' + (SESSION_BADGE[row.best_lap_session] || '');
+    }
+
+    function raceChipButton(row) {
+        if (!row.has_lap_chart || !row.race_number) { return ''; }
+        return '<button type="button" class="btn btn-sm btn-link text-info text-decoration-none gl-lapchart-trigger-dynamic p-0" ' +
+            'data-group-id="' + row.group_id + '" data-race-number="' + row.race_number + '" style="font-size:0.75rem;font-weight:700;">Ход гонки →</button>';
+    }
+
+    function renderTable() {
+        var start = (currentPage - 1) * PAGE_SIZE;
+        var pageRows = filtered.slice(start, start + PAGE_SIZE);
+        var body = document.getElementById('glHistoryBody');
+
+        if (!pageRows.length) {
+            body.innerHTML = '<tr><td colspan="10" class="text-center p-5 text-muted">Данные о заездах отсутствуют</td></tr>';
+        } else {
+            body.innerHTML = pageRows.map(function (row) {
+                var dnfIcon = row.status ? '<i class="fas fa-triangle-exclamation text-danger me-1" style="font-size:0.8rem;" title="Не финишировал"></i>' : '';
+                return '<tr>' +
+                    '<td class="align-middle text-center">' + positionBadge(row) + '</td>' +
+                    '<td class="align-middle text-muted small font-monospace">' + row.date_display + '</td>' +
+                    '<td class="align-middle text-center fw-bold text-info">' + (row.race_number || '—') + '</td>' +
+                    '<td class="align-middle"><a href="' + row.competition_url + '" class="text-white text-decoration-none d-flex align-items-center flex-wrap gap-1">' + dnfIcon +
+                        '<span class="fw-bold text-nowrap">' + row.competition_name + '</span>' +
+                        '<span class="mx-1 text-secondary opacity-50">|</span>' +
+                        '<span class="small text-info text-uppercase text-nowrap">' + row.class_name + '</span></a></td>' +
+                    '<td class="align-middle text-muted small">' + (row.chassis_url ? '<a href="' + row.chassis_url + '" class="text-muted text-decoration-none">' + row.chassis_name + '</a>' : (row.chassis_name || '—')) + '</td>' +
+                    '<td class="align-middle">' + (row.team_url ? '<a href="' + row.team_url + '" class="text-warning text-decoration-none">' + row.team_name + '</a>' : '<span class="text-muted fst-italic small">Личный зачёт</span>') + '</td>' +
+                    '<td class="align-middle text-center small">' + dynamicsCell(row) + '</td>' +
+                    '<td class="align-middle text-center text-muted small">' + lapCell(row) + '</td>' +
+                    '<td class="align-middle text-end fw-bold text-warning">' + Math.round(row.points) + '</td>' +
+                    '<td class="align-middle text-end">' + raceChipButton(row) + '</td>' +
+                    '</tr>';
+            }).join('');
+        }
+
+        var totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+        document.getElementById('glPageInfo').textContent = filtered.length
+            ? 'Показано ' + (start + 1) + '–' + Math.min(start + PAGE_SIZE, filtered.length) + ' из ' + filtered.length
+            : '';
+        document.getElementById('glHistoryCount').textContent = 'Найдено: ' + filtered.length;
+
+        var pagerEl = document.getElementById('glPagination');
+        var buttons = '<button class="gl-page-btn" id="glPagePrev" ' + (currentPage <= 1 ? 'disabled' : '') + '>← Назад</button>';
+        for (var p = 1; p <= totalPages; p += 1) {
+            buttons += '<button class="gl-page-btn' + (p === currentPage ? ' active' : '') + '" data-page="' + p + '">' + p + '</button>';
+        }
+        buttons += '<button class="gl-page-btn" id="glPageNext" ' + (currentPage >= totalPages ? 'disabled' : '') + '>Вперёд →</button>';
+        pagerEl.innerHTML = buttons;
+
+        pagerEl.querySelectorAll('[data-page]').forEach(function (btn) {
+            btn.addEventListener('click', function () { currentPage = parseInt(btn.getAttribute('data-page'), 10); renderTable(); });
+        });
+        var prevBtn = document.getElementById('glPagePrev');
+        var nextBtn = document.getElementById('glPageNext');
+        if (prevBtn) { prevBtn.addEventListener('click', function () { if (currentPage > 1) { currentPage -= 1; renderTable(); } }); }
+        if (nextBtn) { nextBtn.addEventListener('click', function () { if (currentPage < totalPages) { currentPage += 1; renderTable(); } }); }
+    }
+
+    function applyFilters() {
+        var season = document.getElementById('glFilterSeason').value;
+        var classId = document.getElementById('glFilterClass').value;
+        filtered = historyData.filter(function (row) {
+            if (season && String(row.season) !== season) { return false; }
+            if (classId && String(row.class_id) !== classId) { return false; }
+            return true;
+        });
+        currentPage = 1;
+        renderTable();
+    }
+
+    document.getElementById('glFilterSeason').addEventListener('change', applyFilters);
+    document.getElementById('glFilterClass').addEventListener('change', applyFilters);
+
+    function renderHistory() { applyFilters(); }
+
+    // ---------- Динамика рейтинга (по классам) — normPos, тот же подход,
+    // что и в устоявшемся графике "Прогресс по этапам", но раздельно на класс ----------
+    function normPos(pos, total) { return total > 1 ? (total - pos) / (total - 1) * 100 : 50; }
+
+    function initRatingCharts() {
+        {% for cr in class_ratings %}
+        (function () {
+            var rows = historyData.filter(function (r) { return r.class_id === {{ cr.class_id }}; }).slice().reverse();
+            var canvas = document.getElementById('ratingChart{{ cr.class_id }}');
+            if (!canvas || !rows.length) { return; }
+            new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: rows.map(function (r) { return r.date ? r.date.slice(0, 7).split('-').reverse().join('.') : ''; }),
+                    datasets: [{
+                        label: 'Результат',
+                        data: rows.map(function (r) { return r.status ? 0 : normPos(r.position, r.group_size); }),
+                        borderColor: '#0dcaf0',
+                        backgroundColor: 'rgba(13, 202, 240, 0.1)',
+                        tension: 0.3,
+                        fill: true,
+                        pointBackgroundColor: rows.map(function (r) {
+                            return r.position === 1 ? '#ffc107' : r.position === 2 ? '#adb5bd' : r.position === 3 ? '#cd7f32' : '#0dcaf0';
+                        }),
+                        pointBorderColor: '#fff',
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    layout: { padding: { top: 16 } },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: function (ctx) {
+                            var r = rows[ctx.dataIndex];
+                            return r.status ? [r.status_label, r.competition_name] : ['Место: ' + r.position, r.competition_name];
+                        } } }
+                    },
+                    scales: {
+                        y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#adb5bd', callback: function (v) { return v + '%'; } }, title: { display: true, text: '← хуже | лучше →', color: '#6c757d', font: { size: 10 } } },
+                        x: { grid: { display: false }, ticks: { color: '#adb5bd', maxRotation: 45, minRotation: 45 } }
+                    }
+                }
+            });
+        })();
+        {% endfor %}
+    }
+
+    // ---------- Share (заглушка) ----------
+    document.getElementById('glShareBtn').addEventListener('click', function () {
+        if (navigator.share) {
+            navigator.share({ title: '{{ driver.full_name|escapejs }}', url: window.location.href }).catch(function () {});
+        } else if (navigator.clipboard) {
+            navigator.clipboard.writeText(window.location.href);
+        }
+    });
+
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+        new bootstrap.Tooltip(el);
+    });
+
+    // Активация вкладки — в самом конце, после того как historyData и все
+    // функции рендера уже определены (activateTab может сразу дёрнуть
+    // renderHistory/initRatingCharts, если открыли страницу по прямой
+    // ссылке вида #history или #rating).
+    var initialTab = (window.location.hash || '#overview').replace('#', '');
+    if (!['overview', 'rating', 'history'].includes(initialTab)) { initialTab = 'overview'; }
+    activateTab(initialTab);
+});
+</script>
 {% endblock %}
 
 {% block struct_seo %}
