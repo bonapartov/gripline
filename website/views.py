@@ -304,6 +304,7 @@ def driver_detail_view(request, slug):
             'status_label': STATUS_LABELS.get(status),
             'start_position': res.start_position,
             'position_gain': position_gain,
+            'pre_final_start_pos': res.pre_final_start_pos,
             'chassis_name': res.chassis_new.name if res.chassis_new else None,
             'chassis_url': res.chassis_new.get_absolute_url() if res.chassis_new else None,
             'team_name': res.team.name if res.team else None,
