@@ -771,7 +771,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function lapCell(row) {
         if (!row.best_lap_ms) { return '—'; }
-        return '<span class="font-monospace">' + formatLap(row.best_lap_ms) + '</span> ' + (SESSION_BADGE[row.best_lap_session] || '');
+        return '<div class="d-flex align-items-center justify-content-center gap-1">' +
+            '<span class="font-monospace">' + formatLap(row.best_lap_ms) + '</span>' +
+            '<span class="flex-shrink-0">' + (SESSION_BADGE[row.best_lap_session] || '') + '</span>' +
+            '</div>';
     }
 
     function sessionBadges(row) {
