@@ -298,6 +298,8 @@ def driver_detail_view(request, slug):
             'competition_url': res.group.page.url,
             'race_number': res.race_number or None,
             'position': res.position,
+            'qual_position': res.qual_position,
+            'pre_final_position': res.pre_final_position,
             'status': status,
             'status_label': STATUS_LABELS.get(status),
             'start_position': res.start_position,

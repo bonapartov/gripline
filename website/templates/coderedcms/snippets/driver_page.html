@@ -29,12 +29,12 @@
     .gl-share-btn {
         background: transparent; border: 1px solid var(--gl-brand-yellow, #ffc107);
         color: var(--gl-brand-yellow, #ffc107); border-radius: 6px;
-        padding: 0.5rem 0.9rem; font-size: 0.8rem; font-weight: 700;
+        padding: 0.5rem 0.9rem; font-size: 0.87rem; font-weight: 700;
     }
     .gl-share-btn:hover { background: var(--gl-brand-yellow, #ffc107); color: var(--gl-fg-on-yellow, #1a1a25); }
     .gl-class-chip {
         background: rgba(0,0,0,0.25); border: 1px solid var(--gl-border-card, #2a2a35);
-        border-radius: 4px; padding: 0.2rem 0.5rem; font-size: 0.7rem;
+        border-radius: 4px; padding: 0.2rem 0.5rem; font-size: 0.78rem;
         color: var(--gl-brand-cyan, #0dcaf0); text-transform: uppercase; font-weight: 700;
     }
 
@@ -46,7 +46,7 @@
     .gl-tab {
         background: none; border: none; border-bottom: 3px solid transparent;
         color: var(--gl-fg-muted, #6c757d); font-weight: 800; text-transform: uppercase;
-        font-size: 0.78rem; letter-spacing: 0.06em; padding: 0.8rem 1rem; white-space: nowrap;
+        font-size: 0.85rem; letter-spacing: 0.06em; padding: 0.8rem 1rem; white-space: nowrap;
         cursor: pointer;
     }
     .gl-tab.active { color: var(--gl-brand-yellow, #ffc107); border-bottom-color: var(--gl-brand-yellow, #ffc107); }
@@ -61,7 +61,7 @@
         padding: 1rem;
     }
     .gl-card-title {
-        color: var(--gl-brand-yellow, #ffc107); font-size: 0.8rem; text-transform: uppercase;
+        color: var(--gl-brand-yellow, #ffc107); font-size: 0.87rem; text-transform: uppercase;
         font-weight: 800; letter-spacing: 0.06em; border-bottom: 1px solid var(--gl-border-card, #2a2a35);
         padding-bottom: 0.5rem; margin-bottom: 0.75rem;
     }
@@ -81,9 +81,9 @@
     }
     .gl-hl-card:hover { border-color: var(--gl-brand-yellow, #ffc107); }
     .gl-hl-card.active { border-color: var(--gl-brand-yellow, #ffc107); }
-    .gl-hl-card .gl-hl-label { color: var(--gl-fg-muted, #6c757d); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .gl-hl-card .gl-hl-label { color: var(--gl-fg-muted, #6c757d); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
     .gl-hl-card .gl-hl-value { color: var(--gl-fg-2, #eceff1); font-size: 0.95rem; font-weight: 800; }
-    .gl-hl-card .gl-hl-meta { color: var(--gl-fg-muted, #6c757d); font-size: 0.7rem; }
+    .gl-hl-card .gl-hl-meta { color: var(--gl-fg-muted, #6c757d); font-size: 0.78rem; }
     .gl-hl-panel {
         background: var(--gl-surface-card, #1a1a25); border: 1px solid var(--gl-brand-yellow, #ffc107);
         border-radius: 8px; padding: 0.85rem 1rem; margin-top: 0.75rem; display: none;
@@ -107,18 +107,18 @@
     .gl-track-row.status-locked { border: 1px solid var(--gl-border-card, #2a2a35); background: rgba(0,0,0,0.2); }
     .gl-track-row.status-beaten { border: 1px solid var(--gl-border-card, #2a2a35); background: rgba(0,0,0,0.2); opacity: 0.55; }
     .gl-track-status {
-        font-size: 0.65rem; text-transform: uppercase; font-weight: 800; min-width: 112px; text-align: right;
+        font-size: 0.74rem; text-transform: uppercase; font-weight: 800; min-width: 112px; text-align: right;
     }
 
     /* --- История: фильтры/пагинация --- */
     .gl-filter-select {
         background: var(--gl-surface-card, #1a1a25); color: var(--gl-fg-2, #eceff1);
         border: 1px solid var(--gl-border-card, #2a2a35); border-radius: 6px;
-        padding: 0.45rem 0.7rem; font-size: 0.85rem; min-width: 150px;
+        padding: 0.45rem 0.7rem; font-size: 0.9rem; min-width: 150px;
     }
     .gl-page-btn {
         border: 1px solid var(--gl-border-card, #2a2a35); border-radius: 6px; background: transparent;
-        color: var(--gl-fg-2, #eceff1); padding: 0.4rem 0.75rem; font-size: 0.8rem;
+        color: var(--gl-fg-2, #eceff1); padding: 0.4rem 0.75rem; font-size: 0.87rem;
     }
     .gl-page-btn.active { background: var(--gl-brand-yellow, #ffc107); color: var(--gl-fg-on-yellow, #1a1a25); font-weight: 700; border-color: var(--gl-brand-yellow, #ffc107); }
     .gl-page-btn:hover:not(.active) { border-color: var(--gl-brand-yellow, #ffc107); color: var(--gl-brand-yellow, #ffc107); }
@@ -182,7 +182,7 @@
                 <div class="gl-card h-100">
                     <div class="d-flex justify-content-between align-items-baseline gl-card-title" style="border-bottom:1px solid var(--gl-border-card,#2a2a35);">
                         <span>Биография</span>
-                        <span class="text-muted" style="font-size:0.65rem; text-transform:none; letter-spacing:normal;">{% if driver.biography %}состояние: заполнено{% else %}состояние: пусто{% endif %}</span>
+                        <span class="text-muted" style="font-size:0.74rem; text-transform:none; letter-spacing:normal;">{% if driver.biography %}состояние: заполнено{% else %}состояние: пусто{% endif %}</span>
                     </div>
                     {% if driver.biography %}
                         <div class="text-light" style="font-size:0.9rem; line-height:1.55;">{{ driver.biography|safe }}</div>
@@ -191,7 +191,7 @@
                             <i class="fas fa-helmet-safety text-warning" style="font-size:1.4rem;"></i>
                             <div>
                                 <div style="color:var(--gl-fg-2,#eceff1); font-size:0.9rem; font-weight:600;">Это ваш профиль?</div>
-                                <div class="text-muted" style="font-size:0.82rem;">Войдите, чтобы заполнить биографию, добавить фото и подключить соцсети.</div>
+                                <div class="text-muted" style="font-size:0.88rem;">Войдите, чтобы заполнить биографию, добавить фото и подключить соцсети.</div>
                             </div>
                         </div>
                         <a href="/accounts/login/" class="btn btn-success btn-sm" style="font-weight:700;"><i class="fas fa-sign-in-alt me-1"></i>Войти</a>
@@ -206,31 +206,31 @@
                         <div class="col-4 col-md">
                             <div class="rounded-2 py-2 px-1" style="background:rgba(0,0,0,0.25); border:1px solid var(--gl-border-card,#2a2a35);">
                                 <div class="fw-bold text-white" style="font-size:1.4rem;">{{ total_starts|default:"0" }}</div>
-                                <div class="text-info" style="font-size:0.62rem; text-transform:uppercase;">Старты</div>
+                                <div class="text-info" style="font-size:0.72rem; text-transform:uppercase;">Старты</div>
                             </div>
                         </div>
                         <div class="col-4 col-md">
                             <div class="rounded-2 py-2 px-1" style="background:rgba(0,0,0,0.25); border:1px solid var(--gl-border-card,#2a2a35);">
                                 <div class="fw-bold text-white" style="font-size:1.4rem;">{{ wins|default:"0" }}</div>
-                                <div class="text-info" style="font-size:0.62rem; text-transform:uppercase;">Победы</div>
+                                <div class="text-info" style="font-size:0.72rem; text-transform:uppercase;">Победы</div>
                             </div>
                         </div>
                         <div class="col-4 col-md">
                             <div class="rounded-2 py-2 px-1" style="background:rgba(0,0,0,0.25); border:1px solid var(--gl-border-card,#2a2a35);">
                                 <div class="fw-bold text-white" style="font-size:1.4rem;">{{ podiums|default:"0" }}</div>
-                                <div class="text-info" style="font-size:0.62rem; text-transform:uppercase;">Подиумы</div>
+                                <div class="text-info" style="font-size:0.72rem; text-transform:uppercase;">Подиумы</div>
                             </div>
                         </div>
                         <div class="col-6 col-md">
                             <div class="rounded-2 py-2 px-1" style="background:rgba(0,0,0,0.25); border:1px solid var(--gl-border-card,#2a2a35);">
                                 <div class="fw-bold text-white" style="font-size:1.4rem;">{{ win_percentage|default:"0" }}%</div>
-                                <div class="text-info" style="font-size:0.62rem; text-transform:uppercase;">% Побед</div>
+                                <div class="text-info" style="font-size:0.72rem; text-transform:uppercase;">% Побед</div>
                             </div>
                         </div>
                         <div class="col-6 col-md">
                             <div class="rounded-2 py-2 px-1" style="background:rgba(0,0,0,0.25); border:1px solid var(--gl-border-card,#2a2a35);">
                                 <div class="fw-bold text-white" style="font-size:1.4rem;">{{ podium_percentage|default:"0" }}%</div>
-                                <div class="text-info" style="font-size:0.62rem; text-transform:uppercase;">% Подиумов</div>
+                                <div class="text-info" style="font-size:0.72rem; text-transform:uppercase;">% Подиумов</div>
                             </div>
                         </div>
                     </div>
@@ -242,13 +242,13 @@
         <div class="gl-card mb-3">
             <div class="d-flex align-items-baseline gap-2 gl-card-title" style="border-bottom:none; margin-bottom:0.5rem;">
                 <span>Career highlights</span>
-                <span class="text-muted" style="font-size:0.65rem; text-transform:none; letter-spacing:normal;">блок не рендерится, если данных нет</span>
+                <span class="text-muted" style="font-size:0.74rem; text-transform:none; letter-spacing:normal;">блок не рендерится, если данных нет</span>
             </div>
             <div class="gl-hl-row" id="glHlRow">
                 {% if career_highlights.title %}
                 <div class="gl-hl-card" data-hl="title">
                     <div class="d-flex justify-content-between align-items-start mb-1">
-                        <i class="fas fa-crown text-warning"></i><span class="text-muted" style="font-size:0.75rem;">▸</span>
+                        <i class="fas fa-crown text-warning"></i><span class="text-muted" style="font-size:0.82rem;">▸</span>
                     </div>
                     <div class="gl-hl-label">Титул</div>
                     <div class="gl-hl-value">{{ career_highlights.title.championship.title }}</div>
@@ -258,7 +258,7 @@
                 {% if career_highlights.best_result %}
                 <div class="gl-hl-card" data-hl="best_result">
                     <div class="d-flex justify-content-between align-items-start mb-1">
-                        <i class="fas fa-trophy text-warning"></i><span class="text-muted" style="font-size:0.75rem;">▸</span>
+                        <i class="fas fa-trophy text-warning"></i><span class="text-muted" style="font-size:0.82rem;">▸</span>
                     </div>
                     <div class="gl-hl-label">Лучший результат</div>
                     <div class="gl-hl-value">{{ career_highlights.best_result.position }}-е место</div>
@@ -268,7 +268,7 @@
                 {% if career_highlights.best_lap %}
                 <div class="gl-hl-card" data-hl="best_lap">
                     <div class="d-flex justify-content-between align-items-start mb-1">
-                        <i class="fas fa-stopwatch text-info"></i><span class="text-muted" style="font-size:0.75rem;">▸</span>
+                        <i class="fas fa-stopwatch text-info"></i><span class="text-muted" style="font-size:0.82rem;">▸</span>
                     </div>
                     <div class="gl-hl-label">Личный лучший круг</div>
                     <div class="gl-hl-value font-monospace">{{ career_highlights.best_lap.lap_ms|laptime }}</div>
@@ -278,7 +278,7 @@
                 {% if career_highlights.podiums %}
                 <div class="gl-hl-card" data-hl="podiums">
                     <div class="d-flex justify-content-between align-items-start mb-1">
-                        <i class="fas fa-medal text-info"></i><span class="text-muted" style="font-size:0.75rem;">▸</span>
+                        <i class="fas fa-medal text-info"></i><span class="text-muted" style="font-size:0.82rem;">▸</span>
                     </div>
                     <div class="gl-hl-label">Подиумы</div>
                     <div class="gl-hl-value">{{ career_highlights.podiums.count }}</div>
@@ -289,53 +289,53 @@
 
             {% if career_highlights.title %}
             <div class="gl-hl-panel" data-hl-panel="title">
-                <div class="text-muted" style="font-size:0.75rem; text-transform:uppercase;">Титул</div>
+                <div class="text-muted" style="font-size:0.82rem; text-transform:uppercase;">Титул</div>
                 <div class="fw-bold" style="font-size:0.92rem; color:var(--gl-fg-2,#eceff1);">{{ career_highlights.title.championship.title }} — {{ career_highlights.title.year }}</div>
                 <div class="gl-hl-panel-grid">
-                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.78rem;">Класс</span><span style="font-size:0.8rem; font-weight:700;">{{ career_highlights.title.class_name }}</span></div>
-                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.78rem;">Год</span><span style="font-size:0.8rem; font-weight:700;">{{ career_highlights.title.year }}</span></div>
+                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.85rem;">Класс</span><span style="font-size:0.87rem; font-weight:700;">{{ career_highlights.title.class_name }}</span></div>
+                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.85rem;">Год</span><span style="font-size:0.87rem; font-weight:700;">{{ career_highlights.title.year }}</span></div>
                 </div>
-                <a href="{{ career_highlights.title.championship.url }}" class="text-info text-decoration-none fw-bold" style="font-size:0.8rem;">Смотреть сезон →</a>
+                <a href="{{ career_highlights.title.championship.url }}" class="text-info text-decoration-none fw-bold" style="font-size:0.87rem;">Смотреть сезон →</a>
             </div>
             {% endif %}
 
             {% if career_highlights.best_result %}
             <div class="gl-hl-panel" data-hl-panel="best_result">
-                <div class="text-muted" style="font-size:0.75rem; text-transform:uppercase;">Лучший результат</div>
+                <div class="text-muted" style="font-size:0.82rem; text-transform:uppercase;">Лучший результат</div>
                 <div class="fw-bold" style="font-size:0.92rem; color:var(--gl-fg-2,#eceff1);">
                     {% if career_highlights.best_result.result.position == 1 %}Последняя победа{% else %}Лучший результат{% endif %} — {{ career_highlights.best_result.result.group.page.title }}
                 </div>
                 <div class="gl-hl-panel-grid">
-                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.78rem;">Дата</span><span class="font-monospace" style="font-size:0.8rem; font-weight:700;">{% with occ=career_highlights.best_result.result.group.page.occurrences.all.first %}{% if occ.end %}{{ occ.end|date:"d.m.Y" }}{% else %}{{ career_highlights.best_result.result.group.page.first_published_at|date:"d.m.Y" }}{% endif %}{% endwith %}</span></div>
-                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.78rem;">Класс</span><span style="font-size:0.8rem; font-weight:700;">{{ career_highlights.best_result.result.group.race_class.name }}</span></div>
+                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.85rem;">Дата</span><span class="font-monospace" style="font-size:0.87rem; font-weight:700;">{% with occ=career_highlights.best_result.result.group.page.occurrences.all.first %}{% if occ.end %}{{ occ.end|date:"d.m.Y" }}{% else %}{{ career_highlights.best_result.result.group.page.first_published_at|date:"d.m.Y" }}{% endif %}{% endwith %}</span></div>
+                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.85rem;">Класс</span><span style="font-size:0.87rem; font-weight:700;">{{ career_highlights.best_result.result.group.race_class.name }}</span></div>
                     {% if career_highlights.best_result.result.start_position %}
-                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.78rem;">Стартовал</span><span style="font-size:0.8rem; font-weight:700;">{{ career_highlights.best_result.result.start_position }}-м</span></div>
+                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.85rem;">Стартовал</span><span style="font-size:0.87rem; font-weight:700;">{{ career_highlights.best_result.result.start_position }}-м</span></div>
                     {% endif %}
-                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.78rem;">Очков</span><span style="font-size:0.8rem; font-weight:700;">{{ career_highlights.best_result.result.points|floatformat:"0" }}</span></div>
+                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.85rem;">Очков</span><span style="font-size:0.87rem; font-weight:700;">{{ career_highlights.best_result.result.points|floatformat:"0" }}</span></div>
                 </div>
-                <a href="#" class="text-info text-decoration-none fw-bold gl-open-history" data-class-id="{{ career_highlights.best_result.result.group.race_class_id }}" style="font-size:0.8rem;">Открыть в истории →</a>
+                <a href="#" class="text-info text-decoration-none fw-bold gl-open-history" data-class-id="{{ career_highlights.best_result.result.group.race_class_id }}" style="font-size:0.87rem;">Открыть в истории →</a>
             </div>
             {% endif %}
 
             {% if career_highlights.best_lap %}
             <div class="gl-hl-panel" data-hl-panel="best_lap">
-                <div class="text-muted" style="font-size:0.75rem; text-transform:uppercase;">Личный лучший круг</div>
+                <div class="text-muted" style="font-size:0.82rem; text-transform:uppercase;">Личный лучший круг</div>
                 <div class="fw-bold" style="font-size:0.92rem; color:var(--gl-fg-2,#eceff1);">{{ career_highlights.best_lap.lap_ms|laptime }}</div>
                 <div class="gl-hl-panel-grid">
-                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.78rem;">Трасса</span><span style="font-size:0.8rem; font-weight:700;">{{ career_highlights.best_lap.track.name|default:"—" }}</span></div>
-                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.78rem;">Класс</span><span style="font-size:0.8rem; font-weight:700;">{{ career_highlights.best_lap.class_name }}</span></div>
+                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.85rem;">Трасса</span><span style="font-size:0.87rem; font-weight:700;">{{ career_highlights.best_lap.track.name|default:"—" }}</span></div>
+                    <div class="gl-hl-panel-pair"><span class="text-muted" style="font-size:0.85rem;">Класс</span><span style="font-size:0.87rem; font-weight:700;">{{ career_highlights.best_lap.class_name }}</span></div>
                 </div>
                 {% if career_highlights.best_lap.has_lap_chart %}
-                <a href="#" class="text-info text-decoration-none fw-bold gl-lapchart-trigger" data-group-id="{{ career_highlights.best_lap.result.group_id }}" data-race-number="{{ career_highlights.best_lap.result.race_number }}" style="font-size:0.8rem;">Ход гонки →</a>
+                <a href="#" class="text-info text-decoration-none fw-bold gl-lapchart-trigger" data-group-id="{{ career_highlights.best_lap.result.group_id }}" data-race-number="{{ career_highlights.best_lap.result.race_number }}" style="font-size:0.87rem;">Ход гонки →</a>
                 {% endif %}
             </div>
             {% endif %}
 
             {% if career_highlights.podiums %}
             <div class="gl-hl-panel" data-hl-panel="podiums">
-                <div class="text-muted" style="font-size:0.75rem; text-transform:uppercase;">Подиумы</div>
+                <div class="text-muted" style="font-size:0.82rem; text-transform:uppercase;">Подиумы</div>
                 <div class="fw-bold" style="font-size:0.92rem; color:var(--gl-fg-2,#eceff1);">{{ career_highlights.podiums.count }} подиумов из {{ total_starts }} стартов</div>
-                <a href="#" class="text-info text-decoration-none fw-bold gl-open-history" data-class-id="" style="font-size:0.8rem;">Открыть в истории →</a>
+                <a href="#" class="text-info text-decoration-none fw-bold gl-open-history" data-class-id="" style="font-size:0.87rem;">Открыть в истории →</a>
             </div>
             {% endif %}
         </div>
@@ -344,18 +344,18 @@
         {% if latest_class_rating %}
         <div class="gl-card mb-3">
             <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="text-muted" style="font-size:0.65rem; text-transform:uppercase;">последний старт: {{ latest_class_rating.last_race_date|date:"m.Y" }}</span>
+                <span class="text-muted" style="font-size:0.74rem; text-transform:uppercase;">последний старт: {{ latest_class_rating.last_race_date|date:"m.Y" }}</span>
             </div>
             <div class="d-flex flex-wrap align-items-center gap-4">
                 <div class="text-info fw-bold text-uppercase" style="font-size:0.9rem;">{{ latest_class_rating.class_name }}</div>
-                <div><span class="font-monospace fw-bold" style="font-size:2rem;">{{ latest_class_rating.normalized_score }}</span><span class="text-muted" style="font-size:0.7rem;"> из 100</span></div>
-                <div><span class="text-warning fw-bold" style="font-size:1.5rem;">#{{ latest_class_rating.rank }}</span><span class="text-muted" style="font-size:0.7rem;"> из {{ latest_class_rating.total }}</span></div>
+                <div><span class="font-monospace fw-bold" style="font-size:2rem;">{{ latest_class_rating.normalized_score }}</span><span class="text-muted" style="font-size:0.78rem;"> из 100</span></div>
+                <div><span class="text-warning fw-bold" style="font-size:1.5rem;">#{{ latest_class_rating.rank }}</span><span class="text-muted" style="font-size:0.78rem;"> из {{ latest_class_rating.total }}</span></div>
                 <div>
                     {% if latest_class_rating.form_trend == 'up' %}<span class="text-success fw-bold">▲</span> <span class="text-success small">На подъёме</span>
                     {% elif latest_class_rating.form_trend == 'down' %}<span class="text-danger fw-bold">▼</span> <span class="text-danger small">Спад</span>
                     {% else %}<span class="text-muted">—</span> <span class="text-muted small">Стабильно</span>{% endif %}
                 </div>
-                <a href="#" class="text-info text-decoration-none fw-bold ms-auto gl-goto-tab" data-tab="rating" style="font-size:0.8rem;">Смотреть весь рейтинг →</a>
+                <a href="#" class="text-info text-decoration-none fw-bold ms-auto gl-goto-tab" data-tab="rating" style="font-size:0.87rem;">Смотреть весь рейтинг →</a>
             </div>
         </div>
         {% endif %}
@@ -364,24 +364,24 @@
         <div class="gl-card mb-3">
             <div class="d-flex align-items-baseline gap-2 gl-card-title" style="border-bottom:none;">
                 <span>Рекорды трасс</span>
-                <span class="text-muted" style="font-size:0.65rem; text-transform:none;">действующих: {{ track_records|length }}</span>
+                <span class="text-muted" style="font-size:0.74rem; text-transform:none;">действующих: {{ track_records|length }}</span>
             </div>
-            <div class="text-muted mb-2" style="font-size:0.65rem;">Рекорд держится до конца календарного года, пока его не перебьют.</div>
+            <div class="text-muted mb-2" style="font-size:0.74rem;">Рекорд держится до конца календарного года, пока его не перебьют.</div>
             {% for rec in track_records %}
             <div class="gl-track-row status-{{ rec.status }}">
-                <div class="flex-grow-1" style="min-width:150px; font-size:0.85rem; font-weight:700;">
+                <div class="flex-grow-1" style="min-width:150px; font-size:0.9rem; font-weight:700;">
                     {% if rec.track.get_absolute_url %}<a href="{{ rec.track.get_absolute_url }}" class="text-decoration-none" style="color:inherit;">{{ rec.track.name }}</a>{% else %}{{ rec.track.name }}{% endif %}
                 </div>
                 <div class="font-monospace fw-bold" style="font-size:0.95rem; {% if rec.status == 'active' %}color:var(--gl-brand-yellow,#ffc107);{% elif rec.status == 'beaten' %}color:var(--gl-fg-muted,#6c757d);{% else %}color:var(--gl-fg-3,#b0bec5);{% endif %}">{{ rec.lap_ms|laptime }}</div>
-                <div class="text-muted text-uppercase" style="font-size:0.7rem; font-weight:700;">{{ rec.class_name }}</div>
-                <div class="font-monospace text-muted" style="font-size:0.78rem;">{{ rec.year }}</div>
+                <div class="text-muted text-uppercase" style="font-size:0.78rem; font-weight:700;">{{ rec.class_name }}</div>
+                <div class="font-monospace text-muted" style="font-size:0.85rem;">{{ rec.year }}</div>
                 {% if rec.status == 'active' %}
                 <div class="gl-track-status text-warning">Действующий</div>
                 {% elif rec.status == 'locked' %}
                 <div class="gl-track-status text-muted">Закреплён за {{ rec.year }}</div>
                 {% else %}
                 <div class="gl-track-status text-muted">Перебит</div>
-                <div class="w-100 text-muted" style="font-size:0.75rem;">Рекорд у {{ rec.holder_name }}</div>
+                <div class="w-100 text-muted" style="font-size:0.82rem;">Рекорд у {{ rec.holder_name }}</div>
                 {% endif %}
             </div>
             {% endfor %}
@@ -410,10 +410,10 @@
                 <span title="Мало стартов — рейтинг предварительный">⚠️</span>
                 {% endif %}
                 {% if cr.rank == 1 %}
-                <span class="text-warning ms-1 fw-bold" style="font-size:0.85rem;"><i class="fas fa-crown me-1"></i>Лидер класса</span>
+                <span class="text-warning ms-1 fw-bold" style="font-size:0.9rem;"><i class="fas fa-crown me-1"></i>Лидер класса</span>
                 {% endif %}
                 {% if cr.last_race_date %}
-                <span class="text-muted ms-auto" style="font-size:0.8rem;">последний старт: {{ cr.last_race_date|date:"m.Y" }}</span>
+                <span class="text-muted ms-auto" style="font-size:0.87rem;">последний старт: {{ cr.last_race_date|date:"m.Y" }}</span>
                 {% endif %}
             </div>
 
@@ -445,7 +445,7 @@
                         <div class="text-muted" style="font-size:1.6rem;">—</div>
                         <div class="text-muted small">Мало данных</div>
                         {% endif %}
-                        <div class="text-muted" style="font-size:0.7rem;">{{ cr.starts }} стартов</div>
+                        <div class="text-muted" style="font-size:0.78rem;">{{ cr.starts }} стартов</div>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
@@ -465,28 +465,28 @@
                     </div>
                 </div>
                 <div class="col-12 col-md-3">
-                    <div class="d-flex flex-column gap-2 justify-content-center h-100" style="font-size:0.82rem; border-left:1px solid #2a2a35; padding-left:1rem;">
+                    <div class="d-flex flex-column gap-2 justify-content-center h-100" style="font-size:0.88rem; border-left:1px solid #2a2a35; padding-left:1rem;">
                         {% if cr.driver_above %}
                         <div class="d-flex justify-content-between align-items-center">
                             <span>
-                                <i class="fas fa-chevron-up text-success me-1" style="font-size:0.65rem;"></i>
+                                <i class="fas fa-chevron-up text-success me-1" style="font-size:0.74rem;"></i>
                                 <a href="/drivers/{{ cr.driver_above.slug }}/" class="text-muted text-decoration-none">{{ cr.driver_above.full_name }}</a>
                             </span>
                             <span class="d-flex align-items-center gap-2 ms-2">
                                 <span class="text-danger text-nowrap">−{{ cr.gap_to_above }} б.</span>
-                                <a href="/compare-drivers/?driver1={{ driver.id }}&driver2={{ cr.driver_above.driver_id }}" class="text-nowrap" style="font-size:0.75rem; background:var(--gl-brand-yellow); color:var(--gl-fg-on-yellow); padding:2px 8px; border-radius:var(--gl-radius-sm); text-decoration:none; font-weight:var(--gl-weight-bold); white-space:nowrap;" title="Сравнить"><i class="fas fa-right-left me-1"></i>vs</a>
+                                <a href="/compare-drivers/?driver1={{ driver.id }}&driver2={{ cr.driver_above.driver_id }}" class="text-nowrap" style="font-size:0.82rem; background:var(--gl-brand-yellow); color:var(--gl-fg-on-yellow); padding:2px 8px; border-radius:var(--gl-radius-sm); text-decoration:none; font-weight:var(--gl-weight-bold); white-space:nowrap;" title="Сравнить"><i class="fas fa-right-left me-1"></i>vs</a>
                             </span>
                         </div>
                         {% endif %}
                         {% if cr.driver_below %}
                         <div class="d-flex justify-content-between align-items-center">
                             <span>
-                                <i class="fas fa-chevron-down text-danger me-1" style="font-size:0.65rem;"></i>
+                                <i class="fas fa-chevron-down text-danger me-1" style="font-size:0.74rem;"></i>
                                 <a href="/drivers/{{ cr.driver_below.slug }}/" class="text-muted text-decoration-none">{{ cr.driver_below.full_name }}</a>
                             </span>
                             <span class="d-flex align-items-center gap-2 ms-2">
                                 <span class="text-success text-nowrap">+{{ cr.gap_to_below }} б.</span>
-                                <a href="/compare-drivers/?driver1={{ driver.id }}&driver2={{ cr.driver_below.driver_id }}" class="text-nowrap" style="font-size:0.75rem; background:var(--gl-brand-yellow); color:var(--gl-fg-on-yellow); padding:2px 8px; border-radius:var(--gl-radius-sm); text-decoration:none; font-weight:var(--gl-weight-bold); white-space:nowrap;" title="Сравнить"><i class="fas fa-right-left me-1"></i>vs</a>
+                                <a href="/compare-drivers/?driver1={{ driver.id }}&driver2={{ cr.driver_below.driver_id }}" class="text-nowrap" style="font-size:0.82rem; background:var(--gl-brand-yellow); color:var(--gl-fg-on-yellow); padding:2px 8px; border-radius:var(--gl-radius-sm); text-decoration:none; font-weight:var(--gl-weight-bold); white-space:nowrap;" title="Сравнить"><i class="fas fa-right-left me-1"></i>vs</a>
                             </span>
                         </div>
                         {% endif %}
@@ -500,7 +500,7 @@
             <div class="mt-3 pt-3 border-top border-secondary">
                 <div class="d-flex align-items-center gap-2 mb-2">
                     <span class="text-muted small text-uppercase" style="letter-spacing:0.05em;">Личная статистика</span>
-                    <span class="text-muted" style="font-size:0.75rem;" data-bs-toggle="tooltip" data-bs-placement="top"
+                    <span class="text-muted" style="font-size:0.82rem;" data-bs-toggle="tooltip" data-bs-placement="top"
                         title="% побед и подиумов сравнивается со средним значением по классу среди пилотов с 3+ стартами. Немезис и «уверенно против» — пилоты, с которыми больше всего очных встреч в одном заезде, и у кого устойчивый перевес.">
                         <i class="fas fa-circle-info"></i> как считается?
                     </span>
@@ -545,7 +545,7 @@
                         <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid var(--gl-signal-danger);">
                             <i class="fas fa-user-slash text-danger" style="font-size:1.1rem;"></i>
                             <div>
-                                <div class="text-muted small">Немезис <span style="font-size:0.7rem;">(чаще впереди в очных стартах)</span></div>
+                                <div class="text-muted small">Немезис <span style="font-size:0.78rem;">(чаще впереди в очных стартах)</span></div>
                                 <div>
                                     <a href="/drivers/{{ cr.nemesis.slug }}/" class="fw-bold text-danger text-decoration-none">{{ cr.nemesis.name }}</a>
                                     <span class="text-muted small ms-1">— он впереди в {{ cr.nemesis.losses }} из {{ cr.nemesis.meetings }}</span>
@@ -559,7 +559,7 @@
                         <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-2 h-100" style="background:rgba(0,0,0,0.2); border:1px solid var(--gl-brand-cyan);">
                             <i class="fas fa-shield-halved text-info" style="font-size:1.1rem;"></i>
                             <div>
-                                <div class="text-muted small">Уверенно против <span style="font-size:0.7rem;">(чаще впереди в очных стартах)</span></div>
+                                <div class="text-muted small">Уверенно против <span style="font-size:0.78rem;">(чаще впереди в очных стартах)</span></div>
                                 <div>
                                     <a href="/drivers/{{ cr.victim.slug }}/" class="fw-bold text-info text-decoration-none">{{ cr.victim.name }}</a>
                                     <span class="text-muted small ms-1">— ты впереди в {{ cr.victim.wins }} из {{ cr.victim.meetings }}</span>
@@ -573,8 +573,8 @@
             </div>
 
             <div class="mt-3 pt-3 border-top border-secondary">
-                <div class="text-uppercase fw-bold mb-1" style="font-size:0.72rem; color:var(--gl-fg-2,#eceff1); letter-spacing:0.06em;">Динамика рейтинга</div>
-                <div class="text-muted mb-2" style="font-size:0.7rem;">результат по этапам, класс «{{ cr.class_name }}»</div>
+                <div class="text-uppercase fw-bold mb-1" style="font-size:0.8rem; color:var(--gl-fg-2,#eceff1); letter-spacing:0.06em;">Динамика рейтинга</div>
+                <div class="text-muted mb-2" style="font-size:0.78rem;">результат по этапам, класс «{{ cr.class_name }}»</div>
                 <div style="height:180px; position:relative;">
                     <canvas id="ratingChart{{ cr.class_id }}"></canvas>
                 </div>
@@ -607,24 +607,24 @@
     <div class="gl-tab-panel" id="tab-history" data-tab-panel="history">
         <div class="d-flex flex-wrap align-items-end gap-3 mb-3">
             <div>
-                <div class="text-muted mb-1" style="font-size:0.62rem; text-transform:uppercase; letter-spacing:0.06em;">Сезон</div>
+                <div class="text-muted mb-1" style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;">Сезон</div>
                 <select class="gl-filter-select" id="glFilterSeason">
                     <option value="">Все сезоны</option>
                     {% for season in available_seasons %}<option value="{{ season }}">{{ season }}</option>{% endfor %}
                 </select>
             </div>
             <div>
-                <div class="text-muted mb-1" style="font-size:0.62rem; text-transform:uppercase; letter-spacing:0.06em;">Класс</div>
+                <div class="text-muted mb-1" style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;">Класс</div>
                 <select class="gl-filter-select" id="glFilterClass">
                     <option value="">Все классы</option>
                     {% for cid, cname in available_history_classes %}<option value="{{ cid }}">{{ cname }}</option>{% endfor %}
                 </select>
             </div>
-            <span class="text-muted ms-auto" style="font-size:0.78rem;" id="glHistoryCount"></span>
+            <span class="text-muted ms-auto" style="font-size:0.85rem;" id="glHistoryCount"></span>
         </div>
 
         <div class="table-responsive" style="border:1px solid var(--gl-border-card,#2a2a35); border-radius:8px;">
-            <table class="table table-dark table-hover mb-0" style="min-width:900px; font-size:0.85rem;">
+            <table class="table table-dark table-hover mb-0" style="min-width:900px; font-size:0.9rem;">
                 <thead>
                     <tr class="text-muted small text-uppercase" style="background:rgba(0,0,0,0.25);">
                         <th style="width:64px;" class="text-center">
@@ -648,7 +648,7 @@
         </div>
 
         <div class="d-flex justify-content-between align-items-center mt-3">
-            <span class="text-muted" style="font-size:0.78rem;" id="glPageInfo"></span>
+            <span class="text-muted" style="font-size:0.85rem;" id="glPageInfo"></span>
             <div class="d-flex gap-2" id="glPagination"></div>
         </div>
     </div>
@@ -763,10 +763,18 @@ document.addEventListener('DOMContentLoaded', function () {
         return '<span class="font-monospace">' + formatLap(row.best_lap_ms) + '</span> ' + (SESSION_BADGE[row.best_lap_session] || '');
     }
 
+    function sessionBadges(row) {
+        var html = '';
+        if (row.qual_position) { html += '<span class="badge bg-primary text-white" style="font-size:10px; border-radius:4px;" title="Квалификация: #' + row.qual_position + '">К</span>'; }
+        if (row.pre_final_position) { html += '<span class="badge bg-warning text-dark" style="font-size:10px; border-radius:4px;" title="Предфинал: #' + row.pre_final_position + '">Пф</span>'; }
+        if (row.position) { html += '<span class="badge bg-success" style="font-size:10px; border-radius:4px;" title="Финал: #' + row.position + '">Ф</span>'; }
+        return html;
+    }
+
     function raceChipButton(row) {
         if (!row.has_lap_chart || !row.race_number) { return ''; }
         return '<button type="button" class="btn btn-sm btn-link text-info text-decoration-none gl-lapchart-trigger-dynamic p-0" ' +
-            'data-group-id="' + row.group_id + '" data-race-number="' + row.race_number + '" style="font-size:0.75rem;font-weight:700;">Ход гонки →</button>';
+            'data-group-id="' + row.group_id + '" data-race-number="' + row.race_number + '" style="font-size:0.82rem;font-weight:700;">Ход гонки →</button>';
     }
 
     function renderTable() {
@@ -778,7 +786,7 @@ document.addEventListener('DOMContentLoaded', function () {
             body.innerHTML = '<tr><td colspan="10" class="text-center p-5 text-muted">Данные о заездах отсутствуют</td></tr>';
         } else {
             body.innerHTML = pageRows.map(function (row) {
-                var dnfIcon = row.status ? '<i class="fas fa-triangle-exclamation text-danger me-1" style="font-size:0.8rem;" title="Не финишировал"></i>' : '';
+                var dnfIcon = row.status ? '<i class="fas fa-triangle-exclamation text-danger me-1" style="font-size:0.87rem;" title="Не финишировал"></i>' : '';
                 return '<tr>' +
                     '<td class="align-middle text-center">' + positionBadge(row) + '</td>' +
                     '<td class="align-middle text-muted small font-monospace">' + row.date_display + '</td>' +
@@ -786,7 +794,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     '<td class="align-middle"><a href="' + row.competition_url + '" class="text-white text-decoration-none d-flex align-items-center flex-wrap gap-1">' + dnfIcon +
                         '<span class="fw-bold text-nowrap">' + row.competition_name + '</span>' +
                         '<span class="mx-1 text-secondary opacity-50">|</span>' +
-                        '<span class="small text-info text-uppercase text-nowrap">' + row.class_name + '</span></a></td>' +
+                        '<span class="small text-info text-uppercase text-nowrap">' + row.class_name + '</span>' +
+                        sessionBadges(row) + '</a></td>' +
                     '<td class="align-middle text-muted small">' + (row.chassis_url ? '<a href="' + row.chassis_url + '" class="text-muted text-decoration-none">' + row.chassis_name + '</a>' : (row.chassis_name || '—')) + '</td>' +
                     '<td class="align-middle">' + (row.team_url ? '<a href="' + row.team_url + '" class="text-warning text-decoration-none">' + row.team_name + '</a>' : '<span class="text-muted fst-italic small">Личный зачёт</span>') + '</td>' +
                     '<td class="align-middle text-center small">' + dynamicsCell(row) + '</td>' +
