@@ -476,6 +476,16 @@ class ChampionshipPage(TransliteratedSlugMixin, CoderedWebPage):
     # Убираем competition_types как ManyToMany поле
     # Будем использовать отдельную модель через InlinePanel
 
+    # Кэш турнирных таблиц (get_champions_by_class) — не редактируется в
+    # админке, обновляется командой update_championship_standings.
+    # Структура: {"<year>"|"__all__": {"<class_id>": {"name": ..., "champions": [{"position", "driver_id", "points", "starts"}, ...]}}}
+    standings_cache = models.JSONField(
+        "Кэш турнирных таблиц",
+        default=dict,
+        blank=True,
+        editable=False,
+    )
+
     # Основные поля
     content_panels = CoderedWebPage.content_panels + [
         FieldPanel('is_completed'),
@@ -514,7 +524,55 @@ class ChampionshipPage(TransliteratedSlugMixin, CoderedWebPage):
 
     def get_champions_by_class(self, year=None):
         """
-        Возвращает топ-3 пилотов для каждого класса
+        Возвращает топ-3 пилотов для каждого класса.
+
+        Читает из `standings_cache` (обновляется командой
+        `update_championship_standings`, запускается вручную после ввода
+        новых результатов — тот же паттерн, что `update_ratings` для
+        rating_by_class на Driver). Раньше пересчитывалось вживую при
+        каждом вызове — на странице пилота (Career highlights: «Титул»)
+        это означало полный пересчёт турнирной таблицы при каждом
+        открытии профиля, ~2с на реальных данных. Если кэша ещё нет
+        (например, до первого запуска команды) — считает вживую как
+        fallback, ничего не ломается.
+        """
+        cache_key = str(year) if year else '__all__'
+        cached = (self.standings_cache or {}).get(cache_key)
+        if cached is not None:
+            return self._hydrate_champions_cache(cached)
+        return self._compute_champions_by_class(year)
+
+    def _hydrate_champions_cache(self, cached):
+        """Разворачивает JSON-кэш (driver_id) обратно в объекты Driver — один bulk-запрос."""
+        from .models import Driver
+
+        driver_ids = {
+            c['driver_id']
+            for data in cached.values()
+            for c in data['champions']
+        }
+        drivers = {d.id: d for d in Driver.objects.filter(id__in=driver_ids)}
+
+        result = {}
+        for class_id_str, data in cached.items():
+            champions = [
+                {
+                    'position': c['position'],
+                    'driver': drivers[c['driver_id']],
+                    'points': c['points'],
+                    'starts': c['starts'],
+                }
+                for c in data['champions'] if c['driver_id'] in drivers
+            ]
+            result[int(class_id_str)] = {'name': data['name'], 'champions': champions}
+        return result
+
+    def _compute_champions_by_class(self, year=None):
+        """
+        Тяжёлая версия — считает турнирную таблицу вживую из RaceResult.
+        Не вызывать напрямую на каждый рендер страницы — см. get_champions_by_class()
+        и команду update_championship_standings.
+
         Если year указан и чемпионат не завершён (is_completed=False) — только этапы за этот год
         Если чемпионат завершён (is_completed=True) — все этапы
         """
