@@ -266,10 +266,15 @@ PostgreSQL. Настройки через переменные окружени�
 
 ### Запуск пересчёта
 
+**В админке (рекомендуется для организатора):** `/admin/analytics/` → кнопка «🚀 Запустить обновление». Асинхронно запускает `update_all_analytics` — обёртку, которая по очереди вызывает все три команды ниже (см. `website/admin_views.py`), с прогрессом в лог-боксе на странице.
+
+**Вручную (SSH):**
 ```bash
 python manage.py update_ratings --entity driver --model bt
 python manage.py update_championship_standings
 python manage.py update_track_records
+# или всё сразу той же обёрткой, что и кнопка:
+python manage.py update_all_analytics --entity all --model all
 ```
 
 Запускается **вручную** после каждого ввода новых результатов соревнований. Вторая команда — турнирные таблицы чемпионатов (`ChampionshipPage.standings_cache`), используется Career highlights на странице пилота и `/api/v2/pulse/`. Третья — рекорды трасс (`Track.records_cache`), используется блоком «Рекорды трасс» на странице пилота. Обе см. раздел «Реструктуризация страницы пилота» ниже.
