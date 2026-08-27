@@ -1161,6 +1161,17 @@ class Track(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, 
     )
     description = models.TextField("Описание", blank=True, null=True)
 
+    # Материализованные рекорды трасс по классам — не редактируется в
+    # админке, обновляется командой update_track_records (запускается
+    # вручную после ввода новых результатов, как update_ratings).
+    # Структура: {"<class_id>": {"final_holder_id", "record_year", "lap_ms", "ever_holder_ids"}}
+    records_cache = models.JSONField(
+        "Рекорды трасс (пересчитываемые)",
+        default=dict,
+        blank=True,
+        editable=False,
+    )
+
     panels = [
         FieldPanel('name'),
         FieldPanel('slug'),

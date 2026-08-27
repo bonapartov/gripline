@@ -1276,13 +1276,13 @@ def _get_driver_class_ratings(driver):
     return class_ratings
 
 
-def _get_driver_track_records(driver):
-    """Рекорды трасс пилота: по каждой паре (трасса, класс), где пилот когда-либо
-    держал рекорд круга, определяет статус — действующий/закреплён/перебит.
-    Рекорд принадлежит тому, кто когда-либо показал новый минимум круга в
-    классе на трассе; статус даты — календарный год, в котором установлен
-    ТЕКУЩИЙ рекорд (не год, когда его показал именно этот пилот, если рекорд
-    с тех пор перебивали).
+def _compute_all_track_records():
+    """Тяжёлая версия — считает рекорды трасс вживую по ВСЕМ трассам и классам
+    сразу (не на одного пилота). Не вызывать на каждый рендер страницы — см.
+    _get_driver_track_records() и команду update_track_records.
+
+    Возвращает {track_id: {class_id_str: {'final_holder_id', 'record_year',
+    'lap_ms', 'ever_holder_ids'}}}.
     """
     from collections import defaultdict
 
@@ -1310,51 +1310,122 @@ def _get_driver_track_records(driver):
         by_key[(track.id, r.group.race_class_id)].append({
             'date': event_date,
             'driver_id': r.driver_id,
-            'driver': r.driver,
             'lap_ms': lap,
-            'track': track,
-            'race_class': r.group.race_class,
         })
 
-    current_year = timezone.now().year
-    records = []
-
-    for entries in by_key.values():
+    result = defaultdict(dict)
+    for (track_id, class_id), entries in by_key.items():
         entries.sort(key=lambda e: e['date'])
 
         running_min = None
-        final_holder = None
-        ever_holder_ids = set()
+        final_holder_id = None
+        record_year = None
+        ever_holder_ids = []
 
         for e in entries:
             if running_min is None or e['lap_ms'] < running_min:
                 running_min = e['lap_ms']
-                final_holder = e
-                ever_holder_ids.add(e['driver_id'])
+                final_holder_id = e['driver_id']
+                record_year = e['date'].year
+                if e['driver_id'] not in ever_holder_ids:
+                    ever_holder_ids.append(e['driver_id'])
 
-        if driver.id not in ever_holder_ids:
-            continue
+        result[track_id][str(class_id)] = {
+            'final_holder_id': final_holder_id,
+            'record_year': record_year,
+            'lap_ms': running_min,
+            'ever_holder_ids': ever_holder_ids,
+        }
 
-        record_year = final_holder['date'].year
+    return result
 
-        if final_holder['driver_id'] == driver.id:
-            status = 'active' if record_year == current_year else 'locked'
-            records.append({
-                'track': final_holder['track'],
-                'class_name': final_holder['race_class'].name,
-                'lap_ms': running_min,
-                'year': record_year,
-                'status': status,
-            })
-        else:
-            records.append({
-                'track': final_holder['track'],
-                'class_name': final_holder['race_class'].name,
-                'lap_ms': running_min,
-                'year': record_year,
-                'status': 'beaten',
-                'holder_name': final_holder['driver'].full_name,
-            })
+
+def _compute_driver_track_records_live(driver):
+    """Фильтрует _compute_all_track_records() на одного пилота. Fallback-путь
+    для _get_driver_track_records(), пока команда update_track_records ни разу
+    не запускалась (Track.records_cache везде пуст) — тяжёлая версия, считает
+    всё вживую на каждый вызов."""
+    from .models import Driver
+
+    all_records = _compute_all_track_records()
+    current_year = timezone.now().year
+    records = []
+
+    track_ids = list(all_records.keys())
+    tracks = {t.id: t for t in Track.objects.filter(id__in=track_ids)}
+    class_ids = {int(cid) for classes in all_records.values() for cid in classes.keys()}
+    race_classes = {c.id: c for c in RaceClass.objects.filter(id__in=class_ids)}
+
+    for track_id, classes in all_records.items():
+        for class_id_str, data in classes.items():
+            if driver.id not in data['ever_holder_ids']:
+                continue
+            records.append(_track_record_row(
+                tracks[track_id], race_classes[int(class_id_str)], data, driver, current_year
+            ))
+
+    status_order = {'active': 0, 'locked': 1, 'beaten': 2}
+    records.sort(key=lambda r: (status_order[r['status']], -r['year']))
+    return records
+
+
+def _track_record_row(track, race_class, data, driver, current_year):
+    """Собирает одну строку «Рекорды трасс» из данных кэша (или живого расчёта)."""
+    final_holder_id = data['final_holder_id']
+    record_year = data['record_year']
+    row = {
+        'track': track,
+        'class_name': race_class.name,
+        'lap_ms': data['lap_ms'],
+        'year': record_year,
+    }
+    if final_holder_id == driver.id:
+        row['status'] = 'active' if record_year == current_year else 'locked'
+    else:
+        row['status'] = 'beaten'
+        holder = Driver.objects.filter(id=final_holder_id).first()
+        row['holder_name'] = holder.full_name if holder else '—'
+    return row
+
+
+def _get_driver_track_records(driver):
+    """Рекорды трасс пилота: по каждой паре (трасса, класс), где пилот когда-либо
+    держал рекорд круга, определяет статус — действующий/закреплён/перебит.
+    Рекорд принадлежит тому, кто когда-либо показал новый минимум круга в
+    классе на трассе; статус — календарный год, в котором установлен ТЕКУЩИЙ
+    рекорд (не год, когда его показал именно этот пилот, если рекорд с тех
+    пор перебивали).
+
+    Читает из Track.records_cache (обновляется командой update_track_records,
+    запускается вручную после ввода новых результатов — как update_ratings).
+    Раньше пересчитывалось вживую при каждом вызове — перебор ВСЕХ RaceResult
+    сайта на каждый рендер страницы пилота, самая тяжёлая часть страницы
+    (~1.2с из ~1.5с общего времени, профайлер 27.08.2026). Если ни одна трасса
+    ещё не закэширована (до первого запуска команды) — fallback на живой
+    расчёт через _compute_driver_track_records_live(), поведение не ломается.
+    """
+    current_year = timezone.now().year
+    tracks = list(Track.objects.exclude(records_cache={}))
+
+    if not tracks:
+        return _compute_driver_track_records_live(driver)
+
+    class_ids = {
+        int(cid)
+        for track in tracks
+        for cid, data in track.records_cache.items()
+        if driver.id in data['ever_holder_ids']
+    }
+    race_classes = {c.id: c for c in RaceClass.objects.filter(id__in=class_ids)}
+
+    records = []
+    for track in tracks:
+        for class_id_str, data in track.records_cache.items():
+            if driver.id not in data['ever_holder_ids']:
+                continue
+            records.append(_track_record_row(
+                track, race_classes[int(class_id_str)], data, driver, current_year
+            ))
 
     status_order = {'active': 0, 'locked': 1, 'beaten': 2}
     records.sort(key=lambda r: (status_order[r['status']], -r['year']))
