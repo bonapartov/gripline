@@ -464,3 +464,29 @@ html, body {
     font-size: 6.4pt;
     color: var(--mk-fg-muted);
 }
+
+/* --- Ростер (медиа-кит команды) --- */
+.mk-roster-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5mm 4mm;
+}
+
+.mk-roster-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 2mm;
+    padding: 1.3mm 0;
+    border-bottom: 1px solid var(--mk-border);
+    font-size: 8.3pt;
+}
+
+.mk-roster-name {
+    font-weight: 600;
+}
+
+.mk-roster-class {
+    color: var(--mk-fg-muted);
+    font-size: 7.6pt;
+    white-space: nowrap;
+}

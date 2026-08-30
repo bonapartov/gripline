@@ -50,7 +50,13 @@ class TeamViewSet(SnippetViewSet):
     add_to_admin_menu = False
 
     def get_urlpatterns(self):
+        # Локальный импорт — тот же циклический импорт, что и у DriverViewSet
+        # (см. комментарий там): website.team_mediakit_views -> services.team_mediakit
+        # -> services.team_stats -> website.views (этот же модуль).
+        from website.team_mediakit_views import team_mediakit_pdf_view
+
         return super().get_urlpatterns() + [
+            path("<slug:slug>/mediakit/", team_mediakit_pdf_view, name="mediakit"),
             path("<slug:slug>/", team_detail_view, name="details"),
         ]
 class TrackViewSet(SnippetViewSet):
@@ -450,7 +456,6 @@ def team_detail_view(request, slug):
 
     # Создаем сгруппированный словарь: {class_name: [{'driver': driver, 'period': period}]}
     driver_classes = {}
-    twelve_months_ago = timezone.now() - timedelta(days=365)
 
     for driver in team_drivers:
         # Получаем все результаты пилота за эту команду (без ограничения по дате)
@@ -535,6 +540,24 @@ def team_detail_view(request, slug):
 
     all_drivers = Driver.objects.order_by('last_name', 'first_name')
 
+    # Статистика и highlights команды (ЛК команды, разделы 5-6 ТЗ v1.0) —
+    # переиспользуем уже вычисленный ростер team_drivers, не пересчитываем.
+    from website.services.team_stats import (
+        compute_team_highlights,
+        compute_team_history,
+        compute_team_stats,
+        team_results as _team_results,
+    )
+    team_race_results = _team_results(team, team_drivers)
+    team_stats = compute_team_stats(team_race_results)
+    team_highlights = compute_team_highlights(team, team_drivers, team_race_results)
+    team_history = compute_team_history(team_race_results)
+
+    # Локальный импорт — см. комментарий в TeamViewSet.get_urlpatterns()
+    # про циклический импорт website.team_mediakit_views <-> website.views.
+    from website.team_mediakit_views import _is_team_manager
+    can_view_team_mediakit = _is_team_manager(request, team)
+
     # Контекст для кнопки "Вступить в команду"
     user_driver = None
     join_status = None  # 'no_auth' | 'no_driver' | 'already_member' | 'pending' | 'ready'
@@ -579,6 +602,10 @@ def team_detail_view(request, slug):
         "all_drivers": all_drivers,
         "user_driver": user_driver,
         "join_status": join_status,
+        "team_stats": team_stats,
+        "team_highlights": team_highlights,
+        "team_history": team_history,
+        "can_view_team_mediakit": can_view_team_mediakit,
         "schema_json_ld": team_schema_json_ld,
         "breadcrumb_items": team_breadcrumb_items,
     })

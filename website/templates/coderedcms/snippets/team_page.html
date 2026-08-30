@@ -107,11 +107,16 @@
         </div>
 
         <div class="col-md-8 col-lg-9">
-            <h1 class="display-4 fw-bold mb-1 text-uppercase">{{ team.name }}</h1>
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-1">
+                <h1 class="display-4 fw-bold mb-0 text-uppercase">{{ team.name }}</h1>
+                {% if can_view_team_mediakit %}
+                <a href="{{ team.get_absolute_url }}mediakit/" class="btn btn-warning fw-bold text-dark text-uppercase" target="_blank">
+                    <i class="fas fa-file-pdf me-1"></i>Медиа-кит команды
+                </a>
+                {% endif %}
+            </div>
 
-
-
-            <div class="mb-4">
+            <div class="mb-4 mt-3">
                 {% for social in team.social_links.all %}
                     <a href="{{ social.link_url }}" target="_blank" class="btn btn-outline-info btn-sm me-2 mb-2">
                         <i class="fas fa-link me-1"></i> {{ social.network_name }}
@@ -124,9 +129,18 @@
 
             <div class="card bg-dark border-secondary p-3 mb-4">
                 <h5 class="text-info border-bottom border-secondary pb-2 mb-3 text-uppercase small fw-bold">О команде</h5>
-                <div class="text-light">
-                    {{ team.description|safe|default:"Информация о команде скоро будет дополнена." }}
-                </div>
+                {% if team.description %}
+                    <div class="text-light">{{ team.description|safe }}</div>
+                {% else %}
+                    <div class="d-flex gap-2 align-items-start">
+                        <i class="fas fa-flag-checkered text-warning mt-1"></i>
+                        <div>
+                            <div class="text-white mb-1">Это ваша команда?</div>
+                            <div class="text-muted small mb-2">Войдите, чтобы заполнить описание команды и загрузить логотип.</div>
+                            <a href="/accounts/login/?next=/teams/{{ team.slug }}/" class="btn btn-success btn-sm fw-bold"><i class="fas fa-sign-in-alt me-1"></i>Войти</a>
+                        </div>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -174,7 +188,12 @@
                         {% endif %}
                     </div>
                 {% else %}
-                    <p class="text-muted text-center mb-0">Информация о руководителе отсутствует</p>
+                    <p class="text-muted text-center mb-2">Информация о руководителе отсутствует</p>
+                    <p class="text-center mb-0">
+                        <a href="/accounts/login/?next=/teams/{{ team.slug }}/" class="btn btn-outline-info btn-sm">
+                            <i class="fas fa-sign-in-alt me-1"></i>Это вы? Войдите, чтобы заполнить
+                        </a>
+                    </p>
                 {% endif %}
             </div>
         </div>
@@ -217,7 +236,85 @@
         </div>
     </div>
 
+    <!-- Статистика команды + Team highlights -->
+    {% if team_stats.total_starts %}
+    <div class="row mb-4">
+        <div class="col-md-5">
+            <div class="card bg-dark border-secondary p-3 h-100">
+                <h5 class="text-info border-bottom border-secondary pb-2 mb-3 text-uppercase small fw-bold">Статистика команды</h5>
+                <div class="row g-2 text-center">
+                    <div class="col-4 col-md">
+                        <div class="rounded-2 py-2 px-1" style="background:rgba(0,0,0,0.25); border:1px solid var(--gl-border-card, #2a2a35);">
+                            <div class="fw-bold text-white fs-4">{{ team_stats.total_starts }}</div>
+                            <div class="text-info small text-uppercase">Старты</div>
+                        </div>
+                    </div>
+                    <div class="col-4 col-md">
+                        <div class="rounded-2 py-2 px-1" style="background:rgba(0,0,0,0.25); border:1px solid var(--gl-border-card, #2a2a35);">
+                            <div class="fw-bold text-white fs-4">{{ team_stats.wins }}</div>
+                            <div class="text-info small text-uppercase">Победы</div>
+                        </div>
+                    </div>
+                    <div class="col-4 col-md">
+                        <div class="rounded-2 py-2 px-1" style="background:rgba(0,0,0,0.25); border:1px solid var(--gl-border-card, #2a2a35);">
+                            <div class="fw-bold text-white fs-4">{{ team_stats.podiums }}</div>
+                            <div class="text-info small text-uppercase">Подиумы</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md">
+                        <div class="rounded-2 py-2 px-1" style="background:rgba(0,0,0,0.25); border:1px solid var(--gl-border-card, #2a2a35);">
+                            <div class="fw-bold text-white fs-4">{{ team_stats.win_percentage }}%</div>
+                            <div class="text-info small text-uppercase">% побед</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md">
+                        <div class="rounded-2 py-2 px-1" style="background:rgba(0,0,0,0.25); border:1px solid var(--gl-border-card, #2a2a35);">
+                            <div class="fw-bold text-white fs-4">{{ team_stats.podium_percentage }}%</div>
+                            <div class="text-info small text-uppercase">% подиумов</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
+        {% if team_highlights %}
+        <div class="col-md-7">
+            <div class="card bg-dark border-secondary p-3 h-100">
+                <h5 class="text-info border-bottom border-secondary pb-2 mb-3 text-uppercase small fw-bold">Team highlights</h5>
+                <div class="row g-2">
+                    {% for h in team_highlights %}
+                    <div class="col-md-6">
+                        <div class="rounded-2 p-2 h-100" style="background:rgba(0,0,0,0.25); border-left:3px solid var(--gl-brand-yellow, #ffc107);">
+                            {% if h.type == 'title' %}
+                                <div class="text-warning small text-uppercase fw-bold">Титул</div>
+                                <div class="text-white fw-bold">{{ h.driver.full_name }} — {{ h.year }}</div>
+                                <div class="text-muted small">{{ h.class_name }}</div>
+                            {% elif h.type == 'podium' %}
+                                <div class="text-warning small text-uppercase fw-bold">Лучший подиум</div>
+                                <div class="text-white fw-bold">{{ h.position }}-е место — {{ h.result.driver.full_name }}</div>
+                                <div class="text-muted small">{{ h.result.group.page.title }} · {{ h.result.group.race_class.name }}</div>
+                            {% elif h.type == 'stability' %}
+                                <div class="text-warning small text-uppercase fw-bold">Стабильность</div>
+                                <div class="text-white fw-bold">Топ-{{ h.top_n }} в {{ h.races|pluralize_ru:"гонке,гонках,гонках" }}</div>
+                                <div class="text-muted small">{{ h.rate }}% сильных стартов, поле от {{ h.min_field }} пилотов</div>
+                            {% elif h.type == 'best_result' %}
+                                <div class="text-warning small text-uppercase fw-bold">Лучший результат</div>
+                                <div class="text-white fw-bold">{{ h.position }}-е место — {{ h.result.driver.full_name }}</div>
+                                <div class="text-muted small">{{ h.result.group.page.title }}</div>
+                            {% elif h.type == 'best_lap' %}
+                                <div class="text-warning small text-uppercase fw-bold">Лучший круг</div>
+                                <div class="text-white fw-bold font-monospace">{{ h.lap_ms|laptime }} — {{ h.result.driver.full_name }}</div>
+                                <div class="text-muted small">{{ h.class_name }}{% if h.track %} · {{ h.track.name }}{% endif %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
 
     <div class="row">
         <div class="col-12">
@@ -244,7 +341,7 @@
             </div>
             <div class="alert alert-info mb-4" style="background-color: #1a1a25; border: 1px solid #2a2a35; color: #adb5bd; border-left: 4px solid #0dcaf0;">
                 <i class="fas fa-info-circle me-2 text-info"></i>
-                Пилоты отображаются по классам, в которых они выступали <strong>за последние 12 месяцев</strong>.
+                Пилоты отображаются по классам, в которых они <strong>когда-либо выступали за эту команду</strong>.
                 Если пилот выступает в нескольких классах, он будет показан в каждом из них.
             </div>
 
@@ -302,7 +399,60 @@
 
         </div>
     </div>
+
+    {% if team_history %}
+    <div class="row mt-5">
+        <div class="col-12">
+            <h3 class="text-uppercase fw-bold mb-4 border-bottom border-primary pb-2">История выступлений команды</h3>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover border-secondary">
+                    <thead>
+                        <tr class="text-muted small uppercase">
+                            <th>Этап</th>
+                            <th>Пилоты команды</th>
+                            <th>Лучший результат</th>
+                            <th class="text-end">Ход гонки</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in team_history %}
+                        <tr>
+                            <td class="align-middle">
+                                <a href="{{ row.event.url }}" class="text-white text-decoration-none fw-bold">{{ row.event.title }}</a>
+                                <div class="small text-muted">{{ row.event_date|date:"d.m.Y" }}</div>
+                            </td>
+                            <td class="align-middle small">
+                                {% for d in row.drivers %}<a href="{{ d.url }}" class="text-info text-decoration-none">{{ d.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
+                            </td>
+                            <td class="align-middle">
+                                {% if row.best_finished %}
+                                    <span class="fw-bold text-warning">{{ row.best_result.position }}-е место</span>
+                                    <span class="text-muted small"> — {{ row.best_result.driver.full_name }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ row.best_result.final_status }}</span>
+                                    <span class="text-muted small"> — {{ row.best_result.driver.full_name }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="align-middle text-end">
+                                {% for g in row.lap_chart_groups %}
+                                <button type="button" class="btn btn-sm btn-outline-warning gl-lapchart-trigger"
+                                        data-group-id="{{ g.group_id }}" data-race-numbers="{{ g.race_numbers|join:',' }}"
+                                        title="{{ g.class_name }}">
+                                    <i class="fas fa-flag-checkered"></i>
+                                </button>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
                   </div>
+
+{% include "includes/lap_chart_modal.html" %}
 
 <!-- Modal: Вступить в команду (только для авторизованных пилотов) -->
 {% if join_status == 'ready' %}

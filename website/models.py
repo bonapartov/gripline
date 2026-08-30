@@ -1073,11 +1073,13 @@ class Team(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, m
     manager_phone = models.CharField("Телефон", max_length=30, blank=True)
     manager_social = models.URLField("Соцсети руководителя", blank=True, help_text="Ссылка на VK, Telegram и т.д.")
     description = models.TextField("Описание", blank=True, null=True)
+    city = models.CharField("Город / база", max_length=100, blank=True, null=True)
 
     panels = [
         FieldPanel('name'),
         FieldPanel('slug'),
         FieldPanel('logo'),
+        FieldPanel('city'),
         FieldPanel('description'),
         InlinePanel('social_links', label="Социальные сети команды"),
     ]

@@ -11,6 +11,7 @@ from django.db.models import Count, OuterRef, Subquery
 from django.utils import timezone
 
 from website.models import AnalyticsSettings, EventOccurrence, RaceResult
+from website.services.highlights import fallback_highlights, is_finished, stability_highlight
 from website.views import (
     _get_driver_best_title,
     _get_driver_class_ratings,
@@ -23,11 +24,6 @@ from website.views import (
 # истории, поэтому кап не жёсткий, а разумный запас).
 TITLES_MAX = 6
 TRACK_RECORDS_MAX = 6
-
-# Порог «стабильности» для топ-5 берётся вдвое меньшим, чем для топ-10
-# (mediakit_top10_min_field в AnalyticsSettings) — раздел 4.3 ТЗ v1.0.
-STABILITY_MIN_RACES = 5
-STABILITY_MIN_RATE = 0.6
 
 
 def _driver_results(driver):
@@ -52,10 +48,6 @@ def _result_date(result):
         or result.group.page.last_published_at
         or result.group.page.first_published_at
     )
-
-
-def _is_finished(result):
-    return result.final_status not in ('DNF', 'DQ')
 
 
 def _subtitle_line(city, team, karting_since_year):
@@ -113,56 +105,6 @@ def _header_data(driver, results):
     }
 
 
-def _stability_highlight(results, settings):
-    """«Стабильно топ-5/топ-10» — только если типичное поле достаточно большое
-    и доля попаданий высокая, иначе формулировка была бы нечестной (раздел 4.3)."""
-    threshold_10 = settings.mediakit_top10_min_field
-    threshold_5 = max(threshold_10 // 2, 1)
-
-    def _tier(threshold, top_n):
-        qualifying = [
-            r for r in results
-            if r.group_size and r.group_size >= threshold and _is_finished(r)
-        ]
-        if len(qualifying) < STABILITY_MIN_RACES:
-            return None
-        hits = sum(1 for r in qualifying if r.position <= top_n)
-        rate = hits / len(qualifying)
-        if rate < STABILITY_MIN_RATE:
-            return None
-        return {'top_n': top_n, 'min_field': threshold, 'races': len(qualifying), 'rate': round(rate * 100, 1)}
-
-    return _tier(threshold_5, 5) or _tier(threshold_10, 10)
-
-
-def _fallback_highlights(results):
-    """Гарантированный фолбэк — лучший результат карьеры и/или лучший круг.
-    Используется, только если титул/подиум/стабильность не применимы."""
-    items = []
-
-    finished = [r for r in results if _is_finished(r)]
-    if finished:
-        best_position = min(r.position for r in finished)
-        best_result = max(
-            (r for r in finished if r.position == best_position),
-            key=lambda r: _result_date(r) or timezone.now(),
-        )
-        items.append({'type': 'best_result', 'position': best_position, 'result': best_result})
-
-    lap_results = [r for r in results if r.best_lap_all_ms]
-    if lap_results:
-        best_lap_result = min(lap_results, key=lambda r: r.best_lap_all_ms)
-        items.append({
-            'type': 'best_lap',
-            'lap_ms': best_lap_result.best_lap_all_ms,
-            'track': getattr(best_lap_result.group.page, 'track', None),
-            'class_name': best_lap_result.group.race_class.name,
-            'result': best_lap_result,
-        })
-
-    return items
-
-
 def _career_highlights_ladder(driver, results, podiums, podium_percentage, settings):
     """Иерархия «покажи лучшую применимую ступень» (раздел 4.3 ТЗ v1.0):
     Титул → Подиум → Стабильность → фолбэк (лучший результат и/или круг).
@@ -174,11 +116,11 @@ def _career_highlights_ladder(driver, results, podiums, podium_percentage, setti
     if podiums > 0:
         return [{'type': 'podiums', 'count': podiums, 'percentage': podium_percentage}]
 
-    stability = _stability_highlight(results, settings)
+    stability = stability_highlight(results, settings)
     if stability:
         return [{'type': 'stability', **stability}]
 
-    return _fallback_highlights(results)
+    return fallback_highlights(results)
 
 
 def _ratings_last_12_months(driver):
@@ -210,7 +152,7 @@ def _top3_season_results(results):
         return {'season': None, 'results': []}
 
     latest_season = max(d.year for _, d in dated)
-    season_results = [r for r, d in dated if d.year == latest_season and _is_finished(r)]
+    season_results = [r for r, d in dated if d.year == latest_season and is_finished(r)]
     season_results.sort(key=lambda r: r.position)
 
     return {'season': latest_season, 'results': season_results[:3]}

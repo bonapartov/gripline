@@ -68,6 +68,15 @@ def _driver_photo_uri(driver):
     return f"file://{rendition.file.path}"
 
 
+def _team_logo_uri(team):
+    if not team.logo:
+        return None
+    from wagtail.images.shortcuts import get_rendition_or_not_found
+
+    rendition = get_rendition_or_not_found(team.logo, 'max-480x480')
+    return f"file://{rendition.file.path}"
+
+
 def _qr_code_data_uri(url):
     import qrcode
 
@@ -78,23 +87,19 @@ def _qr_code_data_uri(url):
     return f"data:image/png;base64,{encoded}"
 
 
-def render_mediakit_pdf(context, profile_url_absolute):
-    """context — вывод website.services.mediakit.build_mediakit_context().
-    profile_url_absolute — канонический URL профиля с доменом (для QR-кода)."""
-    driver = context['driver']
-
+def _render_pdf(template_name, template_context):
+    """Общий рендер-пайплайн — шрифты/лого/CSS/таймаут одинаковы для медиа-кита
+    пилота и команды, различается только шаблон и специфичный контекст,
+    который вызывающая сторона уже подмешала."""
     template_context = {
-        **context,
-        'profile_url_absolute': profile_url_absolute,
-        'photo_uri': _driver_photo_uri(driver),
-        'qr_code_uri': _qr_code_data_uri(profile_url_absolute),
+        **template_context,
         'logo_on_dark_uri': _file_uri(LOGO_ON_DARK_STATIC_PATH),
         'logo_on_light_uri': _file_uri(LOGO_ON_LIGHT_STATIC_PATH),
         'fonts': {key: _file_uri(f'website/fonts/mediakit/{fname}.woff2') for key, fname in FONT_FILES.items()},
         'print_css': _static_text(CSS_STATIC_PATH),
     }
 
-    html_string = render_to_string('mediakit/driver_mediakit.html', template_context)
+    html_string = render_to_string(template_name, template_context)
 
     def _render():
         import weasyprint
@@ -113,3 +118,29 @@ def render_mediakit_pdf(context, profile_url_absolute):
         executor.shutdown(wait=False)
 
     return pdf_bytes
+
+
+def render_mediakit_pdf(context, profile_url_absolute):
+    """context — вывод website.services.mediakit.build_mediakit_context().
+    profile_url_absolute — канонический URL профиля с доменом (для QR-кода)."""
+    driver = context['driver']
+    template_context = {
+        **context,
+        'profile_url_absolute': profile_url_absolute,
+        'photo_uri': _driver_photo_uri(driver),
+        'qr_code_uri': _qr_code_data_uri(profile_url_absolute),
+    }
+    return _render_pdf('mediakit/driver_mediakit.html', template_context)
+
+
+def render_team_mediakit_pdf(context, profile_url_absolute):
+    """context — вывод website.services.team_mediakit.build_mediakit_context().
+    profile_url_absolute — канонический URL /teams/<slug>/ с доменом (для QR-кода)."""
+    team = context['team']
+    template_context = {
+        **context,
+        'profile_url_absolute': profile_url_absolute,
+        'logo_uri': _team_logo_uri(team),
+        'qr_code_uri': _qr_code_data_uri(profile_url_absolute),
+    }
+    return _render_pdf('mediakit/team_mediakit.html', template_context)

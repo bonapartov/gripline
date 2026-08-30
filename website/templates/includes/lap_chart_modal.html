@@ -85,10 +85,20 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
+    // data-race-numbers (через запятую) — несколько пилотов сразу (история
+    // команды); data-race-number — один пилот (как было). Первое в приоритете.
+    function raceNumbersFrom(btn) {
+        var multi = btn.getAttribute('data-race-numbers');
+        if (multi) {
+            return multi.split(',').map(function (s) { return parseInt(s.trim(), 10); }).filter(function (n) { return !isNaN(n); });
+        }
+        return parseInt(btn.getAttribute('data-race-number'), 10);
+    }
+
     // Триггеры уже в DOM на момент загрузки страницы.
     document.querySelectorAll('.gl-lapchart-trigger').forEach(function (btn) {
         btn.addEventListener('click', function () {
-            openLapChart(btn.getAttribute('data-group-id'), parseInt(btn.getAttribute('data-race-number'), 10));
+            openLapChart(btn.getAttribute('data-group-id'), raceNumbersFrom(btn));
         });
     });
 
@@ -98,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('click', function (e) {
         var btn = e.target.closest('.gl-lapchart-trigger-dynamic');
         if (!btn) { return; }
-        openLapChart(btn.getAttribute('data-group-id'), parseInt(btn.getAttribute('data-race-number'), 10));
+        openLapChart(btn.getAttribute('data-group-id'), raceNumbersFrom(btn));
     });
 });
 </script>

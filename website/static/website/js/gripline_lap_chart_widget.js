@@ -24,15 +24,20 @@
  * той же сессии для получения имени пилота.
  *
  * Паттерн размещения: одна и та же модалка (см. #lapChartModal) переиспользуется
- * из двух мест — таблицы результатов на странице этапа (website/templates/
+ * из нескольких мест — таблицы результатов на странице этапа (website/templates/
  * coderedcms/pages/event_page.html, кнопка play между «Шасси» и «Лучший
- * круг») и истории выступлений на странице пилота (website/templates/
- * coderedcms/snippets/driver_page.html, ссылка «Ход гонки →»). В обоих
- * случаях клик открывает модалку с этим виджетом, где сразу выбран (select)
- * нужный пилот (selected = race_number при инициализации, см.
- * GriplineLapChart.init — сейчас по умолчанию выбирается первый пилот в
- * drivers; при открытии из таблицы нужно после init() вызвать
- * instance.select(raceNumber), либо передать options.initialSelected).
+ * круг»), истории выступлений на странице пилота (website/templates/
+ * coderedcms/snippets/driver_page.html, ссылка «Ход гонки →») и истории
+ * выступлений команды (website/templates/coderedcms/snippets/team_page.html —
+ * там сразу подсвечены ВСЕ пилоты команды в этом заезде, не один). В любом
+ * случае клик открывает модалку с этим виджетом, где сразу выбран (select)
+ * нужный пилот(-ы) — options.initialSelected принимает либо один race_number
+ * (число — как раньше, для одиночного выделения), либо массив race_number
+ * (для нескольких пилотов сразу, команда). Внутри всегда хранится как Set
+ * (объект-мапа num->true) — см. toSelectedSet(). Клик по пилоту в виджете
+ * всегда переключает в одиночный режим (или снимает выбор, если кликнули по
+ * уже единственному выбранному) — так же, как работало до multi-select,
+ * чтобы не менять привычное поведение при ручном клике.
  * Данные сессии — всегда Финал, вне зависимости от того, какая сессия
  * сейчас отображается в таблице очков.
  *
@@ -61,6 +66,18 @@
   }
 
   function lerp(a, b, f) { return a + (b - a) * f; }
+
+  // Скаляр или массив race_number -> {num: true, ...}. null/undefined -> {}.
+  function toSelectedSet(val) {
+    var s = {};
+    if (val == null) { return s; }
+    if (Array.isArray(val)) {
+      val.forEach(function (n) { s[n] = true; });
+      return s;
+    }
+    s[val] = true;
+    return s;
+  }
 
   // Catmull-Rom -> кубический Bezier: та же мягкость кривой, что и
   // tension:0.25 в Chart.js, но без зависимости от библиотеки.
@@ -155,8 +172,13 @@
       gAxis.appendChild(at);
     }
 
-    var selected = options.initialSelected != null ? options.initialSelected : (drivers.length ? drivers[0].num : null);
+    var selected = options.initialSelected != null
+      ? toSelectedSet(options.initialSelected)
+      : toSelectedSet(drivers.length ? drivers[0].num : null);
     var lineEls = {}, headEls = {}, chipEls = {};
+
+    function isSelected(num) { return !!selected[num]; }
+    function selectedCount() { return Object.keys(selected).length; }
 
     drivers.forEach(function (d) {
       var pl = svgEl('path', { fill: 'none', style: 'cursor:pointer;' });
@@ -205,8 +227,8 @@
 
     function render(tt) {
       drivers.forEach(function (d) {
-        var isSel = selected === d.num;
-        var dim = selected !== null && !isSel;
+        var isSel = isSelected(d.num);
+        var dim = selectedCount() > 0 && !isSel;
         var pts = [];
         for (var i = 0; i <= Math.floor(tt); i += 1) { pts.push({ x: x(i), y: y(d.pos[i]) }); }
         var head = pointAt(d, tt);
@@ -223,8 +245,15 @@
       });
       scrub.value = tt;
       var stageIdx = Math.round(tt);
-      if (selected === null) { infoName.textContent = 'Выбери пилота'; infoDelta.textContent = stageLabel(stageIdx); return; }
-      var d = drivers.filter(function (dd) { return dd.num === selected; })[0];
+      var count = selectedCount();
+      if (count === 0) { infoName.textContent = 'Выбери пилота'; infoDelta.textContent = stageLabel(stageIdx); return; }
+      if (count > 1) {
+        infoName.textContent = count + ' пилотов выделено';
+        infoDelta.textContent = stageLabel(stageIdx);
+        return;
+      }
+      var onlyNum = Number(Object.keys(selected)[0]);
+      var d = drivers.filter(function (dd) { return dd.num === onlyNum; })[0];
       infoName.textContent = d.name + ' (№' + d.num + ')';
       var curPos = Math.round(lerp(d.pos[Math.floor(tt)], d.pos[Math.min(Math.floor(tt) + 1, stages)], tt - Math.floor(tt)));
       infoDelta.textContent = stageLabel(stageIdx) + ' — P' + curPos;
@@ -232,8 +261,11 @@
 
     function stageLabel(i) { return i === 0 ? 'старт' : 'круг ' + i; }
 
+    // Клик по пилоту — всегда одиночный режим (снимает мульти-выделение,
+    // с которым модалка могла открыться) — как и раньше до multi-select,
+    // ручной клик переключает ровно одного пилота.
     function select(num) {
-      selected = selected === num ? null : num;
+      selected = (selectedCount() === 1 && isSelected(num)) ? {} : toSelectedSet(num);
       render(parseFloat(scrub.value));
     }
 

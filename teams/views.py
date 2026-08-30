@@ -274,8 +274,9 @@ class TeamForm(forms.ModelForm):
 
     class Meta:
         model = Team
-        fields = ['description', 'manager_name', 'manager_email', 'manager_phone', 'manager_social']
+        fields = ['city', 'description', 'manager_name', 'manager_email', 'manager_phone', 'manager_social']
         widgets = {
+            'city': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Москва'}),
             'description': forms.Textarea(attrs={'rows': 4, 'class': 'form-control', 'placeholder': 'Расскажите о команде...'}),
             'manager_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Иванов Иван Иванович'}),
             'manager_email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'manager@team.ru'}),
