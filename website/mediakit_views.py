@@ -7,6 +7,7 @@ website/services/mediakit.py (контекст) и website/services/pdf.py (ре
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 from wagtail.models import Site
+from wagtailcache.cache import nocache_page
 
 from website.models import Driver
 from website.services.mediakit import build_mediakit_context
@@ -26,7 +27,16 @@ def _is_mediakit_owner(request, driver):
     return profile.driver_id == driver.id and profile.verified
 
 
+@nocache_page
 def driver_mediakit_pdf_view(request, slug):
+    """Персонализированный, owner-gated эндпоинт — @nocache_page обязателен:
+    wagtailcache подключён глобальным middleware (UpdateCacheMiddleware +
+    FetchFromCacheMiddleware, mysite/settings/base.py), кэширует по URL без
+    учёта пользователя/сессии. Без декоратора первый ответ на этот URL
+    (даже 403 анонимному) закэшируется и будет отдан всем следующим
+    посетителям — включая обход owner-гейта. WAGTAIL_CACHE=False в dev.py
+    ровно для этого эндпоинта отключён локально, поэтому баг не проявлялся
+    ни разу при разработке — найден только при первой проверке на проде."""
     driver = get_object_or_404(Driver, slug=slug)
 
     if not _is_mediakit_owner(request, driver):
