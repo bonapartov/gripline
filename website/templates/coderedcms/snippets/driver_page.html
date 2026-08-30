@@ -163,7 +163,12 @@
             </div>
         </div>
 
-        <div class="ms-auto">
+        <div class="d-flex flex-column align-items-end gap-2 ms-auto">
+            {% if can_view_mediakit %}
+            <a href="{{ driver.get_absolute_url }}mediakit/" class="gl-share-btn text-decoration-none" target="_blank">
+                <i class="fas fa-file-pdf me-1"></i>Медиа-кит пилота
+            </a>
+            {% endif %}
             <button type="button" class="gl-share-btn" id="glShareBtn"><i class="fas fa-share-nodes me-1"></i>Поделиться результатом</button>
         </div>
     </div>

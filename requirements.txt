@@ -7,12 +7,14 @@ anyascii==0.3.3
 asgiref==3.11.1
 attrs==26.1.0
 beautifulsoup4==4.14.3
+brotli==1.2.0
 certifi==2026.2.25
 cffi==2.0.0
 charset-normalizer==3.4.6
 click==8.3.1
 coderedcms==6.0.0
 cryptography==46.0.6
+cssselect2==0.9.0
 decorator==5.2.1
 defusedxml==0.7.1
 diff-match-patch==20241021
@@ -31,6 +33,7 @@ djangorestframework==3.17.1
 draftjs_exporter==5.2.0
 et_xmlfile==2.0.0
 filetype==1.2.0
+fonttools==4.63.0
 frozenlist==1.8.0
 future==1.0.0
 geocoder==1.38.1
@@ -57,7 +60,9 @@ psycopg-binary==3.3.3
 pycparser==3.0
 pydantic==2.12.5
 pydantic_core==2.41.5
+pydyf==0.12.1
 PyJWT==2.12.1
+pyphen==0.18.1
 PySocks==1.7.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
@@ -76,6 +81,8 @@ sqlparse==0.5.5
 tablib==3.9.0
 telepath==0.3.1
 threadpoolctl==3.6.0
+tinycss2==1.5.1
+tinyhtml5==2.1.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
 tzdata==2025.3
@@ -87,5 +94,8 @@ wagtail-flexible-forms==2.1.0
 wagtail-markdown==0.14.1
 wagtail-modeladmin==2.2.0
 wagtail-seo==3.1.1
+weasyprint==69.0
+webencodings==0.6.1
 Willow==1.12.0
 yarl==1.23.0
+zopfli==0.4.3

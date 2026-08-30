@@ -1951,6 +1951,18 @@ class AnalyticsSettings(models.Model):
         ),
     )
 
+    # --- Медиа-кит пилота ---
+    mediakit_top10_min_field = models.IntegerField(
+        default=15,
+        verbose_name="Мин. размер поля для «топ-10» в медиа-ките",
+        help_text=(
+            "Медиа-кит показывает бейдж «стабильно топ-10» только если типичный "
+            "размер стартового поля пилота в классе не меньше этого значения — "
+            "иначе формулировка была бы нечестной. Порог для «топ-5» берётся "
+            "вдвое меньшим."
+        ),
+    )
+
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

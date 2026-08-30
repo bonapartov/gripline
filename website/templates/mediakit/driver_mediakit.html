@@ -1,0 +1,164 @@
+{% load website_tags %}<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Медиа-кит — {{ driver.full_name }}</title>
+<style>
+@font-face { font-family: 'Inter Tight'; font-weight: 300; src: url('{{ fonts.InterTight_Light }}') format('woff2'); }
+@font-face { font-family: 'Inter Tight'; font-weight: 400; src: url('{{ fonts.InterTight_Regular }}') format('woff2'); }
+@font-face { font-family: 'Inter Tight'; font-weight: 500; src: url('{{ fonts.InterTight_Medium }}') format('woff2'); }
+@font-face { font-family: 'Inter Tight'; font-weight: 600; src: url('{{ fonts.InterTight_SemiBold }}') format('woff2'); }
+@font-face { font-family: 'Inter Tight'; font-weight: 700; src: url('{{ fonts.InterTight_Bold }}') format('woff2'); }
+@font-face { font-family: 'Inter Tight'; font-weight: 800; src: url('{{ fonts.InterTight_ExtraBold }}') format('woff2'); }
+@font-face { font-family: 'Inter Tight'; font-weight: 900; src: url('{{ fonts.InterTight_ExtraBold }}') format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-weight: 400; src: url('{{ fonts.JetBrainsMono_Regular }}') format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-weight: 700; src: url('{{ fonts.JetBrainsMono_Bold }}') format('woff2'); }
+{{ print_css|safe }}
+</style>
+</head>
+<body>
+<div class="mk-page">
+
+    <header class="mk-header">
+        <div class="mk-header-top">
+            <div class="mk-header-logo">
+                {% if logo_on_dark_uri %}<img src="{{ logo_on_dark_uri }}" alt="Gripline">{% endif %}
+                <span class="mk-header-wordmark">GRIPLINE</span>
+            </div>
+            <div class="mk-header-eyebrow">Медиа-кит пилота · сезон {{ top3_season.season|default:generated_at.year }}</div>
+        </div>
+        <div class="mk-header-body">
+            {% if photo_uri %}
+                <img class="mk-photo" src="{{ photo_uri }}" alt="{{ driver.full_name }}">
+            {% else %}
+                <div class="mk-photo-empty">Нет фото</div>
+            {% endif %}
+            <div class="mk-header-info">
+                <div class="mk-chip-row">
+                    {% for class_name in header.current_classes %}<span class="mk-chip mk-chip-class">{{ class_name }}</span>{% endfor %}
+                    {% if header.race_number %}<span class="mk-chip mk-chip-number">№ {{ header.race_number }}</span>{% endif %}
+                </div>
+                <div class="mk-name">{{ driver.full_name }}</div>
+                <div class="mk-subtitle">{{ header.subtitle }}</div>
+            </div>
+        </div>
+    </header>
+    <div class="mk-topbar"></div>
+
+    <section class="mk-summary">
+        {% if header.karting_since_year %}В картинге с {{ header.karting_since_year }} года{% if header.current_classes %}, выступает в {{ header.current_classes|length|pluralize_ru:"классе,классах,классах" }} {{ header.current_classes|join:", " }}{% endif %}. {% endif %}
+        {% for h in highlights %}
+            {% if h.type == 'title' %}Чемпион {{ h.year }} года в классе {{ h.class_name }} ({{ h.championship.title }}). {% elif h.type == 'podiums' %}{{ h.count|pluralize_ru:"подиум,подиума,подиумов" }} за карьеру ({{ h.percentage }}% стартов). {% elif h.type == 'stability' %}Стабильно финиширует в топ-{{ h.top_n }} — {{ h.rate }}% сильных стартов (поле от {{ h.min_field }} пилотов). {% elif h.type == 'best_result' %}Лучший результат карьеры — {{ h.position }}-е место ({{ h.result.group.page.title }}). {% elif h.type == 'best_lap' %}Личный лучший круг: {{ h.lap_ms|laptime }} ({{ h.class_name }}{% if h.track %}, {{ h.track.name }}{% endif %}). {% endif %}
+        {% endfor %}
+    </section>
+
+    {% if highlights %}
+    <section class="mk-highlights">
+        {% for h in highlights %}
+            <div class="mk-highlight-card">
+                {% if h.type == 'title' %}
+                    <span class="mk-highlight-label">Титул</span><span class="mk-highlight-value">Чемпион {{ h.year }} · {{ h.class_name }}</span>
+                {% elif h.type == 'podiums' %}
+                    <span class="mk-highlight-label">Подиумы</span><span class="mk-highlight-value">{{ h.count }} из {{ stats.total_starts }} стартов</span>
+                {% elif h.type == 'stability' %}
+                    <span class="mk-highlight-label">Стабильность</span><span class="mk-highlight-value">Топ-{{ h.top_n }} в {{ h.races|pluralize_ru:"гонке,гонках,гонках" }} · поле от {{ h.min_field }} пилотов</span>
+                {% elif h.type == 'best_result' %}
+                    <span class="mk-highlight-label">Лучший результат</span><span class="mk-highlight-value">{{ h.position }}-е место · {{ h.result.group.page.title }}</span>
+                {% elif h.type == 'best_lap' %}
+                    <span class="mk-highlight-label">Лучший круг</span><span class="mk-highlight-value">{{ h.lap_ms|laptime }}{% if h.track %} · {{ h.track.name }}{% endif %}</span>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </section>
+    {% endif %}
+
+    <section class="mk-stats-grid">
+        <div class="mk-stat"><div class="mk-stat-value">{{ stats.total_starts }}</div><div class="mk-stat-label">Старты</div></div>
+        <div class="mk-stat mk-stat-highlight"><div class="mk-stat-value">{{ stats.wins }}</div><div class="mk-stat-label">Победы</div></div>
+        <div class="mk-stat"><div class="mk-stat-value">{{ stats.podiums }}</div><div class="mk-stat-label">Подиумы</div></div>
+        <div class="mk-stat"><div class="mk-stat-value">{{ stats.win_percentage }}</div><div class="mk-stat-label">% побед</div></div>
+        <div class="mk-stat"><div class="mk-stat-value">{{ stats.podium_percentage }}</div><div class="mk-stat-label">% подиумов</div></div>
+    </section>
+
+    <div class="mk-grid">
+        <div>
+            {% if titles_and_achievements %}
+            <section class="mk-section">
+                <div class="mk-section-title">Титулы и достижения</div>
+                {% for t in titles_and_achievements %}
+                    <div class="mk-title-row">
+                        <div class="mk-title-year">{{ t.year }}</div>
+                        <div>
+                            <div class="mk-title-name">{% if t.position == 1 %}Чемпион{% else %}{{ t.position }}-е место{% endif %}, {{ t.championship.title }}</div>
+                            <div class="mk-title-meta">{{ t.class_name }}{% if t.position == 1 %} · Общий зачёт, {{ t.starts|pluralize_ru:"этап,этапа,этапов" }}{% endif %}</div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </section>
+            {% endif %}
+
+            {% if track_records %}
+            <section class="mk-section">
+                <div class="mk-section-title">Рекорды круга</div>
+                {% for r in track_records %}
+                    <div class="mk-track-row">
+                        <span class="mk-track-name">{{ r.track.name }}</span>
+                        <span class="mk-track-dots"></span>
+                        <span class="mk-track-time">{{ r.lap_ms|laptime }}</span>
+                    </div>
+                {% endfor %}
+            </section>
+            {% endif %}
+        </div>
+
+        <div>
+            {% if ratings %}
+            <div class="mk-rating-panel">
+                <div class="mk-rating-panel-header">
+                    <span class="mk-rating-panel-title">Рейтинг Gripline</span>
+                    <span class="mk-rating-panel-period">за 12 месяцев</span>
+                </div>
+                {% for r in ratings %}
+                    <div class="mk-rating-row">
+                        <span class="mk-rating-class">{{ r.class_name }}</span>
+                        <span class="mk-rating-score">{{ r.normalized_score }}</span>
+                        <span class="mk-rating-rank">{{ r.rank }}/{{ r.total }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if top3_season.results %}
+            <section class="mk-section">
+                <div class="mk-section-title">Лучшие результаты сезона {{ top3_season.season }}</div>
+                {% for r in top3_season.results %}
+                    <div class="mk-top3-row">
+                        <div class="mk-top3-position">{{ r.position }}</div>
+                        <div class="mk-top3-event">{{ r.group.page.title }} · {{ r.group.race_class.name }}</div>
+                        <div class="mk-top3-date">{{ r.group.page.first_published_at|date:"d.m.Y" }}</div>
+                    </div>
+                {% endfor %}
+            </section>
+            {% endif %}
+        </div>
+    </div>
+
+    <footer class="mk-footer">
+        {% if qr_code_uri %}<img class="mk-footer-qr" src="{{ qr_code_uri }}" alt="QR-код профиля">{% endif %}
+        <div class="mk-footer-info">
+            <div class="mk-footer-label">Полный профиль пилота</div>
+            <div class="mk-footer-url">gripline.ru{{ profile_url }}</div>
+            <div class="mk-footer-date">Документ сформирован {{ generated_at|date:"d.m.Y" }} · данные актуальны на момент генерации</div>
+        </div>
+        <div class="mk-footer-brand">
+            <div>
+                <div class="mk-footer-brand-name">GRIPLINE</div>
+                <div class="mk-footer-brand-tagline">Рейтинг и календарь картинга</div>
+            </div>
+            {% if logo_on_light_uri %}<img src="{{ logo_on_light_uri }}" alt="Gripline">{% endif %}
+        </div>
+    </footer>
+
+</div>
+</body>
+</html>

@@ -32,7 +32,13 @@ class DriverViewSet(SnippetViewSet):
     add_to_admin_menu = False
 
     def get_urlpatterns(self):
+        # Локальный импорт: website.mediakit_views -> services.mediakit ->
+        # website.views (этот же модуль) — на уровне модуля был бы цикл,
+        # get_urlpatterns() вызывается уже после полной загрузки views.py.
+        from website.mediakit_views import driver_mediakit_pdf_view
+
         return super().get_urlpatterns() + [
+            path("<slug:slug>/mediakit/", driver_mediakit_pdf_view, name="mediakit"),
             path("<slug:slug>/", driver_detail_view, name="details"),
         ]
 
@@ -324,6 +330,11 @@ def driver_detail_view(request, slug):
 
     from website.schema import driver_person_dict, render_json_ld, _absolute_url
 
+    # Локальный импорт — см. комментарий в DriverViewSet.get_urlpatterns()
+    # про циклический импорт website.mediakit_views <-> website.views.
+    from website.mediakit_views import _is_mediakit_owner
+    can_view_mediakit = _is_mediakit_owner(request, driver)
+
     current_team_id = _compute_driver_current_teams().get(driver.id)
     current_team = Team.objects.filter(id=current_team_id).first() if current_team_id else None
     driver_schema_json_ld = render_json_ld(
@@ -362,6 +373,7 @@ def driver_detail_view(request, slug):
         "available_seasons": available_seasons,
         "available_history_classes": available_history_classes,
         "driver_profile": driver_profile,
+        "can_view_mediakit": can_view_mediakit,
         "schema_json_ld": driver_schema_json_ld,
         "breadcrumb_items": driver_breadcrumb_items,
     })
@@ -1432,16 +1444,14 @@ def _get_driver_track_records(driver):
     return records
 
 
-def _get_driver_career_highlights(driver, results, wins, podiums, total_starts, podium_percentage):
-    """Собирает 4 бейджа Career highlights для страницы пилота.
+def _get_driver_best_title(driver):
+    """Самый свежий титул пилота (1-е место в классе по итогам сезона).
 
-    Возвращает [] если данных нет вообще (блок не рендерится).
+    None, если пилот никогда не был чемпионом. Переиспользуется страницей
+    пилота (Career highlights) и медиа-китом (website/services/mediakit.py).
     """
     from .models import ChampionshipPage
 
-    highlights = {}
-
-    # --- Титул: 1-е место в классе по итогам сезона (календарный год) ---
     best_title = None
     for champ in ChampionshipPage.objects.live():
         for year in champ.get_years():
@@ -1457,6 +1467,17 @@ def _get_driver_career_highlights(driver, results, wins, podiums, total_starts, 
                             'year': year,
                             'class_name': data['name'],
                         }
+    return best_title
+
+
+def _get_driver_career_highlights(driver, results, wins, podiums, total_starts, podium_percentage):
+    """Собирает 4 бейджа Career highlights для страницы пилота.
+
+    Возвращает [] если данных нет вообще (блок не рендерится).
+    """
+    highlights = {}
+
+    best_title = _get_driver_best_title(driver)
     if best_title:
         highlights['title'] = best_title
 
