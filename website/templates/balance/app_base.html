@@ -1,0 +1,98 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{% block title %}Развесовка карта — калькулятор Front/Rear, Cross Weight | Gripline{% endblock %}</title>
+<meta name="description" content="{% block meta_description %}Онлайн-калькулятор развесовки карта: front/rear, left/right, cross weight — с диагностикой и визуальным размещением балласта. Бесплатно, без регистрации.{% endblock %}">
+<meta name="robots" content="{% block robots_content %}index, follow{% endblock %}">
+{% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
+
+{# OG/Twitter — вручную, не через wagtail-seo: /balance/ не Wagtail Page,
+   SeoMixin на обычный Django view не распространяется (ТЗ 9.3 ошибочно
+   ссылался на пакет "wagtail-metadata" — в проекте фактически wagtail-seo,
+   и тот работает только на Page-моделях). #}
+<meta property="og:site_name" content="Gripline">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:title" content="{% block og_title %}Развесовка карта — калькулятор Gripline{% endblock %}">
+<meta property="og:description" content="{% block og_description %}Front/rear, left/right, cross weight с диагностикой и визуальным размещением балласта. Бесплатно, без регистрации.{% endblock %}">
+{% if canonical_url %}<meta property="og:url" content="{{ canonical_url }}">{% endif %}
+{% if og_image_url %}<meta property="og:image" content="{{ og_image_url }}">{% endif %}
+<meta name="twitter:card" content="{% if og_image_url %}summary_large_image{% else %}summary{% endif %}">
+<meta name="twitter:title" content="{% block twitter_title %}Развесовка карта — калькулятор Gripline{% endblock %}">
+<meta name="twitter:description" content="{% block twitter_description %}Front/rear, left/right, cross weight с диагностикой и визуальным размещением балласта.{% endblock %}">
+{% if og_image_url %}<meta name="twitter:image" content="{{ og_image_url }}">{% endif %}
+
+{% if schema_json_ld %}{{ schema_json_ld }}{% endif %}
+
+<meta name="theme-color" content="#0e131a">
+<link rel="manifest" href="{% url 'balance:manifest' %}">
+<link rel="apple-touch-icon" href="{% static 'website/images/balance/apple-touch-icon.png' %}">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Развесовка">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="stylesheet" href="{% static 'website/css/tokens.css' %}">
+<link rel="preload" href="{% static 'website/vendor/fontawesome/css/all.min.css' %}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="{% static 'website/vendor/fontawesome/css/all.min.css' %}"></noscript>
+<link rel="stylesheet" href="{% static 'website/css/balance-app.css' %}">
+{% block extra_head %}{% endblock %}
+
+{# Аналитика (Блок 10, ТЗ §10.1) — тот же счётчик Яндекс.Метрики, что и на
+   gripline.ru (id 108405016), чтобы видеть сквозную воронку «Матчасть →
+   калькулятор → регистрация». Отдельный счётчик для /balance/ не заводим. #}
+<script type="text/javascript">
+  (function(m,e,t,r,i,k,a){
+    m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+    m[i].l=1*new Date();
+    for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+    k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+  })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=108405016', 'ym');
+  ym(108405016, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
+  window.__balanceYmCounter = 108405016;
+</script>
+<noscript><div><img src="https://mc.yandex.ru/watch/108405016" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+</head>
+<body>
+<div class="gl-balance-shell">
+  <header class="gl-balance-topbar">
+    <a href="/" class="gl-balance-brand" target="_blank" rel="noopener">
+      <img src="{% static 'website/images/mediakit/gripline-mark-color.svg' %}" alt="" class="gl-balance-brand__mark">
+      <span class="gl-balance-brand__text">Проект <strong>Gripline</strong></span>
+    </a>
+    <h1 class="gl-balance-topbar__title">{% block page_title %}Развесовка{% endblock %}</h1>
+  </header>
+
+  <main class="gl-balance-content">
+    {% block content %}{% endblock %}
+    <footer class="gl-balance-footer">
+      <a href="/privacy-policy/">Политика конфиденциальности</a>
+    </footer>
+  </main>
+
+  <nav class="gl-balance-tabbar">
+    <a href="{% url 'balance:home' %}" class="gl-balance-tab gl-balance-tab--active">
+      <i class="fa-solid fa-scale-balanced"></i>
+      <span>Калькулятор</span>
+    </a>
+    <span class="gl-balance-tab gl-balance-tab--disabled" title="Доступно после входа — скоро">
+      <i class="fa-solid fa-layer-group"></i>
+      <span>Мои сетапы</span>
+    </span>
+  </nav>
+</div>
+
+<div id="gl-balance-install-banner" class="gl-balance-install-banner" hidden>
+  <span data-role="text"></span>
+  <button type="button" class="gl-balance-install-banner__accept" data-role="accept" hidden>Добавить</button>
+  <button type="button" class="gl-balance-install-banner__dismiss" data-role="dismiss" aria-label="Закрыть">
+    <i class="fa-solid fa-xmark"></i>
+  </button>
+</div>
+
+<script src="{% static 'website/js/balance-pwa.js' %}"></script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

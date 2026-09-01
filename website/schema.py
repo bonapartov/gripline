@@ -187,3 +187,33 @@ def breadcrumb_list_dict(items):
             for i, item in enumerate(items)
         ],
     }
+
+
+def balance_webapp_dict(site, canonical_url):
+    """
+    WebApplication structured data для лендинга /balance/ (ТЗ «Развесовка»,
+    Блок 8, раздел 9.4). Без AggregateRating — то же правило, что и на
+    основном сайте (см. CLAUDE.md).
+
+    publisher — тот же облегчённый паттерн Organization (name/url, без
+    logo/sameAs), что уже используется как fallback-автор в
+    ArticlePage.seo_struct_article_dict (website/models.py) — единого
+    переиспользуемого Organization-объекта c logo/sameAs в проекте нет:
+    сайтовая Organization-разметка wagtail-seo (Settings → SEO) в
+    установленной версии пакета вообще не имеет поля sameAs, а сам пример
+    в ТЗ просит только name/url, так что расхождения с ТЗ здесь нет.
+    """
+    return {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Развесовка карта",
+        "url": canonical_url,
+        "applicationCategory": "SportsApplication",
+        "operatingSystem": "Any",
+        "offers": {"@type": "Offer", "price": "0", "priceCurrency": "RUB"},
+        "publisher": {
+            "@type": "Organization",
+            "name": "Gripline",
+            "url": site.root_url if site else "https://gripline.ru",
+        },
+    }

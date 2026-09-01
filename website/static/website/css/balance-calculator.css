@@ -1,0 +1,622 @@
+/*
+ * Калькулятор развесовки (/balance/, Блок 2) — ввод 4 угловых весов на
+ * упрощённой схеме карта + результаты в реальном времени. Логика — в
+ * balance-calculator.js; здесь только вёрстка, токены --gl-* (см. правило
+ * в balance-app.css про реальную палитру сайта, а не логотипа).
+ *
+ * Схема здесь намеренно простая (силуэт, не интерактивные зоны балласта) —
+ * полноценный визуальный редактор с drag-and-drop это Блок 4, самая
+ * трудоёмкая часть ТЗ. Достраивать зоны крепления сюда не стал: Блок 4 всё
+ * равно переверстает эту схему под drag-and-drop, тратить время на детали,
+ * которые тут же заменят, не имеет смысла.
+ */
+
+.gl-calc {
+  max-width: 420px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gl-space-4);
+}
+
+/* ── Класс (опционально) ─────────────────────────────────────────── */
+
+.gl-calc-field label {
+  display: block;
+  margin-bottom: var(--gl-space-1);
+}
+
+/* Стилизованный нативный <select> — тот же паттерн, что .gl-filter-select
+ * на странице пилота (driver_page.html). Отдельный кастомный JS-дропдаун
+ * заявлен в ТЗ как «известное правило проекта», но по факту в кодовой базе
+ * почти везде используют именно стилизованный select — проверено, реальных
+ * div-based дропдаунов в проекте один (ad-hoc на compare_drivers.html, не
+ * переиспользуемый компонент). Проще и надёжнее переиспользовать
+ * работающий паттерн, чем городить новый ради формулировки ТЗ, которая
+ * сама себе не соответствует. */
+.gl-calc-select {
+  width: 100%;
+  background: var(--gl-surface-card);
+  color: var(--gl-fg-2);
+  border: 1px solid var(--gl-border-card);
+  border-radius: var(--gl-radius-md);
+  padding: var(--gl-space-2) var(--gl-space-3);
+  font-size: 0.9rem;
+  min-height: 44px;
+}
+
+/* ── Настройки над схемой (класс + геометрия) ─────────────────────── */
+
+.gl-calc-setup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gl-space-2);
+}
+
+.gl-calc-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gl-space-2);
+}
+
+/* ── Единая схема карта: угловые поля + балласт + CG на одном контуре ─
+ * (ТЗ §3.4 + §5.1 — одна «схема», не две). Слой балласта включается,
+ * когда заполнена геометрия; без неё Блок 2 (веса + метрики) работает
+ * как раньше, схема просто не принимает грузы. */
+
+.gl-calc-schema {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 280 / 400;
+  margin: 0 auto;
+}
+
+.gl-calc-schema__svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none; /* драг груза — полностью на нас, без перехвата браузером как скролл/зум */
+  cursor: pointer;
+}
+
+.gl-calc-schema--ballast-locked .gl-calc-schema__svg {
+  cursor: default;
+}
+
+.gl-calc-schema__frame {
+  fill: var(--gl-surface-card);
+  stroke: var(--gl-border-card);
+  stroke-width: 2;
+}
+
+.gl-calc-schema__wheel {
+  fill: var(--gl-surface-card-hover);
+  stroke: var(--gl-border-divider);
+  stroke-width: 1;
+}
+
+.gl-calc-schema__seat {
+  fill: var(--gl-surface-navbar);
+}
+
+/* Зоны крепления балласта — подсказка, не ограничение (ТЗ §5.1).
+ * Пока слой балласта заблокирован (нет геометрии) — прячем, чтобы не
+ * намекать на интерактивность, которой ещё нет. */
+.gl-calc-zone {
+  fill: var(--gl-brand-yellow);
+  fill-opacity: 0.06;
+  stroke: var(--gl-brand-yellow);
+  stroke-opacity: 0.25;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.gl-calc-schema--ballast-locked .gl-calc-zone {
+  opacity: 0;
+}
+
+.gl-calc-schema__lock {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(80%, 260px);
+  margin: 0;
+  padding: var(--gl-space-2) var(--gl-space-3);
+  text-align: center;
+  font-size: var(--gl-text-tiny-size);
+  color: var(--gl-fg-3);
+  background: var(--gl-surface-card);
+  border: 1px solid var(--gl-border-card);
+  border-radius: var(--gl-radius-md);
+  pointer-events: none;
+}
+
+.gl-calc-schema:not(.gl-calc-schema--ballast-locked) .gl-calc-schema__lock {
+  display: none;
+}
+
+.gl-calc-schema__hint {
+  font-size: var(--gl-text-small-size);
+  color: var(--gl-fg-3);
+  margin: calc(-1 * var(--gl-space-2)) 0 0;
+}
+
+.gl-calc-corner {
+  position: absolute;
+  width: 26%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none; /* тап мимо инпута проходит сквозь к SVG (добавление груза) */
+}
+
+.gl-calc-corner span {
+  font-size: var(--gl-text-tiny-size);
+  text-transform: uppercase;
+  letter-spacing: var(--gl-tracking-wider);
+  color: var(--gl-fg-4);
+}
+
+.gl-calc-corner input {
+  width: 100%;
+  text-align: center;
+  font-family: var(--gl-font-mono);
+  font-size: 1.1rem;
+  font-weight: var(--gl-weight-semibold);
+  color: var(--gl-fg-1);
+  background: var(--gl-surface-card);
+  border: 1px solid var(--gl-border-card);
+  border-radius: var(--gl-radius-md);
+  padding: var(--gl-space-1);
+  min-height: 44px;
+  pointer-events: auto;
+}
+
+.gl-calc-corner input:focus {
+  outline: none;
+  border-color: var(--gl-brand-yellow);
+}
+
+.gl-calc-corner input.gl-calc-corner--error {
+  border-color: var(--gl-brand-red);
+}
+
+/* Итоговый вес угла после балласта (база + Δ, ТЗ §5.3) */
+.gl-calc-corner__result {
+  font-family: var(--gl-font-mono);
+  font-size: var(--gl-text-tiny-size);
+  font-weight: var(--gl-weight-semibold);
+  color: var(--gl-brand-cyan);
+}
+
+.gl-calc-corner--lf { top: 3%; left: 0; }
+.gl-calc-corner--rf { top: 3%; right: 0; }
+.gl-calc-corner--lr { bottom: 3%; left: 0; }
+.gl-calc-corner--rr { bottom: 3%; right: 0; }
+
+/* ── Сообщения (ошибки/предупреждения) ───────────────────────────── */
+
+.gl-calc-messages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gl-space-1);
+}
+
+.gl-calc-message {
+  font-size: var(--gl-text-small-size);
+  padding: var(--gl-space-2) var(--gl-space-3);
+  border-radius: var(--gl-radius-md);
+  border: 1px solid transparent;
+}
+
+.gl-calc-message--error {
+  background: rgba(255, 0, 0, 0.08);
+  border-color: var(--gl-brand-red);
+  color: var(--gl-fg-1);
+}
+
+.gl-calc-message--warning {
+  background: rgba(255, 193, 7, 0.08);
+  border-color: var(--gl-brand-yellow);
+  color: var(--gl-fg-1);
+}
+
+/* ── Результаты ───────────────────────────────────────────────────── */
+
+.gl-calc-results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gl-space-2);
+}
+
+.gl-calc-metric {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--gl-surface-card);
+  border: 1px solid var(--gl-border-card);
+  border-radius: var(--gl-radius-lg);
+  padding: var(--gl-space-2) var(--gl-space-3);
+}
+
+.gl-calc-metric__label {
+  font-size: var(--gl-text-small-size);
+  color: var(--gl-fg-3);
+}
+
+.gl-calc-metric__value {
+  font-family: var(--gl-font-mono);
+  font-weight: var(--gl-weight-semibold);
+  color: var(--gl-fg-1);
+}
+
+.gl-calc-metric__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: var(--gl-space-1);
+}
+
+.gl-calc-metric--green .gl-calc-metric__dot { background: var(--gl-brand-green); }
+.gl-calc-metric--yellow .gl-calc-metric__dot { background: var(--gl-brand-yellow); }
+.gl-calc-metric--red .gl-calc-metric__dot { background: var(--gl-brand-red); }
+
+.gl-calc-metric--total {
+  border-color: var(--gl-brand-yellow);
+}
+
+.gl-calc-min-weight {
+  font-size: var(--gl-text-small-size);
+  color: var(--gl-fg-3);
+  text-align: center;
+}
+
+.gl-calc-min-weight--under {
+  color: var(--gl-brand-yellow-bright);
+  font-weight: var(--gl-weight-semibold);
+}
+
+/* ── CTA сохранить (анонимный режим) ─────────────────────────────── */
+
+.gl-calc-cta {
+  text-align: center;
+  font-size: var(--gl-text-small-size);
+  color: var(--gl-fg-3);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * Блок 4 — визуальный редактор балласта (ТЗ 5.1-5.5)
+ * Схема — общая с Блоком 2 (см. «Единая схема карта» выше). Здесь только
+ * геометрия, маркеры грузов, CG, легенда.
+ * ══════════════════════════════════════════════════════════════════ */
+
+/* ── Геометрия ────────────────────────────────────────────────────── */
+
+.gl-calc-geometry {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--gl-space-2);
+}
+
+.gl-calc-geometry__field label {
+  display: block;
+  font-size: var(--gl-text-tiny-size);
+  text-transform: uppercase;
+  letter-spacing: var(--gl-tracking-wider);
+  color: var(--gl-fg-4);
+  margin-bottom: 2px;
+}
+
+.gl-calc-geometry__field input {
+  width: 100%;
+  text-align: center;
+  font-family: var(--gl-font-mono);
+  color: var(--gl-fg-1);
+  background: var(--gl-surface-card);
+  border: 1px solid var(--gl-border-card);
+  border-radius: var(--gl-radius-md);
+  padding: var(--gl-space-1);
+  min-height: 40px;
+}
+
+.gl-calc-geometry__field input:focus {
+  outline: none;
+  border-color: var(--gl-brand-yellow);
+}
+
+.gl-calc-geometry__hint {
+  font-size: var(--gl-text-small-size);
+  color: var(--gl-fg-3);
+  margin: 0;
+}
+
+/* ── Маркеры грузов на схеме ──────────────────────────────────────── */
+
+.gl-calc-ballast-marker {
+  cursor: grab;
+}
+
+.gl-calc-ballast-marker__hit {
+  fill: transparent;
+  pointer-events: all;
+}
+
+.gl-calc-ballast-marker__dot {
+  fill: var(--gl-brand-yellow);
+  stroke: var(--gl-surface-body);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.gl-calc-ballast-marker--negative .gl-calc-ballast-marker__dot {
+  fill: var(--gl-brand-red);
+}
+
+.gl-calc-ballast-marker__text {
+  font-family: var(--gl-font-mono);
+  font-size: 9px;
+  font-weight: var(--gl-weight-semibold);
+  fill: var(--gl-fg-on-yellow);
+  pointer-events: none;
+}
+
+.gl-calc-cg circle {
+  fill: none;
+  stroke: var(--gl-brand-cyan);
+  stroke-width: 2;
+}
+
+.gl-calc-cg line {
+  stroke: var(--gl-brand-cyan);
+  stroke-width: 1.5;
+}
+
+.gl-calc-cg--target circle,
+.gl-calc-cg--target line {
+  stroke: var(--gl-fg-4);
+  stroke-dasharray: 3 2;
+}
+
+.gl-calc-ballast-legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gl-space-2);
+}
+
+.gl-calc-ballast__legend {
+  display: flex;
+  align-items: center;
+  gap: var(--gl-space-1);
+  font-size: var(--gl-text-tiny-size);
+  color: var(--gl-fg-4);
+  margin: 0;
+}
+
+.gl-calc-legend-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 2px;
+}
+
+.gl-calc-legend-dot--target {
+  border: 1.5px dashed var(--gl-fg-4);
+}
+
+.gl-calc-legend-dot--actual {
+  background: var(--gl-brand-cyan);
+  margin-left: var(--gl-space-3);
+}
+
+.gl-calc-ballast__disclaimer {
+  font-size: var(--gl-text-small-size);
+  color: var(--gl-fg-3);
+  margin: 0;
+}
+
+.gl-calc-ballast__disclaimer {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gl-space-1);
+}
+
+.gl-calc-ballast__disclaimer i {
+  color: var(--gl-brand-yellow);
+  margin-top: 2px;
+}
+
+/* ── Попап добавления/редактирования груза ───────────────────────── */
+
+.gl-calc-ballast-popup {
+  position: fixed;
+  left: var(--gl-space-3);
+  right: var(--gl-space-3);
+  bottom: calc(64px + env(safe-area-inset-bottom) + var(--gl-space-2));
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gl-space-2);
+  background: var(--gl-surface-card);
+  border: 1px solid var(--gl-brand-yellow);
+  border-radius: var(--gl-radius-lg);
+  box-shadow: var(--gl-shadow-card);
+  padding: var(--gl-space-3);
+}
+
+.gl-calc-ballast-popup[hidden] {
+  display: none;
+}
+
+.gl-calc-ballast-popup__row label {
+  display: block;
+  font-size: var(--gl-text-tiny-size);
+  text-transform: uppercase;
+  letter-spacing: var(--gl-tracking-wider);
+  color: var(--gl-fg-4);
+  margin-bottom: 2px;
+}
+
+.gl-calc-ballast-popup__row input {
+  width: 100%;
+  color: var(--gl-fg-1);
+  background: var(--gl-surface-card-hover);
+  border: 1px solid var(--gl-border-card);
+  border-radius: var(--gl-radius-md);
+  padding: var(--gl-space-2);
+  min-height: 44px;
+  font-size: 1rem;
+}
+
+.gl-calc-ballast-popup__row input:focus {
+  outline: none;
+  border-color: var(--gl-brand-yellow);
+}
+
+.gl-calc-ballast-popup__actions {
+  display: flex;
+  gap: var(--gl-space-2);
+}
+
+.gl-calc-ballast-popup__actions button {
+  flex: 1 1 0;
+  min-height: 44px;
+  border-radius: var(--gl-radius-md);
+  font-weight: var(--gl-weight-semibold);
+  font-size: var(--gl-text-small-size);
+  border: 1px solid var(--gl-border-card);
+  background: transparent;
+  color: var(--gl-fg-2);
+}
+
+.gl-calc-ballast-popup__save {
+  background: var(--gl-brand-yellow) !important;
+  color: var(--gl-fg-on-yellow) !important;
+  border-color: var(--gl-brand-yellow) !important;
+}
+
+.gl-calc-ballast-popup__delete {
+  color: var(--gl-brand-red) !important;
+  border-color: var(--gl-brand-red) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * Блок 6 — диагностика и обучающий блок (ТЗ 7.1-7.2)
+ * ══════════════════════════════════════════════════════════════════ */
+
+.gl-calc-diagnostics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gl-space-2);
+}
+
+.gl-calc-diagnostic {
+  background: var(--gl-surface-card);
+  border: 1px solid var(--gl-brand-cyan);
+  border-radius: var(--gl-radius-lg);
+  padding: var(--gl-space-2) var(--gl-space-3);
+}
+
+.gl-calc-diagnostic p {
+  margin: 0 0 var(--gl-space-1);
+  font-size: var(--gl-text-small-size);
+  color: var(--gl-fg-2);
+}
+
+.gl-calc-diagnostic a {
+  font-size: var(--gl-text-micro-size);
+  color: var(--gl-brand-cyan);
+}
+
+.gl-calc-lesson {
+  background: var(--gl-surface-inset);
+  border: 1px solid var(--gl-border-divider);
+  border-radius: var(--gl-radius-lg);
+  padding: var(--gl-space-3);
+}
+
+.gl-calc-lesson__label {
+  margin: 0 0 var(--gl-space-1);
+  font-size: var(--gl-text-tiny-size);
+  text-transform: uppercase;
+  letter-spacing: var(--gl-tracking-wider);
+  color: var(--gl-brand-cyan);
+  font-weight: var(--gl-weight-semibold);
+}
+
+.gl-calc-lesson__text {
+  margin: 0 0 var(--gl-space-1);
+  font-size: var(--gl-text-small-size);
+  color: var(--gl-fg-3);
+}
+
+.gl-calc-lesson__link {
+  font-size: var(--gl-text-micro-size);
+  color: var(--gl-brand-cyan);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * Блок 8 — лендинг-контент (ТЗ 9.2) — не app-shell, обычный читаемый текст
+ * ══════════════════════════════════════════════════════════════════ */
+
+.gl-calc-intro {
+  max-width: 420px;
+  margin: 0 auto var(--gl-space-4);
+  font-size: var(--gl-text-small-size);
+  color: var(--gl-fg-3);
+  text-align: center;
+}
+
+.gl-calc-landing {
+  max-width: 420px;
+  margin: var(--gl-space-5) auto 0;
+  padding-top: var(--gl-space-4);
+  border-top: 1px solid var(--gl-border-divider);
+}
+
+.gl-calc-landing__title {
+  font-family: var(--gl-font-display);
+  font-size: var(--gl-text-h3-size);
+  font-weight: var(--gl-weight-extrabold);
+  text-transform: uppercase;
+  color: var(--gl-fg-1);
+  margin: 0 0 var(--gl-space-3);
+}
+
+.gl-calc-landing p {
+  font-size: var(--gl-text-small-size);
+  line-height: var(--gl-text-body-lh);
+  color: var(--gl-fg-3);
+  margin: 0 0 var(--gl-space-3);
+}
+
+.gl-calc-landing b {
+  color: var(--gl-fg-2);
+}
+
+.gl-calc-landing__reading-label {
+  font-size: var(--gl-text-tiny-size);
+  text-transform: uppercase;
+  letter-spacing: var(--gl-tracking-wider);
+  color: var(--gl-fg-4);
+  margin: 0 0 var(--gl-space-1);
+}
+
+.gl-calc-landing__reading-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gl-space-1);
+}
+
+.gl-calc-landing__reading-list a {
+  font-size: var(--gl-text-small-size);
+  color: var(--gl-brand-cyan);
+}

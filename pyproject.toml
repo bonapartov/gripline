@@ -8,7 +8,7 @@ line-length = 80
 extend-exclude = ["migrations"]
 
 [tool.django-stubs]
-django_settings_module = "gripline.settings.dev"
+django_settings_module = "mysite.settings.dev"
 
 [tool.mypy]
 ignore_missing_imports = true
@@ -21,8 +21,17 @@ exclude = [
 ]
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "gripline.settings.dev"
-addopts = "--cov --cov-report html"
+DJANGO_SETTINGS_MODULE = "mysite.settings.dev"
+# --no-migrations: полный реплей website-миграций с нуля (как строит тестовую
+# БД pytest-django по умолчанию) падает — минимум два подтверждённых бага в
+# истории миграций (0013 дублировала 11 AddField, уже сделанных 0010;
+# отдельно CreateModel на website_techarticleindexpage тоже дублируется
+# где-то дальше по цепочке, не разбирался до конца — не входило в задачу,
+# из-за которой это вообще всплыло). Первый баг исправлен (см. 0013), второй
+# — нет. --no-migrations строит тестовую схему сразу из текущих моделей,
+# в обход всей цепочки — надёжнее, чем чинить 38 миграций вручную ради
+# одного нового тестового модуля.
+addopts = "--no-migrations --cov --cov-report html"
 python_files = "tests.py test_*.py"
 
 [tool.ruff]

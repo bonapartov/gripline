@@ -1,5 +1,5 @@
 from wagtail_modeladmin.options import (ModelAdmin, ModelAdminGroup, modeladmin_register)
-from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, MaxSettings, VkSettings, WeatherSettings, SocialTag, ArticlePage
+from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, MaxSettings, VkSettings, WeatherSettings, SocialTag, ArticlePage, ChassisTypePreset, KartClass, BalanceThreshold, BalanceDiagnosticRule
 from wagtail import hooks
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -146,6 +146,43 @@ class AnalyticsGroup(ModelAdminGroup):
     menu_icon = 'fa-bar-chart'
     items = (AnalyticsSettingsAdmin,)
 
+class ChassisTypePresetAdmin(ModelAdmin):
+    model = ChassisTypePreset
+    menu_label = 'Пресеты геометрии'
+    menu_icon = 'cog'
+    list_display = ('chassis_type', 'wheelbase_mm', 'track_front_mm', 'track_rear_mm')
+
+class KartClassAdmin(ModelAdmin):
+    model = KartClass
+    menu_label = 'Классы'
+    menu_icon = 'list-ul'
+    list_display = ('name', 'chassis_type', 'min_weight_kg', 'is_active', 'sort_order')
+    list_filter = ('chassis_type', 'is_active')
+    search_fields = ('name',)
+
+class BalanceThresholdAdmin(ModelAdmin):
+    model = BalanceThreshold
+    menu_label = 'Пороги индикации'
+    menu_icon = 'warning'
+    list_display = ('metric', 'green_min', 'green_max', 'yellow_min', 'yellow_max')
+
+class BalanceDiagnosticRuleAdmin(ModelAdmin):
+    model = BalanceDiagnosticRule
+    menu_label = 'Диагностика'
+    menu_icon = 'help'
+    list_display = ('condition', 'article')
+
+class BalanceGroup(ModelAdminGroup):
+    # Все справочники калькулятора развесовки (/balance/), которые не должны
+    # быть захардкожены в коде — регламентные величины РАФ меняются между
+    # сезонами. Владимир вносит/правит значения прямо здесь, без деплоя.
+    # BalanceDiagnosticRuleAdmin — сюда же: текст диагностики предзаполнен
+    # из ТЗ миграцией, а вот ссылки на статьи Матчасти (открытый вопрос
+    # ТЗ №10) Владимир проставляет здесь же, когда статьи определены.
+    menu_label = 'Развесовка'
+    menu_icon = 'table'
+    items = (ChassisTypePresetAdmin, KartClassAdmin, BalanceThresholdAdmin, BalanceDiagnosticRuleAdmin)
+
 class TelegramSettingsAdmin(ModelAdmin):
     model = TelegramSettings
     menu_label = 'Настройки'
@@ -219,6 +256,7 @@ modeladmin_register(EquipmentGroup)
 modeladmin_register(TyresGroup)
 modeladmin_register(TracksGroup)
 modeladmin_register(AnalyticsGroup)
+modeladmin_register(BalanceGroup)
 
 telegram_group = TelegramGroup()
 telegram_group.register_with_wagtail()

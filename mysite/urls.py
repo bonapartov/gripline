@@ -4,9 +4,12 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import views as auth_views
+from wagtail.contrib.sitemaps import Sitemap as WagtailPagesSitemap
+from wagtail.contrib.sitemaps.views import sitemap as wagtail_sitemap_view
 from website.models import Driver, Chassis, RaceResult, Track
 from website.views import staff_detail_view, staff_api
 from website.views import rating_stats_api
+from website.sitemaps import BalanceSitemap
 from demo.views import choose_role
 from accounts.views import vk_id_redirect_landing
 
@@ -50,6 +53,7 @@ urlpatterns = [
     path("admin/", include("coderedcms.admin_urls")),
 
     path('teams/', include('teams.urls')),
+    path('balance/', include('website.balance_urls', namespace='balance')),
 
     # API пути
     path('api/staff/<int:staff_id>/', staff_api, name='staff_api'),
@@ -72,6 +76,16 @@ urlpatterns = [
         success_url=reverse_lazy('accounts:profile'),
     ), name='password_reset_confirm'),
     path('accounts/password-reset/complete/', auth_views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
+
+    # Перехватываем sitemap.xml ДО coderedcms.urls (тот же путь регистрирует
+    # там же, но без параметра sitemaps= — тогда в него попадают только
+    # Wagtail-страницы). /balance/ не Wagtail Page, поэтому нужен свой
+    # словарь sitemaps — тот же механизм, тот же view, просто с добавленной
+    # картой (см. website/sitemaps.py).
+    path("sitemap.xml", wagtail_sitemap_view, {
+        "sitemaps": {"pages": WagtailPagesSitemap, "balance": BalanceSitemap},
+    }, name="sitemap"),
+
     path("", include("coderedcms.urls")),  # Wagtail в самом конце
 ]
 

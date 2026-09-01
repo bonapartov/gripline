@@ -1,0 +1,269 @@
+/*
+ * Balance (/balance/) — app-shell для мобильного «псевдо-fullscreen» режима.
+ * Блок 0 ТЗ «Сервис расчёта развесовки карта»: без сайтового header/footer,
+ * 100dvh, собственная нижняя навигация, safe-area-inset для iPhone с вырезом.
+ *
+ * Токены — только --gl-* (website/static/website/css/tokens.css), реальная
+ * тёмная тема сайта. ТЗ описывал другую палитру (#E24B4A/#111111/#F0EEE8/
+ * #C8C4BC) как «существующие токены» — по факту это цвета фирменного
+ * логотипа/брендбука (logo/SVG/..., untracked-папка в репозитории), не
+ * --gl-* сайта. Тот же класс несоответствия уже разбирался и был сознательно
+ * исправлен для ЛК команды (см. CLAUDE.md) — здесь то же решение: реальные
+ * --gl-* тёмной темы.
+ */
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overscroll-behavior-y: none;
+}
+
+.gl-balance-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  height: 100vh; /* фолбэк для браузеров без dvh */
+  background: var(--gl-surface-body);
+  color: var(--gl-fg-2);
+  font-family: var(--gl-font-body);
+}
+
+/* ── Верхняя панель ───────────────────────────────────────────────── */
+
+.gl-balance-topbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gl-space-2);
+  padding: var(--gl-space-2) var(--gl-space-3);
+  padding-top: max(var(--gl-space-2), env(safe-area-inset-top));
+  background: var(--gl-surface-navbar);
+  border-bottom: 1px solid var(--gl-border-divider);
+}
+
+.gl-balance-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--gl-space-1);
+  color: var(--gl-fg-4);
+  font-size: var(--gl-text-micro-size);
+  text-decoration: none;
+}
+
+.gl-balance-brand:hover {
+  color: var(--gl-fg-1);
+}
+
+.gl-balance-brand__mark {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.gl-balance-brand__text strong {
+  color: var(--gl-brand-yellow-bright);
+  font-weight: var(--gl-weight-bold);
+}
+
+.gl-balance-topbar__title {
+  margin: 0; /* сбрасываем дефолтный margin браузера — это <h1> (см. app_base.html) */
+  font-family: var(--gl-font-display);
+  font-size: var(--gl-text-meta-size);
+  font-weight: var(--gl-weight-extrabold);
+  text-transform: uppercase;
+  letter-spacing: var(--gl-tracking-wider);
+  color: var(--gl-fg-1);
+}
+
+/* ── Контент ──────────────────────────────────────────────────────── */
+
+.gl-balance-content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--gl-space-3);
+  padding-bottom: calc(64px + env(safe-area-inset-bottom) + var(--gl-space-3));
+}
+
+/* ── Нижняя навигация ─────────────────────────────────────────────── */
+
+.gl-balance-tabbar {
+  flex: 0 0 auto;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  background: var(--gl-surface-navbar);
+  border-top: 1px solid var(--gl-border-divider);
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 20;
+}
+
+.gl-balance-tab {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: var(--gl-space-2) 0;
+  color: var(--gl-fg-4);
+  font-size: var(--gl-text-tiny-size);
+  text-decoration: none;
+  min-height: 44px;
+}
+
+.gl-balance-tab i {
+  font-size: 1.1rem;
+}
+
+.gl-balance-tab--active {
+  color: var(--gl-brand-yellow);
+}
+
+.gl-balance-tab--disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ── Баннер «Добавить на экран» (PWA, уровень 2) ─────────────────── */
+
+.gl-balance-install-banner {
+  position: fixed;
+  left: var(--gl-space-3);
+  right: var(--gl-space-3);
+  bottom: calc(64px + env(safe-area-inset-bottom) + var(--gl-space-2));
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: var(--gl-space-2);
+  background: var(--gl-surface-card);
+  border: 1px solid var(--gl-border-card);
+  border-radius: var(--gl-radius-lg);
+  box-shadow: var(--gl-shadow-card);
+  padding: var(--gl-space-2) var(--gl-space-3);
+}
+
+.gl-balance-install-banner[hidden] {
+  display: none;
+}
+
+.gl-balance-install-banner span {
+  flex: 1 1 auto;
+  font-size: var(--gl-text-small-size);
+  color: var(--gl-fg-2);
+}
+
+.gl-balance-install-banner__accept {
+  flex: 0 0 auto;
+  background: var(--gl-brand-yellow);
+  color: var(--gl-fg-on-yellow);
+  border: none;
+  border-radius: var(--gl-radius-pill);
+  padding: var(--gl-space-1) var(--gl-space-3);
+  font-weight: var(--gl-weight-semibold);
+  font-size: var(--gl-text-small-size);
+}
+
+.gl-balance-install-banner__dismiss {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: var(--gl-fg-muted);
+  font-size: 1rem;
+  line-height: 1;
+  padding: var(--gl-space-1);
+}
+
+/* ── Стаб-контент главной (Блок 0 — калькулятор ещё не собран) ──────── */
+
+.gl-balance-stub {
+  margin-top: var(--gl-space-5);
+  text-align: center;
+  color: var(--gl-fg-3);
+}
+
+.gl-balance-stub i {
+  font-size: 2rem;
+  color: var(--gl-brand-yellow);
+  margin-bottom: var(--gl-space-3);
+  display: block;
+}
+
+/* ── Футер инструмента (ТЗ Блок 11, раздел 13.3) ─────────────────────
+ * Не фиксированная панель — идёт в потоке, после контента страницы,
+ * общая для всех страниц Balance (лежит в app_base.html, не в home.html).
+ * Тот же визуальный стиль, что у ссылки на политику в футере основного
+ * сайта (templates/coderedcms/snippets/footer.html) — мелкий приглушённый
+ * текст. */
+
+.gl-balance-footer {
+  padding: var(--gl-space-5) 0 var(--gl-space-3);
+  text-align: center;
+}
+
+.gl-balance-footer a {
+  font-size: var(--gl-text-tiny-size);
+  color: var(--gl-fg-muted);
+  text-decoration: none;
+}
+
+.gl-balance-footer a:hover {
+  color: var(--gl-fg-3);
+  text-decoration: underline;
+}
+
+/* ── Блокировка ориентации (ТЗ 3.4) ──────────────────────────────────
+ * Схема карта — вид сверху, вертикальная; в ландшафте либо не помещается,
+ * либо становится нечитаемо мелкой. Программной блокировки в обычном
+ * браузере (не PWA) не существует — только CSS-заглушка поверх контента.
+ * manifest.json уже фиксирует "orientation": "portrait" для PWA-режима
+ * (см. balance/manifest.json) — здесь фолбэк для всех остальных случаев.
+ * Опт-ин через .gl-balance-orientation-sensitive — самостоятельный класс на
+ * обёртке внутри контента (не на .gl-balance-content: не на всех страницах
+ * Balance есть схема, например стаб-главная блока 0, блокировка не
+ * глобальная). Заглушка — прямой child этой обёртки, остальные прямые
+ * children на время ландшафта скрываются.
+ *
+ * Исправлено 2026-08-31: раньше селектор требовал ОБА класса на одном
+ * элементе (.gl-balance-content.gl-balance-orientation-sensitive), а на
+ * практике gl-balance-orientation-sensitive висит на вложенном <div> внутри
+ * <main class="gl-balance-content"> — селектор никогда не совпадал, заглушка
+ * не срабатывала ни разу. Нашлось не в браузере (см. правило проекта — не
+ * проверять фронтенд в браузере самостоятельно), а при повторном чтении
+ * разметки под Блок 8. */
+
+.gl-balance-orientation-guard {
+  display: none;
+}
+
+@media (orientation: landscape) {
+  .gl-balance-orientation-sensitive .gl-balance-orientation-guard {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--gl-space-3);
+    padding: var(--gl-space-4);
+    background: var(--gl-surface-body);
+    color: var(--gl-fg-2);
+    text-align: center;
+  }
+
+  .gl-balance-orientation-guard i {
+    font-size: 2.5rem;
+    color: var(--gl-brand-yellow);
+  }
+
+  .gl-balance-orientation-sensitive > *:not(.gl-balance-orientation-guard) {
+    display: none;
+  }
+}

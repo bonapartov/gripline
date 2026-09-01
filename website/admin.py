@@ -232,3 +232,33 @@ class TeamStaffMembershipAdmin(admin.ModelAdmin):
     list_display = ('staff', 'team', 'is_active', 'joined_at', 'left_at')
     list_filter = ('is_active', 'team')
     search_fields = ('staff__last_name', 'staff__first_name', 'team__name')
+
+# ============= РАЗВЕСОВКА (Balance) — данные пользователей, поддержка/отладка =============
+# Не Wagtail CMS — эти модели создают/правят сами пользователи через /balance/
+# (Блоки 2-4). Регистрация здесь — как TeamManager/TeamClaim в teams/admin.py,
+# для служебного доступа, не для управления контентом.
+
+from .models import Kart, TeamRosterEntry, Setup, Ballast
+
+class BallastInline(admin.TabularInline):
+    model = Ballast
+    extra = 0
+
+@admin.register(Kart)
+class KartAdmin(admin.ModelAdmin):
+    list_display = ('name', 'chassis', 'chassis_type', 'owner_driver', 'owner_team', 'is_archived')
+    list_filter = ('chassis_type', 'is_archived')
+    search_fields = ('name', 'owner_driver__first_name', 'owner_driver__last_name', 'owner_team__name')
+
+@admin.register(TeamRosterEntry)
+class TeamRosterEntryAdmin(admin.ModelAdmin):
+    list_display = ('last_name', 'first_name', 'label', 'team', 'driver', 'is_archived')
+    list_filter = ('team', 'is_archived')
+    search_fields = ('last_name', 'first_name', 'label')
+
+@admin.register(Setup)
+class SetupAdmin(admin.ModelAdmin):
+    list_display = ('name', 'kart', 'kart_class', 'weather', 'is_archived', 'created_at')
+    list_filter = ('weather', 'kart_class', 'is_archived')
+    search_fields = ('name', 'kart__name')
+    inlines = [BallastInline]
