@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 196 124" width="196" height="124">
+  <g transform="translate(65 10) scale(1.03125)">
+  <g fill="none" stroke-width="7" stroke-linecap="round">
+    <path d="M36.58 8.44 A24 24 0 0 1 54.69 39.81" stroke="#E24B4A"></path>
+    <path d="M50.11 47.74 A24 24 0 0 1 13.89 47.74" stroke="#C98420"></path>
+    <path d="M9.31 39.81 A24 24 0 0 1 27.42 8.44" stroke="#111111"></path>
+    <path d="M32 32 L32 15.5" stroke="#111111" stroke-width="6"></path>
+  </g>
+  <circle cx="32" cy="32" r="3.5" fill="#111111"></circle>
+  </g>
+  <text x="101" y="110" font-family="Archivo, &#39;Inter Tight&#39;, &#39;Helvetica Neue&#39;, Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="5.72" fill="#111111" text-anchor="middle">GRIPLINE</text>
+</svg>
