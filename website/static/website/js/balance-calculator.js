@@ -109,7 +109,21 @@
       left_pct: pct(lf + lr),
       right_pct: pct(rf + rr),
       cross_pct: pct(rf + lr),
+      // % каждого угла от общего веса — презентационное значение для схемы
+      // (подпись под угловым инпутом), не входит в канонический набор
+      // метрик ТЗ 3.1 и не участвует в classify()/diagnose(), поэтому не
+      // дублируется в balance_calc.py — там дублируется только то, что
+      // влияет на расчёт/диагностику, не любое производное число для вывода.
+      corner_pct: { lf: pct(lf), rf: pct(rf), lr: pct(lr), rr: pct(rr) },
     };
+  }
+
+  // Total − вес пилота (ТЗ 3.1, kart_only_weight в balance_calc.py). Здесь —
+  // презентационное зеркало для анонимного калькулятора: вес пилота нигде
+  // не сохраняется (Блок 3 ещё не собран), поле на клиенте, в БД не летит.
+  function kartOnlyWeight(totalKg, driverWeightKg) {
+    if (isNaN(driverWeightKg)) return null;
+    return round1(totalKg - driverWeightKg);
   }
 
   function minWeightStatus(totalKg, kartClass) {
@@ -246,11 +260,30 @@
 
   var classSelect = document.getElementById("glCalcClassSelect");
   var weatherSelect = document.getElementById("glCalcWeather");
+  var driverWeightInput = document.getElementById("glCalcDriverWeight");
   var messagesEl = document.getElementById("glCalcMessages");
-  var resultsEl = document.getElementById("glCalcResults");
   var minWeightEl = document.getElementById("glCalcMinWeight");
   var diagnosticsEl = document.getElementById("glCalcDiagnostics");
   var ctaEl = document.getElementById("glCalcSaveCta");
+  var clearBtn = document.getElementById("glCalcClearBtn");
+  var baseBtn = document.getElementById("glCalcBaseBtn");
+
+  // ── Gauge-бар (перед/зад, лево/право) + cross weight + база/итого ────
+  var gaugebarEl = document.getElementById("glCalcGaugebar");
+  var gaugeFrGroup = document.querySelector(".gl-calc-gauge--fr");
+  var gaugeLrGroup = document.querySelector(".gl-calc-gauge--lr");
+  var gaugeValues = {
+    front: document.querySelector('[data-gauge="front"]'),
+    rear: document.querySelector('[data-gauge="rear"]'),
+    left: document.querySelector('[data-gauge="left"]'),
+    right: document.querySelector('[data-gauge="right"]'),
+  };
+  var crossEl = document.getElementById("glCalcCross");
+  var crossValueEl = document.querySelector('[data-gauge="cross"]');
+  var weightRowEl = document.getElementById("glCalcWeightRow");
+  var weightBaseItemEl = document.getElementById("glCalcWeightBaseItem");
+  var weightBaseValueEl = document.querySelector('[data-weight="base"]');
+  var weightTotalValueEl = document.querySelector('[data-weight="total"]');
 
   function currentKartClass() {
     if (!classSelect || !classSelect.value) return null;
@@ -297,32 +330,46 @@
     messagesEl.hidden = !html;
   }
 
-  function metricRowHtml(label, valueHtml, cls) {
-    var dot = cls ? '<span class="gl-calc-metric__dot"></span>' : "";
-    return (
-      '<div class="gl-calc-metric' + (cls ? " gl-calc-metric--" + cls : "") + '">' +
-      '<span class="gl-calc-metric__label">' + dot + label + "</span>" +
-      '<span class="gl-calc-metric__value">' + valueHtml + "</span>" +
-      "</div>"
-    );
+  function setGaugeClass(el, cls) {
+    if (!el) return;
+    el.classList.remove("gl-calc-gauge--green", "gl-calc-gauge--yellow", "gl-calc-gauge--red");
+    if (cls) el.classList.add("gl-calc-gauge--" + cls);
   }
 
   function renderResults(metrics, classification, kartClass) {
-    if (!resultsEl) return;
-
     if (!metrics) {
-      resultsEl.hidden = true;
+      if (gaugebarEl) gaugebarEl.hidden = true;
+      if (crossEl) crossEl.hidden = true;
+      if (weightRowEl) weightRowEl.hidden = true;
       if (minWeightEl) minWeightEl.hidden = true;
       return;
     }
 
-    var html = "";
-    html += metricRowHtml("Перед / Зад", metrics.front_pct + "% / " + metrics.rear_pct + "%", classification.front_rear);
-    html += metricRowHtml("Лево / Право", metrics.left_pct + "% / " + metrics.right_pct + "%", classification.left_right);
-    html += metricRowHtml("Cross weight", metrics.cross_pct + "%", classification.cross_weight);
-    html += metricRowHtml("Итого", metrics.total_kg + " кг", null);
-    resultsEl.innerHTML = html;
-    resultsEl.hidden = false;
+    if (gaugebarEl) {
+      gaugebarEl.hidden = false;
+      if (gaugeValues.front) gaugeValues.front.textContent = metrics.front_pct + "%";
+      if (gaugeValues.rear) gaugeValues.rear.textContent = metrics.rear_pct + "%";
+      if (gaugeValues.left) gaugeValues.left.textContent = metrics.left_pct + "%";
+      if (gaugeValues.right) gaugeValues.right.textContent = metrics.right_pct + "%";
+      setGaugeClass(gaugeFrGroup, classification.front_rear);
+      setGaugeClass(gaugeLrGroup, classification.left_right);
+    }
+
+    if (crossEl) {
+      crossEl.hidden = false;
+      if (crossValueEl) crossValueEl.textContent = metrics.cross_pct + "%";
+      crossEl.classList.remove("gl-calc-cross--green", "gl-calc-cross--yellow", "gl-calc-cross--red");
+      if (classification.cross_weight) crossEl.classList.add("gl-calc-cross--" + classification.cross_weight);
+    }
+
+    if (weightRowEl) {
+      weightRowEl.hidden = false;
+      var driverWeight = parseWeight(driverWeightInput ? driverWeightInput.value : "");
+      var baseKg = kartOnlyWeight(metrics.total_kg, driverWeight);
+      if (weightBaseItemEl) weightBaseItemEl.hidden = baseKg === null;
+      if (weightBaseValueEl && baseKg !== null) weightBaseValueEl.textContent = baseKg + " кг";
+      if (weightTotalValueEl) weightTotalValueEl.textContent = metrics.total_kg + " кг";
+    }
 
     if (minWeightEl) {
       var status = minWeightStatus(metrics.total_kg, kartClass);
@@ -366,6 +413,28 @@
     rr: document.querySelector('[data-corner-result="rr"]'),
   };
 
+  var cornerPercents = {
+    lf: document.querySelector('[data-corner-pct="lf"]'),
+    rf: document.querySelector('[data-corner-pct="rf"]'),
+    lr: document.querySelector('[data-corner-pct="lr"]'),
+    rr: document.querySelector('[data-corner-pct="rr"]'),
+  };
+
+  // % угла от общего веса — считается из тех же appliedCorners, что и
+  // metrics (см. computeMetrics), поэтому вызывается сразу после неё.
+  function renderCornerPercents(metrics) {
+    CORNER_KEYS.forEach(function (key) {
+      var el = cornerPercents[key];
+      if (!el) return;
+      if (metrics) {
+        el.textContent = metrics.corner_pct[key] + "%";
+        el.hidden = false;
+      } else {
+        el.hidden = true;
+      }
+    });
+  }
+
   // ── DOM wiring — Блок 4 (визуальный редактор балласта) ──────────────
   // Схема одна на весь калькулятор (ТЗ §3.4 + §5.1): те же угловые поля,
   // поверх них — размещение балласта и маркеры CG. Отдельного второго
@@ -390,7 +459,12 @@
   var popupDeleteBtn = document.getElementById("glCalcBallastDelete");
   var popupCancelBtn = document.getElementById("glCalcBallastCancel");
 
-  var SCHEMA = { frontAxlePx: 62, rearAxlePx: 338, leftEdgePx: 27, rightEdgePx: 253 };
+  // Координаты — центры колёс на трассированной иллюстрации (2026-09-09,
+  // viewBox 896×1199), измерены алгоритмически (connected-component поиск
+  // серой заливки колеса по бинарной маске исходного PNG), не на глаз:
+  // FL (107,288) FR (780,288) RL (71,939) RR (824,939) — left/right усреднены
+  // по обеим осям, как и раньше делал один leftEdgePx/rightEdgePx на трек.
+  var SCHEMA = { frontAxlePx: 288, rearAxlePx: 939, leftEdgePx: 89, rightEdgePx: 802 };
   SCHEMA.wheelbasePx = SCHEMA.rearAxlePx - SCHEMA.frontAxlePx;
   SCHEMA.trackPx = SCHEMA.rightEdgePx - SCHEMA.leftEdgePx;
 
@@ -465,18 +539,18 @@
 
       var hit = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       hit.setAttribute("class", "gl-calc-ballast-marker__hit");
-      hit.setAttribute("r", "22");
+      hit.setAttribute("r", "70");
       g.appendChild(hit);
 
       var dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       dot.setAttribute("class", "gl-calc-ballast-marker__dot");
-      dot.setAttribute("r", "10");
+      dot.setAttribute("r", "32");
       g.appendChild(dot);
 
       var text = document.createElementNS("http://www.w3.org/2000/svg", "text");
       text.setAttribute("class", "gl-calc-ballast-marker__text");
       text.setAttribute("text-anchor", "middle");
-      text.setAttribute("dy", "3.5");
+      text.setAttribute("dy", "11");
       text.textContent = (b.weight_kg > 0 ? "+" : "") + b.weight_kg;
       g.appendChild(text);
 
@@ -697,6 +771,7 @@
       renderResults(null, null, kartClass);
       renderCgMarkers(null, null);
       renderCornerResults(corners, null);
+      renderCornerPercents(null);
       if (ballastLegendEl) ballastLegendEl.hidden = true;
       renderDiagnostics([]);
       if (ctaEl) ctaEl.hidden = true;
@@ -720,6 +795,7 @@
       cross_weight: classify("cross_weight", metrics.cross_pct),
     };
     renderResults(metrics, classification, kartClass);
+    renderCornerPercents(metrics);
     if (geometry) renderCgMarkers(appliedCorners, geometry);
     if (ballastLegendEl) ballastLegendEl.hidden = !geometry;
 
@@ -792,9 +868,52 @@
   if (weatherSelect) {
     weatherSelect.addEventListener("change", recalc);
   }
+  if (driverWeightInput) {
+    driverWeightInput.addEventListener("input", recalc);
+  }
   [wheelbaseInput, trackFrontInput, trackRearInput].forEach(function (el) {
     if (el) el.addEventListener("input", recalc);
   });
+
+  // ── Топбар: Очистить / База ──────────────────────────────────────────
+  // "Очистить" — полный сброс формы. "База" — не отдельный расчётный режим
+  // (формулы front/rear/cross от того, взвешен карт с пилотом или без,
+  // не зависят), а быстрый переход к полю "Вес пилота" — тому самому,
+  // которое отвечает за строку База/Итого выше.
+  if (clearBtn) {
+    clearBtn.addEventListener("click", function () {
+      CORNER_KEYS.forEach(function (key) {
+        inputs[key].value = "";
+        inputs[key].classList.remove("gl-calc-corner--error");
+      });
+      if (classSelect) classSelect.value = "";
+      if (weatherSelect) weatherSelect.value = "";
+      if (driverWeightInput) driverWeightInput.value = "";
+      if (wheelbaseInput) wheelbaseInput.value = "";
+      if (trackFrontInput) trackFrontInput.value = "";
+      if (trackRearInput) trackRearInput.value = "";
+      ballasts = [];
+      hidePopup();
+      renderMessages({ errors: [], warnings: [] });
+      renderCornerResults({ lf: NaN, rf: NaN, lr: NaN, rr: NaN }, null);
+      renderCornerPercents(null);
+      renderResults(null, null, null);
+      renderDiagnostics([]);
+      if (ctaEl) ctaEl.hidden = true;
+      if (ballastLegendEl) ballastLegendEl.hidden = true;
+      var geometry = renderBallastLayerAvailability();
+      renderBallastMarkers(geometry);
+      renderCgMarkers(null, null);
+    });
+  }
+
+  if (baseBtn) {
+    baseBtn.addEventListener("click", function () {
+      if (!driverWeightInput) return;
+      driverWeightInput.scrollIntoView({ behavior: "smooth", block: "center" });
+      driverWeightInput.focus();
+    });
+  }
 
   // Переход по ссылке "Подробнее →" в диагностике / обучающем блоке —
   // возврат трафика в Матчасть (ТЗ §10.2 diagnostic_link_clicked).
@@ -804,6 +923,102 @@
     ) : null;
     if (link) track("diagnostic_link_clicked", { url: link.getAttribute("href") });
   });
+
+  // ── Инфо-модалка («Почему не 50/50», точность расчёта) ──────────────
+  // Контент лежит в <template> (не рендерится в DOM сам по себе) — клик по
+  // кнопке-иконке клонирует его содержимое в общую модалку. Один компонент
+  // на оба триггера, а не два разных попапа.
+  var infoModal = document.getElementById("glCalcInfoModal");
+  var infoModalBody = document.getElementById("glCalcInfoModalBody");
+  var infoModalClose = document.getElementById("glCalcInfoModalClose");
+  var infoModalBackdrop = document.getElementById("glCalcInfoModalBackdrop");
+
+  function openInfoModal(templateId) {
+    var tpl = document.getElementById(templateId);
+    if (!tpl || !infoModal || !infoModalBody) return;
+    infoModalBody.innerHTML = "";
+    infoModalBody.appendChild(tpl.content.cloneNode(true));
+    infoModal.hidden = false;
+  }
+
+  function closeInfoModal() {
+    if (infoModal) infoModal.hidden = true;
+  }
+
+  if (infoModalClose) infoModalClose.addEventListener("click", closeInfoModal);
+  if (infoModalBackdrop) infoModalBackdrop.addEventListener("click", closeInfoModal);
+  document.addEventListener("keydown", function (evt) {
+    if (evt.key === "Escape") closeInfoModal();
+  });
+
+  var why4357Btn = document.getElementById("glCalcWhy4357Btn");
+  if (why4357Btn) {
+    why4357Btn.addEventListener("click", function () { openInfoModal("glCalcInfoWhy4357"); });
+  }
+
+  var ballastDisclaimerBtn = document.getElementById("glCalcBallastDisclaimerBtn");
+  if (ballastDisclaimerBtn) {
+    ballastDisclaimerBtn.addEventListener("click", function () { openInfoModal("glCalcInfoBallastDisclaimer"); });
+  }
+
+  // ── API для сохранения (Блок 3, balance-setup-editor.js) ────────────
+  // Снимок текущего состояния калькулятора / восстановление снимка.
+  // getState() отдаёт сырые значения полей (строки) — та же форма, что
+  // отправляется на сервер (setup_save парсит их теми же validate_corners/
+  // Decimal-правилами, что и здесь). loadState() выставляет их обратно и
+  // пересчитывает — используется и для "загрузить сетап на редактирование"
+  // (следующие этапы плана), и для восстановления анонимного ввода после
+  // ухода на OAuth и возврата (см. balance-setup-editor.js — там же TTL).
+  window.GripBalanceCalc = {
+    getState: function () {
+      return {
+        corners: {
+          lf: inputs.lf.value,
+          rf: inputs.rf.value,
+          lr: inputs.lr.value,
+          rr: inputs.rr.value,
+        },
+        class_id: classSelect ? classSelect.value : "",
+        weather: weatherSelect ? weatherSelect.value : "",
+        driver_weight: driverWeightInput ? driverWeightInput.value : "",
+        wheelbase_mm: wheelbaseInput ? wheelbaseInput.value : "",
+        track_front_mm: trackFrontInput ? trackFrontInput.value : "",
+        track_rear_mm: trackRearInput ? trackRearInput.value : "",
+        ballasts: ballasts.map(function (b) {
+          return { weight_kg: b.weight_kg, pos_x_mm: b.pos_x_mm, pos_y_mm: b.pos_y_mm, label: b.label };
+        }),
+      };
+    },
+    loadState: function (state) {
+      if (!state) return;
+      if (state.corners) {
+        CORNER_KEYS.forEach(function (key) {
+          var v = state.corners[key];
+          if (v !== undefined && v !== null && v !== "") inputs[key].value = v;
+        });
+      }
+      if (state.class_id && classSelect) classSelect.value = state.class_id;
+      if (state.weather && weatherSelect) weatherSelect.value = state.weather;
+      if (state.driver_weight && driverWeightInput) driverWeightInput.value = state.driver_weight;
+      if (state.wheelbase_mm && wheelbaseInput) wheelbaseInput.value = state.wheelbase_mm;
+      if (state.track_front_mm && trackFrontInput) trackFrontInput.value = state.track_front_mm;
+      if (state.track_rear_mm && trackRearInput) trackRearInput.value = state.track_rear_mm;
+      if (Array.isArray(state.ballasts)) {
+        ballasts = state.ballasts.map(function (b) {
+          return {
+            id: nextBallastId++,
+            weight_kg: round1(parseWeight(b.weight_kg)),
+            pos_x_mm: parseWeight(b.pos_x_mm),
+            pos_y_mm: parseWeight(b.pos_y_mm),
+            label: b.label || "",
+          };
+        }).filter(function (b) {
+          return !isNaN(b.weight_kg) && !isNaN(b.pos_x_mm) && !isNaN(b.pos_y_mm);
+        });
+      }
+      recalc();
+    },
+  };
 
   renderBallastLayerAvailability();
   applyDeepLinkParams();

@@ -37,6 +37,13 @@ def setup_onboarding(strategy, backend, user, response, *args, **kwargs):
     if team_name:
         strategy.session_set('yandex_preselected_team_name', team_name)
 
+    # Блок 3 (/balance/) — куда вернуть пользователя после входа, если он
+    # пришёл со страницы калькулятора. Проверка префикса — защита от
+    # open redirect (значение пришло из GET-параметра на social:begin).
+    balance_next = strategy.session_get('balance_next')
+    if balance_next and balance_next.startswith('/balance/'):
+        strategy.session_set('yandex_balance_next', balance_next)
+
     # If the user already has any DriverClaim the onboarding is done
     has_claim = DriverClaim.objects.filter(user=user).exists()
     if not has_claim:

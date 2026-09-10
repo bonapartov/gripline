@@ -12,6 +12,14 @@
  * --gl-* тёмной темы.
  */
 
+/* Без этого width:100% + padding/border (весь калькулятор построен на этом
+ * паттерне — .gl-calc-select, .gl-calc-geometry__field input и т.д.) даёт
+ * фактическую ширину БОЛЬШЕ 100% контейнера — поля в узких grid-рядах (3
+ * колонки геометрии) вылезают за свою ячейку и съедают gap между собой. */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 html, body {
   height: 100%;
 }
@@ -77,6 +85,50 @@ body {
   text-transform: uppercase;
   letter-spacing: var(--gl-tracking-wider);
   color: var(--gl-fg-1);
+  white-space: nowrap;
+}
+
+/* Действия топбара (Очистить/База на калькуляторе, ТЗ §3.4 UI-референс) —
+ * пустой слот по умолчанию (`{% block topbar_actions %}`), не занимает места
+ * на страницах, которые его не заполняют. */
+.gl-balance-topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--gl-space-1);
+  flex: 0 0 auto;
+}
+
+.gl-balance-topbar__action {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--gl-border-card);
+  background: transparent;
+  color: var(--gl-fg-3);
+  font-family: inherit;
+  font-size: var(--gl-text-tiny-size);
+  font-weight: var(--gl-weight-semibold);
+  padding: 6px 10px;
+  border-radius: var(--gl-radius-pill);
+  min-height: 30px;
+  white-space: nowrap;
+}
+
+.gl-balance-topbar__action:active {
+  border-color: var(--gl-fg-4);
+  color: var(--gl-fg-1);
+}
+
+.gl-balance-topbar__action--accent {
+  border-color: var(--gl-brand-yellow);
+  color: var(--gl-brand-yellow-bright);
+}
+
+/* Три зоны в топбаре (бренд + заголовок + действия) не помещаются рядом на
+ * узких экранах (референс-макет — 375px) без урезания текста бренда. */
+@media (max-width: 380px) {
+  .gl-balance-brand__text {
+    display: none;
+  }
 }
 
 /* ── Контент ──────────────────────────────────────────────────────── */
@@ -127,8 +179,90 @@ body {
 }
 
 .gl-balance-tab--disabled {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: none;
+  font-family: inherit;
   opacity: 0.45;
-  cursor: default;
+  cursor: pointer;
+}
+
+/* ── Модалка «Войти или зарегистрироваться» (клик по заблокированной
+ * вкладке «Мои сетапы») ──────────────────────────────────────────── */
+
+.gl-balance-auth-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gl-balance-auth-modal[hidden] {
+  display: none;
+}
+
+.gl-balance-auth-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.gl-balance-auth-modal__panel {
+  position: relative;
+  z-index: 1;
+  width: calc(100% - var(--gl-space-3) * 2);
+  max-width: 380px;
+  text-align: center;
+  background: var(--gl-surface-card);
+  border: 1px solid var(--gl-border-divider);
+  border-radius: var(--gl-radius-lg);
+  box-shadow: var(--gl-shadow-card);
+  padding: var(--gl-space-4) var(--gl-space-3) var(--gl-space-3);
+}
+
+.gl-balance-auth-modal__close {
+  position: absolute;
+  top: var(--gl-space-2);
+  right: var(--gl-space-2);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--gl-fg-4);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.gl-balance-auth-modal__close:hover,
+.gl-balance-auth-modal__close:focus-visible {
+  color: var(--gl-fg-1);
+}
+
+.gl-balance-auth-modal__text {
+  margin: 0 0 var(--gl-space-3);
+  color: var(--gl-fg-2);
+  font-size: var(--gl-text-small-size);
+}
+
+.gl-balance-auth-modal__cta {
+  display: inline-block;
+  min-height: 44px;
+  line-height: 44px;
+  padding: 0 var(--gl-space-4);
+  border-radius: var(--gl-radius-pill);
+  background: var(--gl-brand-yellow);
+  color: var(--gl-fg-on-yellow);
+  font-weight: var(--gl-weight-semibold);
+  text-decoration: none;
 }
 
 /* ── Баннер «Добавить на экран» (PWA, уровень 2) ─────────────────── */

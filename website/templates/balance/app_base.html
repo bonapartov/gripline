@@ -8,10 +8,12 @@
 <meta name="robots" content="{% block robots_content %}index, follow{% endblock %}">
 {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
 
-{# OG/Twitter — вручную, не через wagtail-seo: /balance/ не Wagtail Page,
-   SeoMixin на обычный Django view не распространяется (ТЗ 9.3 ошибочно
-   ссылался на пакет "wagtail-metadata" — в проекте фактически wagtail-seo,
-   и тот работает только на Page-моделях). #}
+{% comment %}
+OG/Twitter — вручную, не через wagtail-seo: /balance/ не Wagtail Page,
+SeoMixin на обычный Django view не распространяется (ТЗ 9.3 ошибочно
+ссылался на пакет "wagtail-metadata" — в проекте фактически wagtail-seo,
+и тот работает только на Page-моделях).
+{% endcomment %}
 <meta property="og:site_name" content="Gripline">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="ru_RU">
@@ -40,9 +42,11 @@
 <link rel="stylesheet" href="{% static 'website/css/balance-app.css' %}">
 {% block extra_head %}{% endblock %}
 
-{# Аналитика (Блок 10, ТЗ §10.1) — тот же счётчик Яндекс.Метрики, что и на
-   gripline.ru (id 108405016), чтобы видеть сквозную воронку «Матчасть →
-   калькулятор → регистрация». Отдельный счётчик для /balance/ не заводим. #}
+{% comment %}
+Аналитика (Блок 10, ТЗ §10.1) — тот же счётчик Яндекс.Метрики, что и на
+gripline.ru (id 108405016), чтобы видеть сквозную воронку «Матчасть →
+калькулятор → регистрация». Отдельный счётчик для /balance/ не заводим.
+{% endcomment %}
 <script type="text/javascript">
   (function(m,e,t,r,i,k,a){
     m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
@@ -63,6 +67,7 @@
       <span class="gl-balance-brand__text">Проект <strong>Gripline</strong></span>
     </a>
     <h1 class="gl-balance-topbar__title">{% block page_title %}Развесовка{% endblock %}</h1>
+    <div class="gl-balance-topbar__actions">{% block topbar_actions %}{% endblock %}</div>
   </header>
 
   <main class="gl-balance-content">
@@ -73,14 +78,21 @@
   </main>
 
   <nav class="gl-balance-tabbar">
-    <a href="{% url 'balance:home' %}" class="gl-balance-tab gl-balance-tab--active">
+    <a href="{% url 'balance:home' %}" class="gl-balance-tab{% if active_tab == 'home' %} gl-balance-tab--active{% endif %}">
       <i class="fa-solid fa-scale-balanced"></i>
       <span>Калькулятор</span>
     </a>
-    <span class="gl-balance-tab gl-balance-tab--disabled" title="Доступно после входа — скоро">
-      <i class="fa-solid fa-layer-group"></i>
-      <span>Мои сетапы</span>
-    </span>
+    {% if has_balance_access %}
+      <a href="{% url 'balance:setups_list' %}" class="gl-balance-tab{% if active_tab == 'setups' %} gl-balance-tab--active{% endif %}">
+        <i class="fa-solid fa-layer-group"></i>
+        <span>Мои сетапы</span>
+      </a>
+    {% else %}
+      <button type="button" class="gl-balance-tab gl-balance-tab--disabled" id="glBalanceSetupsLockedTab">
+        <i class="fa-solid fa-layer-group"></i>
+        <span>Мои сетапы</span>
+      </button>
+    {% endif %}
   </nav>
 </div>
 
@@ -92,7 +104,24 @@
   </button>
 </div>
 
+{% comment %}
+Клик по заблокированной вкладке «Мои сетапы» (has_balance_access=False —
+аноним или без привязки пилота) — модалка с переходом на уже существующую
+страницу входа/регистрации, а не прямая ссылка на Яндекс-OAuth в обход неё.
+{% endcomment %}
+<div class="gl-balance-auth-modal" id="glBalanceAuthModal" hidden>
+  <div class="gl-balance-auth-modal__backdrop" id="glBalanceAuthModalBackdrop"></div>
+  <div class="gl-balance-auth-modal__panel" role="dialog" aria-modal="true">
+    <button type="button" class="gl-balance-auth-modal__close" id="glBalanceAuthModalClose" aria-label="Закрыть">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+    <p class="gl-balance-auth-modal__text">Чтобы сохранять и открывать свои сетапы, нужно войти или зарегистрироваться.</p>
+    <a href="{% url 'choose_role' %}" class="gl-balance-auth-modal__cta">Вход или регистрация</a>
+  </div>
+</div>
+
 <script src="{% static 'website/js/balance-pwa.js' %}"></script>
+<script src="{% static 'website/js/balance-auth-modal.js' %}"></script>
 {% block extra_scripts %}{% endblock %}
 </body>
 </html>

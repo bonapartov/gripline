@@ -199,6 +199,13 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
+        # Всплески обращений с одного IP на мутирующие эндпоинты /balance/ —
+        # см. website/services/balance_limits.py::balance_ratelimit (ТЗ §12).
+        "balance.ratelimit": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
     },
 }
 
@@ -330,7 +337,14 @@ SOCIAL_AUTH_PIPELINE = (
 SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/accounts/profile/'
 SOCIAL_AUTH_LOGIN_ERROR_URL = '/accounts/login/'
 SOCIAL_AUTH_LOGOUT_REDIRECT_URL = '/choose-role/'
-SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = ['role', 'pilot_id', 'team_id', 'team_name']
+# 'balance_next' — НЕ 'next': PSA уже резервирует 'next' (django.contrib.auth.
+# REDIRECT_FIELD_NAME) для своего встроенного redirect_value в
+# social_core.actions.do_auth/do_complete — передав ?next=/balance/ мы бы
+# получили редирект ПРЯМО на /balance/ для любого пользователя, включая
+# только что созданного (минуя accounts/pipeline.py::setup_onboarding →
+# формы заявки пилота). Свой ключ 'balance_next' обходит эту встроенную
+# логику и обрабатывается вручную в pipeline.py + views.py::profile().
+SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = ['role', 'pilot_id', 'team_id', 'team_name', 'balance_next']
 
 SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL = True
 SOCIAL_AUTH_REDIRECT_IS_HTTPS = False  # set True in prod settings

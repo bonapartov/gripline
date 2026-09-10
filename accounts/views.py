@@ -356,6 +356,18 @@ def login_view(request):
 @login_required
 def profile(request):
     """Личный кабинет пилота"""
+    # Блок 3 (/balance/) — возврат после входа через Яндекс, если пользователь
+    # пришёл со страницы калькулятора (см. accounts/pipeline.py::setup_onboarding).
+    # Проверяется здесь, а не только в _redirect_by_role — у пилота с уже
+    # одобренной заявкой (самый частый повторный вход) этот код вообще не
+    # добирается до _redirect_by_role, он рендерит профиль напрямую ниже.
+    # Попап всегда снимается из сессии (одноразовый), но редирект срабатывает
+    # только вне свежего онбординга — у нового юзера ещё нет Driver/TeamManager,
+    # /balance/ ему рано (см. план Блока 3, решение 4).
+    balance_next = request.session.pop('yandex_balance_next', None)
+    if balance_next and not request.session.get('yandex_onboarding'):
+        return redirect(balance_next)
+
     try:
         claim = DriverClaim.objects.filter(
             user=request.user,

@@ -1,0 +1,263 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% comment %}
+Этап 7 плана Блока 3 (аудит noindex/nocache_page/rate-limit — см.
+/home/v/.claude/plans/smooth-snacking-spindle.md) — ЛК менеджера, приватные
+данные ростера/картов команды. web_page.html не выставляет robots-тег сам
+по себе (не Wagtail Page с SeoMixin, обычный Django view), поэтому здесь
+явно, через extra_head — тот же принцип, что noindex на setups_list.html
+и editing_setup в home.html.
+{% endcomment %}
+{% block extra_head %}
+<meta name="robots" content="noindex, nofollow">
+{% endblock %}
+
+{% block content %}
+<style>
+    .balance-roster-card {
+        background-color: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    .balance-roster-card .section-title {
+        color: #ffc107;
+        font-size: 1.3rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid #2a2a35;
+        padding-bottom: 0.5rem;
+    }
+    .balance-roster-card .form-label {
+        color: #0dcaf0;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        font-weight: bold;
+        margin-bottom: 0.25rem;
+        display: block;
+    }
+    .balance-roster-card .form-control,
+    .balance-roster-card select.form-control {
+        background-color: #15151c !important;
+        border: 1px solid #2a2a35 !important;
+        color: white !important;
+        border-radius: 4px;
+        padding: 0.5rem;
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+    .balance-roster-card .btn-save {
+        background-color: #ffc107;
+        color: #000;
+        border: none;
+        padding: 0.6rem 1.5rem;
+        font-weight: bold;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .balance-roster-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.85rem 1rem;
+        background-color: #15151c;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+    }
+    .balance-roster-row .name { color: white; font-weight: bold; }
+    .balance-roster-row .meta { color: #6c757d; font-size: 0.85rem; }
+    .balance-roster-row .btn-archive {
+        background-color: transparent;
+        color: #dc3545;
+        border: 1px solid #dc3545;
+        padding: 0.4rem 0.8rem;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .balance-roster-row .btn-archive:hover { background-color: #dc3545; color: white; }
+    .balance-privacy-notice {
+        color: #6c757d;
+        font-size: 0.85rem;
+        margin: -0.5rem 0 1rem;
+    }
+    .balance-privacy-notice a { color: #0dcaf0; }
+</style>
+
+<div class="force-width-1500 pt-5 pb-5" style="max-width: 1100px; margin: 0 auto; padding-left: 1rem; padding-right: 1rem;">
+    <h1 style="color: #ffc107; font-size: 1.8rem; margin-bottom: 0.25rem;">Развесовка — ростер и карты команды</h1>
+    <p style="color: #6c757d; margin-bottom: 2rem;">
+        <a href="{% url 'teams:dashboard' %}" style="color: #0dcaf0;">← Личный кабинет команды «{{ team.name }}»</a>
+    </p>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert {% if message.tags == 'success' %}alert-success{% elif message.tags == 'error' %}alert-danger{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="balance-roster-card">
+        <h3 class="section-title">Ростер</h3>
+
+        {% for entry in roster_entries_active %}
+            <div class="balance-roster-row">
+                <div>
+                    <div class="name">
+                        {{ entry.last_name }} {{ entry.first_name }}
+                        {% if entry.label %}<span class="meta">— {{ entry.label }}</span>{% endif %}
+                    </div>
+                    <div class="meta">
+                        {% if entry.driver %}Привязан к профилю пилота{% else %}Без аккаунта на Gripline{% endif %}
+                        {% if entry.gear_weight_kg %} · вес в экипировке {{ entry.gear_weight_kg }} кг{% endif %}
+                    </div>
+                </div>
+                <form method="post" action="{% url 'teams:balance_roster_entry_archive' entry.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-archive">В архив</button>
+                </form>
+            </div>
+        {% empty %}
+            <p style="color: #6c757d;">Ростер пуст.</p>
+        {% endfor %}
+
+        <h3 class="section-title" style="font-size: 1rem; margin-top: 2rem;">Добавить пилота в ростер</h3>
+        <p class="balance-privacy-notice">{{ roster_privacy_notice|safe }}</p>
+        <form method="post" action="{% url 'teams:balance_roster_entry_save' %}">
+            {% csrf_token %}
+            <div class="row">
+                <div class="col-md-4">
+                    <label class="form-label">Фамилия</label>
+                    <input type="text" name="last_name" class="form-control" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Имя</label>
+                    <input type="text" name="first_name" class="form-control" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Метка (опционально)</label>
+                    <input type="text" name="label" class="form-control" placeholder="например «синий шлем»">
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4">
+                    <label class="form-label">Вес в экипировке, кг (опционально)</label>
+                    <input type="text" inputmode="decimal" name="gear_weight_kg" class="form-control">
+                </div>
+            </div>
+            <button type="submit" class="btn-save">Добавить</button>
+        </form>
+
+        {% if roster_entries|length > roster_entries_active|length %}
+        <details style="margin-top: 1.5rem;">
+            <summary style="color: #6c757d; cursor: pointer;">Показать архив ростера</summary>
+            {% for entry in roster_entries %}
+                {% if entry.is_archived %}
+                <div class="balance-roster-row" style="opacity: 0.6;">
+                    <div class="name">{{ entry.last_name }} {{ entry.first_name }}</div>
+                    <form method="post" action="{% url 'teams:balance_roster_entry_archive' entry.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-archive">Вернуть из архива</button>
+                    </form>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </details>
+        {% endif %}
+    </div>
+
+    <div class="balance-roster-card">
+        <h3 class="section-title">Карты команды</h3>
+
+        {% for kart in karts_active %}
+            <div class="balance-roster-row">
+                <div>
+                    <div class="name">{{ kart.name }}</div>
+                    <div class="meta">
+                        {{ kart.chassis.name }} · {{ kart.get_chassis_type_display }}
+                        {% if kart.model %} · {{ kart.model }}{% endif %}
+                        {% if kart.year %} · {{ kart.year }}{% endif %}
+                        {% if kart.roster_entry %} · закреплён за {{ kart.roster_entry.last_name }} {{ kart.roster_entry.first_name }}{% endif %}
+                    </div>
+                </div>
+                <form method="post" action="{% url 'teams:balance_kart_archive' kart.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-archive">В архив</button>
+                </form>
+            </div>
+        {% empty %}
+            <p style="color: #6c757d;">У команды пока нет картов.</p>
+        {% endfor %}
+
+        <h3 class="section-title" style="font-size: 1rem; margin-top: 2rem;">Добавить карт</h3>
+        <form method="post" action="{% url 'teams:balance_kart_save' %}">
+            {% csrf_token %}
+            <div class="row">
+                <div class="col-md-4">
+                    <label class="form-label">Название</label>
+                    <input type="text" name="name" class="form-control" placeholder="например «Карт №1»" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Шасси</label>
+                    <select name="chassis_id" class="form-control" required>
+                        <option value="">—</option>
+                        {% for c in chassis_choices %}
+                        <option value="{{ c.id }}">{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Тип шасси</label>
+                    <select name="chassis_type" class="form-control" required>
+                        <option value="">—</option>
+                        <option value="junior">Детское</option>
+                        <option value="senior">Взрослое</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4">
+                    <label class="form-label">Модель рамы (опционально)</label>
+                    <input type="text" name="model" class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Год (опционально)</label>
+                    <input type="text" inputmode="numeric" name="year" class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Закреплён за (опционально)</label>
+                    <select name="roster_entry_id" class="form-control">
+                        <option value="">—</option>
+                        {% for entry in roster_entries_active %}
+                        <option value="{{ entry.id }}">{{ entry.last_name }} {{ entry.first_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn-save">Добавить карт</button>
+        </form>
+
+        {% if karts|length > karts_active|length %}
+        <details style="margin-top: 1.5rem;">
+            <summary style="color: #6c757d; cursor: pointer;">Показать архив картов</summary>
+            {% for kart in karts %}
+                {% if kart.is_archived %}
+                <div class="balance-roster-row" style="opacity: 0.6;">
+                    <div class="name">{{ kart.name }}</div>
+                    <form method="post" action="{% url 'teams:balance_kart_archive' kart.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-archive">Вернуть из архива</button>
+                    </form>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </details>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

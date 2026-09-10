@@ -14,22 +14,21 @@ from django.urls import reverse
 from wagtail.models import Site
 from wagtailcache.cache import nocache_page
 
-from website.models import KartClass
+from website.models import Chassis, Kart, KartClass
 from website.schema import balance_webapp_dict, render_json_ld
 from website.services.balance_calc import load_diagnostic_rules, load_thresholds
+from website.services.balance_permissions import get_balance_identity
 
 
-@nocache_page
-def balance_home(request):
+def _calculator_reference_context():
     """
-    @nocache_page здесь не про авторизацию (страница анонимная, публичная) —
-    про свежесть данных. KartClass/BalanceThreshold правятся в админке
-    («Развесовка») без какого-либо хука инвалидации wagtailcache; без этого
-    декоратора первый закэшированный ответ (например, ещё пустые справочники)
-    отдавался бы всем следующим посетителям до истечения TTL/ручного
-    clear_wagtail_cache — тот же класс бага, что уже ловили на медиа-ките
-    пилота (см. CLAUDE.md), только там дело было в авторизации, здесь — в
-    актуальности регламентных цифр."""
+    Справочный контекст калькулятора — классы/пороги/диагностика. Не
+    зависит от пользователя или конкретного сетапа, поэтому вынесен из
+    balance_home (Этап 4 плана Блока 3 —
+    /home/v/.claude/plans/smooth-snacking-spindle.md): setup_edit
+    (balance_setup_views.py) рендерит тот же home.html и должен получить
+    ровно те же справочники, без повторного похода в БД за тем же самым.
+    """
     kart_classes = []
     for kc in KartClass.objects.filter(is_active=True):
         geometry = kc.effective_geometry()
@@ -54,8 +53,6 @@ def balance_home(request):
 
     diagnostic_rules = {}
     why_43_57 = None
-    reading_links = []
-    seen_article_urls = set()
     for condition, rule in load_diagnostic_rules().items():
         entry = {
             "text": rule.text,
@@ -66,29 +63,80 @@ def balance_home(request):
             why_43_57 = entry
         else:
             diagnostic_rules[condition] = entry
-            # Несколько условий делят одну статью (ТЗ 7.1: front_high/front_low
-            # — «та же», cross_diagonal/cross_mechanical — тоже) — не дублируем
-            # ссылку в списке для чтения на лендинге.
-            if entry["article_url"] and entry["article_url"] not in seen_article_urls:
-                seen_article_urls.add(entry["article_url"])
-                reading_links.append(entry)
 
-    site = Site.find_for_request(request)
-    root_url = site.root_url if site else "https://gripline.ru"
-    canonical_url = root_url.rstrip("/") + reverse("balance:home")
-    og_image_url = root_url.rstrip("/") + static("website/images/balance/og-card.png")
-
-    return render(request, "balance/home.html", {
+    return {
         "kart_classes": kart_classes,
         "kart_classes_json": kart_classes,
         "thresholds_json": thresholds,
         "diagnostic_rules_json": diagnostic_rules,
         "why_43_57": why_43_57,
-        "reading_links": reading_links,
+    }
+
+
+def user_karts_context(user):
+    """
+    Identity-производный контекст (пилотские карты + справочник шасси для
+    инлайн-создания нового карта) — общий для balance_home и setup_edit
+    (та же причина выноса, что у _calculator_reference_context выше).
+    Без подчёркивания — вызывается из balance_setup_views.py.
+    """
+    identity = get_balance_identity(user)
+    driver = identity["driver"]
+    has_balance_access = driver is not None or identity["managed_teams"].exists()
+
+    user_karts = []
+    if driver is not None:
+        user_karts = [
+            {"id": k.id, "name": k.name}
+            for k in Kart.objects.filter(owner_driver=driver, is_archived=False).order_by("-updated_at")
+        ]
+    chassis_choices = [
+        {"id": c.id, "name": c.name}
+        for c in Chassis.objects.filter(live=True).order_by("name")
+    ]
+    return {
+        "has_driver_identity": driver is not None,
+        "has_balance_access": has_balance_access,
+        "user_karts": user_karts,
+        "chassis_choices": chassis_choices,
+    }
+
+
+def balance_seo_context(request):
+    """OG/canonical/schema — общие для home и setup_edit: setup_edit рендерит
+    ту же страницу с конкретным сетапом внутри, а не отдельный индексируемый
+    URL (см. robots_content в home.html — noindex для editing_setup)."""
+    site = Site.find_for_request(request)
+    root_url = site.root_url if site else "https://gripline.ru"
+    canonical_url = root_url.rstrip("/") + reverse("balance:home")
+    og_image_url = root_url.rstrip("/") + static("website/images/balance/og-card.png")
+    return {
         "canonical_url": canonical_url,
         "og_image_url": og_image_url,
         "schema_json_ld": render_json_ld(balance_webapp_dict(site, canonical_url)),
-    })
+    }
+
+
+@nocache_page
+def balance_home(request):
+    """
+    @nocache_page здесь не про авторизацию (страница анонимная, публичная) —
+    про свежесть данных. KartClass/BalanceThreshold правятся в админке
+    («Развесовка») без какого-либо хука инвалидации wagtailcache; без этого
+    декоратора первый закэшированный ответ (например, ещё пустые справочники)
+    отдавался бы всем следующим посетителям до истечения TTL/ручного
+    clear_wagtail_cache — тот же класс бага, что уже ловили на медиа-ките
+    пилота (см. CLAUDE.md), только там дело было в авторизации, здесь — в
+    актуальности регламентных цифр. С Блока 3 у декоратора появилась и
+    вторая причина: страница теперь несёт персонализированный список
+    картов пилота (user_karts) — без @nocache_page первый закэшированный
+    ответ (даже анонимный) отдавался бы всем следующим посетителям в обход
+    личных данных, тот же класс бага, что уже ловили на медиа-ките пилота."""
+    context = _calculator_reference_context()
+    context.update(user_karts_context(request.user))
+    context.update(balance_seo_context(request))
+    context["active_tab"] = "home"
+    return render(request, "balance/home.html", context)
 
 
 def balance_manifest(request):

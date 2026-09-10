@@ -1,0 +1,59 @@
+{% extends "balance/app_base.html" %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'website/css/balance-calculator.css' %}">
+<link rel="stylesheet" href="{% static 'website/css/balance-setups.css' %}">
+{% endblock %}
+
+{% comment %}
+Приватные данные пилота — не индексировать (чеклист Блока 3, см.
+website/mediakit_views.py про тот же принцип для медиа-кита). Анонимный
+калькулятор на / остаётся index,follow как раньше — только эта страница
+переопределяет.
+{% endcomment %}
+{% block robots_content %}noindex, nofollow{% endblock %}
+
+{% block page_title %}Мои сетапы{% endblock %}
+
+{% block content %}
+<div class="gl-setups">
+  <div class="gl-setups-filters">
+    <select class="gl-calc-select" id="glSetupsFilterClass">
+      <option value="">Все классы</option>
+      {% for cid, cname in available_classes %}
+        <option value="{{ cid }}">{{ cname }}</option>
+      {% endfor %}
+    </select>
+    <select class="gl-calc-select" id="glSetupsFilterWeather">
+      <option value="">Любая погода</option>
+      <option value="dry">Сухо</option>
+      <option value="wet">Дождь</option>
+      <option value="mixed">Переменная</option>
+    </select>
+    <select class="gl-calc-select" id="glSetupsFilterTrack">
+      <option value="">Любая трасса</option>
+      {% for tid, tname in available_tracks %}
+        <option value="{{ tid }}">{{ tname }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <label class="gl-setups-archive-toggle">
+    <input type="checkbox" id="glSetupsShowArchived">
+    Показать архивные
+  </label>
+
+  <p class="gl-setups-message" id="glSetupsMessage" hidden></p>
+
+  <div class="gl-setups-list" id="glSetupsList"></div>
+  <p class="gl-setups-empty" id="glSetupsEmpty" hidden>
+    Подходящих сетапов не нашлось. Сохранить новый можно на странице калькулятора.
+  </p>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{{ setups_data|json_script:"balanceSetupsData" }}
+<script src="{% static 'website/js/balance-setups.js' %}"></script>
+{% endblock %}

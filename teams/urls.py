@@ -1,9 +1,17 @@
 from django.urls import path
-from . import views
+from . import views, balance_roster_views
 
 app_name = 'teams'
 
 urlpatterns = [
+    # Ростер и карты для калькулятора развесовки (/balance/, Блок 3) —
+    # см. /home/v/.claude/plans/smooth-snacking-spindle.md
+    path('balance-roster/', balance_roster_views.balance_roster, name='balance_roster'),
+    path('balance-roster/entry/save/', balance_roster_views.roster_entry_save, name='balance_roster_entry_save'),
+    path('balance-roster/entry/<int:pk>/archive/', balance_roster_views.roster_entry_archive, name='balance_roster_entry_archive'),
+    path('balance-roster/kart/save/', balance_roster_views.team_kart_save, name='balance_kart_save'),
+    path('balance-roster/kart/<int:pk>/archive/', balance_roster_views.team_kart_archive, name='balance_kart_archive'),
+
     path('register/', views.register, name='register'),
     path('select-team/', views.select_team, name='select_team'),
     path('login/', views.login_view, name='login'),

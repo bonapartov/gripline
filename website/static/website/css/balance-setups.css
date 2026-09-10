@@ -1,0 +1,164 @@
+/*
+ * Список сохранённых сетапов (/balance/mine/, Блок 3 ТЗ, Этап 3 — см.
+ * /home/v/.claude/plans/smooth-snacking-spindle.md). Разметка карточек —
+ * JS-генерируемая (balance-setups.js), здесь только вёрстка контейнеров.
+ * Фильтры — .gl-calc-select из balance-calculator.css (тот же стилизованный
+ * нативный <select>, см. правило в этом файле про реальный паттерн проекта).
+ */
+
+.gl-setups {
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gl-space-3);
+}
+
+.gl-setups-filters {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--gl-space-2);
+}
+
+.gl-setups-archive-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--gl-space-2);
+  font-size: var(--gl-text-small-size);
+  color: var(--gl-fg-3);
+}
+
+.gl-setups-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gl-space-4);
+}
+
+.gl-setups-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gl-space-2);
+}
+
+.gl-setups-group__title {
+  margin: 0;
+  font-size: var(--gl-text-small-size);
+  text-transform: uppercase;
+  letter-spacing: var(--gl-tracking-wider);
+  color: var(--gl-fg-4);
+}
+
+.gl-setups-card {
+  background: var(--gl-surface-card);
+  border: 1px solid var(--gl-border-card);
+  border-radius: var(--gl-radius-lg);
+  padding: var(--gl-space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gl-space-1);
+}
+
+.gl-setups-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--gl-space-2);
+}
+
+.gl-setups-card__name {
+  font-weight: var(--gl-weight-semibold);
+  color: var(--gl-fg-1);
+}
+
+.gl-setups-card__date {
+  font-size: var(--gl-text-tiny-size);
+  color: var(--gl-fg-4);
+  white-space: nowrap;
+}
+
+.gl-setups-card__meta,
+.gl-setups-card__corners {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gl-space-2);
+  font-size: var(--gl-text-small-size);
+}
+
+.gl-setups-card__meta {
+  color: var(--gl-fg-3);
+}
+
+.gl-setups-card__corners {
+  color: var(--gl-fg-2);
+}
+
+.gl-setups-card__total {
+  font-weight: var(--gl-weight-semibold);
+  color: var(--gl-fg-1);
+}
+
+.gl-setups-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gl-space-1);
+  margin-top: var(--gl-space-1);
+}
+
+.gl-setups-badge {
+  font-size: var(--gl-text-tiny-size);
+  padding: 2px 8px;
+  border-radius: var(--gl-radius-pill);
+  border: 1px solid var(--gl-brand-cyan);
+  color: var(--gl-brand-cyan);
+}
+
+.gl-setups-badge--archived {
+  border-color: var(--gl-fg-4);
+  color: var(--gl-fg-4);
+}
+
+.gl-setups-badge--shared {
+  border-color: var(--gl-brand-yellow);
+  color: var(--gl-brand-yellow-bright);
+}
+
+.gl-setups-card__open {
+  align-self: flex-start;
+  margin-top: var(--gl-space-1);
+  font-size: var(--gl-text-small-size);
+  color: var(--gl-brand-cyan);
+}
+
+.gl-setups-card__actions {
+  display: flex;
+  gap: var(--gl-space-2);
+  margin-top: var(--gl-space-1);
+}
+
+.gl-setups-card__action {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--gl-border-card);
+  background: transparent;
+  color: var(--gl-fg-3);
+  font-family: inherit;
+  font-size: var(--gl-text-tiny-size);
+  border-radius: var(--gl-radius-pill);
+  padding: 4px 10px;
+}
+
+.gl-setups-empty {
+  text-align: center;
+  color: var(--gl-fg-3);
+  font-size: var(--gl-text-small-size);
+}
+
+.gl-setups-message {
+  text-align: center;
+  color: var(--gl-signal-green);
+  font-size: var(--gl-text-small-size);
+}
+
+.gl-setups-message--error {
+  color: var(--gl-brand-red);
+}

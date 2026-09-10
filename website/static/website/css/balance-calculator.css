@@ -1,14 +1,12 @@
 /*
- * Калькулятор развесовки (/balance/, Блок 2) — ввод 4 угловых весов на
- * упрощённой схеме карта + результаты в реальном времени. Логика — в
- * balance-calculator.js; здесь только вёрстка, токены --gl-* (см. правило
- * в balance-app.css про реальную палитру сайта, а не логотипа).
+ * Калькулятор развесовки (/balance/, Блоки 2 и 4) — ввод 4 угловых весов на
+ * детализированной схеме карта (вид сверху) + результаты в реальном времени.
+ * Логика — в balance-calculator.js; здесь только вёрстка, токены --gl-*
+ * (см. правило в balance-app.css про реальную палитру сайта, а не логотипа).
  *
- * Схема здесь намеренно простая (силуэт, не интерактивные зоны балласта) —
- * полноценный визуальный редактор с drag-and-drop это Блок 4, самая
- * трудоёмкая часть ТЗ. Достраивать зоны крепления сюда не стал: Блок 4 всё
- * равно переверстает эту схему под drag-and-drop, тратить время на детали,
- * которые тут же заменят, не имеет смысла.
+ * Схема (2026-09-09) — оригинальная построчная отрисовка (рулевая тяга,
+ * радиатор, мотор, цепь, выхлоп), не трассировка референса и не фото —
+ * технический "чертёж", тонкие обводки токенами, без заливок картинками.
  */
 
 .gl-calc {
@@ -59,6 +57,10 @@
   gap: var(--gl-space-2);
 }
 
+.gl-calc-field-row--single {
+  grid-template-columns: 1fr;
+}
+
 /* ── Единая схема карта: угловые поля + балласт + CG на одном контуре ─
  * (ТЗ §3.4 + §5.1 — одна «схема», не две). Слой балласта включается,
  * когда заполнена геометрия; без неё Блок 2 (веса + метрики) работает
@@ -67,7 +69,7 @@
 .gl-calc-schema {
   position: relative;
   width: 100%;
-  aspect-ratio: 280 / 400;
+  aspect-ratio: 896 / 1199;
   margin: 0 auto;
 }
 
@@ -83,32 +85,25 @@
   cursor: default;
 }
 
-.gl-calc-schema__frame {
-  fill: var(--gl-surface-card);
-  stroke: var(--gl-border-card);
-  stroke-width: 2;
-}
-
-.gl-calc-schema__wheel {
-  fill: var(--gl-surface-card-hover);
-  stroke: var(--gl-border-divider);
-  stroke-width: 1;
-}
-
-.gl-calc-schema__seat {
-  fill: var(--gl-surface-navbar);
+/* Иллюстрация карта (2026-09-09) — векторизована (autotrace) из референса
+ * пользователя, один compound-path (392 подпути, fill-rule evenodd), а не
+ * набор отдельно стилизуемых деталей — раскраска одним цветом на всё. */
+.gl-calc-schema__art {
+  fill: var(--gl-fg-4);
 }
 
 /* Зоны крепления балласта — подсказка, не ограничение (ТЗ §5.1).
  * Пока слой балласта заблокирован (нет геометрии) — прячем, чтобы не
- * намекать на интерактивность, которой ещё нет. */
+ * намекать на интерактивность, которой ещё нет. Толщина обводки и
+ * пунктир увеличены под масштаб координат новой схемы (896×1199,
+ * раньше 280×400 — координаты выросли ~в 3.2 раза). */
 .gl-calc-zone {
   fill: var(--gl-brand-yellow);
   fill-opacity: 0.06;
   stroke: var(--gl-brand-yellow);
   stroke-opacity: 0.25;
-  stroke-width: 1.5;
-  stroke-dasharray: 4 3;
+  stroke-width: 5;
+  stroke-dasharray: 13 10;
   pointer-events: none;
   transition: opacity 0.15s ease;
 }
@@ -185,6 +180,14 @@
   border-color: var(--gl-brand-red);
 }
 
+/* % от общего веса на этот угол — презентационное значение, считается из
+ * тех же appliedCorners/metrics, что уже выводятся в gauge-баре ниже. */
+.gl-calc-corner__pct {
+  font-family: var(--gl-font-mono);
+  font-size: var(--gl-text-tiny-size);
+  color: var(--gl-fg-4);
+}
+
 /* Итоговый вес угла после балласта (база + Δ, ТЗ §5.3) */
 .gl-calc-corner__result {
   font-family: var(--gl-font-mono);
@@ -225,49 +228,192 @@
   color: var(--gl-fg-1);
 }
 
-/* ── Результаты ───────────────────────────────────────────────────── */
+/* ── Результаты: gauge-бар перед/зад + лево/право ─────────────────────
+ * Пара иконок-силуэтов (не текстовый список метрик) — ось деления читается
+ * прямо по форме иконки: вертикальная капсула с горизонтальной осью для
+ * перед/зад (совпадает с ориентацией самой схемы — нос сверху), горизон-
+ * тальная капсула с вертикальной осью для лево/право. Cross weight и
+ * База/Итого — отдельные строки ниже: у них нет "двух полюсов" под иконку. */
 
-.gl-calc-results {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gl-space-2);
+.gl-calc-gaugebar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gl-space-3);
 }
 
-.gl-calc-metric {
+.gl-calc-gauge {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--gl-space-2);
   background: var(--gl-surface-card);
   border: 1px solid var(--gl-border-card);
   border-radius: var(--gl-radius-lg);
   padding: var(--gl-space-2) var(--gl-space-3);
 }
 
-.gl-calc-metric__label {
-  font-size: var(--gl-text-small-size);
-  color: var(--gl-fg-3);
+/* Место под инфо-кнопку (?) в углу — только у перед/зад, лево/право её не
+ * показывает (там нечего пояснять — 43/57 объясняется только у перед/зад). */
+.gl-calc-gauge--fr {
+  position: relative;
+  padding-right: 44px;
 }
 
-.gl-calc-metric__value {
+.gl-calc-gauge__info {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--gl-border-card);
+  border-radius: 50%;
+  background: var(--gl-surface-card-hover);
+  color: var(--gl-fg-4);
+  font-size: 15px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.gl-calc-gauge__info:hover,
+.gl-calc-gauge__info:focus-visible {
+  color: var(--gl-brand-yellow-bright);
+  border-color: var(--gl-brand-yellow);
+}
+
+.gl-calc-gauge__icon {
+  width: 32px;
+  height: auto;
+  flex: 0 0 auto;
+}
+
+.gl-calc-gauge--lr .gl-calc-gauge__icon {
+  width: 44px;
+}
+
+.gl-calc-gauge__outline {
+  fill: none;
+  stroke: var(--gl-fg-4);
+  stroke-width: 2;
+}
+
+.gl-calc-gauge__mid {
+  stroke: var(--gl-fg-4);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+}
+
+.gl-calc-gauge__wheel {
+  fill: var(--gl-surface-card-hover);
+  stroke: var(--gl-fg-4);
+  stroke-width: 1;
+}
+
+.gl-calc-gauge--green .gl-calc-gauge__outline { stroke: var(--gl-signal-green); }
+.gl-calc-gauge--yellow .gl-calc-gauge__outline { stroke: var(--gl-brand-yellow); }
+.gl-calc-gauge--red .gl-calc-gauge__outline { stroke: var(--gl-brand-red); }
+
+.gl-calc-gauge__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.gl-calc-gauge__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gl-space-2);
+}
+
+.gl-calc-gauge__label {
+  font-size: var(--gl-text-tiny-size);
+  color: var(--gl-fg-4);
+}
+
+.gl-calc-gauge__value {
   font-family: var(--gl-font-mono);
   font-weight: var(--gl-weight-semibold);
   color: var(--gl-fg-1);
 }
 
-.gl-calc-metric__dot {
+.gl-calc-gauge--green .gl-calc-gauge__value { color: var(--gl-signal-green); }
+.gl-calc-gauge--yellow .gl-calc-gauge__value { color: var(--gl-brand-yellow); }
+.gl-calc-gauge--red .gl-calc-gauge__value { color: var(--gl-brand-red); }
+
+/* ── Cross weight — отдельная строка-чип, тот же цветовой язык ──────── */
+
+.gl-calc-cross {
+  display: flex;
+  align-items: center;
+  gap: var(--gl-space-1);
+  background: var(--gl-surface-card);
+  border: 1px solid var(--gl-border-card);
+  border-radius: var(--gl-radius-lg);
+  padding: var(--gl-space-2) var(--gl-space-3);
+  font-size: var(--gl-text-small-size);
+}
+
+.gl-calc-cross__dot {
   display: inline-block;
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  margin-right: var(--gl-space-1);
+  background: var(--gl-fg-4);
+  flex: 0 0 auto;
 }
 
-.gl-calc-metric--green .gl-calc-metric__dot { background: var(--gl-brand-green); }
-.gl-calc-metric--yellow .gl-calc-metric__dot { background: var(--gl-brand-yellow); }
-.gl-calc-metric--red .gl-calc-metric__dot { background: var(--gl-brand-red); }
+.gl-calc-cross--green .gl-calc-cross__dot { background: var(--gl-signal-green); }
+.gl-calc-cross--yellow .gl-calc-cross__dot { background: var(--gl-brand-yellow); }
+.gl-calc-cross--red .gl-calc-cross__dot { background: var(--gl-brand-red); }
 
-.gl-calc-metric--total {
-  border-color: var(--gl-brand-yellow);
+.gl-calc-cross__label {
+  color: var(--gl-fg-3);
+  flex: 1 1 auto;
+}
+
+.gl-calc-cross__value {
+  font-family: var(--gl-font-mono);
+  font-weight: var(--gl-weight-semibold);
+  color: var(--gl-fg-1);
+}
+
+/* ── База / Итого (ТЗ 3.1 kart_only_weight) ──────────────────────────── */
+
+.gl-calc-weightrow {
+  display: flex;
+  justify-content: center;
+  gap: var(--gl-space-5);
+  padding: var(--gl-space-1) 0;
+}
+
+.gl-calc-weightrow__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.gl-calc-weightrow__label {
+  font-size: var(--gl-text-tiny-size);
+  text-transform: uppercase;
+  letter-spacing: var(--gl-tracking-wider);
+  color: var(--gl-fg-4);
+}
+
+.gl-calc-weightrow__value {
+  font-family: var(--gl-font-mono);
+  font-size: 1.05rem;
+  font-weight: var(--gl-weight-semibold);
+  color: var(--gl-fg-2);
+}
+
+.gl-calc-weightrow__item--total .gl-calc-weightrow__value {
+  color: var(--gl-brand-yellow-bright);
 }
 
 .gl-calc-min-weight {
@@ -281,12 +427,106 @@
   font-weight: var(--gl-weight-semibold);
 }
 
-/* ── CTA сохранить (анонимный режим) ─────────────────────────────── */
+/* ── CTA сохранить (Блок 3, три состояния — см. home.html) ─────────── */
 
 .gl-calc-cta {
   text-align: center;
   font-size: var(--gl-text-small-size);
   color: var(--gl-fg-3);
+}
+
+.gl-calc-save__login {
+  color: var(--gl-brand-yellow-bright);
+  font-weight: var(--gl-weight-semibold);
+}
+
+.gl-calc-save {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gl-space-2);
+}
+
+.gl-calc-save__label {
+  margin: 0;
+  font-size: var(--gl-text-tiny-size);
+  text-transform: uppercase;
+  letter-spacing: var(--gl-tracking-wider);
+  color: var(--gl-fg-4);
+}
+
+.gl-calc-save__readonly {
+  margin: 0;
+  color: var(--gl-fg-3);
+}
+
+.gl-calc-save__kart-fixed {
+  margin: 0;
+  font-size: var(--gl-text-small-size);
+  color: var(--gl-fg-2);
+}
+
+.gl-calc-save__kart-fixed strong {
+  color: var(--gl-fg-1);
+}
+
+.gl-calc-save__parent {
+  margin: 0;
+  font-size: var(--gl-text-tiny-size);
+  color: var(--gl-fg-4);
+}
+
+.gl-calc-save__checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--gl-space-2);
+  font-size: var(--gl-text-small-size);
+  color: var(--gl-fg-2);
+}
+
+.gl-calc-save__row {
+  display: flex;
+  gap: var(--gl-space-2);
+}
+
+.gl-calc-save__row > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.gl-calc-save__row--new-kart {
+  flex-wrap: wrap;
+}
+
+.gl-calc-save__btn {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--gl-border-card);
+  background: transparent;
+  color: var(--gl-fg-2);
+  font-family: inherit;
+  font-weight: var(--gl-weight-semibold);
+  font-size: var(--gl-text-small-size);
+  border-radius: var(--gl-radius-md);
+  min-height: 44px;
+  flex: 0 0 auto;
+  padding: 0 var(--gl-space-3);
+}
+
+.gl-calc-save__btn--accent {
+  background: var(--gl-brand-yellow);
+  color: var(--gl-fg-on-yellow);
+  border-color: var(--gl-brand-yellow);
+}
+
+.gl-calc-save__message {
+  margin: 0;
+  font-size: var(--gl-text-small-size);
+  color: var(--gl-signal-green);
+}
+
+.gl-calc-save__message--error {
+  color: var(--gl-brand-red);
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -349,7 +589,7 @@
 .gl-calc-ballast-marker__dot {
   fill: var(--gl-brand-yellow);
   stroke: var(--gl-surface-body);
-  stroke-width: 2;
+  stroke-width: 6;
   pointer-events: none;
 }
 
@@ -357,9 +597,12 @@
   fill: var(--gl-brand-red);
 }
 
+/* Размеры маркеров/текста ниже увеличены ~в 3.2 раза (2026-09-09) — схема
+ * перешла с координат 280×400 на 896×1199 (реальный viewBox трассированной
+ * иллюстрации), маркеры должны расти вместе с координатной сеткой. */
 .gl-calc-ballast-marker__text {
   font-family: var(--gl-font-mono);
-  font-size: 9px;
+  font-size: 29px;
   font-weight: var(--gl-weight-semibold);
   fill: var(--gl-fg-on-yellow);
   pointer-events: none;
@@ -368,18 +611,18 @@
 .gl-calc-cg circle {
   fill: none;
   stroke: var(--gl-brand-cyan);
-  stroke-width: 2;
+  stroke-width: 6;
 }
 
 .gl-calc-cg line {
   stroke: var(--gl-brand-cyan);
-  stroke-width: 1.5;
+  stroke-width: 5;
 }
 
 .gl-calc-cg--target circle,
 .gl-calc-cg--target line {
   stroke: var(--gl-fg-4);
-  stroke-dasharray: 3 2;
+  stroke-dasharray: 10 6;
 }
 
 .gl-calc-ballast-legend {
@@ -414,21 +657,94 @@
   margin-left: var(--gl-space-3);
 }
 
-.gl-calc-ballast__disclaimer {
-  font-size: var(--gl-text-small-size);
-  color: var(--gl-fg-3);
-  margin: 0;
-}
-
-.gl-calc-ballast__disclaimer {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--gl-space-1);
-}
-
-.gl-calc-ballast__disclaimer i {
+.gl-calc-ballast__info {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 27px;
+  height: 27px;
+  margin-left: auto;
+  border: 1px solid var(--gl-border-card);
+  border-radius: 50%;
+  background: var(--gl-surface-card-hover);
   color: var(--gl-brand-yellow);
-  margin-top: 2px;
+  font-size: 14px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.gl-calc-ballast__info:hover,
+.gl-calc-ballast__info:focus-visible {
+  color: var(--gl-brand-yellow-bright);
+  border-color: var(--gl-brand-yellow);
+}
+
+/* ── Инфо-модалка (кнопки ?/! — «Почему не 50/50», точность расчёта) ── */
+
+.gl-calc-info-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gl-calc-info-modal[hidden] {
+  display: none;
+}
+
+.gl-calc-info-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.gl-calc-info-modal__panel {
+  position: relative;
+  z-index: 1;
+  width: calc(100% - var(--gl-space-3) * 2);
+  max-width: 420px;
+  max-height: calc(100% - var(--gl-space-4) * 2);
+  overflow-y: auto;
+  background: var(--gl-surface-card);
+  border: 1px solid var(--gl-border-divider);
+  border-radius: var(--gl-radius-lg);
+  box-shadow: var(--gl-shadow-card);
+  padding: var(--gl-space-3);
+  padding-right: calc(var(--gl-space-3) + 28px);
+}
+
+.gl-calc-info-modal__close {
+  position: absolute;
+  top: var(--gl-space-2);
+  right: var(--gl-space-2);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--gl-fg-4);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.gl-calc-info-modal__close:hover,
+.gl-calc-info-modal__close:focus-visible {
+  color: var(--gl-fg-1);
+}
+
+.gl-calc-info-modal__body .gl-calc-lesson__label,
+.gl-calc-info-modal__body .gl-calc-lesson__text,
+.gl-calc-info-modal__body .gl-calc-lesson__link {
+  margin-right: var(--gl-space-3); /* не залезать под кнопку закрытия */
 }
 
 /* ── Попап добавления/редактирования груза ───────────────────────── */
@@ -561,7 +877,10 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════
- * Блок 8 — лендинг-контент (ТЗ 9.2) — не app-shell, обычный читаемый текст
+ * Вступление над формой (ТЗ Блок 8, §9.2) — длинный лендинг-текст
+ * («Что такое развесовка карта») убран со страницы калькулятора по
+ * просьбе пользователя (2026-09-09): здесь остаётся только это краткое
+ * вступление, не отдельная статья.
  * ══════════════════════════════════════════════════════════════════ */
 
 .gl-calc-intro {
@@ -570,53 +889,4 @@
   font-size: var(--gl-text-small-size);
   color: var(--gl-fg-3);
   text-align: center;
-}
-
-.gl-calc-landing {
-  max-width: 420px;
-  margin: var(--gl-space-5) auto 0;
-  padding-top: var(--gl-space-4);
-  border-top: 1px solid var(--gl-border-divider);
-}
-
-.gl-calc-landing__title {
-  font-family: var(--gl-font-display);
-  font-size: var(--gl-text-h3-size);
-  font-weight: var(--gl-weight-extrabold);
-  text-transform: uppercase;
-  color: var(--gl-fg-1);
-  margin: 0 0 var(--gl-space-3);
-}
-
-.gl-calc-landing p {
-  font-size: var(--gl-text-small-size);
-  line-height: var(--gl-text-body-lh);
-  color: var(--gl-fg-3);
-  margin: 0 0 var(--gl-space-3);
-}
-
-.gl-calc-landing b {
-  color: var(--gl-fg-2);
-}
-
-.gl-calc-landing__reading-label {
-  font-size: var(--gl-text-tiny-size);
-  text-transform: uppercase;
-  letter-spacing: var(--gl-tracking-wider);
-  color: var(--gl-fg-4);
-  margin: 0 0 var(--gl-space-1);
-}
-
-.gl-calc-landing__reading-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--gl-space-1);
-}
-
-.gl-calc-landing__reading-list a {
-  font-size: var(--gl-text-small-size);
-  color: var(--gl-brand-cyan);
 }
