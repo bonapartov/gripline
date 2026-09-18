@@ -70,12 +70,20 @@
 
   /* ── Типографика — гарнитуры ────────────────────────────────────── */
   /*
-   * На продакшне используется системный стек Bootstrap.
+   * Byte-в-byte стек Bootstrap (--bs-font-sans-serif из vendor/bootstrap) —
+   * основной сайт его не переопределяет, значит это и есть реальный
+   * рендерящийся шрифт везде, включая страницы входа/регистрации. Держать
+   * токен синхронным с этим значением, не подбирать "похожий" стек на глаз —
+   * так уже расходился (не было system-ui первым, не было Noto/Liberation
+   * Sans, emoji-фолбэков) и это давало видимую разницу шрифта на /balance/
+   * (единственный реальный потребитель токена, см. balance-app.css).
    * Inter Tight + JetBrains Mono — рекомендованная замена для прототипов.
    * Раскомментируй @import в самом верху файла, если нужны веб-шрифты.
    */
-  --gl-font-display:        -apple-system, BlinkMacSystemFont, "Segoe UI",
-                            Roboto, "Helvetica Neue", Arial, sans-serif;
+  --gl-font-display:        system-ui, -apple-system, "Segoe UI", Roboto,
+                            "Helvetica Neue", "Noto Sans", "Liberation Sans",
+                            Arial, sans-serif, "Apple Color Emoji",
+                            "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --gl-font-body:           var(--gl-font-display);
   --gl-font-mono:           SFMono-Regular, Menlo, Monaco, Consolas,
                             "Liberation Mono", "Courier New", monospace;

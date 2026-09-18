@@ -27,8 +27,14 @@ html, body {
 body {
   margin: 0;
   overscroll-behavior-y: none;
+  font-family: var(--gl-font-body);
 }
 
+/* Модалка «Войти или зарегистрироваться» и install-баннер (см. ниже) — в
+ * разметке app_base.html оба сидят рядом с .gl-balance-shell, не внутри
+ * него (нужно перекрывать весь экран поверх таб-бара) — без font-family
+ * прямо на body они наследовали бы дефолтный шрифт браузера, не тот, что
+ * везде на /balance/ и на основном сайте. */
 .gl-balance-shell {
   display: flex;
   flex-direction: column;
@@ -36,7 +42,6 @@ body {
   height: 100vh; /* фолбэк для браузеров без dvh */
   background: var(--gl-surface-body);
   color: var(--gl-fg-2);
-  font-family: var(--gl-font-body);
 }
 
 /* ── Верхняя панель ───────────────────────────────────────────────── */
