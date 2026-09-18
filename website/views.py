@@ -255,8 +255,8 @@ def driver_detail_view(request, slug):
             'period': period
         })
     
-    # Сортируем классы по алфавиту
-    driver_class_periods.sort(key=lambda x: x['class_name'])
+    class_sort = RaceClass.sort_key_map()
+    driver_class_periods.sort(key=lambda x: class_sort.get(x['class_name'], 9999))
 
     # Дата рождения на публичной странице — только если пилот явно разрешил
     # (UserProfile.birth_date_public), иначе профиль вообще не подтягиваем.
@@ -517,8 +517,8 @@ def team_detail_view(request, slug):
                     'period': period
                 })
 
-    # Сортируем классы по алфавиту
-    sorted_driver_classes = dict(sorted(driver_classes.items(), key=lambda x: x[0]))
+    class_sort = RaceClass.sort_key_map()
+    sorted_driver_classes = dict(sorted(driver_classes.items(), key=lambda x: class_sort.get(x[0], 9999)))
     # Получаем активных сотрудников команды
     staff_members = TeamStaff.objects.filter(
         team_memberships__team=team,
@@ -690,7 +690,7 @@ def track_detail_view(request, slug):
                 'event_url': result.group.page.url,
             }
 
-    track_records = sorted(records_by_class.values(), key=lambda r: r['race_class'].name)
+    track_records = sorted(records_by_class.values(), key=lambda r: (r['race_class'].sort_order, r['race_class'].name))
 
     from website.schema import track_place_dict, render_json_ld, _absolute_url
 
@@ -729,7 +729,7 @@ def chassis_detail_view(request, slug):
 
     available_classes = RaceClass.objects.filter(
         raceclassresultgroup__class_results__in=base_results
-    ).distinct().order_by('name')
+    ).distinct().order_by('sort_order', 'name')
 
     available_tracks = Track.objects.filter(
         events__race_class_groups__class_results__in=base_results
@@ -938,9 +938,7 @@ def engine_detail_view(request, slug):
     # Получаем все классы для вкладок
     from .models import RaceClass
     all_classes = RaceClass.objects.all()
-
-    # Сортируем классы по алфавиту
-    classes = sorted(all_classes, key=lambda x: x.name)
+    classes = list(all_classes)
 
     # Получаем выбранный класс из GET-параметров
     class_id = request.GET.get('class')
@@ -1006,9 +1004,7 @@ def compare_view(request):
     # Получаем все классы для вкладок
     from .models import RaceClass
     all_classes = RaceClass.objects.all()
-
-    # Сортируем классы по алфавиту
-    classes = sorted(all_classes, key=lambda x: x.name)
+    classes = list(all_classes)
 
     # Получаем выбранный класс из GET-параметров
     class_id = request.GET.get('class')
@@ -1565,7 +1561,7 @@ def top_drivers_view(request):
         c for c in RaceClass.objects.all()
         if Driver.objects.filter(rating_by_class__has_key=str(c.id)).exists()
     ]
-    classes = sorted(all_classes, key=lambda x: x.name)
+    classes = list(all_classes)
 
     selected_class_id = request.GET.get('class')
     if selected_class_id and selected_class_id.isdigit():
@@ -1688,9 +1684,9 @@ def compare_drivers_view(request):
     else:
         class_id = None
 
-    # Получаем все классы для кнопок, по алфавиту
+    # Получаем все классы для кнопок
     from .models import RaceClass
-    classes = RaceClass.objects.all().order_by('name')
+    classes = RaceClass.objects.all()
 
     # Получаем всех пилотов
     all_drivers = Driver.objects.all().order_by('last_name', 'first_name')
@@ -2114,7 +2110,7 @@ def compare_models_view(request):
     result_drivers.sort(key=lambda x: abs(x.diff), reverse=True)
 
     # Получаем все классы для выпадающего списка
-    classes = RaceClass.objects.all().order_by('name')
+    classes = RaceClass.objects.all()
 
     return render(request, "coderedcms/snippets/compare_models_page.html", {
         "drivers": result_drivers,
@@ -2162,7 +2158,7 @@ def chassis_track_matrix_view(request):
 
     # Получаем все классы для вкладок
     all_classes = RaceClass.objects.all()
-    classes = sorted(all_classes, key=lambda x: x.name)
+    classes = list(all_classes)
 
     # Получаем выбранный класс
     class_id = request.GET.get('class')
@@ -2236,8 +2232,8 @@ def weather_impact_view(request):
     import json
     from django.utils import timezone
 
-    # Получаем все классы для фильтра, по алфавиту
-    classes = sorted(RaceClass.objects.all(), key=lambda x: x.name)
+    # Получаем все классы для фильтра
+    classes = list(RaceClass.objects.all())
 
     selected_class_id = request.GET.get('class')
     if selected_class_id and selected_class_id.isdigit():
@@ -2589,6 +2585,7 @@ def team_ratings_view(request):
 
     # Получаем класс_id → name
     class_name_map = {str(c.id): c.name for c in RaceClass.objects.all()}
+    class_sort = RaceClass.sort_key_map()
 
     teams = Team.objects.all()
     team_rows = []
@@ -2628,8 +2625,7 @@ def team_ratings_view(request):
         if not class_data:
             continue
 
-        # Сортируем классы по алфавиту
-        sorted_classes = sorted(class_data.items(), key=lambda x: x[0])
+        sorted_classes = sorted(class_data.items(), key=lambda x: class_sort.get(x[0], 9999))
 
         # Средний балл команды (по всем классам)
         all_scores = [s for _, d in class_data.items() for s in d['scores']]
@@ -2829,8 +2825,8 @@ def tyre_analysis_view(request):
     from django.db.models import Count, Q, Avg
     import json
 
-    # Получаем все классы для фильтра, по алфавиту
-    classes = sorted(RaceClass.objects.all(), key=lambda x: x.name)
+    # Получаем все классы для фильтра
+    classes = list(RaceClass.objects.all())
 
     selected_class_id = request.GET.get('class')
     if selected_class_id and selected_class_id.isdigit():

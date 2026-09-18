@@ -5,8 +5,17 @@ from models.race import RaceClass
 
 router = APIRouter(prefix="/classes", tags=["classes"])
 
-# Порядок отображения классов на сайте
-CLASS_ORDER = ["Micro", "Mini", "Junior", "Senior", "DD2", "DD2 Masters"]
+# Порядок отображения классов — синхронизирован вручную с
+# website.RaceClass.sort_order (Django — источник правды, эта таблица
+# только для чтения, см. CLAUDE.md "FastAPI сервис"). Обновлять оба места
+# при добавлении/переименовании классов.
+CLASS_ORDER = [
+    "Микро", "Мини", "Мини ГР-3", "Супер-мини", "Супер-мини ГР-3",
+    "ОК J", "ОК", "KZ2", "KZ2 Masters",
+    "RM Micro", "RM Mini", "RM Junior", "RM Senior", "RM DD2", "RM DD2 Masters",
+    "4Т Дети", "4Т Юноши", "4Т Взрослые",
+    "E-10 БАМБИНИ", "E-10 МИНИ",
+]
 
 
 @router.get("")

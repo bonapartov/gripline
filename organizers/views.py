@@ -770,7 +770,7 @@ def stage_registrations(request, stage_id):
         status='cancelled'
     ).select_related('race_class', 'pilot', 'pilot__driver', 'payment').prefetch_related(
         'documents'
-    ).order_by('race_class__name', 'start_number', 'created_at')
+    ).order_by('race_class__sort_order', 'race_class__name', 'start_number', 'created_at')
 
     by_class = {}
     for app in applications:

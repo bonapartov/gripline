@@ -497,7 +497,7 @@ def dashboard(request):
             'staff_members': staff_list,
             'form': form,
             'formset': formset,
-            'race_classes': RaceClass.objects.all().order_by('name'),
+            'race_classes': RaceClass.objects.all(),
             'pending_invitations': pending_invitations,
         })
 

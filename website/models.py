@@ -392,7 +392,7 @@ class EventPage(TransliteratedSlugMixin, CoderedEventPage):
         используется в мини-таблице протокола (website/includes/event_results_mini_table.html)."""
         return RaceResult.objects.filter(group__page=self).select_related(
             'driver', 'team', 'group__race_class'
-        ).order_by('group__race_class__name', 'position')
+        ).order_by('group__race_class__sort_order', 'group__race_class__name', 'position')
 
     api_fields = [
         APIField('admin_title'),
@@ -688,10 +688,7 @@ class ChampionshipPage(TransliteratedSlugMixin, CoderedWebPage):
           group__page__in=all_events
       ).values_list('group__race_class_id', flat=True).distinct()
   
-      available_classes = RaceClass.objects.filter(id__in=available_class_ids)
-
-      # Сортируем по алфавиту
-      available_classes = sorted(available_classes, key=lambda x: x.name)
+      available_classes = RaceClass.objects.filter(id__in=available_class_ids).order_by('sort_order', 'name')
   
       # Получаем список названий для проверки
       available_class_names = [c.name for c in available_classes]
@@ -1481,7 +1478,14 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
 @register_snippet
 class RaceClass(models.Model):
     name = models.CharField("Название класса", max_length=255)
-    panels = [FieldPanel('name')]
+    sort_order = models.PositiveIntegerField(
+        "Порядок сортировки", default=0,
+        help_text=(
+            "Определяет место класса во всех фильтрах/вкладках по классам на сайте "
+            "(вместо сортировки по алфавиту). Меньше значение — выше в списке."
+        ),
+    )
+    panels = [FieldPanel('name'), FieldPanel('sort_order')]
 
     def __str__(self):
         return self.name
@@ -1489,6 +1493,18 @@ class RaceClass(models.Model):
     class Meta:
         verbose_name = "Класс гонки"
         verbose_name_plural = "Классы гонок"
+        ordering = ['sort_order', 'name']
+
+    @staticmethod
+    def sort_key_map():
+        """{название: sort_order} — для мест, где группировка уже идёт по
+        строке названия класса (dict/list), а не по самому объекту RaceClass
+        (агрегаты по пилоту/команде, где ключ — это имя класса, а не FK).
+        Значение по умолчанию для .get() на незнакомое имя (например,
+        текстовая заглушка "Без класса") задаёт вызывающая сторона."""
+        return dict(RaceClass.objects.values_list('name', 'sort_order'))
+
+
 @register_snippet
 class CompetitionType(models.Model):
     name = models.CharField("Название типа", max_length=100)
@@ -2757,7 +2773,7 @@ class PulseIndexPage(TransliteratedSlugMixin, CoderedWebPage):
         # Получаем все доступные классы
         race_classes = RaceClass.objects.filter(
             raceclassresultgroup__isnull=False
-        ).distinct().order_by('name')
+        ).distinct().order_by('sort_order', 'name')
     
         # Получаем все доступные годы из этапов (через новую структуру)
         all_years = set()
@@ -2797,8 +2813,7 @@ class PulseIndexPage(TransliteratedSlugMixin, CoderedWebPage):
         context['championships'] = championships
         context['available_types'] = list(types)
     
-        # Сортируем классы по алфавиту
-        context['available_classes'] = sorted(race_classes, key=lambda x: x.name)
+        context['available_classes'] = list(race_classes)
         context['available_years'] = filtered_years
         context['current_year'] = filtered_years[0] if filtered_years else current_year
     
@@ -2959,7 +2974,12 @@ class EventCalendarPage(TransliteratedSlugMixin, CoderedWebPage):
                 if class_name not in unique_events[stage_key]['classes']:
                     unique_events[stage_key]['classes'].append(class_name)
 
+        # Бейджи классов на карточке события — в едином порядке классов
+        # сайта, а не в порядке появления групп результатов.
+        class_sort = RaceClass.sort_key_map()
         enriched_events = list(unique_events.values())
+        for ed in enriched_events:
+            ed['classes'].sort(key=lambda name: class_sort.get(name, 9999))
         enriched_events.sort(key=lambda x: x['start_date'] or x['event'].first_published_at)
 
         # Добавляем org_stage, фильтруем неопубликованные, добавляем цвет
@@ -3240,7 +3260,7 @@ class HomePage(TransliteratedSlugMixin, CoderedWebPage):
             context['latest_tech_articles'] = []
 
         # --- БЛОК 3: Топ пилотов ---
-        classes = sorted(RaceClass.objects.all(), key=lambda x: x.name)
+        classes = list(RaceClass.objects.all())
 
         selected_class_id = request.GET.get('class')
         if selected_class_id and selected_class_id.isdigit():
@@ -3465,15 +3485,16 @@ class StagePage(TransliteratedSlugMixin, CoderedWebPage):
 
     def get_classes_with_results(self):
         """
-        Возвращает список классов, у которых есть результаты.
+        Возвращает список названий классов, у которых есть результаты — в
+        едином порядке классов сайта (RaceClass.sort_order), а не в порядке
+        появления событий/групп.
         """
-        classes = []
+        class_ids = set()
         for event in self.get_child_classes():
-            if event.race_class_groups.exists():
-                for group in event.race_class_groups.all():
-                    if group.race_class and group.race_class.name not in classes:
-                        classes.append(group.race_class.name)
-        return classes
+            for group in event.race_class_groups.all():
+                if group.race_class_id:
+                    class_ids.add(group.race_class_id)
+        return list(RaceClass.objects.filter(id__in=class_ids).values_list('name', flat=True))
 
     def has_results(self):
         """
@@ -3490,7 +3511,7 @@ class StagePage(TransliteratedSlugMixin, CoderedWebPage):
         используется в мини-таблице протокола (website/includes/event_results_mini_table.html)."""
         return RaceResult.objects.filter(group__page__in=self.get_child_classes()).select_related(
             'driver', 'team', 'group__race_class'
-        ).order_by('group__race_class__name', 'position')
+        ).order_by('group__race_class__sort_order', 'group__race_class__name', 'position')
 
     def get_context(self, request, *args, **kwargs):
         context = super().get_context(request, *args, **kwargs)
@@ -3527,7 +3548,9 @@ class StagePage(TransliteratedSlugMixin, CoderedWebPage):
                 # Публичный список участников — подтверждённые заявки
                 confirmed = Application.objects.filter(
                     stage=org_stage, status='confirmed'
-                ).select_related('race_class', 'pilot', 'pilot__driver').order_by('race_class__name', 'start_number')
+                ).select_related('race_class', 'pilot', 'pilot__driver').order_by(
+                    'race_class__sort_order', 'race_class__name', 'start_number'
+                )
                 participants_by_class = {}
                 for app in confirmed:
                     cls_name = app.race_class.name if app.race_class else 'Без класса'
