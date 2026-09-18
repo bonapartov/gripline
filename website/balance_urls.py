@@ -20,4 +20,7 @@ urlpatterns = [
     path("setup/<int:pk>/archive/", balance_setup_views.setup_archive, name="setup_archive"),
     path("setup/<int:pk>/share/", balance_setup_views.setup_share, name="setup_share"),
     path("mine/", balance_setup_views.setups_list, name="setups_list"),
+
+    # Блок 7 (сравнение сетапов, ТЗ §8.1).
+    path("compare/", balance_setup_views.setups_compare, name="setups_compare"),
 ]

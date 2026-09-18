@@ -23,6 +23,10 @@ setup_save (kart_id сменить нельзя — см. can_edit_setup). Эт�
 (никогда не инлайн), rate limit через website/services/balance_limits.py.
 setups_list — та же пара @login_required/@nocache_page, но без rate-limit
 (GET, ничего не меняет) и с robots noindex,nofollow (приватные данные).
+
+Блок 7 (ТЗ §8.1, сравнение сетапов): setups_compare — та же пара GET-view
+без rate-limit, что и setups_list. Сама математика (дельты, значимость
+изменений) — в website/services/balance_calc.py::compare_setups, не здесь.
 """
 import json
 from decimal import Decimal, InvalidOperation
@@ -41,7 +45,7 @@ from website.balance_views import (
     user_karts_context,
 )
 from website.models import Ballast, Chassis, Kart, KartClass, Setup
-from website.services.balance_calc import validate_corners
+from website.services.balance_calc import compare_setups, validate_corners
 from website.services.balance_limits import (
     MAX_BALLASTS_PER_SETUP,
     MAX_KARTS_PER_OWNER,
@@ -488,3 +492,61 @@ def setup_share(request, pk):
     setattr(setup, field_name, shared)
     setup.save(update_fields=[field_name, "updated_at"])
     return JsonResponse({"id": setup.id, field_name: shared})
+
+
+@login_required
+@nocache_page
+def setups_compare(request):
+    """
+    Блок 7 ТЗ (§8.1) — «два сетапа рядом» + дельты. GET, ничего не мутирует —
+    тот же паттерн прав/кэша, что setups_list (без rate-limit).
+
+    Пикер (два <select>, group by карт) работает и как единственный вход
+    (без query-параметров показывает только выбор), и как способ поменять
+    одну из сторон, не возвращаясь на список сетапов.
+
+    a/b — необязательные query-параметры id сетапа. Недоступный/несуществующий
+    id тихо игнорируется (не 404): это read-only страница выбора из СВОЕГО
+    же списка видимых сетапов (id никогда не попадёт в picker_groups, если
+    недоступен), а не прямой доступ к чужим данным по произвольному pk —
+    мягкая деградация здесь уместнее hard-fail.
+    """
+    visible = list(
+        visible_setups_for_user(request.user, include_archived=True)
+        .select_related("kart", "kart_class")
+        .order_by("kart__name", "-created_at")
+    )
+    by_id = {s.id: s for s in visible}
+
+    def _pick(param):
+        raw = request.GET.get(param)
+        if raw and raw.isdigit():
+            return by_id.get(int(raw))
+        return None
+
+    setup_a = _pick("a")
+    setup_b = _pick("b")
+
+    picker_groups = []
+    groups_by_kart = {}
+    for s in visible:
+        group = groups_by_kart.get(s.kart_id)
+        if group is None:
+            group = {"kart_name": s.kart.name, "options": []}
+            groups_by_kart[s.kart_id] = group
+            picker_groups.append(group)
+        group["options"].append({"id": s.id, "label": f"{s.name} · {s.kart_class.name}"})
+
+    comparison = None
+    if setup_a is not None and setup_b is not None:
+        comparison = compare_setups(setup_a, setup_b)
+
+    context = user_karts_context(request.user)
+    context.update({
+        "active_tab": "setups",
+        "picker_groups": picker_groups,
+        "setup_a": setup_a,
+        "setup_b": setup_b,
+        "comparison": comparison,
+    })
+    return render(request, "balance/compare.html", context)

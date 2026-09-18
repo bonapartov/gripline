@@ -36,6 +36,24 @@
   var trackFilter = document.getElementById("glSetupsFilterTrack");
   var archivedToggle = document.getElementById("glSetupsShowArchived");
 
+  // Блок 7 (сравнение сетапов, ТЗ §8.1) — выбор ровно двух карточек для
+  // "Сравнить". Состояние держим здесь (не в DOM), потому что render()
+  // перерисовывает список целиком при каждой смене фильтра — DOM-чекбоксы
+  // сами по себе теряли бы отметки, cardHtml() читает selectedForCompare,
+  // чтобы восстановить checked после перерисовки.
+  var selectedForCompare = [];
+  var compareBar = document.getElementById("glSetupsCompareBar");
+  var compareCountEl = document.getElementById("glSetupsCompareCount");
+  var compareGoBtn = document.getElementById("glSetupsCompareGo");
+  var compareClearBtn = document.getElementById("glSetupsCompareClear");
+
+  function updateCompareBar() {
+    if (!compareBar) return;
+    compareBar.hidden = selectedForCompare.length === 0;
+    if (compareCountEl) compareCountEl.textContent = selectedForCompare.length + "/2";
+    if (compareGoBtn) compareGoBtn.disabled = selectedForCompare.length !== 2;
+  }
+
   function showMessage(text, isError) {
     if (!messageEl) return;
     messageEl.textContent = text || "";
@@ -118,10 +136,15 @@
     if (row.weather_label) meta.push(escapeHtml(row.weather_label));
     if (row.track_name) meta.push(escapeHtml(row.track_name));
 
+    var checked = selectedForCompare.indexOf(String(row.id)) !== -1;
     return (
       '<div class="gl-setups-card">' +
       '<div class="gl-setups-card__header">' +
+      '<label class="gl-setups-card__compare">' +
+      '<input type="checkbox" class="gl-setups-compare-check" data-setup-id="' + row.id + '"' +
+      (checked ? " checked" : "") + '>' +
       '<span class="gl-setups-card__name">' + escapeHtml(row.name) + "</span>" +
+      "</label>" +
       '<span class="gl-setups-card__date">' + escapeHtml(row.created_at_display) + "</span>" +
       "</div>" +
       '<div class="gl-setups-card__meta"><span>' + meta.join("</span><span>") + "</span></div>" +
@@ -183,6 +206,41 @@
   [classFilter, weatherFilter, trackFilter, archivedToggle].forEach(function (el) {
     if (el) el.addEventListener("change", render);
   });
+
+  // Чекбоксы "Сравнить" — отдельное делегирование через change (не click,
+  // как у data-action кнопок ниже): нативный чекбокс уже сам переключает
+  // checked, нам остаётся только синхронизировать selectedForCompare.
+  listEl.addEventListener("change", function (evt) {
+    var checkbox = evt.target;
+    if (!checkbox.classList || !checkbox.classList.contains("gl-setups-compare-check")) return;
+    var id = String(checkbox.dataset.setupId);
+    if (checkbox.checked) {
+      if (selectedForCompare.length >= 2) {
+        checkbox.checked = false;
+        showMessage("Можно сравнить только два сетапа за раз — сначала снимите один из выбранных.", true);
+        return;
+      }
+      selectedForCompare.push(id);
+    } else {
+      selectedForCompare = selectedForCompare.filter(function (x) { return x !== id; });
+    }
+    updateCompareBar();
+  });
+
+  if (compareGoBtn) {
+    compareGoBtn.addEventListener("click", function () {
+      if (selectedForCompare.length !== 2) return;
+      window.location.href = "/balance/compare/?a=" + encodeURIComponent(selectedForCompare[0]) +
+        "&b=" + encodeURIComponent(selectedForCompare[1]);
+    });
+  }
+  if (compareClearBtn) {
+    compareClearBtn.addEventListener("click", function () {
+      selectedForCompare = [];
+      updateCompareBar();
+      render();
+    });
+  }
 
   // Делегирование — карточки перерисовываются целиком при каждом render(),
   // отдельные обработчики на кнопках были бы утеряны/задублированы.

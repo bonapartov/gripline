@@ -1013,3 +1013,105 @@ class RateLimitTests(TestCase):
         self.assertEqual(r2.status_code, 200)
         self.assertEqual(r3.status_code, 429)
         self.assertEqual(len(calls), 2)
+
+
+class SetupsCompareViewTests(TestCase):
+    """website/balance_setup_views.py::setups_compare — Блок 7 (ТЗ §8.1).
+    Математика дельт/значимости тестируется отдельно
+    (website/tests/test_balance_calc.py::CompareSetupsTests) — здесь только
+    права доступа, пикер и деградация на "чужой"/отсутствующий id."""
+
+    def setUp(self):
+        self.chassis, self.kart_class = BalanceTestData.build()
+        self.driver_user, self.driver = _make_driver_user("comparepilot")
+        self.other_user, self.other_driver = _make_driver_user("compareother")
+        self.team = Team.objects.create(name="Compare Team", slug="compare-team")
+        self.manager_user = _make_manager_user("comparemanager", self.team)
+
+        self.own_kart = Kart.objects.create(
+            name="Личный карт", chassis=self.chassis, chassis_type="junior", owner_driver=self.driver,
+        )
+        self.other_kart = Kart.objects.create(
+            name="Чужой карт", chassis=self.chassis, chassis_type="junior", owner_driver=self.other_driver,
+        )
+        self.team_kart = Kart.objects.create(
+            name="Командный карт", chassis=self.chassis, chassis_type="junior", owner_team=self.team,
+        )
+
+        self.setup_a = Setup.objects.create(
+            kart=self.own_kart, name="Сетап А", kart_class=self.kart_class,
+            weight_lf=25, weight_rf=25, weight_lr=25, weight_rr=25,
+        )
+        self.setup_b = Setup.objects.create(
+            kart=self.own_kart, name="Сетап Б", kart_class=self.kart_class,
+            weight_lf=26, weight_rf=26, weight_lr=25, weight_rr=25,
+        )
+        self.foreign_setup = Setup.objects.create(
+            kart=self.other_kart, name="Чужой сетап", kart_class=self.kart_class,
+            weight_lf=25, weight_rf=25, weight_lr=25, weight_rr=25,
+        )
+        self.client = Client()
+
+    def test_requires_login(self):
+        resp = self.client.get("/balance/compare/")
+        self.assertEqual(resp.status_code, 302)
+
+    def test_no_params_shows_picker_only(self):
+        self.client.force_login(self.driver_user)
+        resp = self.client.get("/balance/compare/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsNone(resp.context["comparison"])
+        kart_names = {g["kart_name"] for g in resp.context["picker_groups"]}
+        self.assertEqual(kart_names, {"Личный карт"})
+
+    def test_own_two_setups_produce_comparison(self):
+        self.client.force_login(self.driver_user)
+        resp = self.client.get(f"/balance/compare/?a={self.setup_a.id}&b={self.setup_b.id}")
+        self.assertEqual(resp.status_code, 200)
+        comparison = resp.context["comparison"]
+        self.assertIsNotNone(comparison)
+        self.assertTrue(comparison["same_kart"])
+        self.assertEqual(resp.context["setup_a"].id, self.setup_a.id)
+        self.assertEqual(resp.context["setup_b"].id, self.setup_b.id)
+
+    def test_foreign_setup_id_silently_dropped_not_404(self):
+        self.client.force_login(self.driver_user)
+        resp = self.client.get(f"/balance/compare/?a={self.setup_a.id}&b={self.foreign_setup.id}")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsNone(resp.context["comparison"])
+        self.assertIsNone(resp.context["setup_b"])
+        self.assertEqual(resp.context["setup_a"].id, self.setup_a.id)
+
+    def test_nonexistent_id_silently_dropped(self):
+        self.client.force_login(self.driver_user)
+        resp = self.client.get(f"/balance/compare/?a={self.setup_a.id}&b=999999")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsNone(resp.context["comparison"])
+
+    def test_shared_with_driver_setup_can_be_compared(self):
+        roster_entry = TeamRosterEntry.objects.create(
+            team=self.team, last_name="X", first_name="Y", driver=self.driver,
+        )
+        self.team_kart.roster_entry = roster_entry
+        self.team_kart.save()
+        shared_setup = Setup.objects.create(
+            kart=self.team_kart, name="Расшарено пилоту", kart_class=self.kart_class,
+            weight_lf=25, weight_rf=25, weight_lr=25, weight_rr=25, shared_with_driver=True,
+        )
+        self.client.force_login(self.driver_user)
+        resp = self.client.get(f"/balance/compare/?a={self.setup_a.id}&b={shared_setup.id}")
+        comparison = resp.context["comparison"]
+        self.assertIsNotNone(comparison)
+        self.assertFalse(comparison["same_kart"])
+
+    def test_no_identity_sees_empty_picker(self):
+        plain = User.objects.create_user(username="compareplain", email="cp@example.com", password="x")
+        self.client.force_login(plain)
+        resp = self.client.get("/balance/compare/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context["picker_groups"], [])
+
+    def test_response_is_noindex(self):
+        self.client.force_login(self.driver_user)
+        resp = self.client.get("/balance/compare/")
+        self.assertContains(resp, "noindex, nofollow")

@@ -1,0 +1,136 @@
+{% extends "balance/app_base.html" %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'website/css/balance-calculator.css' %}">
+<link rel="stylesheet" href="{% static 'website/css/balance-setups.css' %}">
+<link rel="stylesheet" href="{% static 'website/css/balance-compare.css' %}">
+{% endblock %}
+
+{% comment %}
+Блок 7 (ТЗ §8.1) — приватные данные конкретных сетапов, не индексируем.
+Тот же принцип, что setups_list/setup_edit.
+{% endcomment %}
+{% block robots_content %}noindex, nofollow{% endblock %}
+
+{% block page_title %}Сравнение сетапов{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'balance:setups_list' %}" class="gl-balance-topbar__action">← К списку</a>
+{% endblock %}
+
+{% block content %}
+<div class="gl-compare">
+  {% if not picker_groups %}
+    <p class="gl-setups-empty">
+      Нет сохранённых сетапов для сравнения. Сохраните хотя бы два на странице калькулятора,
+      затем вернитесь сюда.
+    </p>
+  {% else %}
+    <form class="gl-compare-picker" method="get" action="{% url 'balance:setups_compare' %}">
+      <div class="gl-compare-picker__col">
+        <label class="gl-label" for="glCompareSelectA">Сетап А</label>
+        <select class="gl-calc-select" id="glCompareSelectA" name="a">
+          <option value="">Выберите сетап</option>
+          {% for group in picker_groups %}
+            <optgroup label="{{ group.kart_name }}">
+              {% for opt in group.options %}
+                <option value="{{ opt.id }}"{% if setup_a.id == opt.id %} selected{% endif %}>{{ opt.label }}</option>
+              {% endfor %}
+            </optgroup>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="gl-compare-picker__col">
+        <label class="gl-label" for="glCompareSelectB">Сетап Б</label>
+        <select class="gl-calc-select" id="glCompareSelectB" name="b">
+          <option value="">Выберите сетап</option>
+          {% for group in picker_groups %}
+            <optgroup label="{{ group.kart_name }}">
+              {% for opt in group.options %}
+                <option value="{{ opt.id }}"{% if setup_b.id == opt.id %} selected{% endif %}>{{ opt.label }}</option>
+              {% endfor %}
+            </optgroup>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="gl-compare-picker__submit">Сравнить</button>
+    </form>
+
+    {% if not comparison %}
+      <p class="gl-setups-empty">Выберите два сетапа выше, чтобы увидеть дельты между ними.</p>
+    {% else %}
+      {% if comparison.same_kart and comparison.class_changed %}
+        <p class="gl-compare-banner">
+          <i class="fa-solid fa-circle-info"></i>
+          Тот же карт «{{ setup_a.kart.name }}»: класс изменился с
+          «{{ setup_a.kart_class.name }}» на «{{ setup_b.kart_class.name }}».
+        </p>
+      {% endif %}
+
+      <div class="gl-compare-headers">
+        <div class="gl-compare-headers__col">
+          <span class="gl-compare-headers__name">{{ setup_a.name }}</span>
+          <span class="gl-compare-headers__meta">{{ setup_a.kart.name }} · {{ setup_a.kart_class.name }} · {{ setup_a.get_weather_display }}</span>
+          <span class="gl-compare-headers__date">{{ setup_a.created_at|date:"d.m.Y" }}</span>
+        </div>
+        <span class="gl-compare-headers__vs">vs</span>
+        <div class="gl-compare-headers__col">
+          <span class="gl-compare-headers__name">{{ setup_b.name }}</span>
+          <span class="gl-compare-headers__meta">{{ setup_b.kart.name }} · {{ setup_b.kart_class.name }} · {{ setup_b.get_weather_display }}</span>
+          <span class="gl-compare-headers__date">{{ setup_b.created_at|date:"d.m.Y" }}</span>
+        </div>
+      </div>
+
+      <section class="gl-compare-table">
+        <h2 class="gl-compare-table__title">Угловые веса</h2>
+        {% for row in comparison.corners %}
+          <div class="gl-compare-row{% if row.significant %} gl-compare-row--significant{% endif %}">
+            <span class="gl-compare-row__label">{{ row.label }}</span>
+            <span class="gl-compare-row__value">{{ row.a }} кг</span>
+            <span class="gl-compare-row__delta{% if row.delta > 0 %} gl-compare-row__delta--up{% elif row.delta < 0 %} gl-compare-row__delta--down{% endif %}">
+              {% if row.delta > 0 %}▲{% elif row.delta < 0 %}▼{% else %}·{% endif %} {{ row.delta }}
+            </span>
+            <span class="gl-compare-row__value">{{ row.b }} кг</span>
+          </div>
+        {% endfor %}
+      </section>
+
+      <section class="gl-compare-table">
+        <h2 class="gl-compare-table__title">Метрики</h2>
+        {% for row in comparison.metrics %}
+          <div class="gl-compare-row{% if row.significant %} gl-compare-row--significant{% endif %}">
+            <span class="gl-compare-row__label">{{ row.label }}</span>
+            <span class="gl-compare-row__value{% if row.class_a %} gl-compare-row__value--{{ row.class_a }}{% endif %}">{{ row.a }}{% if row.unit == "%" %}%{% else %} кг{% endif %}</span>
+            <span class="gl-compare-row__delta{% if row.delta > 0 %} gl-compare-row__delta--up{% elif row.delta < 0 %} gl-compare-row__delta--down{% endif %}">
+              {% if row.delta > 0 %}▲{% elif row.delta < 0 %}▼{% else %}·{% endif %} {{ row.delta }}{% if row.unit == "%" %}%{% endif %}
+            </span>
+            <span class="gl-compare-row__value{% if row.class_b %} gl-compare-row__value--{{ row.class_b }}{% endif %}">{{ row.b }}{% if row.unit == "%" %}%{% else %} кг{% endif %}</span>
+          </div>
+        {% endfor %}
+        {% with row=comparison.kart_only %}
+          {% if row %}
+            <div class="gl-compare-row{% if row.significant %} gl-compare-row--significant{% endif %}">
+              <span class="gl-compare-row__label">{{ row.label }}</span>
+              <span class="gl-compare-row__value">{{ row.a }} кг</span>
+              <span class="gl-compare-row__delta{% if row.delta > 0 %} gl-compare-row__delta--up{% elif row.delta < 0 %} gl-compare-row__delta--down{% endif %}">
+                {% if row.delta > 0 %}▲{% elif row.delta < 0 %}▼{% else %}·{% endif %} {{ row.delta }}
+              </span>
+              <span class="gl-compare-row__value">{{ row.b }} кг</span>
+            </div>
+          {% endif %}
+        {% endwith %}
+      </section>
+
+      <div class="gl-compare-actions">
+        <a href="/balance/setup/{{ setup_a.id }}/" class="gl-compare-actions__link">Открыть «{{ setup_a.name }}» →</a>
+        <a href="/balance/setup/{{ setup_b.id }}/" class="gl-compare-actions__link">Открыть «{{ setup_b.name }}» →</a>
+      </div>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'website/js/balance-compare.js' %}"></script>
+{% endblock %}

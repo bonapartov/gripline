@@ -1,0 +1,177 @@
+/*
+ * Сравнение сетапов (/balance/compare/, Блок 7 ТЗ §8.1). Пикер —
+ * .gl-calc-select из balance-calculator.css (тот же стилизованный нативный
+ * <select>, см. правило проекта про реальный паттерн). Пустое состояние —
+ * .gl-setups-empty из balance-setups.css, переиспользуется как есть.
+ */
+
+.gl-compare {
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gl-space-4);
+}
+
+.gl-compare-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gl-space-2);
+}
+
+.gl-compare-picker__col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gl-space-1);
+}
+
+.gl-compare-picker__submit {
+  grid-column: 1 / -1;
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  border-radius: var(--gl-radius-pill);
+  background: var(--gl-brand-yellow);
+  color: var(--gl-fg-on-yellow);
+  font-family: inherit;
+  font-weight: var(--gl-weight-semibold);
+  font-size: var(--gl-text-small-size);
+  padding: var(--gl-space-2) var(--gl-space-3);
+}
+
+.gl-compare-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--gl-space-2);
+  margin: 0;
+  padding: var(--gl-space-2) var(--gl-space-3);
+  background: var(--gl-surface-card);
+  border: 1px solid var(--gl-brand-cyan);
+  border-radius: var(--gl-radius-lg);
+  color: var(--gl-fg-2);
+  font-size: var(--gl-text-small-size);
+}
+
+.gl-compare-banner i {
+  color: var(--gl-brand-cyan);
+}
+
+.gl-compare-headers {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--gl-space-2);
+}
+
+.gl-compare-headers__col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.gl-compare-headers__col:last-child {
+  text-align: right;
+}
+
+.gl-compare-headers__name {
+  font-weight: var(--gl-weight-semibold);
+  color: var(--gl-fg-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gl-compare-headers__meta {
+  font-size: var(--gl-text-tiny-size);
+  color: var(--gl-fg-3);
+}
+
+.gl-compare-headers__date {
+  font-size: var(--gl-text-tiny-size);
+  color: var(--gl-fg-4);
+}
+
+.gl-compare-headers__vs {
+  font-size: var(--gl-text-tiny-size);
+  text-transform: uppercase;
+  letter-spacing: var(--gl-tracking-wider);
+  color: var(--gl-fg-4);
+}
+
+.gl-compare-table {
+  background: var(--gl-surface-card);
+  border: 1px solid var(--gl-border-card);
+  border-radius: var(--gl-radius-lg);
+  padding: var(--gl-space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gl-space-1);
+}
+
+.gl-compare-table__title {
+  margin: 0 0 var(--gl-space-1);
+  font-size: var(--gl-text-small-size);
+  text-transform: uppercase;
+  letter-spacing: var(--gl-tracking-wider);
+  color: var(--gl-fg-4);
+}
+
+.gl-compare-row {
+  display: grid;
+  grid-template-columns: 1fr 56px 64px 56px;
+  align-items: center;
+  gap: var(--gl-space-2);
+  padding: var(--gl-space-1) 0;
+  border-radius: var(--gl-radius-sm);
+  font-size: var(--gl-text-small-size);
+}
+
+.gl-compare-row--significant {
+  background: var(--gl-surface-card-hover);
+}
+
+.gl-compare-row__label {
+  color: var(--gl-fg-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gl-compare-row__value {
+  color: var(--gl-fg-2);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.gl-compare-row__value--green { color: var(--gl-signal-green); }
+.gl-compare-row__value--yellow { color: var(--gl-brand-yellow); }
+.gl-compare-row__value--red { color: var(--gl-brand-red); }
+
+.gl-compare-row__delta {
+  text-align: center;
+  color: var(--gl-fg-4);
+  white-space: nowrap;
+}
+
+.gl-compare-row--significant .gl-compare-row__delta {
+  font-weight: var(--gl-weight-semibold);
+}
+
+.gl-compare-row__delta--up { color: var(--gl-brand-cyan); }
+.gl-compare-row__delta--down { color: var(--gl-brand-cyan); }
+
+.gl-compare-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gl-space-2);
+}
+
+.gl-compare-actions__link {
+  text-align: center;
+  padding: var(--gl-space-2);
+  border: 1px solid var(--gl-border-card);
+  border-radius: var(--gl-radius-lg);
+  color: var(--gl-brand-cyan);
+  font-size: var(--gl-text-small-size);
+}

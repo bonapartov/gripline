@@ -16,13 +16,23 @@ from decimal import Decimal
 
 from django.test import TestCase
 
-from website.models import BalanceDiagnosticRule, BalanceThreshold, KartClass
+from website.models import (
+    BalanceDiagnosticRule,
+    BalanceThreshold,
+    Chassis,
+    ChassisTypePreset,
+    Driver,
+    Kart,
+    KartClass,
+    Setup,
+)
 from website.services.balance_calc import (
     apply_ballasts,
     ballast_deltas,
     center_of_gravity,
     classify_all,
     classify_metric,
+    compare_setups,
     compute_metrics,
     diagnose,
     evaluate_setup,
@@ -492,3 +502,124 @@ class DiagnoseTests(TestCase):
         )
         expected_order = ["front_low", "cross_mechanical", "lr_asymmetry", "wet_weather", "under_min_weight"]
         self.assertEqual(conditions, expected_order)
+
+
+# ==================== Блок 7 — сравнение сетапов (ТЗ 8.1) ====================
+
+class CompareSetupsTests(TestCase):
+    """website/services/balance_calc.py::compare_setups — дельты + подсветка
+    значимых изменений + бонусный сценарий "тот же карт, другой класс"."""
+
+    def setUp(self):
+        ChassisTypePreset.objects.create(
+            chassis_type="junior", wheelbase_mm=1000, track_front_mm=800, track_rear_mm=850,
+        )
+        ChassisTypePreset.objects.create(
+            chassis_type="senior", wheelbase_mm=1040, track_front_mm=820, track_rear_mm=870,
+        )
+        self.chassis = Chassis.objects.create(name="__cmp_chassis__")
+        self.kart_class = KartClass.objects.create(
+            name="__cmp_junior__", slug="__cmp_junior__", chassis_type="junior", min_weight_kg=D("100"),
+        )
+        self.kart_class_senior = KartClass.objects.create(
+            name="__cmp_senior__", slug="__cmp_senior__", chassis_type="senior", min_weight_kg=D("150"),
+        )
+        driver = Driver.objects.create(first_name="Т", last_name="Т", slug="__cmp_driver__")
+        self.kart = Kart.objects.create(
+            name="__cmp_kart__", chassis=self.chassis, chassis_type="junior", owner_driver=driver,
+        )
+        self.other_kart = Kart.objects.create(
+            name="__cmp_kart_2__", chassis=self.chassis, chassis_type="junior", owner_driver=driver,
+        )
+        BalanceThreshold.objects.create(
+            metric="front_rear", green_min=D("42.5"), green_max=D("43.5"),
+            yellow_min=D("42.0"), yellow_max=D("44.0"),
+        )
+        BalanceThreshold.objects.create(
+            metric="left_right", green_min=D("49.5"), green_max=D("50.5"),
+            yellow_min=D("49.0"), yellow_max=D("51.0"),
+        )
+        BalanceThreshold.objects.create(
+            metric="cross_weight", green_min=D("49.5"), green_max=D("50.5"),
+            yellow_min=D("48.0"), yellow_max=D("52.0"),
+        )
+
+    def _setup(self, kart=None, kart_class=None, **overrides):
+        defaults = dict(
+            kart=kart or self.kart, name="Setup", kart_class=kart_class or self.kart_class,
+            weight_lf=D("21.5"), weight_rf=D("21.5"), weight_lr=D("28.5"), weight_rr=D("28.5"),
+        )
+        defaults.update(overrides)
+        return Setup.objects.create(**defaults)
+
+    def test_identical_setups_have_zero_deltas_and_nothing_significant(self):
+        a = self._setup()
+        b = self._setup()
+        result = compare_setups(a, b)
+        for row in result["corners"] + result["metrics"]:
+            self.assertEqual(row["delta"], D("0.0"))
+            self.assertFalse(row["significant"])
+
+    def test_corner_delta_direction_and_magnitude(self):
+        a = self._setup(weight_lf=D("20.0"))
+        b = self._setup(weight_lf=D("22.0"))
+        result = compare_setups(a, b)
+        lf_row = next(r for r in result["corners"] if r["label"] == "Левый перед")
+        self.assertEqual(lf_row["delta"], D("2.0"))
+        self.assertTrue(lf_row["significant"])
+
+    def test_small_delta_below_threshold_not_significant(self):
+        a = self._setup(weight_lf=D("21.5"))
+        b = self._setup(weight_lf=D("21.7"))  # 0.2 кг — ниже порога значимости 0.5 кг
+        result = compare_setups(a, b)
+        lf_row = next(r for r in result["corners"] if r["label"] == "Левый перед")
+        self.assertEqual(lf_row["delta"], D("0.2"))
+        self.assertFalse(lf_row["significant"])
+
+    def test_classification_change_marked_significant_even_with_tiny_delta(self):
+        # 43.4% (зелёная зона 42.5-43.5) -> 43.6% (жёлтая) — дельта копеечная,
+        # но пересекает границу зоны, поэтому должна быть отмечена значимой.
+        a = self._setup(weight_lf=D("21.7"), weight_rf=D("21.7"), weight_lr=D("28.3"), weight_rr=D("28.3"))
+        b = self._setup(weight_lf=D("21.8"), weight_rf=D("21.8"), weight_lr=D("28.2"), weight_rr=D("28.2"))
+        result = compare_setups(a, b)
+        front_row = next(r for r in result["metrics"] if r["label"] == "Перед")
+        self.assertNotEqual(front_row["class_a"], front_row["class_b"])
+        self.assertTrue(front_row["significant"])
+
+    def test_kart_only_present_only_when_both_have_driver_weight(self):
+        a = self._setup(driver_weight_kg=D("60"))
+        b_no_weight = self._setup(driver_weight_kg=None)
+        self.assertIsNone(compare_setups(a, b_no_weight)["kart_only"])
+
+        b_with_weight = self._setup(driver_weight_kg=D("65"))
+        result = compare_setups(a, b_with_weight)
+        self.assertIsNotNone(result["kart_only"])
+        # Тот же суммарный вес карта (100 кг), но пилот Б тяжелее на 5 кг ->
+        # вес "карт без пилота" у Б меньше на те же 5 кг.
+        self.assertEqual(result["kart_only"]["delta"], D("-5.0"))
+
+    def test_same_kart_flag(self):
+        a = self._setup(kart=self.kart)
+        b = self._setup(kart=self.kart)
+        c = self._setup(kart=self.other_kart)
+        self.assertTrue(compare_setups(a, b)["same_kart"])
+        self.assertFalse(compare_setups(a, c)["same_kart"])
+
+    def test_class_changed_bonus_scenario(self):
+        # ТЗ 8.1: "как менялась развесовка этого шасси при переходе из
+        # Юниора в Макс" — тот же карт, разные классы.
+        a = self._setup(kart=self.kart, kart_class=self.kart_class)
+        b = Setup.objects.create(
+            kart=self.kart, name="Senior setup", kart_class=self.kart_class_senior,
+            weight_lf=D("30"), weight_rf=D("30"), weight_lr=D("40"), weight_rr=D("40"),
+        )
+        result = compare_setups(a, b)
+        self.assertTrue(result["same_kart"])
+        self.assertTrue(result["class_changed"])
+
+    def test_different_kart_class_changed_but_not_same_kart(self):
+        a = self._setup(kart=self.kart, kart_class=self.kart_class)
+        b = self._setup(kart=self.other_kart, kart_class=self.kart_class_senior)
+        result = compare_setups(a, b)
+        self.assertFalse(result["same_kart"])
+        self.assertTrue(result["class_changed"])

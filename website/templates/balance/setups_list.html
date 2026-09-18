@@ -51,6 +51,19 @@ website/mediakit_views.py про тот же принцип для медиа-к
     Подходящих сетапов не нашлось. Сохранить новый можно на странице калькулятора.
   </p>
 </div>
+
+{% comment %}
+Блок 7 (ТЗ §8.1) — выбор двух карточек чекбоксом ("Сравнить" на каждой,
+JS-генерируемый) открывает /balance/compare/?a=&b=. Бар — плавающий, над
+таб-баром, появляется при первом отмеченном чекбоксе (balance-setups.js).
+{% endcomment %}
+<div class="gl-setups-compare-bar" id="glSetupsCompareBar" hidden>
+  <button type="button" class="gl-setups-compare-bar__clear" id="glSetupsCompareClear" aria-label="Сбросить выбор">
+    <i class="fa-solid fa-xmark"></i>
+  </button>
+  <span class="gl-setups-compare-bar__count" id="glSetupsCompareCount">0/2</span>
+  <button type="button" class="gl-setups-compare-bar__go" id="glSetupsCompareGo" disabled>Сравнить</button>
+</div>
 {% endblock %}
 
 {% block extra_scripts %}

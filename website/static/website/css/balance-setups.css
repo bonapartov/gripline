@@ -162,3 +162,76 @@
 .gl-setups-message--error {
   color: var(--gl-brand-red);
 }
+
+/* ── Выбор для сравнения (Блок 7, ТЗ §8.1) ───────────────────────── */
+
+.gl-setups-card__compare {
+  display: flex;
+  align-items: center;
+  gap: var(--gl-space-2);
+  min-width: 0;
+  cursor: pointer;
+}
+
+.gl-setups-compare-check {
+  flex: 0 0 auto;
+  accent-color: var(--gl-brand-yellow);
+}
+
+/* Тот же паттерн позиционирования, что .gl-balance-install-banner
+   (balance-app.css) — плавающая панель над таб-баром с safe-area отступом. */
+.gl-setups-compare-bar {
+  position: fixed;
+  left: var(--gl-space-3);
+  right: var(--gl-space-3);
+  bottom: calc(64px + env(safe-area-inset-bottom) + var(--gl-space-2));
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: var(--gl-space-2);
+  background: var(--gl-surface-card);
+  border: 1px solid var(--gl-brand-yellow);
+  border-radius: var(--gl-radius-lg);
+  box-shadow: var(--gl-shadow-card);
+  padding: var(--gl-space-2) var(--gl-space-3);
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.gl-setups-compare-bar[hidden] {
+  display: none;
+}
+
+.gl-setups-compare-bar__count {
+  flex: 1 1 auto;
+  color: var(--gl-fg-2);
+  font-size: var(--gl-text-small-size);
+}
+
+.gl-setups-compare-bar__clear {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: var(--gl-fg-muted);
+  font-size: 1rem;
+  line-height: 1;
+  padding: var(--gl-space-1);
+}
+
+.gl-setups-compare-bar__go {
+  flex: 0 0 auto;
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  border-radius: var(--gl-radius-pill);
+  background: var(--gl-brand-yellow);
+  color: var(--gl-fg-on-yellow);
+  font-family: inherit;
+  font-weight: var(--gl-weight-semibold);
+  font-size: var(--gl-text-small-size);
+  padding: var(--gl-space-1) var(--gl-space-3);
+}
+
+.gl-setups-compare-bar__go:disabled {
+  opacity: 0.5;
+}

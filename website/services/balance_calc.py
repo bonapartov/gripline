@@ -368,3 +368,96 @@ def diagnose(metrics, classification, min_weight, thresholds=None, weather=None,
         add("under_min_weight", shortfall_kg=abs(min_weight["margin_kg"]))
 
     return triggered
+
+
+# ==================== Блок 7 — сравнение сетапов (ТЗ 8.1) ====================
+#
+# "Два сетапа рядом" — обе колонки метрик + дельта по каждой, подсветка
+# значимых изменений. ТЗ не задаёт числовой порог значимости — берём кратное
+# шага округления полей (0.1 кг / 0.1 п.п.), 5x, чтобы не подсвечивать шум
+# единичного округления при вводе, но ловить реальные правки развесовки.
+# Смена цвета классификации (green/yellow/red) между А и Б считается
+# значимой сама по себе, даже если численная дельта ниже порога — это как
+# раз тот случай, когда маленькое число пересекло границу зоны.
+
+SIGNIFICANT_WEIGHT_DELTA_KG = Decimal("0.5")
+SIGNIFICANT_PCT_DELTA = Decimal("0.5")
+
+CORNER_ROWS = (
+    ("lf", "Левый перед"),
+    ("rf", "Правый перед"),
+    ("lr", "Левый зад"),
+    ("rr", "Правый зад"),
+)
+
+
+def _setup_snapshot(setup, thresholds):
+    metrics = compute_metrics(setup.weight_lf, setup.weight_rf, setup.weight_lr, setup.weight_rr)
+    return {
+        "metrics": metrics,
+        "classification": classify_all(metrics, thresholds=thresholds),
+        "min_weight": min_weight_status(metrics["total_kg"], setup.kart_class),
+        "kart_only_kg": kart_only_weight(metrics["total_kg"], setup.driver_weight_kg),
+    }
+
+
+def compare_setups(setup_a, setup_b, thresholds=None):
+    """
+    -> dict для шаблона сравнения (balance/compare.html). Считает по уже
+    сохранённым Setup, не по сырым углам — оба обязаны быть валидны (это
+    гарантирует setup_save при сохранении, повторная validate_corners здесь
+    не нужна).
+
+    Бонусный сценарий (ТЗ 8.1: "как менялась развесовка этого шасси при
+    переходе из Юниора в Макс") — same_kart/class_changed вычисляются прямо
+    из полей объектов, без дополнительных запросов.
+    """
+    if thresholds is None:
+        thresholds = load_thresholds()
+
+    snap_a = _setup_snapshot(setup_a, thresholds)
+    snap_b = _setup_snapshot(setup_b, thresholds)
+
+    def row(label, a_value, b_value, unit, class_a=None, class_b=None):
+        delta = _round1(b_value - a_value)
+        significant = abs(delta) >= (SIGNIFICANT_PCT_DELTA if unit == "%" else SIGNIFICANT_WEIGHT_DELTA_KG)
+        if class_a is not None and class_a != class_b:
+            significant = True
+        return {
+            "label": label, "a": a_value, "b": b_value, "delta": delta, "unit": unit,
+            "class_a": class_a, "class_b": class_b, "significant": significant,
+        }
+
+    corners = [
+        row(label, getattr(setup_a, f"weight_{key}"), getattr(setup_b, f"weight_{key}"), "кг")
+        for key, label in CORNER_ROWS
+    ]
+
+    cls_a, cls_b = snap_a["classification"], snap_b["classification"]
+    metrics = [
+        row("Итого", snap_a["metrics"]["total_kg"], snap_b["metrics"]["total_kg"], "кг"),
+        row("Перед", snap_a["metrics"]["front_pct"], snap_b["metrics"]["front_pct"], "%",
+            cls_a["front_rear"], cls_b["front_rear"]),
+        row("Зад", snap_a["metrics"]["rear_pct"], snap_b["metrics"]["rear_pct"], "%",
+            cls_a["front_rear"], cls_b["front_rear"]),
+        row("Слева", snap_a["metrics"]["left_pct"], snap_b["metrics"]["left_pct"], "%",
+            cls_a["left_right"], cls_b["left_right"]),
+        row("Справа", snap_a["metrics"]["right_pct"], snap_b["metrics"]["right_pct"], "%",
+            cls_a["left_right"], cls_b["left_right"]),
+        row("Cross weight", snap_a["metrics"]["cross_pct"], snap_b["metrics"]["cross_pct"], "%",
+            cls_a["cross_weight"], cls_b["cross_weight"]),
+    ]
+
+    kart_only = None
+    if snap_a["kart_only_kg"] is not None and snap_b["kart_only_kg"] is not None:
+        kart_only = row("Карт без пилота", snap_a["kart_only_kg"], snap_b["kart_only_kg"], "кг")
+
+    return {
+        "same_kart": setup_a.kart_id == setup_b.kart_id,
+        "class_changed": setup_a.kart_class_id != setup_b.kart_class_id,
+        "corners": corners,
+        "metrics": metrics,
+        "kart_only": kart_only,
+        "min_weight_a": snap_a["min_weight"],
+        "min_weight_b": snap_b["min_weight"],
+    }
