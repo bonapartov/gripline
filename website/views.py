@@ -1140,6 +1140,7 @@ def _get_driver_class_ratings(driver):
     Uses same Bayesian smoothing (C=15) as top_drivers_view.
     """
     import json, statistics as _stats
+    from datetime import datetime, timezone as dt_timezone
 
     C = 15
 
@@ -1307,7 +1308,20 @@ def _get_driver_class_ratings(driver):
             'victim': victim,
         })
 
-    class_ratings.sort(key=lambda x: x['class_name'])
+    # Текущий класс (последний старт — самый свежий) всегда первым, за ним —
+    # остальные классы в хронологическом порядке (по дате последнего старта
+    # в каждом, от самого раннего к позднему). Не алфавит и не сортировка
+    # по class_id — пилот видит сначала то, чем занят сейчас, потом историю.
+    # last_race_date может быть None (нет ни occurrence, ни last_published_at
+    # ни у одного результата класса) — такой класс считаем самым старым.
+    _epoch = datetime.min.replace(tzinfo=dt_timezone.utc)
+    class_ratings.sort(key=lambda x: x['last_race_date'] or _epoch)
+    if class_ratings:
+        current_idx = max(
+            range(len(class_ratings)),
+            key=lambda i: class_ratings[i]['last_race_date'] or _epoch,
+        )
+        class_ratings.insert(0, class_ratings.pop(current_idx))
     return class_ratings
 
 
