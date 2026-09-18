@@ -79,6 +79,14 @@ class PulseApp {
         return `${n} классов`;
     }
 
+    // Порядок классов картинга — с сервера (filters.class_order, тот же
+    // RaceClass.sort_order, что и на всех остальных страницах сайта), не
+    // алфавит. Незнакомое имя (класс без записи в справочнике) — в конец.
+    _classSortValue(name) {
+        const order = (this.data && this.data.filters && this.data.filters.class_order) || {};
+        return order[name] ?? 9999;
+    }
+
     // ── Производные данные ────────────────────────────────────────────────
 
     filteredStages() {
@@ -163,10 +171,10 @@ class PulseApp {
             () => { this.activeTypes.clear(); this.activeTrack = null; this.renderAll(); }
         );
 
-        // Классы — из данных этапов, по алфавиту
+        // Классы — из данных этапов, в порядке регламента (не по алфавиту)
         const allClasses = [...new Set(
             (this.data.stages || []).flatMap(s => s.winners.map(w => w.class_name))
-        )].sort((a, b) => a.localeCompare(b, 'ru'));
+        )].sort((a, b) => this._classSortValue(a) - this._classSortValue(b));
 
         this._renderChips(
             'pl-class-chips', 'pl-class-reset',
@@ -336,7 +344,7 @@ class PulseApp {
         if (!champ) return '';
         const winners = (champ.champions || [])
             .filter(c => c.position === 1)
-            .sort((a, b) => a.class.localeCompare(b.class, 'ru'));
+            .sort((a, b) => this._classSortValue(a.class) - this._classSortValue(b.class));
         if (!winners.length) return '';
         const items = winners.map(c => {
             const photoInner = c.photo

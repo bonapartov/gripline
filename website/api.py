@@ -7,7 +7,7 @@ from django.views.decorators.http import require_GET
 
 from .models import (
     ChampionshipPage, Track, RaceResult, CompetitionType,
-    StagePage, EventPage, RaceClassResultGroup,
+    StagePage, EventPage, RaceClassResultGroup, RaceClass,
 )
 from organizers.models import Stage as OrgStage
 
@@ -372,5 +372,9 @@ def pulse_data(request):
         'filters': {
             'years': sorted(list(all_years), reverse=True),
             'types': type_names_in_year,
+            # {название класса: порядок} — чипы классов на /pulse/ (pulse.js)
+            # сортируются по этому порядку вместо localeCompare, тот же
+            # источник, что и RaceClass.sort_order по всему остальному сайту.
+            'class_order': dict(RaceClass.objects.values_list('name', 'sort_order')),
         },
     })
