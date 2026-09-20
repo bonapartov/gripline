@@ -230,16 +230,18 @@ document.addEventListener('DOMContentLoaded', function () {
         initOneRatingChart(document.querySelector('.glv2-rating-canvas'));
     }
 
-    var classRatingSelect = document.getElementById('glv2ClassRatingSelect');
-    if (classRatingSelect) {
-        classRatingSelect.addEventListener('change', function () {
-            var id = classRatingSelect.value;
-            document.querySelectorAll('.glv2-rating-card[data-class-rating-id]').forEach(function (card) {
-                card.style.display = card.getAttribute('data-class-rating-id') === id ? '' : 'none';
-            });
-            initOneRatingChart(document.querySelector('.glv2-rating-card[data-class-rating-id="' + id + '"] .glv2-rating-canvas'));
+    // Список выбора класса дублирован внутри КАЖДОЙ карточки (лежит в её же
+    // строке заголовка, рядом с названием класса) — виден только у той
+    // карточки, что сейчас показана, остальные скрыты вместе с card целиком.
+    // Поэтому слушаем через делегирование на document, а не по одному id.
+    document.addEventListener('change', function (e) {
+        if (!e.target.classList || !e.target.classList.contains('glv2-class-rating-select')) { return; }
+        var id = e.target.value;
+        document.querySelectorAll('.glv2-rating-card[data-class-rating-id]').forEach(function (card) {
+            card.style.display = card.getAttribute('data-class-rating-id') === id ? '' : 'none';
         });
-    }
+        initOneRatingChart(document.querySelector('.glv2-rating-card[data-class-rating-id="' + id + '"] .glv2-rating-canvas'));
+    });
 
     // ---------- История: данные ----------
     var historyDataEl = document.getElementById('driverHistoryData');
