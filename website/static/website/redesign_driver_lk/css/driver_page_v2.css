@@ -1,0 +1,219 @@
+/*
+ * Песочница редизайна ЛК пилота — компоновка по образцу DriverDB.
+ * Только для website/redesign_driver_lk/, не подключается на живой странице.
+ *
+ * Цвета — реальные --gl-* токены сайта (website/static/website/css/tokens.css),
+ * НЕ палитра из референс-макета (#E24B4A и т.д. — макет ошибочно выдавал чужую
+ * палитру за токены Gripline, реальный акцент сайта жёлтый, --gl-brand-yellow).
+ *
+ * Шрифты — Inter Tight + JetBrains Mono. tokens.css сам называет эту пару
+ * "рекомендованной заменой для прототипов" (см. комментарий у --gl-font-display) —
+ * эта страница и есть прототип, поэтому шрифты подключены здесь локально,
+ * не трогая --gl-font-display/--gl-font-mono на остальном сайте.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+/* Вкладки в хедере — якоря на секции одной непрерывной страницы (как в
+   референс-макете: html{scroll-behavior:smooth} + обычные ссылки), не
+   JS-переключаемые панели. Безопасно ставить на html глобально — этот файл
+   загружается только на странице песочницы. */
+html { scroll-behavior: smooth; }
+
+.glv2-page {
+    font-family: 'Inter Tight', var(--gl-font-display);
+}
+.glv2-mono { font-family: 'JetBrains Mono', var(--gl-font-mono); }
+
+.glv2-wrap { max-width: 1360px; }
+
+/* --- Breadcrumbs --- */
+.glv2-breadcrumbs { color: var(--gl-fg-muted); font-size: 0.82rem; margin-bottom: 1rem; }
+.glv2-breadcrumbs a { color: var(--gl-fg-muted); text-decoration: none; }
+.glv2-breadcrumbs a:hover { color: var(--gl-brand-yellow); }
+.glv2-breadcrumbs .glv2-current { color: var(--gl-fg-2); }
+
+/* --- Header bar --- */
+/* Навбар сайта — position:fixed, высота ~61px, z-index 1030 (LayoutSettings.navbar_fixed=True,
+   coderedcms get_navbar_css). Хедер-полоса прилипает СРАЗУ под ним (top = высота навбара),
+   с меньшим z-index, чтобы не перекрывать выпадающее меню навбара. */
+.glv2-headerbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 1rem;
+    padding: 0.85rem 0 1.1rem; margin-bottom: 1rem;
+    border-bottom: 1px solid var(--gl-border-card);
+    position: sticky; top: 61px; z-index: 100;
+    background: var(--gl-surface-body, #15151c);
+}
+.glv2-identity { display: flex; align-items: center; gap: 0.75rem; }
+.glv2-avatar-sm {
+    width: 40px; height: 40px; border-radius: var(--gl-radius-md);
+    background: var(--gl-surface-card-hover);
+    display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;
+    color: var(--gl-fg-muted);
+}
+.glv2-avatar-sm img { width: 100%; height: 100%; object-fit: cover; }
+.glv2-name-sm { font-weight: var(--gl-weight-bold); color: var(--gl-fg-1); font-size: 1.05rem; }
+.glv2-pill {
+    display: inline-flex; align-items: center; padding: 0.25rem 0.65rem;
+    border-radius: var(--gl-radius-pill); font-size: 0.78rem; font-weight: var(--gl-weight-semibold);
+    background: var(--gl-surface-card-hover); color: var(--gl-fg-3);
+}
+.glv2-tabs { display: flex; gap: 1.75rem; margin-left: 0.5rem; }
+.glv2-tab {
+    background: none; border: none; padding: 0.35rem 0.1rem; cursor: pointer;
+    font-size: 0.88rem; font-weight: var(--gl-weight-semibold); color: var(--gl-fg-muted);
+    border-bottom: 2px solid transparent; white-space: nowrap;
+    text-decoration: none; display: inline-block;
+}
+.glv2-tab.active { color: var(--gl-brand-yellow); border-bottom-color: var(--gl-brand-yellow); }
+.glv2-actions { display: flex; gap: 0.6rem; margin-left: auto; flex-wrap: wrap; }
+.glv2-btn {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.5rem 0.85rem; border-radius: var(--gl-radius-md);
+    font-size: 0.85rem; font-weight: var(--gl-weight-bold);
+    background: transparent; border: 1px solid var(--gl-brand-yellow); color: var(--gl-brand-yellow);
+    text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+.glv2-btn:hover { background: var(--gl-brand-yellow); color: var(--gl-fg-on-yellow); }
+
+.glv2-claim-banner { padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; color: var(--gl-fg-3); font-size: 0.85rem; }
+
+/* --- Tab panels --- */
+/* Секции — не скрываемые панели, а обычный поток страницы; id используется
+   как якорь для вкладок-ссылок в хедере. scroll-margin-top учитывает
+   прилипающие сверху навбар сайта (~61px) + .glv2-headerbar (~72px) — иначе
+   после перехода по якорю заголовок секции уезжает под них. */
+.glv2-tab-panel { scroll-margin-top: 145px; }
+
+.glv2-section-title { font-size: 1.5rem; font-weight: var(--gl-weight-extrabold); color: var(--gl-fg-1); margin-bottom: 1rem; }
+.glv2-section-title-row {
+    display: flex; align-items: baseline; justify-content: space-between;
+    font-size: 1.15rem; font-weight: var(--gl-weight-extrabold); color: var(--gl-fg-1);
+    margin-bottom: 0.85rem;
+}
+.glv2-muted-link { font-size: 0.85rem; color: var(--gl-fg-muted); text-decoration: none; }
+.glv2-muted-link:hover { color: var(--gl-brand-yellow); }
+
+/* --- Generic card --- */
+.glv2-card {
+    background: var(--gl-surface-card); border: 1px solid var(--gl-border-card);
+    border-radius: var(--gl-radius-lg); padding: 1.1rem;
+}
+.glv2-card-title-plain { font-size: 0.95rem; font-weight: var(--gl-weight-bold); color: var(--gl-fg-1); }
+
+/* --- Overview: колонка A (identity) --- */
+.glv2-colA { display: flex; flex-direction: column; gap: 0.85rem; }
+.glv2-photo-square {
+    width: 100%; aspect-ratio: 1/1; border-radius: var(--gl-radius-lg);
+    background: var(--gl-surface-card-hover);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--gl-fg-muted); font-size: 2.4rem; overflow: hidden;
+}
+.glv2-photo-square img { width: 100%; height: 100%; object-fit: cover; }
+.glv2-colA-name { font-size: 1.2rem; font-weight: var(--gl-weight-extrabold); color: var(--gl-fg-1); }
+.glv2-colA-city { color: var(--gl-fg-3); font-size: 0.85rem; margin-top: 0.15rem; }
+.glv2-social-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.glv2-social-pill { text-decoration: none; gap: 0.3rem; font-size: 0.72rem; }
+.glv2-social-pill:hover { background: var(--gl-surface-divider); }
+.glv2-colA-facts { display: flex; flex-direction: column; gap: 0.45rem; font-size: 0.85rem; }
+.glv2-colA-facts > div { display: flex; justify-content: space-between; }
+.glv2-colA-facts .glv2-fact-label { color: var(--gl-fg-muted); }
+.glv2-colA-facts .glv2-fact-value { font-weight: var(--gl-weight-semibold); color: var(--gl-fg-2); }
+.glv2-fact-link { color: var(--gl-brand-yellow); text-decoration: none; }
+.glv2-fact-link:hover { text-decoration: underline; }
+.glv2-colA-pills { display: flex; flex-direction: column; gap: 0.5rem; }
+.glv2-pill-stat {
+    background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.35);
+    border-radius: var(--gl-radius-md); padding: 0.55rem 0.85rem;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 0.85rem; font-weight: var(--gl-weight-semibold); color: var(--gl-fg-2);
+}
+.glv2-pill-stat .glv2-mono { font-size: 1.05rem; font-weight: var(--gl-weight-bold); color: var(--gl-fg-1); }
+
+/* --- Overview: колонка B (радар) --- */
+.glv2-radar-wrap { position: relative; height: 210px; margin: 0.5rem 0; }
+.glv2-radar-note { color: var(--gl-fg-muted); font-size: 0.72rem; text-align: center; }
+
+/* --- Overview: колонка C (6 плиток) --- */
+.glv2-tile { padding: 1.1rem 1.2rem; }
+.glv2-tile-label { color: var(--gl-fg-muted); font-size: 0.95rem; letter-spacing: 0.01em; }
+.glv2-tile-value { font-size: 2.75rem; font-weight: var(--gl-weight-bold); color: var(--gl-fg-1); margin-top: 0.4rem; line-height: 1; }
+.glv2-tile-sub { color: var(--gl-fg-3); font-size: 0.82rem; margin-top: 0.35rem; }
+
+/* --- Достижения карьеры --- */
+.glv2-hl-label { color: var(--gl-fg-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.glv2-hl-main { font-size: 0.95rem; font-weight: var(--gl-weight-bold); color: var(--gl-fg-1); margin-top: 0.5rem; }
+.glv2-hl-meta { color: var(--gl-fg-3); font-size: 0.8rem; margin-top: 0.3rem; }
+.glv2-hl-link { display: inline-block; margin-top: 0.75rem; font-size: 0.82rem; font-weight: var(--gl-weight-semibold); color: var(--gl-brand-yellow); text-decoration: none; cursor: pointer; }
+.glv2-hl-link:hover { text-decoration: underline; }
+
+/* --- Биография --- */
+.glv2-bio-text { color: var(--gl-fg-2); font-size: 0.9rem; line-height: 1.55; }
+
+/* --- Рейтинг по классам --- */
+.glv2-rating-card.glv2-low-data { opacity: 0.75; }
+.glv2-rating-score { font-size: 2rem; font-weight: var(--gl-weight-bold); color: var(--gl-fg-1); line-height: 1; }
+.glv2-rating-rank { font-size: 1.6rem; font-weight: var(--gl-weight-bold); color: var(--gl-brand-yellow); line-height: 1; }
+.glv2-trend-up { color: var(--gl-signal-green); }
+.glv2-trend-down { color: var(--gl-signal-danger); }
+.glv2-rating-chart-wrap { height: 170px; position: relative; margin-top: 0.75rem; }
+.glv2-median-box {
+    display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0.85rem;
+    border-radius: var(--gl-radius-md); background: rgba(0,0,0,0.2); border: 1px solid var(--gl-surface-divider);
+    height: 100%;
+}
+
+/* --- Рекорды трасс --- */
+.glv2-records-table { width: 100%; border-collapse: collapse; }
+.glv2-records-table th {
+    text-align: left; font-size: 0.68rem; font-weight: var(--gl-weight-bold); color: var(--gl-fg-muted);
+    text-transform: uppercase; letter-spacing: 0.05em; padding: 0.6rem 0.7rem;
+    border-bottom: 1px solid var(--gl-border-card);
+}
+.glv2-records-table td { padding: 0.65rem 0.7rem; font-size: 0.85rem; border-bottom: 1px solid var(--gl-border-soft); color: var(--gl-fg-2); }
+.glv2-status-pill { display: inline-flex; padding: 0.2rem 0.55rem; border-radius: var(--gl-radius-pill); font-size: 0.72rem; font-weight: var(--gl-weight-semibold); }
+.glv2-status-active { background: rgba(40, 167, 69, 0.15); color: var(--gl-signal-green); }
+.glv2-status-locked { background: var(--gl-surface-card-hover); color: var(--gl-fg-3); }
+.glv2-status-beaten { background: var(--gl-surface-card-hover); color: var(--gl-fg-muted); }
+
+/* --- Периоды --- */
+.glv2-periods-row { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+
+/* --- История --- */
+.glv2-filter-select {
+    background: var(--gl-surface-card); color: var(--gl-fg-2); border: 1px solid var(--gl-border-card);
+    border-radius: var(--gl-radius-md); padding: 0.45rem 0.7rem; font-size: 0.88rem; min-width: 150px;
+}
+.glv2-history-table { width: 100%; min-width: 960px; border-collapse: collapse; }
+.glv2-history-table th {
+    text-align: left; font-size: 0.7rem; font-weight: var(--gl-weight-bold); color: var(--gl-fg-muted);
+    text-transform: uppercase; letter-spacing: 0.05em; padding: 0.7rem 0.75rem;
+    border-bottom: 1px solid var(--gl-border-card); background: rgba(0,0,0,0.2);
+}
+.glv2-history-table td { padding: 0.7rem 0.75rem; font-size: 0.88rem; border-bottom: 1px solid var(--gl-border-soft); color: var(--gl-fg-2); }
+.glv2-history-table tbody tr:hover { background: rgba(13, 202, 240, 0.06); }
+
+/* --- Соперники --- */
+/* 5 карточек в один ряд (только текущий класс, см. driver_detail_v2_view);
+   на узких экранах — горизонтальный скролл вместо переноса, чтобы «один
+   ряд» сохранялся визуально на любой ширине. */
+.glv2-rivals-row { display: flex; gap: 0.85rem; overflow-x: auto; padding-bottom: 4px; }
+.glv2-rival-card {
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    flex: 1 1 0; min-width: 220px;
+}
+.glv2-rival-avatar-lg {
+    width: 176px; height: 176px; border-radius: var(--gl-radius-lg);
+    background: var(--gl-surface-card-hover); flex-shrink: 0; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--gl-fg-muted); font-size: 3.2rem; margin-bottom: 0.6rem;
+}
+.glv2-rival-avatar-lg img { width: 100%; height: 100%; object-fit: cover; }
+.glv2-rival-card .d-flex { width: 100%; }
+.glv2-rival-name { font-weight: var(--gl-weight-bold); color: var(--gl-fg-1); font-size: 0.95rem; text-decoration: none; }
+.glv2-rival-name:hover { color: var(--gl-brand-yellow); }
+
+@media (max-width: 991px) {
+    .glv2-headerbar { flex-direction: column; align-items: flex-start; }
+    .glv2-tabs { margin-left: 0; overflow-x: auto; width: 100%; }
+    .glv2-actions { margin-left: 0; width: 100%; }
+}
