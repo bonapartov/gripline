@@ -23,10 +23,6 @@ html { scroll-behavior: smooth; }
 }
 .glv2-mono { font-family: 'JetBrains Mono', var(--gl-font-mono); }
 
-/* Без переопределения — тот же max-width:1320px при ≥1400px, что и везде на
-   сайте (стандартное поведение Bootstrap 5 для .container-xxl). Раньше здесь
-   стоял кастомный 1360px — страница пилота была на 40px шире всех остальных. */
-
 /* --- Breadcrumbs --- */
 .glv2-breadcrumbs { color: var(--gl-fg-muted); font-size: 0.82rem; margin-bottom: 1rem; }
 .glv2-breadcrumbs a { color: var(--gl-fg-muted); text-decoration: none; }

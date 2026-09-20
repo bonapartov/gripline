@@ -6,8 +6,18 @@
 {% endblock %}
 
 {% block content %}
+<style>
+    /* Единый стандарт ширины 1500px — как на остальном сайте (см. --gl-container-1500) */
+    .force-width-1500 {
+        max-width: 1500px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+</style>
 <div class="glv2-page">
-<div class="container-xxl glv2-wrap my-4 text-white">
+<div class="force-width-1500 my-4 text-white">
 
     {# ==================== BREADCRUMBS ==================== #}
     <div class="glv2-breadcrumbs">
