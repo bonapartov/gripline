@@ -129,8 +129,8 @@
             <div class="col-12 col-lg-4">
                 <div class="glv2-card h-100 d-flex flex-column">
                     <div class="glv2-card-title-plain">Профиль результатов</div>
-                    {% if radar_percentiles %}
-                    <div class="text-muted" style="font-size:0.8rem; margin-top:2px;">Сравнение с {{ radar_percentiles.peer_count }} пилотами класса {{ latest_class_rating.class_name }}</div>
+                    {% if class_percentiles %}
+                    <div class="text-muted" style="font-size:0.8rem; margin-top:2px;">Сравнение с {{ class_percentiles.peer_count }} пилотами класса {{ latest_class_rating.class_name }}</div>
                     <div class="glv2-radar-wrap flex-grow-1">
                         <canvas id="glv2RadarChart"
                             data-starts-pct="{{ radar_js.starts_pct }}"
@@ -148,53 +148,111 @@
                 </div>
             </div>
 
-            {# --- Колонка C: 6 плиток --- #}
+            {# --- Колонка C: 6 плиток-счётчиков (переключаемых карьера/класс) + 3 постоянные --- #}
             <div class="col-12 col-lg-5">
-                <div class="row g-2 h-100">
+                <div class="glv2-scope-toggle" role="group" aria-label="Область сравнения">
+                    <button type="button" class="glv2-scope-btn active" data-scope-btn="career">Карьера</button>
+                    <button type="button" class="glv2-scope-btn" data-scope-btn="class" {% if not class_percentiles %}disabled title="Недостаточно данных по текущему классу"{% endif %}>Класс</button>
+                </div>
+                <div class="row g-2 h-100" id="glv2StatTiles" data-scope-mode="career">
                     <div class="col-6 col-xxl-4"><div class="glv2-card glv2-tile h-100">
-                        <div class="glv2-tile-label">Стартов <span class="glv2-tile-scope">· карьера</span></div>
-                        <div class="glv2-tile-value glv2-mono">{{ total_starts }}</div>
-                        {% if career_percentiles.starts is not None %}
-                        <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.starts }}% пилотов</div>
+                        <div data-scope="career">
+                            <div class="glv2-tile-label">Стартов <span class="glv2-tile-scope">· карьера</span></div>
+                            <div class="glv2-tile-value glv2-mono">{{ total_starts }}</div>
+                            {% if career_percentiles.starts is not None %}
+                            <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.starts }}% пилотов</div>
+                            {% endif %}
+                        </div>
+                        {% if class_percentiles %}
+                        <div data-scope="class">
+                            <div class="glv2-tile-label">Стартов <span class="glv2-tile-scope">· {{ latest_class_rating.class_name }}</span></div>
+                            <div class="glv2-tile-value glv2-mono">{{ class_percentiles.starts }}</div>
+                            <div class="glv2-tile-sub">лучше, чем {{ class_percentiles.starts_pct }}% пилотов</div>
+                        </div>
                         {% endif %}
                     </div></div>
                     <div class="col-6 col-xxl-4"><div class="glv2-card glv2-tile h-100">
-                        <div class="glv2-tile-label">Финишей <span class="glv2-tile-scope">· карьера</span></div>
-                        <div class="glv2-tile-value glv2-mono">{{ finished_count }}</div>
-                        {% if career_percentiles.finished is not None %}
-                        <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.finished }}% пилотов</div>
+                        <div data-scope="career">
+                            <div class="glv2-tile-label">Финишей <span class="glv2-tile-scope">· карьера</span></div>
+                            <div class="glv2-tile-value glv2-mono">{{ finished_count }}</div>
+                            {% if career_percentiles.finished is not None %}
+                            <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.finished }}% пилотов</div>
+                            {% endif %}
+                        </div>
+                        {% if class_percentiles %}
+                        <div data-scope="class">
+                            <div class="glv2-tile-label">Финишей <span class="glv2-tile-scope">· {{ latest_class_rating.class_name }}</span></div>
+                            <div class="glv2-tile-value glv2-mono">{{ class_percentiles.finished }}</div>
+                            <div class="glv2-tile-sub">лучше, чем {{ class_percentiles.finished_pct }}% пилотов</div>
+                        </div>
                         {% endif %}
                     </div></div>
                     <div class="col-6 col-xxl-4"><div class="glv2-card glv2-tile h-100">
-                        <div class="glv2-tile-label">DNF <span class="glv2-tile-scope">· карьера</span></div>
-                        <div class="glv2-tile-value glv2-mono">{{ dnf_ratio_value }}%</div>
-                        {% if career_percentiles.dnf_ratio is not None %}
-                        <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.dnf_ratio }}% пилотов</div>
+                        <div data-scope="career">
+                            <div class="glv2-tile-label">DNF <span class="glv2-tile-scope">· карьера</span></div>
+                            <div class="glv2-tile-value glv2-mono">{{ dnf_ratio_value }}%</div>
+                            {% if career_percentiles.dnf_ratio is not None %}
+                            <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.dnf_ratio }}% пилотов</div>
+                            {% endif %}
+                        </div>
+                        {% if class_percentiles %}
+                        <div data-scope="class">
+                            <div class="glv2-tile-label">DNF <span class="glv2-tile-scope">· {{ latest_class_rating.class_name }}</span></div>
+                            <div class="glv2-tile-value glv2-mono">{{ class_percentiles.dnf_ratio }}%</div>
+                            <div class="glv2-tile-sub">лучше, чем {{ class_percentiles.dnf_ratio_pct }}% пилотов</div>
+                        </div>
                         {% endif %}
                     </div></div>
                     <div class="col-6 col-xxl-4"><div class="glv2-card glv2-tile h-100">
-                        <div class="glv2-tile-label">Побед <span class="glv2-tile-scope">· карьера</span></div>
-                        <div class="glv2-tile-value glv2-mono">{{ wins }}</div>
-                        {% if career_percentiles.wins is not None %}
-                        <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.wins }}% пилотов</div>
-                        {% else %}
-                        <div class="glv2-tile-sub">{{ win_percentage }}% стартов</div>
+                        <div data-scope="career">
+                            <div class="glv2-tile-label">Побед <span class="glv2-tile-scope">· карьера</span></div>
+                            <div class="glv2-tile-value glv2-mono">{{ wins }}</div>
+                            {% if career_percentiles.wins is not None %}
+                            <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.wins }}% пилотов</div>
+                            {% else %}
+                            <div class="glv2-tile-sub">{{ win_percentage }}% стартов</div>
+                            {% endif %}
+                        </div>
+                        {% if class_percentiles %}
+                        <div data-scope="class">
+                            <div class="glv2-tile-label">Побед <span class="glv2-tile-scope">· {{ latest_class_rating.class_name }}</span></div>
+                            <div class="glv2-tile-value glv2-mono">{{ class_percentiles.wins }}</div>
+                            <div class="glv2-tile-sub">лучше, чем {{ class_percentiles.wins_pct }}% пилотов</div>
+                        </div>
                         {% endif %}
                     </div></div>
                     <div class="col-6 col-xxl-4"><div class="glv2-card glv2-tile h-100">
-                        <div class="glv2-tile-label">Подиумов <span class="glv2-tile-scope">· карьера</span></div>
-                        <div class="glv2-tile-value glv2-mono">{{ podiums }}</div>
-                        {% if career_percentiles.podiums is not None %}
-                        <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.podiums }}% пилотов</div>
-                        {% else %}
-                        <div class="glv2-tile-sub">{{ podium_percentage }}% стартов</div>
+                        <div data-scope="career">
+                            <div class="glv2-tile-label">Подиумов <span class="glv2-tile-scope">· карьера</span></div>
+                            <div class="glv2-tile-value glv2-mono">{{ podiums }}</div>
+                            {% if career_percentiles.podiums is not None %}
+                            <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.podiums }}% пилотов</div>
+                            {% else %}
+                            <div class="glv2-tile-sub">{{ podium_percentage }}% стартов</div>
+                            {% endif %}
+                        </div>
+                        {% if class_percentiles %}
+                        <div data-scope="class">
+                            <div class="glv2-tile-label">Подиумов <span class="glv2-tile-scope">· {{ latest_class_rating.class_name }}</span></div>
+                            <div class="glv2-tile-value glv2-mono">{{ class_percentiles.podiums }}</div>
+                            <div class="glv2-tile-sub">лучше, чем {{ class_percentiles.podiums_pct }}% пилотов</div>
+                        </div>
                         {% endif %}
                     </div></div>
                     <div class="col-6 col-xxl-4"><div class="glv2-card glv2-tile h-100">
-                        <div class="glv2-tile-label">Поулы <span class="glv2-tile-scope">· карьера</span></div>
-                        <div class="glv2-tile-value glv2-mono">{{ poles_count }}</div>
-                        {% if career_percentiles.poles is not None %}
-                        <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.poles }}% пилотов</div>
+                        <div data-scope="career">
+                            <div class="glv2-tile-label">Поулы <span class="glv2-tile-scope">· карьера</span></div>
+                            <div class="glv2-tile-value glv2-mono">{{ poles_count }}</div>
+                            {% if career_percentiles.poles is not None %}
+                            <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.poles }}% пилотов</div>
+                            {% endif %}
+                        </div>
+                        {% if class_percentiles %}
+                        <div data-scope="class">
+                            <div class="glv2-tile-label">Поулы <span class="glv2-tile-scope">· {{ latest_class_rating.class_name }}</span></div>
+                            <div class="glv2-tile-value glv2-mono">{{ class_percentiles.poles }}</div>
+                            <div class="glv2-tile-sub">лучше, чем {{ class_percentiles.poles_pct }}% пилотов</div>
+                        </div>
                         {% endif %}
                     </div></div>
                     <div class="col-6 col-xxl-4"><div class="glv2-card glv2-tile h-100">

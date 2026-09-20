@@ -141,6 +141,22 @@ html { scroll-behavior: smooth; }
 .glv2-tile-split > div:first-child { padding-left: 0; border-right: 1px solid var(--gl-border-card); }
 .glv2-tile-split .glv2-tile-value { font-size: 2.5rem; }
 
+/* --- Тумблер «Карьера / Класс» над плитками-счётчиками --- */
+.glv2-scope-toggle {
+    display: inline-flex; border: 1px solid var(--gl-border-card);
+    border-radius: var(--gl-radius-pill); padding: 3px; margin-bottom: 0.6rem;
+}
+.glv2-scope-btn {
+    background: none; border: none; color: var(--gl-fg-muted);
+    font-size: 0.82rem; font-weight: var(--gl-weight-bold); padding: 0.3rem 0.9rem;
+    border-radius: var(--gl-radius-pill); cursor: pointer;
+}
+.glv2-scope-btn.active { background: var(--gl-brand-yellow); color: var(--gl-fg-on-yellow); }
+.glv2-scope-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+#glv2StatTiles [data-scope] { display: none; }
+#glv2StatTiles[data-scope-mode="career"] [data-scope="career"] { display: block; }
+#glv2StatTiles[data-scope-mode="class"] [data-scope="class"] { display: block; }
+
 /* --- Достижения карьеры --- */
 .glv2-hl-label { color: var(--gl-fg-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .glv2-hl-main { font-size: 0.95rem; font-weight: var(--gl-weight-bold); color: var(--gl-fg-1); margin-top: 0.5rem; }

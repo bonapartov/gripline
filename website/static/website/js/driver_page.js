@@ -24,6 +24,21 @@ document.addEventListener('DOMContentLoaded', function () {
         panels.forEach(function (p) { spy.observe(p); });
     }
 
+    // ---------- Тумблер «Карьера / Класс» над плитками-счётчиками ----------
+    // Обе версии каждой плитки уже отрендерены сервером (data-scope="career"/
+    // "class") — тумблер только переключает видимость через CSS-атрибут на
+    // обёртке, без JS-форматирования чисел (в т.ч. без проблемы с запятой в
+    // ru-локали, см. комментарий у radar_js в views.py).
+    var statTiles = document.getElementById('glv2StatTiles');
+    document.querySelectorAll('.glv2-scope-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            if (btn.disabled || !statTiles) { return; }
+            statTiles.setAttribute('data-scope-mode', btn.getAttribute('data-scope-btn'));
+            document.querySelectorAll('.glv2-scope-btn').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+        });
+    });
+
     document.querySelectorAll('.glv2-open-history').forEach(function (el) {
         el.addEventListener('click', function () {
             var classId = el.getAttribute('data-class-id');

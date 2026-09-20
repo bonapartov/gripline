@@ -260,17 +260,21 @@ def driver_detail_view(request, slug):
         driver, total_starts, wins, podiums, poles_count, finished_count, dnf_ratio_value
     )
 
-    # --- Радар «Профиль результатов» — перцентили внутри текущего класса ---
-    radar_percentiles = (
-        _class_percentile_radar(driver, latest_class_rating['class_id'])
+    # --- Перцентили внутри текущего класса — источник и для радара «Профиль
+    # результатов» (всегда «по классу», без переключателя — рейтингу
+    # физически не с чем сравниваться в разрезе всей карьеры, см. обсуждение
+    # Global Ranking), и для тайлов Обзора в режиме «Класс». ---
+    class_percentiles = (
+        _class_stat_percentiles(driver, latest_class_rating['class_id'])
         if latest_class_rating else None
     )
     # LANGUAGE_CODE='ru-ru' + USE_L10N=True заставляют {{ }} рендерить числа
     # с запятой ("36,7"), а не точкой; str() на Python-float — всегда точка,
-    # локаль-независимо. Нужно только для JS-потребляемых data-* атрибутов.
+    # локаль-независимо. Нужно только для JS-потребляемых data-* атрибутов
+    # радара — тайлы «Класс» рендерятся обычным {{ }}, JS их не читает.
     radar_js = (
-        {k: str(v) for k, v in radar_percentiles.items() if k != 'peer_count'}
-        if radar_percentiles else {}
+        {k: str(class_percentiles[k]) for k in ('starts_pct', 'wins_pct', 'podiums_pct', 'poles_pct', 'rating_pct')}
+        if class_percentiles else {}
     )
 
     # --- Соперники: 5 ближайших по месту в рейтинге текущего класса ---
@@ -387,7 +391,7 @@ def driver_detail_view(request, slug):
         "finished_count": finished_count,
         "dnf_ratio_value": dnf_ratio_value,
         "career_percentiles": career_percentiles,
-        "radar_percentiles": radar_percentiles,
+        "class_percentiles": class_percentiles,
         "radar_js": radar_js,
         "nearby_rivals": nearby_rivals,
         "history_data": history_data,
@@ -1243,13 +1247,14 @@ def _nearby_class_rivals(driver, class_id, count=5):
     } for e in nearby]
 
 
-def _class_percentile_radar(driver, class_id):
-    """Перцентили пилота внутри класса для радара «Профиль результатов» —
-    Старты/Победы/Подиумы/Поулы: доля пилотов той же выборки (у кого есть
-    BT-рейтинг в этом классе, т.е. уже ≥ AnalyticsSettings.min_races_per_class
-    стартов — та же выборка, что и _class_ranking_entries) со строго меньшим
-    сырым счётчиком. Рейтинг — перцентиль места в том же списке rank/total,
-    что и в карточках рейтинга (не пересчитывается по-другому).
+def _class_stat_percentiles(driver, class_id):
+    """Перцентили И сырые счётчики пилота внутри класса — общий источник для
+    радара «Профиль результатов» (нужны только *_pct + rating_pct) и тайлов
+    Обзора в режиме «Класс» (нужны ещё и сырые значения, и Финиши/DNF).
+    Выборка сравнения — пилоты с BT-рейтингом в этом классе (уже
+    ≥ AnalyticsSettings.min_races_per_class стартов — та же выборка, что и
+    _class_ranking_entries). Рейтинг — перцентиль места в том же списке
+    rank/total, что и в карточках рейтинга (не пересчитывается по-другому).
     Возвращает None, если сравнивать не с кем (< 2 пилотов с рейтингом в классе).
     """
     all_drivers = (
@@ -1276,23 +1281,50 @@ def _class_percentile_radar(driver, class_id):
         wins=Count('id', filter=Q(position=1)),
         podiums=Count('id', filter=Q(position__in=[1, 2, 3])),
         poles=Count('id', filter=Q(qual_position=1)),
+        dnf=Count('id', filter=Q(final_status__in=['DNF', 'DQ'])),
     )
     by_driver = {r['driver_id']: r for r in raw}
+    my = by_driver.get(driver.id, {'starts': 0, 'wins': 0, 'podiums': 0, 'poles': 0, 'dnf': 0})
+    my_finished = my['starts'] - my['dnf']
+    my_dnf_ratio = round(my['dnf'] / my['starts'] * 100, 1) if my['starts'] else 0
 
-    def percentile(metric):
-        my_value = by_driver.get(driver.id, {}).get(metric, 0)
-        better = sum(1 for pid in peer_ids if by_driver.get(pid, {}).get(metric, 0) < my_value)
+    def vals(metric):
+        return [by_driver.get(pid, {}).get(metric, 0) for pid in peer_ids]
+
+    def percentile(values, my_value, higher_is_better=True):
+        if higher_is_better:
+            better = sum(1 for v in values if v < my_value)
+        else:
+            better = sum(1 for v in values if v > my_value)
         return round(better / (total - 1) * 100, 1)
+
+    finished_vals = [
+        by_driver.get(pid, {}).get('starts', 0) - by_driver.get(pid, {}).get('dnf', 0)
+        for pid in peer_ids
+    ]
+    dnf_ratio_vals = [
+        round(by_driver.get(pid, {}).get('dnf', 0) / by_driver.get(pid, {}).get('starts', 0) * 100, 1)
+        if by_driver.get(pid, {}).get('starts', 0) else 0
+        for pid in peer_ids
+    ]
 
     rating_pct = round((total - target['rank']) / (total - 1) * 100, 1)
 
     return {
-        'starts_pct': percentile('starts'),
-        'wins_pct': percentile('wins'),
-        'podiums_pct': percentile('podiums'),
-        'poles_pct': percentile('poles'),
-        'rating_pct': rating_pct,
         'peer_count': total,
+        'rating_pct': rating_pct,
+        'starts': my['starts'],
+        'starts_pct': percentile(vals('starts'), my['starts']),
+        'finished': my_finished,
+        'finished_pct': percentile(finished_vals, my_finished),
+        'dnf_ratio': my_dnf_ratio,
+        'dnf_ratio_pct': percentile(dnf_ratio_vals, my_dnf_ratio, higher_is_better=False),
+        'wins': my['wins'],
+        'wins_pct': percentile(vals('wins'), my['wins']),
+        'podiums': my['podiums'],
+        'podiums_pct': percentile(vals('podiums'), my['podiums']),
+        'poles': my['poles'],
+        'poles_pct': percentile(vals('poles'), my['poles']),
     }
 
 
