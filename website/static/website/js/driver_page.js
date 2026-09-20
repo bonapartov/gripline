@@ -146,15 +146,22 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // ---------- Динамика рейтинга по классам ----------
+    // Карточки классов объединены под одним выпадающим списком (см. обработчик
+    // #glv2ClassRatingSelect ниже) — видна только одна, остальные display:none.
+    // Графики создаются ЛЕНИВО, по одному, при первом показе карточки: Chart.js
+    // не умеет посчитать размеры канваса, который в момент создания скрыт
+    // (display:none даёт 0x0) — график на нём остался бы пустым/неправильно
+    // отмасштабированным даже после того, как карточку потом покажут.
+    var ratingCharts = {};
     function normPos(pos, total) { return total > 1 ? (total - pos) / (total - 1) * 100 : 50; }
 
-    function initRatingCharts() {
-        if (typeof Chart === 'undefined') { return; }
-        document.querySelectorAll('.glv2-rating-canvas').forEach(function (canvas) {
-            var classId = Number(canvas.getAttribute('data-class-id'));
-            var rows = historyData.filter(function (r) { return r.class_id === classId; }).slice().reverse();
-            if (!rows.length) { return; }
-            new Chart(canvas.getContext('2d'), {
+    function initOneRatingChart(canvas) {
+        if (typeof Chart === 'undefined' || !canvas) { return; }
+        var classId = Number(canvas.getAttribute('data-class-id'));
+        if (ratingCharts[classId]) { return; }
+        var rows = historyData.filter(function (r) { return r.class_id === classId; }).slice().reverse();
+        if (!rows.length) { return; }
+        ratingCharts[classId] = new Chart(canvas.getContext('2d'), {
                 type: 'line',
                 data: {
                     labels: rows.map(function (r) { return r.date ? r.date.slice(0, 7).split('-').reverse().join('.') : ''; }),
@@ -214,6 +221,23 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 }
             });
+    }
+
+    function initRatingCharts() {
+        // На загрузке страницы график нужен только видимой по умолчанию
+        // карточке (первая в DOM — самый свежий класс, см. сортировку
+        // class_ratings в views.py). Остальные — по выбору в списке ниже.
+        initOneRatingChart(document.querySelector('.glv2-rating-canvas'));
+    }
+
+    var classRatingSelect = document.getElementById('glv2ClassRatingSelect');
+    if (classRatingSelect) {
+        classRatingSelect.addEventListener('change', function () {
+            var id = classRatingSelect.value;
+            document.querySelectorAll('.glv2-rating-card[data-class-rating-id]').forEach(function (card) {
+                card.style.display = card.getAttribute('data-class-rating-id') === id ? '' : 'none';
+            });
+            initOneRatingChart(document.querySelector('.glv2-rating-card[data-class-rating-id="' + id + '"] .glv2-rating-canvas'));
         });
     }
 

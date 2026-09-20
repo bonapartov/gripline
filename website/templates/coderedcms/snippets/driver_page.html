@@ -387,8 +387,17 @@
         <div class="text-muted" style="font-size:0.78rem; margin-top:-0.5rem; margin-bottom:0.85rem;">Графики ниже — место в заезде на каждом этапе, нормализованное к размеру поля (100% = победа), а не сам рейтинговый балл. Точное место — при наведении на точку.</div>
 
         {% if class_ratings %}
+        {% if class_ratings|length > 1 %}
+        <div class="mb-3">
+            <select class="glv2-filter-select" id="glv2ClassRatingSelect">
+                {% for cr in class_ratings %}
+                <option value="{{ cr.class_id }}">{{ cr.class_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
         {% for cr in class_ratings %}
-        <div class="glv2-card glv2-rating-card {% if cr.low_data %}glv2-low-data{% endif %} mb-3">
+        <div class="glv2-card glv2-rating-card {% if cr.low_data %}glv2-low-data{% endif %} mb-3" data-class-rating-id="{{ cr.class_id }}"{% if not forloop.first %} style="display:none;"{% endif %}>
             <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
                 <span class="text-info text-uppercase fw-bold">{{ cr.class_name }}</span>
                 {% if cr.low_data %}<span title="Мало стартов — рейтинг предварительный">⚠️</span>{% endif %}
