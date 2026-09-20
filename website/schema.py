@@ -18,11 +18,27 @@ class StructuredDataJSONEncoder(json.JSONEncoder):
         return super().default(o)
 
 
+# Тот же экранирующий приём, что и django.utils.html.json_script: `<`/`>`/`&`
+# заменяются на \uXXXX ДО вставки в HTML. JSON это разрешает (валидные escape-
+# последовательности), а вот литеральная подстрока "</script" в теле script-
+# тега — нет: HTML-парсер браузера ищет её независимо от type="application/ld+json"
+# и закрывает тег досрочно. Без этого любое поле с пользовательским текстом
+# (biography, telegram/instagram, описание команды/трассы), содержащее
+# "</script>", пробивало разметку и позволяло внедрить произвольный HTML/JS —
+# хранимый XSS на страницах пилота/команды/трассы и везде, где есть breadcrumbs.
+_JSON_LD_HTML_ESCAPES = {
+    ord("<"): "\\u003c",
+    ord(">"): "\\u003e",
+    ord("&"): "\\u0026",
+}
+
+
 def render_json_ld(data):
     """dict -> <script type="application/ld+json">...</script> (mark_safe)."""
     if not data:
         return ""
     payload = json.dumps(data, ensure_ascii=False, cls=StructuredDataJSONEncoder)
+    payload = payload.translate(_JSON_LD_HTML_ESCAPES)
     return mark_safe(f'<script type="application/ld+json">{payload}</script>')
 
 

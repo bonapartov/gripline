@@ -180,7 +180,7 @@
                         </td>
                         <td>
                             {% if row.pay and row.pay.receipt_file %}
-                            <a href="{{ row.pay.receipt_file.url }}" target="_blank" class="text-info text-decoration-none" title="Открыть квитанцию">📎</a>
+                            <a href="{% url 'applications:serve_receipt' row.app.id %}" target="_blank" class="text-info text-decoration-none" title="Открыть квитанцию">📎</a>
                             {% else %}
                             <span class="text-muted">—</span>
                             {% endif %}

@@ -292,7 +292,7 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = False
 EMAIL_USE_SSL = True
 EMAIL_HOST_USER = 'gripline.ru@yandex.ru'
-EMAIL_HOST_PASSWORD = '5a33af98b71f93708a4179b652a6baeb'  # ваш пароль приложения
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 EMAIL_TIMEOUT = 5
 
 

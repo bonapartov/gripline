@@ -11,6 +11,8 @@ urlpatterns = [
     path('<int:application_id>/submit/', views.submit_application, name='submit'),
     path('<int:application_id>/pay/', views.upload_payment, name='upload_payment'),
     path('document/<int:document_id>/upload/', views.upload_document, name='upload_document'),
+    path('document/<int:document_id>/file/', views.serve_document, name='serve_document'),
+    path('<int:application_id>/receipt/', views.serve_receipt, name='serve_receipt'),
 
     # Действия организатора
     path('<int:application_id>/action/', views.org_action, name='org_action'),

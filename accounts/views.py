@@ -15,7 +15,8 @@ from website.models import Driver
 from .models import DriverClaim, PilotDocument, SocialAuthSettings
 from wagtail.images.models import Image
 from django.utils import timezone
-from django.http import JsonResponse
+from django.http import JsonResponse, FileResponse
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.admin.views.decorators import staff_member_required
 import json
@@ -466,7 +467,6 @@ def logout_view(request):
 
 
 @staff_member_required
-@csrf_exempt
 def process_claim_api(request):
     """API для подтверждения/отклонения заявок"""
     if request.method == 'POST':
@@ -507,12 +507,7 @@ def process_claim_api(request):
             return JsonResponse({'success': False, 'error': str(e)})
 
     return JsonResponse({'success': False, 'error': 'Method not allowed'})
-@login_required
-def favorite_ads(request):
-    """Избранные объявления пользователя"""
-    from website.models import AdFavorite
-    favorites = AdFavorite.objects.filter(user=request.user).select_related('ad')
-    return render(request, 'accounts/favorite_ads.html', {'favorites': favorites})
+
 
 from website.models import Ad, AdResponse, AdFavorite
 
@@ -591,7 +586,7 @@ def upload_pilot_document(request):
             'id': doc.id,
             'name': doc.name,
             'doc_number': doc.doc_number,
-            'file_url': doc.file.url,
+            'file_url': reverse('accounts:serve_pilot_document', args=[doc.id]),
             'expiry_date': expiry_date.strftime('%d.%m.%Y') if expiry_date else '',
             'is_expired': doc.is_expired,
             'expires_soon': doc.expires_soon,
@@ -612,6 +607,25 @@ def delete_pilot_document(request, doc_id):
     doc.file.delete(save=False)
     doc.delete()
     return JsonResponse({'success': True})
+
+
+@login_required
+def serve_pilot_document(request, doc_id):
+    """
+    Отдаёт файл личного документа пилота (паспорт, лицензия и т.д.) только
+    владельцу. Раньше шаблон ссылался прямо на doc.file.url — это публичный
+    /media/ путь, который nginx отдаёт БЕЗ какой-либо проверки прав (см.
+    /etc/nginx/sites-available/gripline: location /media/ — голый alias).
+    Оригинальное имя файла на первой загрузке nginx/Django не рандомизирует
+    (суффикс добавляется только при коллизии имён), поэтому URL вида
+    /media/pilot_documents/passport_ivanov.jpg был предсказуем и полностью
+    публичен — любой, кто узнал или угадал имя файла, мог скачать чужой
+    паспорт без авторизации. Прод-nginx закрыт на уровне location (deny),
+    единственный путь к файлу теперь — через эту вьюху.
+    """
+    profile = getattr(request.user, 'profile', None)
+    doc = get_object_or_404(PilotDocument, pk=doc_id, profile=profile)
+    return FileResponse(doc.file.open('rb'), filename=doc.file.name.rsplit('/', 1)[-1])
 
 
 # ─── Яндекс OAuth ────────────────────────────────────────────────────────────

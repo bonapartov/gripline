@@ -16,6 +16,7 @@ urlpatterns = [
     path('api/process-claim/', views.process_claim_api, name='process_claim_api'),
     path('documents/upload/', views.upload_pilot_document, name='upload_pilot_document'),
     path('documents/<int:doc_id>/delete/', views.delete_pilot_document, name='delete_pilot_document'),
+    path('documents/<int:doc_id>/file/', views.serve_pilot_document, name='serve_pilot_document'),
     
     # Email verification
     path('verify-email/<uidb64>/<token>/', views.verify_email, name='verify_email'),

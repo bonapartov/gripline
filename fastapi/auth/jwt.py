@@ -3,7 +3,11 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 import os
 
-SECRET_KEY = os.getenv("FASTAPI_SECRET_KEY", "change-me-in-production")
+# Без fallback на дефолт: строка "change-me-in-production" видна в публичном
+# репозитории, и если переменная окружения потеряется (пустой .env, забытый
+# systemd-юнит на новом сервере), сервис молча подписывал бы JWT известным
+# всем секретом — любой мог бы подделать токен с произвольными driver_id/roles.
+SECRET_KEY = os.environ["FASTAPI_SECRET_KEY"]
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 дней
 

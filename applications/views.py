@@ -1,7 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, FileResponse
+from django.urls import reverse
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
@@ -287,7 +288,7 @@ def upload_document(request, document_id):
                 'success': True,
                 'status': doc.status,
                 'status_display': doc.get_status_display(),
-                'file_url': doc.file.url,
+                'file_url': reverse('applications:serve_document', args=[doc.id]),
             })
         messages.success(request, f'Документ «{doc.stage_document.name}» загружен.')
         return redirect('applications:detail', application_id=doc.application.id)
@@ -323,7 +324,7 @@ def upload_payment(request, application_id):
                 'success': True,
                 'status': payment.status,
                 'status_display': payment.get_status_display(),
-                'file_url': payment.receipt_file.url,
+                'file_url': reverse('applications:serve_receipt', args=[application.id]),
             })
         messages.success(request, 'Квитанция загружена. Ожидайте подтверждения.')
         return redirect('applications:detail', application_id=application.id)
@@ -331,6 +332,39 @@ def upload_payment(request, application_id):
     if is_ajax:
         return JsonResponse({'error': 'Файл не выбран.'}, status=400)
     return redirect('applications:detail', application_id=application.id)
+
+
+def _can_view_application(request, application):
+    return (application.submitted_by == request.user
+            or _check_organizer(request, application))
+
+
+@login_required
+def serve_document(request, document_id):
+    """
+    Отдаёт файл документа заявки (ApplicationDocument) только участнику-
+    заявителю или организатору этапа. Раньше detail.html ссылался прямо на
+    doc.file.url — публичный /media/ путь без какой-либо проверки прав (см.
+    accounts/views.py::serve_pilot_document — тот же класс проблемы найден
+    и закрыт для личных документов пилота, здесь то же самое для документов
+    заявки на этап и квитанций об оплате).
+    """
+    doc = get_object_or_404(ApplicationDocument, pk=document_id)
+    if not _can_view_application(request, doc.application):
+        return JsonResponse({'error': 'Нет доступа.'}, status=403)
+    return FileResponse(doc.file.open('rb'), filename=doc.file.name.rsplit('/', 1)[-1])
+
+
+@login_required
+def serve_receipt(request, application_id):
+    """Отдаёт квитанцию об оплате только заявителю или организатору этапа."""
+    application = get_object_or_404(Application, pk=application_id)
+    if not _can_view_application(request, application):
+        return JsonResponse({'error': 'Нет доступа.'}, status=403)
+    payment = getattr(application, 'payment', None)
+    if not payment or not payment.receipt_file:
+        return JsonResponse({'error': 'Квитанция не найдена.'}, status=404)
+    return FileResponse(payment.receipt_file.open('rb'), filename=payment.receipt_file.name.rsplit('/', 1)[-1])
 
 
 @login_required

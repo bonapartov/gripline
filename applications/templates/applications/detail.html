@@ -142,7 +142,7 @@
             </div>
 
             {% if doc.file %}
-            <a href="{{ doc.file.url }}" target="_blank" class="text-info small" id="docFile_{{ doc.id }}">📎 посмотреть файл</a>
+            <a href="{% url 'applications:serve_document' doc.id %}" target="_blank" class="text-info small" id="docFile_{{ doc.id }}">📎 посмотреть файл</a>
             {% else %}
             <a href="#" class="text-info small d-none" id="docFile_{{ doc.id }}">📎 посмотреть файл</a>
             {% endif %}
@@ -172,7 +172,7 @@
             {% if is_organizer %}
             <div class="org-review">
                 <span class="org-tag">Организатор</span>
-                {% if doc.file %}<a href="{{ doc.file.url }}" target="_blank" class="text-info small me-2">📎 открыть документ</a>{% else %}<span class="text-muted small">документ ещё не загружен</span>{% endif %}
+                {% if doc.file %}<a href="{% url 'applications:serve_document' doc.id %}" target="_blank" class="text-info small me-2">📎 открыть документ</a>{% else %}<span class="text-muted small">документ ещё не загружен</span>{% endif %}
                 {% if doc.status == 'verified' %}
                 <span class="text-success small">✓ принято вами</span>
                 {% elif doc.file %}
@@ -207,7 +207,7 @@
             </div>
             {% if payment %}
             {% if payment.receipt_file %}
-            <a href="{{ payment.receipt_file.url }}" target="_blank" class="text-info small" id="payFile">📎 квитанция</a>
+            <a href="{% url 'applications:serve_receipt' application.id %}" target="_blank" class="text-info small" id="payFile">📎 квитанция</a>
             {% else %}
             <a href="#" class="text-info small d-none" id="payFile">📎 квитанция</a>
             {% endif %}
@@ -232,7 +232,7 @@
             {% if is_organizer and payment %}
             <div class="org-review">
                 <span class="org-tag">Организатор</span>
-                {% if payment.receipt_file %}<a href="{{ payment.receipt_file.url }}" target="_blank" class="text-info small me-2">📎 открыть квитанцию</a>{% else %}<span class="text-muted small">квитанция ещё не загружена участником</span>{% endif %}
+                {% if payment.receipt_file %}<a href="{% url 'applications:serve_receipt' application.id %}" target="_blank" class="text-info small me-2">📎 открыть квитанцию</a>{% else %}<span class="text-muted small">квитанция ещё не загружена участником</span>{% endif %}
                 {% if payment.status == 'verified' %}
                 <span class="text-success small">✓ оплата подтверждена вами</span>
                 {% elif payment.receipt_file %}
