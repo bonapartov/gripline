@@ -152,14 +152,14 @@
             <div class="col-12 col-lg-5">
                 <div class="row g-2 h-100">
                     <div class="col-6"><div class="glv2-card glv2-tile h-100">
-                        <div class="glv2-tile-label">Стартов</div>
+                        <div class="glv2-tile-label">Стартов <span class="glv2-tile-scope">· карьера</span></div>
                         <div class="glv2-tile-value glv2-mono">{{ total_starts }}</div>
                         {% if career_percentiles.starts is not None %}
                         <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.starts }}% пилотов</div>
                         {% endif %}
                     </div></div>
                     <div class="col-6"><div class="glv2-card glv2-tile h-100">
-                        <div class="glv2-tile-label">Побед</div>
+                        <div class="glv2-tile-label">Побед <span class="glv2-tile-scope">· карьера</span></div>
                         <div class="glv2-tile-value glv2-mono">{{ wins }}</div>
                         {% if career_percentiles.wins is not None %}
                         <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.wins }}% пилотов</div>
@@ -168,7 +168,7 @@
                         {% endif %}
                     </div></div>
                     <div class="col-6"><div class="glv2-card glv2-tile h-100">
-                        <div class="glv2-tile-label">Подиумов</div>
+                        <div class="glv2-tile-label">Подиумов <span class="glv2-tile-scope">· карьера</span></div>
                         <div class="glv2-tile-value glv2-mono">{{ podiums }}</div>
                         {% if career_percentiles.podiums is not None %}
                         <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.podiums }}% пилотов</div>
@@ -177,7 +177,7 @@
                         {% endif %}
                     </div></div>
                     <div class="col-6"><div class="glv2-card glv2-tile h-100">
-                        <div class="glv2-tile-label">Топ-5 / Топ-10{% if latest_class_rating %} · {{ latest_class_rating.class_name }}{% endif %}</div>
+                        <div class="glv2-tile-label">Топ-5 / Топ-10{% if latest_class_rating %} <span class="glv2-tile-scope">· {{ latest_class_rating.class_name }}</span>{% endif %}</div>
                         <div class="glv2-tile-split">
                             <div>
                                 <div class="glv2-tile-value glv2-mono" style="font-size:2rem;">{{ top5_count }}</div>
