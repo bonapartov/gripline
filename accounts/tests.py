@@ -1,5 +1,12 @@
+import json
+import shutil
+import tempfile
+
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import Client, TestCase, override_settings
+
+from .models import PilotDocument
 
 
 class BalanceNextRedirectTests(TestCase):
@@ -51,3 +58,79 @@ class BalanceNextRedirectTests(TestCase):
         resp = self.client.get("/accounts/profile/")
         if resp.status_code == 302:
             self.assertNotEqual(resp.url, "/balance/")
+
+
+class ServePilotDocumentTests(TestCase):
+    """
+    serve_pilot_document (accounts/views.py) — регресс на находку
+    security-аудита (коммит 16d0b90): шаблон профиля и AJAX-ответ загрузки
+    раньше ссылались прямо на doc.file.url — публичный /media/ путь, который
+    nginx отдавал БЕЗ проверки прав, а Django не рандомизирует имя файла на
+    первой загрузке. Теперь единственный путь к файлу — эта вьюха с
+    проверкой владельца.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls._media_root = tempfile.mkdtemp()
+        cls._override = override_settings(MEDIA_ROOT=cls._media_root)
+        cls._override.enable()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._override.disable()
+        shutil.rmtree(cls._media_root, ignore_errors=True)
+        super().tearDownClass()
+
+    def setUp(self):
+        self.owner = User.objects.create_user(username="docowner", email="docowner@example.com", password="x")
+        self.stranger = User.objects.create_user(username="docstranger", email="docstranger@example.com", password="x")
+        # UserProfile создаётся сигналом accounts.signals.create_user_profile
+        # при сохранении User — создавать вручную повторно нельзя (OneToOne).
+        self.doc = PilotDocument.objects.create(
+            profile=self.owner.profile, name="Паспорт",
+            file=SimpleUploadedFile("passport.jpg", b"fake-passport-bytes"),
+        )
+
+    def _url(self):
+        return f"/accounts/documents/{self.doc.id}/file/"
+
+    def test_anonymous_redirected_to_login(self):
+        resp = self.client.get(self._url())
+        self.assertEqual(resp.status_code, 302)
+
+    def test_owner_can_download(self):
+        self.client.force_login(self.owner)
+        resp = self.client.get(self._url())
+        self.assertEqual(resp.status_code, 200)
+
+    def test_stranger_gets_404_not_the_file(self):
+        self.client.force_login(self.stranger)
+        resp = self.client.get(self._url())
+        self.assertEqual(resp.status_code, 404)
+
+
+class ProcessClaimCsrfTests(TestCase):
+    """
+    process_claim_api (accounts/views.py) — @csrf_exempt был снят
+    security-аудитом (коммит 16d0b90): вьюха меняет состояние (одобряет/
+    отклоняет заявку пилота) и раньше принимала POST без CSRF-токена вообще.
+    Шаблон driver_claim_admin_page.html уже отправляет X-CSRFToken, так что
+    снятие exempt не требовало правок фронтенда.
+    """
+
+    def setUp(self):
+        self.staff_user = User.objects.create_user(
+            username="staffcsrf", email="staffcsrf@example.com", password="x", is_staff=True,
+        )
+
+    def test_post_without_csrf_token_is_rejected(self):
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(self.staff_user)
+        resp = csrf_client.post(
+            "/accounts/api/process-claim/",
+            data=json.dumps({"claim_id": 1, "action": "reject"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 403)

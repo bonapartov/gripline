@@ -1039,11 +1039,13 @@ def team_apply(request, stage_id):
             stage=stage, pilot__driver=m.driver
         ).exclude(status='cancelled').exists()
 
-    from website.models import RaceClass
-    classes = list(stage.championship.race_classes.all()) if hasattr(stage.championship, 'race_classes') else []
-    if not classes:
-        from organizers.models import Stage as OrgStage
-        classes = list(RaceClass.objects.filter(stageoptions__stage=stage).distinct())
+    # Тот же источник, что и applications/views.py::_stage_classes — раньше
+    # тут был fallback на RaceClass.objects.filter(stageoptions__stage=stage),
+    # но такой связи на RaceClass не существует (StageOption — про платные
+    # опции регистрации в applications/models.py, не про классы вообще);
+    # обращение к ней падало FieldError на любом чемпионате с пустым
+    # race_classes — поймано тестом, а не наблюдением, значит багался вживую.
+    classes = list(stage.championship.race_classes.all())
 
     if request.method == 'POST':
         driver_id = request.POST.get('driver_id')

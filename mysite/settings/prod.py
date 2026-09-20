@@ -82,3 +82,23 @@ EMAIL_HOST_USER = 'gripline.ru@yandex.ru'
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = 'Gripline <gripline.ru@yandex.ru>'
 PASSWORD_RESET_TIMEOUT = 1800  # токен сброса пароля живёт 30 минут
+
+# Security-настройки (найдено manage.py check --deploy при security-аудите,
+# коммит 16d0b90). nginx уже терминирует TLS и редиректит весь HTTP на
+# HTTPS (сервер-блок "managed by Certbot"), но Django этого не знает без
+# SECURE_PROXY_SSL_HEADER — сам факт, что запрос до Django дошёл через
+# proxy_pass по обычному HTTP, иначе читался бы как "небезопасный", и
+# SECURE_SSL_REDIRECT=True зациклил бы редиректы (Django редиректит на
+# https → nginx снова проксирует на Django по http → Django снова
+# редиректит...). Оба параметра — только вместе, никогда по одному.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+# HSTS — начинаем с часа, а не сразу с года: Django сам предупреждает, что
+# опрометчиво выставленный SECURE_HSTS_SECONDS необратим (браузер запомнит
+# политику и откажется ходить по HTTP на весь срок, даже если сертификат
+# протухнет раньше). Через несколько недель стабильной работы можно поднять
+# до стандартного года (31536000) и добавить SECURE_HSTS_INCLUDE_SUBDOMAINS.
+SECURE_HSTS_SECONDS = 3600
