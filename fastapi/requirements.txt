@@ -4,7 +4,14 @@ sqlalchemy==2.0.35
 psycopg[binary]>=3.3.0
 python-jose[cryptography]==3.3.0
 passlib==1.7.4
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 pydantic==2.9.0
 pydantic-settings==2.5.2
 python-multipart>=0.0.9
+
+# Транзитивные зависимости, закреплены явно из-за известных CVE в версиях,
+# которые иначе резолвились бы по диапазону родительского пакета (pip-audit,
+# security-аудит 2026-09-20): anyio — из starlette/fastapi, pyasn1 — из
+# python-jose[cryptography] (через ecdsa/rsa).
+anyio==4.14.2
+pyasn1==0.6.4
