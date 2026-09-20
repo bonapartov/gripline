@@ -75,7 +75,4 @@ urlpatterns = [
     ])),
     path("tyre-analysis/", views.tyre_analysis_view, name="tyre_analysis"),
     path("team-ratings/", views.team_ratings_view, name="team_ratings"),
-    # Песочница редизайна ЛК пилота — изолирована в website/redesign_driver_lk/,
-    # /drivers/<slug>/ не затрагивает. Удалить одной строкой, если дизайн не подойдёт.
-    path("drivers-redesign/", include("website.redesign_driver_lk.urls")),
 ]

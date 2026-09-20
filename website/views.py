@@ -131,7 +131,6 @@ class EngineViewSet(SnippetViewSet):
         ]
 
 def driver_detail_view(request, slug):
-    import json
     driver = get_object_or_404(Driver, slug=slug)
 
     # Пытаемся найти текущий сайт, чтобы CMS могла подтянуть верное меню
@@ -155,68 +154,24 @@ def driver_detail_view(request, slug):
     # --- РАСЧЕТ СТАТИСТИКИ ---
     total_starts = results.count()
     wins = results.filter(position=1).count()
-    podiums = results.filter(position__in=[1,2,3]).count()
+    podiums = results.filter(position__in=[1, 2, 3]).count()
 
     # Расчет процентов (защита от деления на ноль)
     win_percentage = round((wins / total_starts * 100), 1) if total_starts > 0 else 0
     podium_percentage = round((podiums / total_starts * 100), 1) if total_starts > 0 else 0
-    # -------------------------
+
     # Получаем дату последнего глобального обновления
     last_update = None
     try:
         last_update_utc = AnalyticsMetadata.objects.get(key='last_updated').value
-        # Преобразуем в московское время
-        moscow_tz = zoneinfo.ZoneInfo('Europe/Moscow')
-        last_update = last_update_utc.astimezone(moscow_tz)
+        last_update = last_update_utc.astimezone(zoneinfo.ZoneInfo('Europe/Moscow'))
     except AnalyticsMetadata.DoesNotExist:
         pass
 
-    # Получаем рейтинги из by_class (берём первый попавшийся класс)
-    pagerank_value = 0
-    ensemble_value = 0
-    context_value = 0
-
-    if driver.pagerank_by_class:
-        prbc = driver.pagerank_by_class
-        if isinstance(prbc, str):
-            import json
-            try:
-                prbc = json.loads(prbc)
-            except:
-                prbc = {}
-        if prbc:
-            first_class = list(prbc.values())[0]
-            pagerank_value = first_class.get('score', 0)
-
-    if driver.ensemble_by_class:
-        ebc = driver.ensemble_by_class
-        if isinstance(ebc, str):
-            import json
-            try:
-                ebc = json.loads(ebc)
-            except:
-                ebc = {}
-        if ebc:
-            first_class = list(ebc.values())[0]
-            ensemble_value = first_class.get('score', 0)
-
-    if driver.context_by_class:
-        cbc = driver.context_by_class
-        if isinstance(cbc, str):
-            import json
-            try:
-                cbc = json.loads(cbc)
-            except:
-                cbc = {}
-        if cbc:
-            first_class = list(cbc.values())[0]
-            context_value = first_class.get('score', 0)
-    
     # --- Периоды выступлений по классам ---
-    # Получаем все результаты пилота
-    all_driver_results = RaceResult.objects.filter(driver=driver).select_related('group__race_class', 'group__page')
-    
-    # Группируем по классам
+    all_driver_results = RaceResult.objects.filter(driver=driver).select_related(
+        'group__race_class', 'group__page'
+    )
     class_periods = {}
     for result in all_driver_results:
         class_name = result.group.race_class.name
@@ -226,35 +181,20 @@ def driver_detail_view(request, slug):
             or result.group.page.last_published_at
             or result.group.page.first_published_at
         )
-        if class_name not in class_periods:
-            class_periods[class_name] = []
-        class_periods[class_name].append(event_date)
-    
-    # Формируем периоды для каждого класса
+        class_periods.setdefault(class_name, []).append(event_date)
+
     driver_class_periods = []
+    all_dates = sorted(d for dates in class_periods.values() for d in dates)
+    latest_date = all_dates[-1] if all_dates else None
     for class_name, dates in class_periods.items():
         dates.sort()
-        first_date = dates[0]
-        last_date = dates[-1]
-        
-        # Проверяем, есть ли результаты в других классах позже
-        all_dates = []
-        for cls, cls_dates in class_periods.items():
-            all_dates.extend(cls_dates)
-        all_dates.sort()
-        latest_date = all_dates[-1]
-        
-        # Если это самый поздний класс (текущий)
-        if last_date == latest_date:
+        first_date, last_date = dates[0], dates[-1]
+        if latest_date is not None and last_date == latest_date:
             period = f"{first_date.strftime('%m.%Y')} — н/в"
         else:
             period = f"{first_date.strftime('%m.%Y')} — {last_date.strftime('%m.%Y')}"
-        
-        driver_class_periods.append({
-            'class_name': class_name,
-            'period': period
-        })
-    
+        driver_class_periods.append({'class_name': class_name, 'period': period})
+
     class_sort = RaceClass.sort_key_map()
     driver_class_periods.sort(key=lambda x: class_sort.get(x['class_name'], 9999))
 
@@ -262,6 +202,12 @@ def driver_detail_view(request, slug):
     # (UserProfile.birth_date_public), иначе профиль вообще не подтягиваем.
     from accounts.models import UserProfile
     driver_profile = UserProfile.objects.filter(driver=driver, birth_date_public=True).first()
+    is_unclaimed = not UserProfile.objects.filter(driver=driver, verified=True).exists()
+
+    # Текущая команда — команда на самой свежей по дате гонке пилота, тот же
+    # переиспользуемый хелпер, что уже применяет schema.org Person ниже.
+    current_team_id = _compute_driver_current_teams().get(driver.id)
+    current_team = Team.objects.filter(id=current_team_id).first() if current_team_id else None
 
     class_ratings = _get_driver_class_ratings(driver)
     track_records = _get_driver_track_records(driver)
@@ -269,11 +215,53 @@ def driver_detail_view(request, slug):
         driver, results, wins, podiums, total_starts, podium_percentage
     )
 
-    # Самая свежая по дате гонки карточка рейтинга — для «Текущей формы» на Обзоре
+    from website.services.mediakit import _titles_and_achievements
+    titles = _titles_and_achievements(driver)
+    titles_count = sum(1 for t in titles if t['position'] == 1)
+    active_track_records_count = sum(1 for r in track_records if r['status'] == 'active')
+
+    # Самая свежая по дате гонки карточка рейтинга — для «Текущей формы»/шапки на Обзоре
     latest_class_rating = None
     if class_ratings:
         dated = [cr for cr in class_ratings if cr['last_race_date']]
         latest_class_rating = max(dated, key=lambda cr: cr['last_race_date']) if dated else class_ratings[0]
+
+    # «В классе с» — старт периода текущего/лидирующего класса, из уже
+    # посчитанных class_periods выше (не пересчитываем заново).
+    current_class_since = None
+    if latest_class_rating and latest_class_rating['class_name'] in class_periods:
+        current_class_since = min(class_periods[latest_class_rating['class_name']])
+
+    # 5 осей радара «Профиль результатов» — рейтинг/победы/подиумы уже посчитаны
+    # в class_ratings; % поул-позиций и процентиль места довычисляем тем же
+    # простым паттерном (qual_position == 1, как position == 1 для побед).
+    radar_pole_pct = 0
+    radar_rank_pct = 0
+    if latest_class_rating:
+        class_id_for_radar = latest_class_rating['class_id']
+        class_results_for_radar = results.filter(group__race_class_id=class_id_for_radar)
+        starts_for_radar = latest_class_rating['starts']
+        if starts_for_radar > 0:
+            poles = class_results_for_radar.filter(qual_position=1).count()
+            radar_pole_pct = round(poles / starts_for_radar * 100, 1)
+        rank, total = latest_class_rating['rank'], latest_class_rating['total']
+        radar_rank_pct = round((1 - (rank - 1) / total) * 100, 1) if total > 0 else 0
+
+    # Значения для радара в data-* атрибутах (читает JS через parseFloat) —
+    # LANGUAGE_CODE='ru-ru' + USE_L10N=True заставляют {{ }} рендерить числа
+    # с запятой ("36,7"), а не точкой; str() на Python-float — всегда точка,
+    # локаль-независимо. Нужно только для JS-потребляемых атрибутов.
+    radar_score_js = str(latest_class_rating['normalized_score']) if latest_class_rating else '0'
+    radar_win_pct_js = str(latest_class_rating['win_pct']) if latest_class_rating else '0'
+    radar_podium_pct_js = str(latest_class_rating['podium_pct']) if latest_class_rating else '0'
+    radar_pole_pct_js = str(radar_pole_pct)
+    radar_rank_pct_js = str(radar_rank_pct)
+
+    # --- Соперники: 5 ближайших по месту в рейтинге текущего класса ---
+    nearby_rivals = (
+        _nearby_class_rivals(driver, latest_class_rating['class_id'])
+        if latest_class_rating else []
+    )
 
     # --- История выступлений: одна JSON-выдача, вся фильтрация/пагинация на клиенте ---
     STATUS_LABELS = {'DNF': 'DNF', 'DQ': 'DQ', 'DNS': 'DNS'}
@@ -341,8 +329,6 @@ def driver_detail_view(request, slug):
     from website.mediakit_views import _is_mediakit_owner
     can_view_mediakit = _is_mediakit_owner(request, driver)
 
-    current_team_id = _compute_driver_current_teams().get(driver.id)
-    current_team = Team.objects.filter(id=current_team_id).first() if current_team_id else None
     driver_schema_json_ld = render_json_ld(
         driver_person_dict(driver, current_site, current_team=current_team)
     )
@@ -359,26 +345,35 @@ def driver_detail_view(request, slug):
         "object": driver,
         # ВАЖНО: CodeRedCMS ищет переменную 'page' для вывода Header и Footer
         "page": driver,
-        "results": results,
-        # Передаем сайт, чтобы ссылки в меню работали корректно
         "site": current_site,
-        # --- НОВЫЕ ПЕРЕМЕННЫЕ ДЛЯ СТАТИСТИКИ ---
+        "results": results,
         "total_starts": total_starts,
         "wins": wins,
         "podiums": podiums,
         "win_percentage": win_percentage,
         "podium_percentage": podium_percentage,
-        # -------------------------------------
         "last_update": last_update,
         "driver_class_periods": driver_class_periods,
+        "driver_profile": driver_profile,
+        "current_team": current_team,
+        "is_unclaimed": is_unclaimed,
         "class_ratings": class_ratings,
         "track_records": track_records,
+        "active_track_records_count": active_track_records_count,
         "career_highlights": career_highlights,
+        "titles": titles,
+        "titles_count": titles_count,
         "latest_class_rating": latest_class_rating,
+        "current_class_since": current_class_since,
+        "radar_score_js": radar_score_js,
+        "radar_win_pct_js": radar_win_pct_js,
+        "radar_podium_pct_js": radar_podium_pct_js,
+        "radar_pole_pct_js": radar_pole_pct_js,
+        "radar_rank_pct_js": radar_rank_pct_js,
+        "nearby_rivals": nearby_rivals,
         "history_data": history_data,
         "available_seasons": available_seasons,
         "available_history_classes": available_history_classes,
-        "driver_profile": driver_profile,
         "can_view_mediakit": can_view_mediakit,
         "schema_json_ld": driver_schema_json_ld,
         "breadcrumb_items": driver_breadcrumb_items,
@@ -1133,6 +1128,87 @@ def _compute_form_trend(driver_id, class_id, window=None):
     return 'stable'
 
 
+def _class_ranking_entries(class_id, all_drivers):
+    """Полный отсортированный рейтинг пилотов в классе — Байесовское сглаживание
+    (C=15, та же формула, что и top_drivers_view). Единственное место с этой
+    формулой: используется и _get_driver_class_ratings (место/соседи/немезис
+    текущего пилота), и _nearby_class_rivals (окно вокруг его места на вкладке
+    «Соперники») — раньше формула была продублирована в обеих функциях.
+    """
+    import json, statistics as _stats
+
+    C = 15
+    class_id_str = str(class_id)
+
+    entries = []
+    for d in all_drivers:
+        d_rbc = d.rating_by_class or {}
+        if isinstance(d_rbc, str):
+            try:
+                d_rbc = json.loads(d_rbc)
+            except Exception:
+                d_rbc = {}
+        if class_id_str not in d_rbc:
+            continue
+        entry = d_rbc[class_id_str]
+        entries.append({
+            'driver': d,
+            'driver_id': d.id,
+            'full_name': f"{d.first_name} {d.last_name}".strip(),
+            'slug': d.slug,
+            'bt_score': float(entry.get('score', 0.0)),
+            'starts': int(entry.get('starts', 0)),
+        })
+    if not entries:
+        return []
+
+    mu = _stats.median(e['bt_score'] for e in entries)
+    for e in entries:
+        n = e['starts']
+        e['smoothed'] = (n * e['bt_score'] + C * mu) / (n + C)
+    entries.sort(key=lambda x: x['smoothed'], reverse=True)
+
+    min_s = min(e['smoothed'] for e in entries)
+    max_s = max(e['smoothed'] for e in entries)
+    rng = max_s - min_s if max_s != min_s else 1.0
+    total = len(entries)
+    for i, e in enumerate(entries):
+        e['rank'] = i + 1
+        e['total'] = total
+        e['normalized'] = round((e['smoothed'] - min_s) / rng * 100, 1)
+    return entries
+
+
+def _nearby_class_rivals(driver, class_id, count=5):
+    """5 ближайших по месту в рейтинге пилотов в этом классе (не считая самого
+    пилота) — блок «Соперники» на странице пилота. Тот же _class_ranking_entries,
+    что и _get_driver_class_ratings — места совпадают с тем, что уже показано
+    в карточках рейтинга."""
+    all_drivers = (
+        Driver.objects.exclude(rating_by_class={})
+        .only('id', 'first_name', 'last_name', 'slug', 'photo', 'city', 'rating_by_class')
+    )
+    entries = _class_ranking_entries(class_id, all_drivers)
+    if not entries:
+        return []
+
+    target = next((e for e in entries if e['driver_id'] == driver.id), None)
+    if target is None:
+        return []
+
+    others = [e for e in entries if e is not target]
+    others.sort(key=lambda e: abs(e['rank'] - target['rank']))
+    nearby = sorted(others[:count], key=lambda e: e['rank'])
+
+    return [{
+        'driver': e['driver'],
+        'rank': e['rank'],
+        'total': e['total'],
+        'normalized_score': e['normalized'],
+        'starts': e['starts'],
+    } for e in nearby]
+
+
 def _get_driver_class_ratings(driver):
     """
     Returns per-class rating context for a driver profile page:
@@ -1141,8 +1217,6 @@ def _get_driver_class_ratings(driver):
     """
     import json, statistics as _stats
     from datetime import datetime, timezone as dt_timezone
-
-    C = 15
 
     rbc = driver.rating_by_class or {}
     if isinstance(rbc, str):
@@ -1163,43 +1237,11 @@ def _get_driver_class_ratings(driver):
     for class_id_str in rbc.keys():
         class_id = int(class_id_str)
 
-        class_entries = []
-        for d in all_drivers:
-            d_rbc = d.rating_by_class or {}
-            if isinstance(d_rbc, str):
-                try:
-                    d_rbc = json.loads(d_rbc)
-                except Exception:
-                    d_rbc = {}
-            if class_id_str not in d_rbc:
-                continue
-            entry = d_rbc[class_id_str]
-            class_entries.append({
-                'driver_id': d.id,
-                'full_name': f"{d.first_name} {d.last_name}".strip(),
-                'slug': d.slug,
-                'bt_score': float(entry.get('score', 0.0)),
-                'starts': int(entry.get('starts', 0)),
-            })
-
+        class_entries = _class_ranking_entries(class_id, all_drivers)
         if not class_entries:
             continue
 
-        mu = _stats.median(e['bt_score'] for e in class_entries)
-        for e in class_entries:
-            n = e['starts']
-            e['smoothed'] = (n * e['bt_score'] + C * mu) / (n + C)
-
-        class_entries.sort(key=lambda x: x['smoothed'], reverse=True)
-
-        min_s = min(e['smoothed'] for e in class_entries)
-        max_s = max(e['smoothed'] for e in class_entries)
-        rng = max_s - min_s if max_s != min_s else 1.0
         total = len(class_entries)
-
-        for i, e in enumerate(class_entries):
-            e['rank'] = i + 1
-            e['normalized'] = round((e['smoothed'] - min_s) / rng * 100, 1)
 
         target = next((e for e in class_entries if e['driver_id'] == driver.id), None)
         if target is None:
