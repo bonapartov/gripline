@@ -136,7 +136,10 @@ html { scroll-behavior: smooth; }
 .glv2-tile-scope { font-size: 0.78rem; opacity: 0.65; font-weight: 400; }
 .glv2-tile-value { font-size: 2.75rem; font-weight: var(--gl-weight-bold); color: var(--gl-fg-1); margin-top: 0.4rem; line-height: 1; }
 .glv2-tile-sub { color: var(--gl-fg-3); font-size: 0.82rem; margin-top: 0.35rem; }
-.glv2-tile-split { display: flex; gap: 1.5rem; margin-top: 0.4rem; }
+.glv2-tile-split { display: flex; margin-top: 0.4rem; }
+.glv2-tile-split > div { flex: 1; padding: 0 1.2rem; }
+.glv2-tile-split > div:first-child { padding-left: 0; border-right: 1px solid var(--gl-border-card); }
+.glv2-tile-split .glv2-tile-value { font-size: 2.5rem; }
 
 /* --- Достижения карьеры --- */
 .glv2-hl-label { color: var(--gl-fg-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
