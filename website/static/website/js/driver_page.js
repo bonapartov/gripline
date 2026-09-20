@@ -63,6 +63,16 @@ document.addEventListener('DOMContentLoaded', function () {
             parseFloat(canvas.getAttribute('data-poles-pct')),
             parseFloat(canvas.getAttribute('data-rating-pct')),
         ];
+        // Сырое значение рядом с процентом на каждой оси — без него "Победы 100%"
+        // выглядит как баг, а не как "у тебя больше побед в классе, чем у всех
+        // остальных" (нашли на живом примере: 7 побед — максимум в классе).
+        var rawValues = [
+            canvas.getAttribute('data-starts-raw'),
+            canvas.getAttribute('data-wins-raw'),
+            canvas.getAttribute('data-podiums-raw'),
+            canvas.getAttribute('data-poles-raw'),
+            canvas.getAttribute('data-rating-raw'),
+        ];
         new Chart(canvas.getContext('2d'), {
             type: 'radar',
             data: {
@@ -79,7 +89,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 responsive: true, maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
-                    tooltip: { callbacks: { label: function (ctx) { return ctx.parsed.r + '%'; } } },
+                    tooltip: { callbacks: { label: function (ctx) { return rawValues[ctx.dataIndex] + ' · ' + ctx.parsed.r + '%'; } } },
                 },
                 scales: {
                     r: {
@@ -91,7 +101,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         pointLabels: {
                             color: '#b0bec5',
                             font: { size: 11 },
-                            callback: function (label, index) { return [label, values[index] + '%']; },
+                            callback: function (label, index) { return [label, rawValues[index] + ' · ' + values[index] + '%']; },
                         },
                         ticks: { display: false, stepSize: 25 },
                     }

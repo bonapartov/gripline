@@ -137,7 +137,12 @@
                             data-wins-pct="{{ radar_js.wins_pct }}"
                             data-podiums-pct="{{ radar_js.podiums_pct }}"
                             data-poles-pct="{{ radar_js.poles_pct }}"
-                            data-rating-pct="{{ radar_js.rating_pct }}"></canvas>
+                            data-rating-pct="{{ radar_js.rating_pct }}"
+                            data-starts-raw="{{ radar_js.starts_raw }}"
+                            data-wins-raw="{{ radar_js.wins_raw }}"
+                            data-podiums-raw="{{ radar_js.podiums_raw }}"
+                            data-poles-raw="{{ radar_js.poles_raw }}"
+                            data-rating-raw="{{ radar_js.rating_raw }}"></canvas>
                     </div>
                     <div class="glv2-radar-note">Процентиль относительно других пилотов класса — 100% значит лучший результат</div>
                     {% elif latest_class_rating %}

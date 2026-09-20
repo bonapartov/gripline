@@ -272,8 +272,19 @@ def driver_detail_view(request, slug):
     # с запятой ("36,7"), а не точкой; str() на Python-float — всегда точка,
     # локаль-независимо. Нужно только для JS-потребляемых data-* атрибутов
     # радара — тайлы «Класс» рендерятся обычным {{ }}, JS их не читает.
+    # Сырые значения (starts/wins/podiums/poles/rating) — тут же, рядом с
+    # процентилем на каждой оси, чтобы «Победы 100%» не висело без якоря
+    # (нашли на живом примере: 7 побед — максимум в классе, отсюда 100%,
+    # но без самого числа «7» это выглядит как баг).
     radar_js = (
-        {k: str(class_percentiles[k]) for k in ('starts_pct', 'wins_pct', 'podiums_pct', 'poles_pct', 'rating_pct')}
+        {
+            **{k: str(class_percentiles[k]) for k in ('starts_pct', 'wins_pct', 'podiums_pct', 'poles_pct', 'rating_pct')},
+            'starts_raw': str(class_percentiles['starts']),
+            'wins_raw': str(class_percentiles['wins']),
+            'podiums_raw': str(class_percentiles['podiums']),
+            'poles_raw': str(class_percentiles['poles']),
+            'rating_raw': str(latest_class_rating['normalized_score']),
+        }
         if class_percentiles else {}
     )
 
