@@ -175,7 +175,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
-                    layout: { padding: { top: 16 } },
+                    // Точка на 100% (1-е место) рисуется ровно на верхней сетке —
+                    // без запаса сверху половина маркера обрезалась краем канваса
+                    // (нашли на живом примере: лидер класса, 5 побед). 28px с
+                    // запасом на радиус точки при наведении (pointHoverRadius:7).
+                    layout: { padding: { top: 28 } },
                     plugins: {
                         legend: { display: false },
                         tooltip: { callbacks: { label: function (ctx) {
@@ -184,7 +188,22 @@ document.addEventListener('DOMContentLoaded', function () {
                         } } }
                     },
                     scales: {
-                        y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#adb5bd', callback: function (v) { return v + '%'; } } },
+                        // Голые проценты на оси ("40%", "60%"...) сами по себе не
+                        // объясняют, что это нормализованное место в заезде — точное
+                        // место уже показано в тултипе при наведении. Подписываем
+                        // только края шкалы словами, промежуточные деления оставляем
+                        // без текста (сетка видна, текста нет).
+                        y: {
+                            min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: {
+                                color: '#adb5bd', stepSize: 25,
+                                callback: function (v) {
+                                    if (v === 0) { return 'Худший результат'; }
+                                    if (v === 100) { return 'Лучший результат'; }
+                                    return '';
+                                },
+                            },
+                        },
                         x: { grid: { display: false }, ticks: { color: '#adb5bd', maxRotation: 45, minRotation: 45 } }
                     }
                 }
