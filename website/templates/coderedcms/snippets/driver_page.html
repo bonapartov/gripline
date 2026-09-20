@@ -114,7 +114,7 @@
                     <div class="glv2-colA-pills">
                         <div class="glv2-pill-stat">
                             <span>Рейтинг · {{ latest_class_rating.class_name }}</span>
-                            <span class="glv2-mono">{{ latest_class_rating.normalized_score }}</span>
+                            <span class="glv2-mono">{{ latest_class_rating.normalized_score }}{% if latest_class_rating.form_trend == 'up' %} <span class="glv2-trend-up" title="На подъёме">▲</span>{% elif latest_class_rating.form_trend == 'down' %} <span class="glv2-trend-down" title="Спад формы">▼</span>{% endif %}</span>
                         </div>
                         <div class="glv2-pill-stat">
                             <span>Место в рейтинге</span>
@@ -151,14 +151,28 @@
             {# --- Колонка C: 6 плиток --- #}
             <div class="col-12 col-lg-5">
                 <div class="row g-2 h-100">
-                    <div class="col-6"><div class="glv2-card glv2-tile h-100">
+                    <div class="col-6 col-xxl-4"><div class="glv2-card glv2-tile h-100">
                         <div class="glv2-tile-label">Стартов <span class="glv2-tile-scope">· карьера</span></div>
                         <div class="glv2-tile-value glv2-mono">{{ total_starts }}</div>
                         {% if career_percentiles.starts is not None %}
                         <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.starts }}% пилотов</div>
                         {% endif %}
                     </div></div>
-                    <div class="col-6"><div class="glv2-card glv2-tile h-100">
+                    <div class="col-6 col-xxl-4"><div class="glv2-card glv2-tile h-100">
+                        <div class="glv2-tile-label">Финишей <span class="glv2-tile-scope">· карьера</span></div>
+                        <div class="glv2-tile-value glv2-mono">{{ finished_count }}</div>
+                        {% if career_percentiles.finished is not None %}
+                        <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.finished }}% пилотов</div>
+                        {% endif %}
+                    </div></div>
+                    <div class="col-6 col-xxl-4"><div class="glv2-card glv2-tile h-100">
+                        <div class="glv2-tile-label">DNF <span class="glv2-tile-scope">· карьера</span></div>
+                        <div class="glv2-tile-value glv2-mono">{{ dnf_ratio_value }}%</div>
+                        {% if career_percentiles.dnf_ratio is not None %}
+                        <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.dnf_ratio }}% пилотов</div>
+                        {% endif %}
+                    </div></div>
+                    <div class="col-6 col-xxl-4"><div class="glv2-card glv2-tile h-100">
                         <div class="glv2-tile-label">Побед <span class="glv2-tile-scope">· карьера</span></div>
                         <div class="glv2-tile-value glv2-mono">{{ wins }}</div>
                         {% if career_percentiles.wins is not None %}
@@ -167,7 +181,7 @@
                         <div class="glv2-tile-sub">{{ win_percentage }}% стартов</div>
                         {% endif %}
                     </div></div>
-                    <div class="col-6"><div class="glv2-card glv2-tile h-100">
+                    <div class="col-6 col-xxl-4"><div class="glv2-card glv2-tile h-100">
                         <div class="glv2-tile-label">Подиумов <span class="glv2-tile-scope">· карьера</span></div>
                         <div class="glv2-tile-value glv2-mono">{{ podiums }}</div>
                         {% if career_percentiles.podiums is not None %}
@@ -176,7 +190,14 @@
                         <div class="glv2-tile-sub">{{ podium_percentage }}% стартов</div>
                         {% endif %}
                     </div></div>
-                    <div class="col-6"><div class="glv2-card glv2-tile h-100">
+                    <div class="col-6 col-xxl-4"><div class="glv2-card glv2-tile h-100">
+                        <div class="glv2-tile-label">Поулы <span class="glv2-tile-scope">· карьера</span></div>
+                        <div class="glv2-tile-value glv2-mono">{{ poles_count }}</div>
+                        {% if career_percentiles.poles is not None %}
+                        <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.poles }}% пилотов</div>
+                        {% endif %}
+                    </div></div>
+                    <div class="col-6 col-xxl-4"><div class="glv2-card glv2-tile h-100">
                         <div class="glv2-tile-label">Топ-5 / Топ-10{% if latest_class_rating %} <span class="glv2-tile-scope">· {{ latest_class_rating.class_name }}</span>{% endif %}</div>
                         <div class="glv2-tile-split">
                             <div>
@@ -189,11 +210,11 @@
                             </div>
                         </div>
                     </div></div>
-                    <div class="col-6"><div class="glv2-card glv2-tile h-100">
+                    <div class="col-6 col-xxl-4"><div class="glv2-card glv2-tile h-100">
                         <div class="glv2-tile-label">Действующих рекордов трасс</div>
                         <div class="glv2-tile-value glv2-mono">{{ active_track_records_count }}</div>
                     </div></div>
-                    <div class="col-6"><div class="glv2-card glv2-tile h-100">
+                    <div class="col-6 col-xxl-4"><div class="glv2-card glv2-tile h-100">
                         <div class="glv2-tile-label">Титулов</div>
                         <div class="glv2-tile-value glv2-mono">{{ titles_count }}</div>
                         {% if career_highlights.title %}
@@ -407,6 +428,22 @@
                 <div class="d-flex justify-content-between mt-1" style="font-size:0.82rem;">
                     <span class="text-muted">Рейтинг</span>
                     <span class="glv2-mono fw-bold">{{ rival.normalized_score }}</span>
+                </div>
+                <div class="d-flex justify-content-between mt-1" style="font-size:0.82rem;">
+                    <span class="text-muted">Старты</span>
+                    <span class="glv2-mono fw-bold">{{ rival.starts }}</span>
+                </div>
+                <div class="d-flex justify-content-between mt-1" style="font-size:0.82rem;">
+                    <span class="text-muted">Победы</span>
+                    <span class="glv2-mono fw-bold">{{ rival.wins }}</span>
+                </div>
+                <div class="d-flex justify-content-between mt-1" style="font-size:0.82rem;">
+                    <span class="text-muted">Подиумы</span>
+                    <span class="glv2-mono fw-bold">{{ rival.podiums }}</span>
+                </div>
+                <div class="d-flex justify-content-between mt-1" style="font-size:0.82rem;">
+                    <span class="text-muted">Поулы</span>
+                    <span class="glv2-mono fw-bold">{{ rival.poles }}</span>
                 </div>
                 <a href="/compare-drivers/?driver1={{ driver.id }}&driver2={{ rival.driver.id }}" class="glv2-btn mt-3 justify-content-center">Сравнить с {{ driver.last_name }}</a>
             </div>

@@ -246,9 +246,19 @@ def driver_detail_view(request, slug):
         top5_count = class_finishes.filter(position__gte=1, position__lte=5).count()
         top10_count = class_finishes.filter(position__gte=1, position__lte=10).count()
 
-    # --- Перцентили карьеры («лучше, чем N% пилотов») для тайлов Стартов/
-    # Побед/Подиумов; None ниже порога стартов — тайл просто не покажет подпись.
-    career_percentiles = _career_stat_percentiles(driver, total_starts, wins, podiums)
+    # --- Поулы/Финиши/DNF за карьеру — тайлы Обзора (тот же career-wide скоуп,
+    # что у Стартов/Побед/Подиумов). DNF/DQ — сходы, DNS в знаменатель «финишей»
+    # не считаем неудачей отдельно (тот же принцип, что и в top5/top10 выше). ---
+    poles_count = results.filter(qual_position=1).count()
+    dnf_count = results.filter(final_status__in=['DNF', 'DQ']).count()
+    finished_count = total_starts - dnf_count
+    dnf_ratio_value = round(dnf_count / total_starts * 100, 1) if total_starts > 0 else 0
+
+    # --- Перцентили карьеры («лучше, чем N% пилотов») для тайлов Обзора;
+    # None ниже порога стартов — тайлы просто не покажут подпись.
+    career_percentiles = _career_stat_percentiles(
+        driver, total_starts, wins, podiums, poles_count, finished_count, dnf_ratio_value
+    )
 
     # --- Радар «Профиль результатов» — перцентили внутри текущего класса ---
     radar_percentiles = (
@@ -373,6 +383,9 @@ def driver_detail_view(request, slug):
         "current_class_since": current_class_since,
         "top5_count": top5_count,
         "top10_count": top10_count,
+        "poles_count": poles_count,
+        "finished_count": finished_count,
+        "dnf_ratio_value": dnf_ratio_value,
         "career_percentiles": career_percentiles,
         "radar_percentiles": radar_percentiles,
         "radar_js": radar_js,
@@ -1189,7 +1202,9 @@ def _nearby_class_rivals(driver, class_id, count=5):
     """5 ближайших по месту в рейтинге пилотов в этом классе (не считая самого
     пилота) — блок «Соперники» на странице пилота. Тот же _class_ranking_entries,
     что и _get_driver_class_ratings — места совпадают с тем, что уже показано
-    в карточках рейтинга."""
+    в карточках рейтинга. Победы/подиумы/поулы — сырые счётчики в этом классе,
+    для сравнения карточек соперников (та же идея, что у карточек соперников
+    driverdb.com — не только место/рейтинг, но и достижения)."""
     all_drivers = (
         Driver.objects.exclude(rating_by_class={})
         .only('id', 'first_name', 'last_name', 'slug', 'photo', 'city', 'rating_by_class')
@@ -1206,12 +1221,25 @@ def _nearby_class_rivals(driver, class_id, count=5):
     others.sort(key=lambda e: abs(e['rank'] - target['rank']))
     nearby = sorted(others[:count], key=lambda e: e['rank'])
 
+    nearby_ids = [e['driver_id'] for e in nearby]
+    raw = RaceResult.objects.filter(
+        driver_id__in=nearby_ids, group__race_class_id=class_id
+    ).values('driver_id').annotate(
+        wins=Count('id', filter=Q(position=1)),
+        podiums=Count('id', filter=Q(position__in=[1, 2, 3])),
+        poles=Count('id', filter=Q(qual_position=1)),
+    )
+    by_driver = {r['driver_id']: r for r in raw}
+
     return [{
         'driver': e['driver'],
         'rank': e['rank'],
         'total': e['total'],
         'normalized_score': e['normalized'],
         'starts': e['starts'],
+        'wins': by_driver.get(e['driver_id'], {}).get('wins', 0),
+        'podiums': by_driver.get(e['driver_id'], {}).get('podiums', 0),
+        'poles': by_driver.get(e['driver_id'], {}).get('poles', 0),
     } for e in nearby]
 
 
@@ -1268,14 +1296,15 @@ def _class_percentile_radar(driver, class_id):
     }
 
 
-def _career_stat_percentiles(driver, total_starts, wins, podiums):
+def _career_stat_percentiles(driver, total_starts, wins, podiums, poles, finished, dnf_ratio):
     """Перцентили карьерных счётчиков («лучше, чем N% пилотов») для тайлов
-    Стартов/Побед/Подиумов на Обзоре — среди ВСЕХ пилотов сайта (по всем
-    классам сразу, как и сами эти счётчики), а не только текущего класса.
-    Порог входа в выборку — тот же AnalyticsSettings.min_races_per_class,
-    что и для BT-рейтинга по классам (не отдельная настройка — одна ручка
-    «сколько стартов достаточно, чтобы считаться»). Возвращает None, если у
-    самого пилота стартов меньше порога — тайлы просто не покажут подпись.
+    Обзора — среди ВСЕХ пилотов сайта (по всем классам сразу, как и сами эти
+    счётчики), а не только текущего класса. Порог входа в выборку — тот же
+    AnalyticsSettings.min_races_per_class, что и для BT-рейтинга по классам
+    (не отдельная настройка — одна ручка «сколько стартов достаточно, чтобы
+    считаться»). Возвращает None, если у самого пилота стартов меньше порога —
+    тайлы просто не покажут подпись (сами счётчики при этом видны всегда).
+    DNF ratio — обратное направление: меньше значит лучше.
     """
     from .models import AnalyticsSettings
 
@@ -1288,20 +1317,33 @@ def _career_stat_percentiles(driver, total_starts, wins, podiums):
             starts=Count('id'),
             wins=Count('id', filter=Q(position=1)),
             podiums=Count('id', filter=Q(position__in=[1, 2, 3])),
+            poles=Count('id', filter=Q(qual_position=1)),
+            dnf=Count('id', filter=Q(final_status__in=['DNF', 'DQ'])),
         ).filter(starts__gte=threshold)
     )
     if len(totals) < 2:
         return None
 
-    def percentile(metric, my_value):
-        n = len(totals)
-        better = sum(1 for row in totals if row[metric] < my_value)
+    n = len(totals)
+    finished_vals = [row['starts'] - row['dnf'] for row in totals]
+    dnf_ratio_vals = [
+        round(row['dnf'] / row['starts'] * 100, 1) if row['starts'] else 0 for row in totals
+    ]
+
+    def percentile(values, my_value, higher_is_better=True):
+        if higher_is_better:
+            better = sum(1 for v in values if v < my_value)
+        else:
+            better = sum(1 for v in values if v > my_value)
         return round(better / (n - 1) * 100, 1)
 
     return {
-        'starts': percentile('starts', total_starts),
-        'wins': percentile('wins', wins),
-        'podiums': percentile('podiums', podiums),
+        'starts': percentile([row['starts'] for row in totals], total_starts),
+        'wins': percentile([row['wins'] for row in totals], wins),
+        'podiums': percentile([row['podiums'] for row in totals], podiums),
+        'poles': percentile([row['poles'] for row in totals], poles),
+        'finished': percentile(finished_vals, finished),
+        'dnf_ratio': percentile(dnf_ratio_vals, dnf_ratio, higher_is_better=False),
     }
 
 
