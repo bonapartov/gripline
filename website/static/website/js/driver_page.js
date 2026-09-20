@@ -24,18 +24,23 @@ document.addEventListener('DOMContentLoaded', function () {
         panels.forEach(function (p) { spy.observe(p); });
     }
 
-    // ---------- Тумблер «Карьера / Класс» над плитками-счётчиками ----------
+    // ---------- Тумблер «Карьера / Класс» — плитки-счётчики + радар ----------
     // Обе версии каждой плитки уже отрендерены сервером (data-scope="career"/
-    // "class") — тумблер только переключает видимость через CSS-атрибут на
-    // обёртке, без JS-форматирования чисел (в т.ч. без проблемы с запятой в
-    // ru-локали, см. комментарий у radar_js в views.py).
+    // "class") — тумблер переключает их видимость через CSS-атрибут на общей
+    // обёртке (охватывает и колонку с радаром, и колонку с плитками), без
+    // JS-форматирования чисел (в т.ч. без проблемы с запятой в ru-локали,
+    // см. комментарий у radar_class_js/radar_career_js в views.py). Радар —
+    // отдельный случай (canvas не размножить через CSS-видимость, как div'ы
+    // плиток), для него applyRadarMode() ниже перерисовывает Chart.js.
     var statTiles = document.getElementById('glv2StatTiles');
     document.querySelectorAll('.glv2-scope-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
             if (btn.disabled || !statTiles) { return; }
-            statTiles.setAttribute('data-scope-mode', btn.getAttribute('data-scope-btn'));
+            var mode = btn.getAttribute('data-scope-btn');
+            statTiles.setAttribute('data-scope-mode', mode);
             document.querySelectorAll('.glv2-scope-btn').forEach(function (b) { b.classList.remove('active'); });
             btn.classList.add('active');
+            applyRadarMode(mode);
         });
     });
 
@@ -51,34 +56,53 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // ---------- Радар «Профиль результатов» (перцентили внутри класса) ----------
+    // ---------- Радар «Профиль результатов» (переключается тем же тумблером,
+    // что и плитки-счётчики — см. обработчик выше) ----------
+    var radarChart = null;
+    var radarModes = null;
+    var radarCurrent = null;
+
     function initRadarChart() {
         var canvas = document.getElementById('glv2RadarChart');
         if (!canvas || typeof Chart === 'undefined') { return; }
-        var labels = ['Старты', 'Победы', 'Подиумы', 'Поулы', 'Рейтинг'];
-        var values = [
-            parseFloat(canvas.getAttribute('data-starts-pct')),
-            parseFloat(canvas.getAttribute('data-wins-pct')),
-            parseFloat(canvas.getAttribute('data-podiums-pct')),
-            parseFloat(canvas.getAttribute('data-poles-pct')),
-            parseFloat(canvas.getAttribute('data-rating-pct')),
-        ];
-        // Сырое значение рядом с процентом на каждой оси — без него "Победы 100%"
-        // выглядит как баг, а не как "у тебя больше побед в классе, чем у всех
-        // остальных" (нашли на живом примере: 7 побед — максимум в классе).
-        var rawValues = [
-            canvas.getAttribute('data-starts-raw'),
-            canvas.getAttribute('data-wins-raw'),
-            canvas.getAttribute('data-podiums-raw'),
-            canvas.getAttribute('data-poles-raw'),
-            canvas.getAttribute('data-rating-raw'),
-        ];
-        new Chart(canvas.getContext('2d'), {
+
+        // Пятая ось — "Рейтинг" в режиме "класс" (BT-балл, нет карьерного
+        // эквивалента — нет кросс-классовой модели) и "Финишей" в режиме
+        // "карьера" (тот же принцип "больше — лучше", что и у остальных
+        // осей, в отличие от DNF). Форма радара всегда 5-точечная — меняются
+        // только данные и подпись пятой оси.
+        function readMode(prefix, fifthLabel) {
+            return {
+                labels: ['Старты', 'Победы', 'Подиумы', 'Поулы', fifthLabel],
+                values: [
+                    parseFloat(canvas.getAttribute('data-' + prefix + '-starts-pct')),
+                    parseFloat(canvas.getAttribute('data-' + prefix + '-wins-pct')),
+                    parseFloat(canvas.getAttribute('data-' + prefix + '-podiums-pct')),
+                    parseFloat(canvas.getAttribute('data-' + prefix + '-poles-pct')),
+                    parseFloat(canvas.getAttribute('data-' + prefix + '-rating-pct')),
+                ],
+                // Сырое значение рядом с процентом на каждой оси — без него
+                // "Победы 100%" выглядит как баг, а не как "больше побед, чем
+                // у всех остальных" (нашли на живом примере: 7 побед — максимум
+                // среди пилотов класса).
+                raw: [
+                    canvas.getAttribute('data-' + prefix + '-starts-raw'),
+                    canvas.getAttribute('data-' + prefix + '-wins-raw'),
+                    canvas.getAttribute('data-' + prefix + '-podiums-raw'),
+                    canvas.getAttribute('data-' + prefix + '-poles-raw'),
+                    canvas.getAttribute('data-' + prefix + '-rating-raw'),
+                ],
+            };
+        }
+        radarModes = { class: readMode('class', 'Рейтинг'), career: readMode('career', 'Финишей') };
+        radarCurrent = radarModes[canvas.getAttribute('data-default-scope') === 'career' ? 'career' : 'class'];
+
+        radarChart = new Chart(canvas.getContext('2d'), {
             type: 'radar',
             data: {
-                labels: labels,
+                labels: radarCurrent.labels,
                 datasets: [{
-                    data: values,
+                    data: radarCurrent.values,
                     backgroundColor: 'rgba(255, 193, 7, 0.28)',
                     borderColor: '#ffc107',
                     borderWidth: 2,
@@ -89,7 +113,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 responsive: true, maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
-                    tooltip: { callbacks: { label: function (ctx) { return rawValues[ctx.dataIndex] + ' · ' + ctx.parsed.r + '%'; } } },
+                    // radarCurrent читается по ссылке на момент отрисовки/наведения,
+                    // не копируется при создании графика — applyRadarMode() ниже
+                    // переприсваивает эту же переменную при переключении тумблера.
+                    tooltip: { callbacks: { label: function (ctx) { return radarCurrent.raw[ctx.dataIndex] + ' · ' + ctx.parsed.r + '%'; } } },
                 },
                 scales: {
                     r: {
@@ -101,13 +128,21 @@ document.addEventListener('DOMContentLoaded', function () {
                         pointLabels: {
                             color: '#b0bec5',
                             font: { size: 11 },
-                            callback: function (label, index) { return [label, rawValues[index] + ' · ' + values[index] + '%']; },
+                            callback: function (label, index) { return [label, radarCurrent.raw[index] + ' · ' + radarCurrent.values[index] + '%']; },
                         },
                         ticks: { display: false, stepSize: 25 },
                     }
                 }
             }
         });
+    }
+
+    function applyRadarMode(mode) {
+        if (!radarChart || !radarModes || !radarModes[mode]) { return; }
+        radarCurrent = radarModes[mode];
+        radarChart.data.labels = radarCurrent.labels;
+        radarChart.data.datasets[0].data = radarCurrent.values;
+        radarChart.update();
     }
 
     // ---------- Динамика рейтинга по классам ----------

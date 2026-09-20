@@ -261,9 +261,7 @@ def driver_detail_view(request, slug):
     )
 
     # --- Перцентили внутри текущего класса — источник и для радара «Профиль
-    # результатов» (всегда «по классу», без переключателя — рейтингу
-    # физически не с чем сравниваться в разрезе всей карьеры, см. обсуждение
-    # Global Ranking), и для тайлов Обзора в режиме «Класс». ---
+    # результатов» в режиме «Класс», и для тайлов Обзора в том же режиме. ---
     class_percentiles = (
         _class_stat_percentiles(driver, latest_class_rating['class_id'])
         if latest_class_rating else None
@@ -271,12 +269,11 @@ def driver_detail_view(request, slug):
     # LANGUAGE_CODE='ru-ru' + USE_L10N=True заставляют {{ }} рендерить числа
     # с запятой ("36,7"), а не точкой; str() на Python-float — всегда точка,
     # локаль-независимо. Нужно только для JS-потребляемых data-* атрибутов
-    # радара — тайлы «Класс» рендерятся обычным {{ }}, JS их не читает.
-    # Сырые значения (starts/wins/podiums/poles/rating) — тут же, рядом с
-    # процентилем на каждой оси, чтобы «Победы 100%» не висело без якоря
-    # (нашли на живом примере: 7 побед — максимум в классе, отсюда 100%,
-    # но без самого числа «7» это выглядит как баг).
-    radar_js = (
+    # радара — тайлы рендерятся обычным {{ }}, JS их не читает.
+    # Сырые значения — тут же, рядом с процентилем на каждой оси, чтобы
+    # «Победы 100%» не висело без якоря (нашли на живом примере: 7 побед —
+    # максимум в классе, отсюда 100%, но без самого числа «7» выглядит как баг).
+    radar_class_js = (
         {
             **{k: str(class_percentiles[k]) for k in ('starts_pct', 'wins_pct', 'podiums_pct', 'poles_pct', 'rating_pct')},
             'starts_raw': str(class_percentiles['starts']),
@@ -287,6 +284,33 @@ def driver_detail_view(request, slug):
         }
         if class_percentiles else {}
     )
+    # Радар в режиме «Карьера» — те же 4 оси (Старты/Победы/Подиумы/Поулы),
+    # пятая ось подменена с «Рейтинг» на «Финишей»: у BT-рейтинга нет
+    # карьерного эквивалента (нет кросс-классовой модели, см. обсуждение
+    # Global Ranking), а «Финишей» уже посчитан для тайлов и держит тот же
+    # принцип «больше — лучше», что и остальные оси (в отличие от DNF, где
+    # шкалу пришлось бы инвертировать). Форма радара остаётся 5-точечной
+    # в обоих режимах — меняются только данные и подпись пятой оси.
+    radar_career_js = (
+        {
+            'starts_pct': str(career_percentiles['starts']),
+            'wins_pct': str(career_percentiles['wins']),
+            'podiums_pct': str(career_percentiles['podiums']),
+            'poles_pct': str(career_percentiles['poles']),
+            'rating_pct': str(career_percentiles['finished']),
+            'starts_raw': str(total_starts),
+            'wins_raw': str(wins),
+            'podiums_raw': str(podiums),
+            'poles_raw': str(poles_count),
+            'rating_raw': str(finished_count),
+        }
+        if career_percentiles else {}
+    )
+    # Дефолтный режим тумблера — «Класс», если для него есть данные (обычный
+    # случай); иначе «Карьера», чтобы кнопка по умолчанию не указывала на
+    # пустую/задизейбленную вкладку (см. driver_page.html — кнопка «Класс»
+    # дизейблится именно когда class_percentiles нет).
+    default_scope = 'class' if class_percentiles else 'career'
 
     # --- Соперники: 5 ближайших по месту в рейтинге текущего класса ---
     nearby_rivals = (
@@ -403,7 +427,9 @@ def driver_detail_view(request, slug):
         "dnf_ratio_value": dnf_ratio_value,
         "career_percentiles": career_percentiles,
         "class_percentiles": class_percentiles,
-        "radar_js": radar_js,
+        "radar_class_js": radar_class_js,
+        "radar_career_js": radar_career_js,
+        "default_scope": default_scope,
         "nearby_rivals": nearby_rivals,
         "history_data": history_data,
         "available_seasons": available_seasons,
@@ -1381,6 +1407,7 @@ def _career_stat_percentiles(driver, total_starts, wins, podiums, poles, finishe
         return round(better / (n - 1) * 100, 1)
 
     return {
+        'peer_count': n,
         'starts': percentile([row['starts'] for row in totals], total_starts),
         'wins': percentile([row['wins'] for row in totals], wins),
         'podiums': percentile([row['podiums'] for row in totals], podiums),

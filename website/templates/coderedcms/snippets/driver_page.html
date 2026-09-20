@@ -74,7 +74,7 @@
     <div class="glv2-tab-panel" id="glv2-overview" data-tab-panel="overview">
         <div class="glv2-section-title">Обзор</div>
 
-        <div class="row g-3 align-items-stretch mb-3">
+        <div class="row g-3 align-items-stretch mb-3" id="glv2StatTiles" data-scope-mode="{{ default_scope }}">
             {# --- Колонка A: фото + факты + рейтинг/место --- #}
             <div class="col-12 col-lg-3">
                 <div class="glv2-card glv2-colA h-100">
@@ -129,24 +129,36 @@
             <div class="col-12 col-lg-4">
                 <div class="glv2-card h-100 d-flex flex-column">
                     <div class="glv2-card-title-plain">Профиль результатов</div>
-                    {% if class_percentiles %}
-                    <div class="text-muted" style="font-size:0.8rem; margin-top:2px;">Сравнение с {{ class_percentiles.peer_count }} пилотами класса {{ latest_class_rating.class_name }}</div>
+                    {% if class_percentiles or career_percentiles %}
+                    <div data-scope="class" class="text-muted" style="font-size:0.8rem; margin-top:2px;">Сравнение с {{ class_percentiles.peer_count }} пилотами класса {{ latest_class_rating.class_name }}</div>
+                    <div data-scope="career" class="text-muted" style="font-size:0.8rem; margin-top:2px;">Сравнение с {{ career_percentiles.peer_count }} пилотами сайта</div>
                     <div class="glv2-radar-wrap flex-grow-1">
                         <canvas id="glv2RadarChart"
-                            data-starts-pct="{{ radar_js.starts_pct }}"
-                            data-wins-pct="{{ radar_js.wins_pct }}"
-                            data-podiums-pct="{{ radar_js.podiums_pct }}"
-                            data-poles-pct="{{ radar_js.poles_pct }}"
-                            data-rating-pct="{{ radar_js.rating_pct }}"
-                            data-starts-raw="{{ radar_js.starts_raw }}"
-                            data-wins-raw="{{ radar_js.wins_raw }}"
-                            data-podiums-raw="{{ radar_js.podiums_raw }}"
-                            data-poles-raw="{{ radar_js.poles_raw }}"
-                            data-rating-raw="{{ radar_js.rating_raw }}"></canvas>
+                            data-class-starts-pct="{{ radar_class_js.starts_pct }}"
+                            data-class-wins-pct="{{ radar_class_js.wins_pct }}"
+                            data-class-podiums-pct="{{ radar_class_js.podiums_pct }}"
+                            data-class-poles-pct="{{ radar_class_js.poles_pct }}"
+                            data-class-rating-pct="{{ radar_class_js.rating_pct }}"
+                            data-class-starts-raw="{{ radar_class_js.starts_raw }}"
+                            data-class-wins-raw="{{ radar_class_js.wins_raw }}"
+                            data-class-podiums-raw="{{ radar_class_js.podiums_raw }}"
+                            data-class-poles-raw="{{ radar_class_js.poles_raw }}"
+                            data-class-rating-raw="{{ radar_class_js.rating_raw }}"
+                            data-career-starts-pct="{{ radar_career_js.starts_pct }}"
+                            data-career-wins-pct="{{ radar_career_js.wins_pct }}"
+                            data-career-podiums-pct="{{ radar_career_js.podiums_pct }}"
+                            data-career-poles-pct="{{ radar_career_js.poles_pct }}"
+                            data-career-rating-pct="{{ radar_career_js.rating_pct }}"
+                            data-career-starts-raw="{{ radar_career_js.starts_raw }}"
+                            data-career-wins-raw="{{ radar_career_js.wins_raw }}"
+                            data-career-podiums-raw="{{ radar_career_js.podiums_raw }}"
+                            data-career-poles-raw="{{ radar_career_js.poles_raw }}"
+                            data-career-rating-raw="{{ radar_career_js.rating_raw }}"
+                            data-default-scope="{{ default_scope }}"></canvas>
                     </div>
-                    <div class="glv2-radar-note">Процентиль относительно других пилотов класса — 100% значит лучший результат</div>
+                    <div class="glv2-radar-note">Процентиль относительно других пилотов — 100% значит лучший результат</div>
                     {% elif latest_class_rating %}
-                    <div class="text-muted text-center py-5">Недостаточно пилотов в классе для сравнения</div>
+                    <div class="text-muted text-center py-5">Недостаточно данных для сравнения</div>
                     {% else %}
                     <div class="text-muted text-center py-5">Рейтинг ещё не рассчитан</div>
                     {% endif %}
@@ -156,10 +168,10 @@
             {# --- Колонка C: 6 плиток-счётчиков (переключаемых карьера/класс) + 3 постоянные --- #}
             <div class="col-12 col-lg-5">
                 <div class="glv2-scope-toggle" role="group" aria-label="Область сравнения">
-                    <button type="button" class="glv2-scope-btn active" data-scope-btn="career">Карьера</button>
-                    <button type="button" class="glv2-scope-btn" data-scope-btn="class" {% if not class_percentiles %}disabled title="Недостаточно данных по текущему классу"{% endif %}>Класс</button>
+                    <button type="button" class="glv2-scope-btn{% if default_scope == 'career' %} active{% endif %}" data-scope-btn="career" {% if not career_percentiles %}disabled title="Недостаточно данных за карьеру"{% endif %}>Карьера</button>
+                    <button type="button" class="glv2-scope-btn{% if default_scope == 'class' %} active{% endif %}" data-scope-btn="class" {% if not class_percentiles %}disabled title="Недостаточно данных по текущему классу"{% endif %}>Класс</button>
                 </div>
-                <div class="row g-2 h-100" id="glv2StatTiles" data-scope-mode="career">
+                <div class="row g-2 h-100">
                     <div class="col-6 col-xxl-4"><div class="glv2-card glv2-tile h-100">
                         <div data-scope="career">
                             <div class="glv2-tile-label">Стартов <span class="glv2-tile-scope">· карьера</span></div>
