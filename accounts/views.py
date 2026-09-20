@@ -622,10 +622,22 @@ def serve_pilot_document(request, doc_id):
     публичен — любой, кто узнал или угадал имя файла, мог скачать чужой
     паспорт без авторизации. Прод-nginx закрыт на уровне location (deny),
     единственный путь к файлу теперь — через эту вьюху.
+
+    as_attachment=True обязателен: без него FileResponse отдаёт
+    Content-Disposition: inline, и браузер откроет файл в контексте origin
+    gripline.ru согласно Content-Type, угаданному по расширению загруженного
+    файла (mimetypes.guess_type по имени, а не по фактическому содержимому).
+    Ничто не мешает пилоту назвать файл "паспорт.html" со скриптом внутри —
+    это был бы хранимый XSS с сессией того, кто открыл "документ" (в
+    applications-версии этой же вьюхи — сессией организатора, который
+    проверяет заявку). С attachment браузер всегда скачивает файл, не
+    выполняет его содержимое.
     """
     profile = getattr(request.user, 'profile', None)
     doc = get_object_or_404(PilotDocument, pk=doc_id, profile=profile)
-    return FileResponse(doc.file.open('rb'), filename=doc.file.name.rsplit('/', 1)[-1])
+    return FileResponse(
+        doc.file.open('rb'), filename=doc.file.name.rsplit('/', 1)[-1], as_attachment=True,
+    )
 
 
 # ─── Яндекс OAuth ────────────────────────────────────────────────────────────

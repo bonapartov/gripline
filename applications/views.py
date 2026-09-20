@@ -348,23 +348,36 @@ def serve_document(request, document_id):
     accounts/views.py::serve_pilot_document — тот же класс проблемы найден
     и закрыт для личных документов пилота, здесь то же самое для документов
     заявки на этап и квитанций об оплате).
+
+    as_attachment=True — иначе Content-Disposition: inline и браузер
+    попытается отрендерить файл в контексте origin gripline.ru по
+    Content-Type, угаданному по имени файла: участник мог бы назвать
+    загружаемый "документ" evil.html со скриптом — организатор, открывающий
+    его на проверку заявки, получил бы XSS в своей сессии.
     """
     doc = get_object_or_404(ApplicationDocument, pk=document_id)
     if not _can_view_application(request, doc.application):
         return JsonResponse({'error': 'Нет доступа.'}, status=403)
-    return FileResponse(doc.file.open('rb'), filename=doc.file.name.rsplit('/', 1)[-1])
+    return FileResponse(
+        doc.file.open('rb'), filename=doc.file.name.rsplit('/', 1)[-1], as_attachment=True,
+    )
 
 
 @login_required
 def serve_receipt(request, application_id):
-    """Отдаёт квитанцию об оплате только заявителю или организатору этапа."""
+    """Отдаёт квитанцию об оплате только заявителю или организатору этапа
+    (as_attachment=True — см. serve_document выше, тот же риск)."""
     application = get_object_or_404(Application, pk=application_id)
     if not _can_view_application(request, application):
         return JsonResponse({'error': 'Нет доступа.'}, status=403)
     payment = getattr(application, 'payment', None)
     if not payment or not payment.receipt_file:
         return JsonResponse({'error': 'Квитанция не найдена.'}, status=404)
-    return FileResponse(payment.receipt_file.open('rb'), filename=payment.receipt_file.name.rsplit('/', 1)[-1])
+    return FileResponse(
+        payment.receipt_file.open('rb'),
+        filename=payment.receipt_file.name.rsplit('/', 1)[-1],
+        as_attachment=True,
+    )
 
 
 @login_required

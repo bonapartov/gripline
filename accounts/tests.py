@@ -105,6 +105,15 @@ class ServePilotDocumentTests(TestCase):
         resp = self.client.get(self._url())
         self.assertEqual(resp.status_code, 200)
 
+    def test_served_as_attachment_not_inline(self):
+        # as_attachment=True — иначе браузер рендерит файл inline на origin
+        # gripline.ru по Content-Type, угаданному из имени файла: пилот мог
+        # бы назвать документ evil.html со скриптом внутри (см. коммит
+        # security-аудита). Регресс именно на это, не на скачивание как таковое.
+        self.client.force_login(self.owner)
+        resp = self.client.get(self._url())
+        self.assertIn("attachment", resp.headers.get("Content-Disposition", ""))
+
     def test_stranger_gets_404_not_the_file(self):
         self.client.force_login(self.stranger)
         resp = self.client.get(self._url())

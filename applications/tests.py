@@ -90,6 +90,14 @@ class ApplicationFileAccessTests(TestCase):
         resp = self.client.get(self._receipt_url())
         self.assertEqual(resp.status_code, 200)
 
+    def test_document_served_as_attachment_not_inline(self):
+        # Иначе организатор, открывающий документ на проверку, получил бы
+        # содержимое файла отрендеренным на origin gripline.ru (участник
+        # мог назвать загрузку evil.html со скриптом) — см. security-аудит.
+        self.client.force_login(self.organizer_user)
+        resp = self.client.get(self._doc_url())
+        self.assertIn("attachment", resp.headers.get("Content-Disposition", ""))
+
     def test_organizer_can_download_document(self):
         self.client.force_login(self.organizer_user)
         resp = self.client.get(self._doc_url())
