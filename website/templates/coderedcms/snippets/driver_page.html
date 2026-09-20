@@ -112,10 +112,10 @@
                         {% endif %}
                     </div>
                     <div class="glv2-colA-pills">
-                        <div class="glv2-pill-stat">
+                        <a class="glv2-pill-stat glv2-pill-stat-link" href="/top/drivers/?class={{ latest_class_rating.class_id }}&highlight={{ driver.slug }}">
                             <span>Рейтинг · {{ latest_class_rating.class_name }}</span>
                             <span class="glv2-mono">{{ latest_class_rating.normalized_score }}{% if latest_class_rating.form_trend == 'up' %} <span class="glv2-trend-up" title="На подъёме">▲</span>{% elif latest_class_rating.form_trend == 'down' %} <span class="glv2-trend-down" title="Спад формы">▼</span>{% endif %}</span>
-                        </div>
+                        </a>
                         <div class="glv2-pill-stat">
                             <span>Место в рейтинге</span>
                             <span class="glv2-mono">#{{ latest_class_rating.rank }} из {{ latest_class_rating.total }}</span>

@@ -129,6 +129,8 @@ html { scroll-behavior: smooth; }
     font-size: 0.85rem; font-weight: var(--gl-weight-semibold); color: var(--gl-fg-2);
 }
 .glv2-pill-stat .glv2-mono { font-size: 1.05rem; font-weight: var(--gl-weight-bold); color: var(--gl-fg-1); }
+.glv2-pill-stat-link { text-decoration: none; color: inherit; cursor: pointer; }
+.glv2-pill-stat-link:hover { background: rgba(255, 193, 7, 0.18); border-color: rgba(255, 193, 7, 0.55); }
 
 /* --- Overview: колонка B (радар) --- */
 .glv2-radar-wrap { position: relative; height: 210px; margin: 0.5rem 0; }

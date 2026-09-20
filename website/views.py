@@ -1827,6 +1827,10 @@ def top_drivers_view(request):
     ]
     classes = list(all_classes)
 
+    # Подсветка конкретной строки — переход со страницы пилота (пилюля
+    # «Рейтинг · <класс>»), не влияет на выбор класса/сортировку.
+    highlight_slug = request.GET.get('highlight') or ''
+
     selected_class_id = request.GET.get('class')
     if selected_class_id and selected_class_id.isdigit():
         selected_class_id = int(selected_class_id)
@@ -1892,6 +1896,7 @@ def top_drivers_view(request):
             "drivers": [],
             "classes": classes,
             "selected_class_id": selected_class_id,
+            "highlight_slug": highlight_slug,
             "site": current_site,
             "page": None,
         })
@@ -1925,6 +1930,7 @@ def top_drivers_view(request):
         "drivers": result_drivers,
         "classes": classes,
         "selected_class_id": selected_class_id,
+        "highlight_slug": highlight_slug,
         "site": current_site,
         "page": None,
     })

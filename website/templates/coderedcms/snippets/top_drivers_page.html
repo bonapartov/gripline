@@ -69,6 +69,14 @@
         background-color: rgba(13, 202, 240, 0.1) !important;
         transition: 0.3s;
     }
+    /* Подсветка строки — переход со страницы пилота (пилюля «Рейтинг · класс»).
+       Держится постоянно, пока страница открыта, не гаснет сама — иначе
+       можно моргнуть и не успеть найти строку в длинной таблице. */
+    .top-table tbody tr.glv2-highlighted-row {
+        outline: 2px solid var(--gl-brand-yellow, #ffc107);
+        outline-offset: -2px;
+        background-color: rgba(255, 193, 7, 0.08) !important;
+    }
 
     /* Бейджи мест */
     .rank-badge {
@@ -202,7 +210,7 @@
             </thead>
             <tbody>
                 {% for driver in drivers %}
-                <tr>
+                <tr{% if highlight_slug and driver.slug == highlight_slug %} class="glv2-highlighted-row" id="glv2-highlighted-driver-row"{% endif %}>
                     <td class="text-center">
                         <span class="rank-badge
                             {% if driver.rank == 1 %}bg-warning text-dark
@@ -319,6 +327,22 @@
                 container.style.pointerEvents = '';
             });
     });
+})();
+
+// Автоскролл к подсвеченной строке — переход со страницы пилота, при
+// ~100+ пилотах в классе строка может быть далеко за пределами экрана.
+// Отдельный IIFE, не зависит от class-nav/ratings-container выше.
+// window.scrollTo с вычисленной позицией, не scrollIntoView() — у .top-table
+// стоит overflow:hidden (только чтобы скруглить углы), из-за этого браузер
+// вообще не скроллит страницу при вызове scrollIntoView() на вложенной
+// строке (проверено: не срабатывает даже без анимации/задержек).
+(function() {
+    var highlighted = document.getElementById('glv2-highlighted-driver-row');
+    if (highlighted) {
+        var rect = highlighted.getBoundingClientRect();
+        var targetY = window.scrollY + rect.top - (window.innerHeight / 2) + (rect.height / 2);
+        window.scrollTo({ top: Math.max(targetY, 0) });
+    }
 })();
 </script>
 
