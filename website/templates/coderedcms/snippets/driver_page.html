@@ -129,17 +129,19 @@
             <div class="col-12 col-lg-4">
                 <div class="glv2-card h-100 d-flex flex-column">
                     <div class="glv2-card-title-plain">Профиль результатов</div>
-                    {% if latest_class_rating %}
-                    <div class="text-muted" style="font-size:0.8rem; margin-top:2px;">Класс {{ latest_class_rating.class_name }}, {{ latest_class_rating.starts }} стартов</div>
+                    {% if radar_percentiles %}
+                    <div class="text-muted" style="font-size:0.8rem; margin-top:2px;">Сравнение с {{ radar_percentiles.peer_count }} пилотами класса {{ latest_class_rating.class_name }}</div>
                     <div class="glv2-radar-wrap flex-grow-1">
                         <canvas id="glv2RadarChart"
-                            data-score="{{ radar_score_js }}"
-                            data-win-pct="{{ radar_win_pct_js }}"
-                            data-podium-pct="{{ radar_podium_pct_js }}"
-                            data-pole-pct="{{ radar_pole_pct_js }}"
-                            data-rank-pct="{{ radar_rank_pct_js }}"></canvas>
+                            data-starts-pct="{{ radar_js.starts_pct }}"
+                            data-wins-pct="{{ radar_js.wins_pct }}"
+                            data-podiums-pct="{{ radar_js.podiums_pct }}"
+                            data-poles-pct="{{ radar_js.poles_pct }}"
+                            data-rating-pct="{{ radar_js.rating_pct }}"></canvas>
                     </div>
-                    <div class="glv2-radar-note">Оси — реальные показатели пилота, без внешнего сравнения по каждой из них отдельно</div>
+                    <div class="glv2-radar-note">Процентиль относительно других пилотов класса — 100% значит лучший результат</div>
+                    {% elif latest_class_rating %}
+                    <div class="text-muted text-center py-5">Недостаточно пилотов в классе для сравнения</div>
                     {% else %}
                     <div class="text-muted text-center py-5">Рейтинг ещё не рассчитан</div>
                     {% endif %}
@@ -152,25 +154,40 @@
                     <div class="col-6"><div class="glv2-card glv2-tile h-100">
                         <div class="glv2-tile-label">Стартов</div>
                         <div class="glv2-tile-value glv2-mono">{{ total_starts }}</div>
+                        {% if career_percentiles.starts is not None %}
+                        <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.starts }}% пилотов</div>
+                        {% endif %}
                     </div></div>
                     <div class="col-6"><div class="glv2-card glv2-tile h-100">
                         <div class="glv2-tile-label">Побед</div>
                         <div class="glv2-tile-value glv2-mono">{{ wins }}</div>
+                        {% if career_percentiles.wins is not None %}
+                        <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.wins }}% пилотов</div>
+                        {% else %}
                         <div class="glv2-tile-sub">{{ win_percentage }}% стартов</div>
+                        {% endif %}
                     </div></div>
                     <div class="col-6"><div class="glv2-card glv2-tile h-100">
                         <div class="glv2-tile-label">Подиумов</div>
                         <div class="glv2-tile-value glv2-mono">{{ podiums }}</div>
+                        {% if career_percentiles.podiums is not None %}
+                        <div class="glv2-tile-sub">лучше, чем {{ career_percentiles.podiums }}% пилотов</div>
+                        {% else %}
                         <div class="glv2-tile-sub">{{ podium_percentage }}% стартов</div>
+                        {% endif %}
                     </div></div>
                     <div class="col-6"><div class="glv2-card glv2-tile h-100">
-                        <div class="glv2-tile-label">Личный лучший круг</div>
-                        {% if career_highlights.best_lap %}
-                        <div class="glv2-tile-value glv2-mono" style="font-size:2.2rem;">{{ career_highlights.best_lap.lap_ms|laptime }}</div>
-                        <div class="glv2-tile-sub">{{ career_highlights.best_lap.track.name|default:"—" }}</div>
-                        {% else %}
-                        <div class="glv2-tile-value glv2-mono">—</div>
-                        {% endif %}
+                        <div class="glv2-tile-label">Топ-5 / Топ-10{% if latest_class_rating %} · {{ latest_class_rating.class_name }}{% endif %}</div>
+                        <div class="glv2-tile-split">
+                            <div>
+                                <div class="glv2-tile-value glv2-mono" style="font-size:2rem;">{{ top5_count }}</div>
+                                <div class="glv2-tile-sub">топ-5</div>
+                            </div>
+                            <div>
+                                <div class="glv2-tile-value glv2-mono" style="font-size:2rem;">{{ top10_count }}</div>
+                                <div class="glv2-tile-sub">топ-10</div>
+                            </div>
+                        </div>
                     </div></div>
                     <div class="col-6"><div class="glv2-card glv2-tile h-100">
                         <div class="glv2-tile-label">Действующих рекордов трасс</div>

@@ -232,30 +232,36 @@ def driver_detail_view(request, slug):
     if latest_class_rating and latest_class_rating['class_name'] in class_periods:
         current_class_since = min(class_periods[latest_class_rating['class_name']])
 
-    # 5 осей радара «Профиль результатов» — рейтинг/победы/подиумы уже посчитаны
-    # в class_ratings; % поул-позиций и процентиль места довычисляем тем же
-    # простым паттерном (qual_position == 1, как position == 1 для побед).
-    radar_pole_pct = 0
-    radar_rank_pct = 0
+    # --- Топ-5/Топ-10 в текущем/лидирующем классе — замена бесполезного тайла
+    # «Личный лучший круг» (время круга не сравнимо между разными трассами/
+    # классами, никакой «достижительной» ценности не несёт в отличие от
+    # соседних тайлов-счётчиков карьеры). DNF/DQ исключены — тот же принцип,
+    # что у best_result в career_highlights (сошёл — не финиш в топе). ---
+    top5_count = 0
+    top10_count = 0
     if latest_class_rating:
-        class_id_for_radar = latest_class_rating['class_id']
-        class_results_for_radar = results.filter(group__race_class_id=class_id_for_radar)
-        starts_for_radar = latest_class_rating['starts']
-        if starts_for_radar > 0:
-            poles = class_results_for_radar.filter(qual_position=1).count()
-            radar_pole_pct = round(poles / starts_for_radar * 100, 1)
-        rank, total = latest_class_rating['rank'], latest_class_rating['total']
-        radar_rank_pct = round((1 - (rank - 1) / total) * 100, 1) if total > 0 else 0
+        class_finishes = results.filter(
+            group__race_class_id=latest_class_rating['class_id']
+        ).exclude(final_status__in=['DNF', 'DQ'])
+        top5_count = class_finishes.filter(position__gte=1, position__lte=5).count()
+        top10_count = class_finishes.filter(position__gte=1, position__lte=10).count()
 
-    # Значения для радара в data-* атрибутах (читает JS через parseFloat) —
+    # --- Перцентили карьеры («лучше, чем N% пилотов») для тайлов Стартов/
+    # Побед/Подиумов; None ниже порога стартов — тайл просто не покажет подпись.
+    career_percentiles = _career_stat_percentiles(driver, total_starts, wins, podiums)
+
+    # --- Радар «Профиль результатов» — перцентили внутри текущего класса ---
+    radar_percentiles = (
+        _class_percentile_radar(driver, latest_class_rating['class_id'])
+        if latest_class_rating else None
+    )
     # LANGUAGE_CODE='ru-ru' + USE_L10N=True заставляют {{ }} рендерить числа
     # с запятой ("36,7"), а не точкой; str() на Python-float — всегда точка,
-    # локаль-независимо. Нужно только для JS-потребляемых атрибутов.
-    radar_score_js = str(latest_class_rating['normalized_score']) if latest_class_rating else '0'
-    radar_win_pct_js = str(latest_class_rating['win_pct']) if latest_class_rating else '0'
-    radar_podium_pct_js = str(latest_class_rating['podium_pct']) if latest_class_rating else '0'
-    radar_pole_pct_js = str(radar_pole_pct)
-    radar_rank_pct_js = str(radar_rank_pct)
+    # локаль-независимо. Нужно только для JS-потребляемых data-* атрибутов.
+    radar_js = (
+        {k: str(v) for k, v in radar_percentiles.items() if k != 'peer_count'}
+        if radar_percentiles else {}
+    )
 
     # --- Соперники: 5 ближайших по месту в рейтинге текущего класса ---
     nearby_rivals = (
@@ -365,11 +371,11 @@ def driver_detail_view(request, slug):
         "titles_count": titles_count,
         "latest_class_rating": latest_class_rating,
         "current_class_since": current_class_since,
-        "radar_score_js": radar_score_js,
-        "radar_win_pct_js": radar_win_pct_js,
-        "radar_podium_pct_js": radar_podium_pct_js,
-        "radar_pole_pct_js": radar_pole_pct_js,
-        "radar_rank_pct_js": radar_rank_pct_js,
+        "top5_count": top5_count,
+        "top10_count": top10_count,
+        "career_percentiles": career_percentiles,
+        "radar_percentiles": radar_percentiles,
+        "radar_js": radar_js,
         "nearby_rivals": nearby_rivals,
         "history_data": history_data,
         "available_seasons": available_seasons,
@@ -1207,6 +1213,96 @@ def _nearby_class_rivals(driver, class_id, count=5):
         'normalized_score': e['normalized'],
         'starts': e['starts'],
     } for e in nearby]
+
+
+def _class_percentile_radar(driver, class_id):
+    """Перцентили пилота внутри класса для радара «Профиль результатов» —
+    Старты/Победы/Подиумы/Поулы: доля пилотов той же выборки (у кого есть
+    BT-рейтинг в этом классе, т.е. уже ≥ AnalyticsSettings.min_races_per_class
+    стартов — та же выборка, что и _class_ranking_entries) со строго меньшим
+    сырым счётчиком. Рейтинг — перцентиль места в том же списке rank/total,
+    что и в карточках рейтинга (не пересчитывается по-другому).
+    Возвращает None, если сравнивать не с кем (< 2 пилотов с рейтингом в классе).
+    """
+    all_drivers = (
+        Driver.objects.exclude(rating_by_class={})
+        .only('id', 'first_name', 'last_name', 'slug', 'rating_by_class')
+    )
+    entries = _class_ranking_entries(class_id, all_drivers)
+    if not entries:
+        return None
+
+    target = next((e for e in entries if e['driver_id'] == driver.id), None)
+    if target is None:
+        return None
+
+    total = target['total']
+    if total < 2:
+        return None
+
+    peer_ids = [e['driver_id'] for e in entries]
+    raw = RaceResult.objects.filter(
+        driver_id__in=peer_ids, group__race_class_id=class_id
+    ).values('driver_id').annotate(
+        starts=Count('id'),
+        wins=Count('id', filter=Q(position=1)),
+        podiums=Count('id', filter=Q(position__in=[1, 2, 3])),
+        poles=Count('id', filter=Q(qual_position=1)),
+    )
+    by_driver = {r['driver_id']: r for r in raw}
+
+    def percentile(metric):
+        my_value = by_driver.get(driver.id, {}).get(metric, 0)
+        better = sum(1 for pid in peer_ids if by_driver.get(pid, {}).get(metric, 0) < my_value)
+        return round(better / (total - 1) * 100, 1)
+
+    rating_pct = round((total - target['rank']) / (total - 1) * 100, 1)
+
+    return {
+        'starts_pct': percentile('starts'),
+        'wins_pct': percentile('wins'),
+        'podiums_pct': percentile('podiums'),
+        'poles_pct': percentile('poles'),
+        'rating_pct': rating_pct,
+        'peer_count': total,
+    }
+
+
+def _career_stat_percentiles(driver, total_starts, wins, podiums):
+    """Перцентили карьерных счётчиков («лучше, чем N% пилотов») для тайлов
+    Стартов/Побед/Подиумов на Обзоре — среди ВСЕХ пилотов сайта (по всем
+    классам сразу, как и сами эти счётчики), а не только текущего класса.
+    Порог входа в выборку — тот же AnalyticsSettings.min_races_per_class,
+    что и для BT-рейтинга по классам (не отдельная настройка — одна ручка
+    «сколько стартов достаточно, чтобы считаться»). Возвращает None, если у
+    самого пилота стартов меньше порога — тайлы просто не покажут подпись.
+    """
+    from .models import AnalyticsSettings
+
+    threshold = AnalyticsSettings.get().min_races_per_class
+    if total_starts < threshold:
+        return None
+
+    totals = list(
+        RaceResult.objects.values('driver_id').annotate(
+            starts=Count('id'),
+            wins=Count('id', filter=Q(position=1)),
+            podiums=Count('id', filter=Q(position__in=[1, 2, 3])),
+        ).filter(starts__gte=threshold)
+    )
+    if len(totals) < 2:
+        return None
+
+    def percentile(metric, my_value):
+        n = len(totals)
+        better = sum(1 for row in totals if row[metric] < my_value)
+        return round(better / (n - 1) * 100, 1)
+
+    return {
+        'starts': percentile('starts', total_starts),
+        'wins': percentile('wins', wins),
+        'podiums': percentile('podiums', podiums),
+    }
 
 
 def _get_driver_class_ratings(driver):

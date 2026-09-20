@@ -36,21 +36,24 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // ---------- Радар «Профиль результатов» ----------
+    // ---------- Радар «Профиль результатов» (перцентили внутри класса) ----------
     function initRadarChart() {
         var canvas = document.getElementById('glv2RadarChart');
         if (!canvas || typeof Chart === 'undefined') { return; }
-        var score = parseFloat(canvas.getAttribute('data-score'));
-        var winPct = parseFloat(canvas.getAttribute('data-win-pct'));
-        var podiumPct = parseFloat(canvas.getAttribute('data-podium-pct'));
-        var polePct = parseFloat(canvas.getAttribute('data-pole-pct'));
-        var rankPct = parseFloat(canvas.getAttribute('data-rank-pct'));
+        var labels = ['Старты', 'Победы', 'Подиумы', 'Поулы', 'Рейтинг'];
+        var values = [
+            parseFloat(canvas.getAttribute('data-starts-pct')),
+            parseFloat(canvas.getAttribute('data-wins-pct')),
+            parseFloat(canvas.getAttribute('data-podiums-pct')),
+            parseFloat(canvas.getAttribute('data-poles-pct')),
+            parseFloat(canvas.getAttribute('data-rating-pct')),
+        ];
         new Chart(canvas.getContext('2d'), {
             type: 'radar',
             data: {
-                labels: ['Рейтинг', '% побед', '% подиумов', '% поулов', 'Место в рейтинге'],
+                labels: labels,
                 datasets: [{
-                    data: [score, winPct, podiumPct, polePct, rankPct],
+                    data: values,
                     backgroundColor: 'rgba(255, 193, 7, 0.28)',
                     borderColor: '#ffc107',
                     borderWidth: 2,
@@ -59,13 +62,22 @@ document.addEventListener('DOMContentLoaded', function () {
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: function (ctx) { return ctx.parsed.r + '%'; } } },
+                },
                 scales: {
                     r: {
                         min: 0, max: 100,
                         grid: { color: 'rgba(255,255,255,0.1)' },
                         angleLines: { color: 'rgba(255,255,255,0.1)' },
-                        pointLabels: { color: '#b0bec5', font: { size: 11 } },
+                        // Проценты показаны сразу под подписью оси, не по наведению —
+                        // Chart.js поддерживает многострочный pointLabels через массив.
+                        pointLabels: {
+                            color: '#b0bec5',
+                            font: { size: 11 },
+                            callback: function (label, index) { return [label, values[index] + '%']; },
+                        },
                         ticks: { display: false, stepSize: 25 },
                     }
                 }
