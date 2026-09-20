@@ -1,22 +1,21 @@
 /*
- * Песочница редизайна ЛК пилота — компоновка по образцу DriverDB.
- * Только для website/redesign_driver_lk/, не подключается на живой странице.
+ * Страница пилота (/drivers/<slug>/) — компоновка по образцу DriverDB.
  *
  * Цвета — реальные --gl-* токены сайта (website/static/website/css/tokens.css),
  * НЕ палитра из референс-макета (#E24B4A и т.д. — макет ошибочно выдавал чужую
  * палитру за токены Gripline, реальный акцент сайта жёлтый, --gl-brand-yellow).
  *
  * Шрифты — Inter Tight + JetBrains Mono. tokens.css сам называет эту пару
- * "рекомендованной заменой для прототипов" (см. комментарий у --gl-font-display) —
- * эта страница и есть прототип, поэтому шрифты подключены здесь локально,
- * не трогая --gl-font-display/--gl-font-mono на остальном сайте.
+ * "рекомендованной заменой для прототипов" (см. комментарий у --gl-font-display),
+ * поэтому подключены здесь локально, не трогая --gl-font-display/--gl-font-mono
+ * на остальном сайте.
  */
 @import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 /* Вкладки в хедере — якоря на секции одной непрерывной страницы (как в
    референс-макете: html{scroll-behavior:smooth} + обычные ссылки), не
-   JS-переключаемые панели. Безопасно ставить на html глобально — этот файл
-   загружается только на странице песочницы. */
+   JS-переключаемые панели. Файл подключается только в extra_head страницы
+   пилота — глобально на остальной сайт не влияет. */
 html { scroll-behavior: smooth; }
 
 .glv2-page {
@@ -24,7 +23,9 @@ html { scroll-behavior: smooth; }
 }
 .glv2-mono { font-family: 'JetBrains Mono', var(--gl-font-mono); }
 
-.glv2-wrap { max-width: 1360px; }
+/* Без переопределения — тот же max-width:1320px при ≥1400px, что и везде на
+   сайте (стандартное поведение Bootstrap 5 для .container-xxl). Раньше здесь
+   стоял кастомный 1360px — страница пилота была на 40px шире всех остальных. */
 
 /* --- Breadcrumbs --- */
 .glv2-breadcrumbs { color: var(--gl-fg-muted); font-size: 0.82rem; margin-bottom: 1rem; }
