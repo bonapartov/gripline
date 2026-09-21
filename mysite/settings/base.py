@@ -409,12 +409,16 @@ CSP_REPORT_ONLY_DIRECTIVES = {
         'https://core-renderer-tiles.maps.yandex.net',  # тайлы Яндекс.Карт
         'https://log.api-maps.yandex.ru',
         'https://yastatic.net',
+        'https://www.googletagmanager.com',             # GTM иногда шлёт как img-пиксель
     ],
     'connect-src': [
         "'self'",
         'https://mc.yandex.ru', 'https://mc.yandex.com',
         'wss://mc.yandex.ru', 'wss://mc.yandex.com',    # вебвизор Метрики
         'https://region1.google-analytics.com', 'https://www.google-analytics.com',
+        'https://www.googletagmanager.com',             # собственные fetch/beacon-запросы GTM
+        'https://www.google.com',                        # часть стека GTM/Google Ads consent
+        'https://log.api-maps.yandex.ru',               # логирование Яндекс.Карт (не только img)
         'https://id.vk.ru',                             # VK ID One Tap
     ],
     'frame-src': ["'self'", 'https://mc.yandex.ru', 'https://id.vk.ru', 'https://login.vk.ru'],
