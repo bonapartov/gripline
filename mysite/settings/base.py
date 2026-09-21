@@ -52,6 +52,8 @@ INSTALLED_APPS = [
     "wagtailseo",
     # Social auth
     "social_django",
+    # Rate-limit/lockout на login-формы (admin + accounts/teams/organizers)
+    "axes",
     # Wagtail
     "wagtail.contrib.forms",
     "accounts",
@@ -88,6 +90,10 @@ MIDDLEWARE = [
     # Security
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Должен идти после AuthenticationMiddleware (требование django-axes) и до
+    # FetchFromCacheMiddleware — но т.к. wagtailcache не кэширует POST-запросы
+    # (сами login-вьюхи), порядок относительно него не критичен на практике.
+    "axes.middleware.AxesMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     # CMS functionality
@@ -309,10 +315,39 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
 # ── Social Auth (social-auth-app-django) ──────────────────────────────────────
 
 AUTHENTICATION_BACKENDS = [
+    # Должен идти первым (требование django-axes) — перехватывает
+    # authenticate() раньше остальных backend'ов и блокирует попытку,
+    # если username+IP уже превысили AXES_FAILURE_LIMIT.
+    'axes.backends.AxesBackend',
     'accounts.backends.GriplineYandexOAuth2',
     'accounts.backends.GriplineVKID',
     'django.contrib.auth.backends.ModelBackend',
 ]
+
+# ── django-axes: rate-limit/lockout на login-формы ────────────────────────────
+# Покрывает и /admin/login/ (стандартный AuthenticationForm), и кастомные
+# login_view в accounts/teams/organizers — все они вызывают authenticate()
+# с передачей request, что и требуется axes для трекинга. Yandex/VK OAuth не
+# затрагиваются — там нет пары username/password, authenticate() не вызывается.
+AXES_FAILURE_LIMIT = 5
+# Блокировка по паре (username, ip_address), не по одному IP: даже с верным
+# определением IP (см. AXES_CLIENT_IP_CALLABLE ниже) блокировка только по IP
+# задела бы всех пользователей за одним NAT/мобильным оператором, а только по
+# username — сделала бы возможным DoS чужого аккаунта подбором пароля с любого
+# IP. Комбинация — стандартная рекомендация django-axes для этого случая.
+AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
+# Автоматическая разблокировка через час — блокировка не должна быть вечной
+# для случайно оговорившегося легитимного пользователя.
+AXES_COOLOFF_TIME = 1  # часы
+# Успешный вход сбрасывает счётчик неудачных попыток для этой пары.
+AXES_RESET_ON_SUCCESS = True
+# Сайт живёт за nginx-реверс-прокси на том же хосте (gunicorn слушает только
+# 127.0.0.1:8000) — без этого axes видел бы у ВСЕХ посетителей один и тот же
+# IP (127.0.0.1, адрес nginx), и блокировка по IP+username превратилась бы в
+# блокировку по username сразу для всех. django-ipware для этого не подходит
+# (рассчитан на список заранее известных доверенных прокси-IP, а не «доверяй
+# последнему хопу») — используем свой callable, см. docstring в mysite/security.py.
+AXES_CLIENT_IP_CALLABLE = 'mysite.security.get_client_ip'
 
 # Credentials are stored in DB (SocialAuthSettings) and read by get_key_and_secret() of each backend
 SOCIAL_AUTH_YANDEX_OAUTH2_SCOPE = ['login:email', 'login:info']

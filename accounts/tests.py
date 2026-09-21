@@ -2,9 +2,10 @@ import json
 import shutil
 import tempfile
 
+from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import Client, TestCase, override_settings
+from django.test import Client, RequestFactory, TestCase, override_settings
 
 from .models import PilotDocument
 
@@ -143,3 +144,61 @@ class ProcessClaimCsrfTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 403)
+
+
+class AxesLockoutTests(TestCase):
+    """
+    django-axes (security-аудит, п.4 приоритетного списка) — rate-limit на
+    login-формы. accounts/views.py::login_view не использует Django
+    AuthenticationForm/LoginView, а вызывает authenticate() напрямую — но это
+    не требует отдельной интеграции: django.contrib.auth.authenticate() сам
+    шлёт сигнал user_login_failed при любом провале (включая PermissionDenied
+    от AxesBackend), независимо от вызывающей вьюхи. Блокировка — по паре
+    (username, ip_address) (AXES_LOCKOUT_PARAMETERS), не по одному IP, иначе
+    один атакующий за тем же NAT/прокси блокировал бы всех.
+    """
+
+    def setUp(self):
+        self.email = "axesuser@example.com"
+        self.password = "CorrectHorseBattery9!"
+        self.user = User.objects.create_user(
+            username=self.email, email=self.email, password=self.password, is_active=True,
+        )
+
+    def _authenticate(self, password, remote_addr="203.0.113.10"):
+        """
+        Прямой вызов django.contrib.auth.authenticate() через RequestFactory —
+        то же самое, что делает login_view изнутри, но без похода через полный
+        HTTP-цикл. AxesMiddleware вызывает get_response() ДО того, как решает,
+        подменять ли ответ — то есть даже заблокированный axes запрос сначала
+        полностью отрабатывает вьюху, включая render(request,
+        'accounts/login.html') при неверных данных. Тестовая БД
+        (--no-migrations, как во всём проекте, см. teams/tests.py) не содержит
+        Wagtail Site/LayoutSettings, и это падает независимо от axes — что
+        сделало бы HTTP-тест неотличимым по причине падения (неверный пароль
+        vs блокировка). Здесь же проверяется именно то, за что отвечает axes:
+        сам authenticate() — без захода в шаблоны вообще.
+        """
+        request = RequestFactory().post("/accounts/login/", REMOTE_ADDR=remote_addr)
+        request.session = self.client.session
+        return authenticate(request, username=self.email, password=password)
+
+    def test_locks_out_after_failure_limit_from_same_ip(self):
+        from django.conf import settings
+
+        for _ in range(settings.AXES_FAILURE_LIMIT):
+            self.assertIsNone(self._authenticate("wrong-password"))
+
+        # Лимит исчерпан — даже ПРАВИЛЬНЫЙ пароль с того же IP не пускает.
+        self.assertIsNone(self._authenticate(self.password))
+
+    def test_does_not_lock_out_same_username_from_different_ip(self):
+        from django.conf import settings
+
+        for _ in range(settings.AXES_FAILURE_LIMIT):
+            self._authenticate("wrong-password", remote_addr="203.0.113.10")
+
+        # Тот же пользователь, но с другого IP — блокировка per (username, ip),
+        # не глобальная по username, поэтому вход разрешён.
+        user = self._authenticate(self.password, remote_addr="198.51.100.20")
+        self.assertEqual(user, self.user)
