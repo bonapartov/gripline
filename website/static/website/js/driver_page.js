@@ -24,6 +24,26 @@ document.addEventListener('DOMContentLoaded', function () {
         panels.forEach(function (p) { spy.observe(p); });
     }
 
+    // Открытие страницы сразу с якорем в URL (например, ссылка на вкладку
+    // "Соперники" из другого места сайта) — браузер прокручивает к якорю
+    // ДО того, как веб-шрифт driver_page.css (@import Inter Tight/JetBrains
+    // Mono, Google Fonts) догрузится и переверстает текст под собой: высота
+    // страницы на момент нативного скролла ещё «старая», якорь оказывается
+    // выше нужного места (проверено — расхождение больше экрана). Событие
+    // load + document.fonts.ready гарантированно позже подмены шрифта,
+    // повторный scrollIntoView(instant) досдвигает страницу без анимации.
+    if (location.hash) {
+        var targetOnLoad = document.getElementById(location.hash.slice(1));
+        if (targetOnLoad) {
+            window.addEventListener('load', function () {
+                var settled = (document.fonts && document.fonts.ready) || Promise.resolve();
+                settled.then(function () {
+                    targetOnLoad.scrollIntoView({ behavior: 'instant', block: 'start' });
+                });
+            });
+        }
+    }
+
     // ---------- Тумблер «Карьера / Класс» — плитки-счётчики + радар ----------
     // Обе версии каждой плитки уже отрендерены сервером (data-scope="career"/
     // "class") — тумблер переключает их видимость через CSS-атрибут на общей
