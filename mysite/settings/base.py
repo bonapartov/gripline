@@ -96,6 +96,7 @@ MIDDLEWARE = [
     "axes.middleware.AxesMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "mysite.security.ContentSecurityPolicyReportOnlyMiddleware",
     # CMS functionality
     "wagtail.contrib.redirects.middleware.RedirectMiddleware",
     # Fetch from cache. Must be LAST.
@@ -208,6 +209,15 @@ LOGGING = {
         # Всплески обращений с одного IP на мутирующие эндпоинты /balance/ —
         # см. website/services/balance_limits.py::balance_ratelimit (ТЗ §12).
         "balance.ratelimit": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        # Отчёты Content-Security-Policy-Report-Only — см. website/csp_views.py.
+        # Наблюдательная фаза (security-аудит, п.5): `journalctl -u gripline
+        # | grep CSP-VIOLATION` покажет всё, что нарушило бы политику, если бы
+        # она была включена всерьёз.
+        "gripline.csp": {
             "handlers": ["console"],
             "level": "WARNING",
             "propagate": False,
@@ -348,6 +358,42 @@ AXES_RESET_ON_SUCCESS = True
 # (рассчитан на список заранее известных доверенных прокси-IP, а не «доверяй
 # последнему хопу») — используем свой callable, см. docstring в mysite/security.py.
 AXES_CLIENT_IP_CALLABLE = 'mysite.security.get_client_ip'
+
+# ── Content-Security-Policy (Report-Only, наблюдательная фаза) ───────────────
+# Пункт 5 приоритетного списка security-аудита. Источники собраны grep'ом по
+# реальным шаблонам (<script src=, <link href=, @import url() и т.п.) —
+# НЕ по памяти/документации. Полный разбор — см. коммит, добавляющий CSP.
+#
+# 'unsafe-inline' в script-src/style-src — сознательный компромисс версии 1:
+# инлайн-скрипты и style="" используются по всему сайту (аналитика, VK ID
+# виджет, десятки шаблонов), и без этого допущения Report-Only просто завалил
+# бы логи тысячами ожидаемых срабатываний вместо того, чтобы показать что-то
+# новое. Даже с этим допущением connect-src/img-src/frame-src остаются
+# строгими — это перекрывает главный практический сценарий XSS (эксфильтрация
+# данных на чужой домен через инжект скрипта/пикселя), просто не поднимает
+# защиту до уровня «чистого» nonce/hash CSP. Ужесточение — отдельная задача
+# после недели наблюдения за отчётами.
+CSP_REPORT_ONLY_DIRECTIVES = {
+    'default-src': ["'self'"],
+    'script-src': [
+        "'self'", "'unsafe-inline'",
+        'https://mc.yandex.ru',           # Яндекс.Метрика (base.html, app_base.html)
+        'https://cdn.jsdelivr.net',       # Chart.js (driver/chassis/compare/weather-impact)
+        'https://code.jquery.com',        # jQuery (compare_drivers.html)
+        'https://cdnjs.cloudflare.com',   # fuse.js (админка, import_preview.html)
+        'https://api-maps.yandex.ru',     # Яндекс.Карты (pulse_index_page.html)
+        'https://unpkg.com',              # VK ID SDK (_social_auth_buttons.html)
+    ],
+    'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+    'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
+    'img-src': ["'self'", 'data:', 'https://mc.yandex.ru'],
+    'connect-src': ["'self'", 'https://mc.yandex.ru'],
+    'frame-src': ["'self'"],
+    'object-src': ["'none'"],
+    'base-uri': ["'self'"],
+    'frame-ancestors': ["'self'"],
+    'report-uri': ['/csp-report/'],
+}
 
 # Credentials are stored in DB (SocialAuthSettings) and read by get_key_and_secret() of each backend
 SOCIAL_AUTH_YANDEX_OAUTH2_SCOPE = ['login:email', 'login:info']

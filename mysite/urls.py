@@ -12,6 +12,7 @@ from website.views import rating_stats_api
 from website.sitemaps import BalanceSitemap
 from demo.views import choose_role
 from accounts.views import vk_id_redirect_landing
+from website.csp_views import csp_report
 
 # Файл-верификация владения сайтом для Дзена (Управление → Новости → Экспорт)
 def zen_verification(request):
@@ -38,6 +39,7 @@ urlpatterns = [
     # а не через классический server-side complete-view python-social-auth.
     path('auth/complete/vk-id/', vk_id_redirect_landing, name='vk_id_redirect_landing'),
     path('auth/', include('social_django.urls', namespace='social')),
+    path('csp-report/', csp_report, name='csp_report'),
     path('api/stats/', stats_api, name='stats_api'),
     path('api/rating-stats/', rating_stats_api, name='rating_stats_api'),
     path('organizers/', include('organizers.urls')),
