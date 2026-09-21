@@ -373,22 +373,51 @@ AXES_CLIENT_IP_CALLABLE = 'mysite.security.get_client_ip'
 # данных на чужой домен через инжект скрипта/пикселя), просто не поднимает
 # защиту до уровня «чистого» nonce/hash CSP. Ужесточение — отдельная задача
 # после недели наблюдения за отчётами.
+#
+# Дополнено по итогам первого QA-прогона в Report-Only (тот же день) —
+# реальный трафик высветил источники, которых не было в grep по git-коду:
+# - Google Analytics/GTM (googletagmanager.com, google-analytics.com) —
+#   подключены НЕ из кода, а из AnalyticsSettings.gtm_id/ga_g_tracking_id
+#   (Wagtail admin, значение в БД) — поэтому grep по репозиторию их не нашёл.
+# - mc.yandex.com (не только .ru) + wss://mc.yandex.{ru,com}/solid.ws —
+#   Яндекс.Метрика в реальности бьёт по обоим TLD и открывает WebSocket для
+#   вебвизора (записи сессий).
+# - core-renderer-tiles.maps.yandex.net — реальный сервер тайлов карты
+#   (api-maps.yandex.ru — только загрузчик SDK, тайлы — отдельный домен).
+# - yastatic.net — статика Яндекса (JS Метрики/Карт, курсоры карты).
+# - id.vk.ru / login.vk.ru — VK ID SDK при реальном запросе к VK (One Tap,
+#   попап логина) стучится не только на unpkg.com за самим скриптом.
 CSP_REPORT_ONLY_DIRECTIVES = {
     'default-src': ["'self'"],
     'script-src': [
         "'self'", "'unsafe-inline'",
-        'https://mc.yandex.ru',           # Яндекс.Метрика (base.html, app_base.html)
-        'https://cdn.jsdelivr.net',       # Chart.js (driver/chassis/compare/weather-impact)
-        'https://code.jquery.com',        # jQuery (compare_drivers.html)
-        'https://cdnjs.cloudflare.com',   # fuse.js (админка, import_preview.html)
-        'https://api-maps.yandex.ru',     # Яндекс.Карты (pulse_index_page.html)
-        'https://unpkg.com',              # VK ID SDK (_social_auth_buttons.html)
+        'https://mc.yandex.ru',              # Яндекс.Метрика (base.html, app_base.html)
+        'https://mc.yandex.com',             # Метрика — реальные хиты и на .com
+        'https://yastatic.net',              # статика Метрики/Карт
+        'https://cdn.jsdelivr.net',          # Chart.js (driver/chassis/compare/weather-impact)
+        'https://code.jquery.com',           # jQuery (compare_drivers.html)
+        'https://cdnjs.cloudflare.com',      # fuse.js (админка, import_preview.html)
+        'https://api-maps.yandex.ru',        # Яндекс.Карты (pulse_index_page.html)
+        'https://unpkg.com',                 # VK ID SDK (_social_auth_buttons.html)
+        'https://www.googletagmanager.com',  # GTM (AnalyticsSettings.gtm_id, из БД)
     ],
     'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
     'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
-    'img-src': ["'self'", 'data:', 'https://mc.yandex.ru'],
-    'connect-src': ["'self'", 'https://mc.yandex.ru'],
-    'frame-src': ["'self'"],
+    'img-src': [
+        "'self'", 'data:',
+        'https://mc.yandex.ru', 'https://mc.yandex.com',
+        'https://core-renderer-tiles.maps.yandex.net',  # тайлы Яндекс.Карт
+        'https://log.api-maps.yandex.ru',
+        'https://yastatic.net',
+    ],
+    'connect-src': [
+        "'self'",
+        'https://mc.yandex.ru', 'https://mc.yandex.com',
+        'wss://mc.yandex.ru', 'wss://mc.yandex.com',    # вебвизор Метрики
+        'https://region1.google-analytics.com', 'https://www.google-analytics.com',
+        'https://id.vk.ru',                             # VK ID One Tap
+    ],
+    'frame-src': ["'self'", 'https://mc.yandex.ru', 'https://id.vk.ru', 'https://login.vk.ru'],
     'object-src': ["'none'"],
     'base-uri': ["'self'"],
     'frame-ancestors': ["'self'"],
