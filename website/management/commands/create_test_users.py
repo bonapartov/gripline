@@ -2,14 +2,27 @@
 Создаёт тестовых пользователей и команду для ручного тестирования.
 Запуск: python3 manage.py create_test_users
 """
-from django.core.management.base import BaseCommand
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth.models import User
 
 
 class Command(BaseCommand):
     help = 'Создаёт тестового пилота и тестовую команду'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--force', action='store_true',
+            help='Разрешить запуск даже при DEBUG=False (например, на проде).',
+        )
+
     def handle(self, *args, **options):
+        if not settings.DEBUG and not options['force']:
+            raise CommandError(
+                'DEBUG=False — эта команда создаёт пользователя с известным паролем '
+                'и публикует тестовые Driver/Team. Запускать только локально, '
+                'либо явно передать --force.'
+            )
         self._create_pilot()
         self._create_team()
 
