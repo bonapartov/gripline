@@ -1,5 +1,5 @@
 from wagtail_modeladmin.options import (ModelAdmin, ModelAdminGroup, modeladmin_register)
-from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, MaxSettings, VkSettings, WeatherSettings, MailSettings, SocialTag, ArticlePage, ChassisTypePreset, KartClass, BalanceThreshold, BalanceDiagnosticRule
+from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, MaxSettings, VkSettings, WeatherSettings, MailSettings, VpnSettings, SocialTag, ArticlePage, ChassisTypePreset, KartClass, BalanceThreshold, BalanceDiagnosticRule
 from wagtail import hooks
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -187,7 +187,7 @@ class TelegramSettingsAdmin(ModelAdmin):
     model = TelegramSettings
     menu_label = 'Настройки'
     menu_icon = 'fa-paper-plane'
-    list_display = ('channel_id', 'link_text')
+    list_display = ('channel_id', 'link_text', 'use_vpn')
 
 class TelegramGroup(ModelAdminGroup):
     menu_label = 'Telegram'
@@ -265,6 +265,22 @@ class MailGroup(ModelAdminGroup):
     items = (MailSettingsAdmin,)
     add_to_admin_menu = False
 
+class VpnSettingsAdmin(ModelAdmin):
+    model = VpnSettings
+    menu_label = 'Настройки'
+    menu_icon = 'fa-lock'
+    list_display = ('proxy_url', 'updated_at')
+
+class VpnGroup(ModelAdminGroup):
+    # Централизованный адрес SOCKS5-прокси (Xray/VPN-туннель) — единственное
+    # место, где он хранится. Telegram (TelegramSettings.use_vpn) и Почта
+    # (MailSettings.use_proxy) только включают/выключают использование,
+    # сам URL не дублируется в их настройках. См. website/models.py::VpnSettings.
+    menu_label = 'VPN'
+    menu_icon = 'fa-lock'
+    items = (VpnSettingsAdmin,)
+    add_to_admin_menu = False
+
 # Регистрируем группы
 modeladmin_register(PilotsGroup)
 modeladmin_register(TeamsGroup)
@@ -292,6 +308,9 @@ weather_group.register_with_wagtail()
 mail_group = MailGroup()
 mail_group.register_with_wagtail()
 
+vpn_group = VpnGroup()
+vpn_group.register_with_wagtail()
+
 def _menu_icon_kwargs(menu_icon):
     """Повторяет логику иконок wagtail_modeladmin.GroupMenuItem: старые
     fa-* иконки идут через CSS-класс, а не через современный icon_name."""
@@ -303,12 +322,15 @@ def _menu_icon_kwargs(menu_icon):
 def register_integrations_menu():
     """«Интеграции» в боковом меню — внешние сервисы: Telegram, MAX, VK
     (у каждого свои "Настройки"), общий top-level пункт "Теги" (один набор
-    тегов на все соцсети), "Погода" (Open-Meteo) и "Почта" (SMTP исходящей
-    почты приложения, MailSettings). Раньше пункт назывался "Соцсети" —
-    переименован, когда сюда добавили Погоду (не соцсеть).
+    тегов на все соцсети), "Погода" (Open-Meteo), "Почта" (SMTP исходящей
+    почты приложения, MailSettings) и "VPN" (VpnSettings — централизованный
+    адрес SOCKS5-прокси Xray/VPN-туннеля; Telegram/Почта только включают
+    его галочкой use_vpn/use_proxy, сам URL не дублируется в их настройках).
+    Раньше пункт назывался "Соцсети" — переименован, когда сюда добавили
+    Погоду (не соцсеть).
     Добавление нового провайдера — новая ModelAdminGroup с
     add_to_admin_menu=False + новый SubmenuMenuItem рядом с telegram_item/
-    max_item/vk_item/weather_item/mail_item ниже."""
+    max_item/vk_item/weather_item/mail_item/vpn_item ниже."""
     telegram_item = SubmenuMenuItem(
         'Telegram', Menu(items=telegram_group.get_submenu_items()), name='telegram', order=1,
         **_menu_icon_kwargs('fa-paper-plane'),
@@ -333,7 +355,11 @@ def register_integrations_menu():
         'Почта', Menu(items=mail_group.get_submenu_items()), name='mail', order=6,
         **_menu_icon_kwargs('fa-envelope'),
     )
-    integrations_menu = Menu(items=[telegram_item, max_item, vk_item, tags_item, weather_item, mail_item])
+    vpn_item = SubmenuMenuItem(
+        'VPN', Menu(items=vpn_group.get_submenu_items()), name='vpn', order=7,
+        **_menu_icon_kwargs('fa-lock'),
+    )
+    integrations_menu = Menu(items=[telegram_item, max_item, vk_item, tags_item, weather_item, mail_item, vpn_item])
     return SubmenuMenuItem(
         'Интеграции', integrations_menu, name='integrations', order=999,
         **_menu_icon_kwargs('fa-share-alt'),

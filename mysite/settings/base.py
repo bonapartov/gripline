@@ -316,14 +316,9 @@ EMAIL_USE_SSL = False
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'gripline.ru@yandex.ru')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 EMAIL_TIMEOUT = 5
-
-# Прод-хостинг блокирует прямой исходящий TCP на smtp.yandex.ru:587/465 на
-# сетевом уровне (обнаружено 22.09.2026 — тот же DPI-паттерн, что уже был
-# с api.telegram.org, см. TELEGRAM_PROXY_URL выше). Переиспользуем тот же
-# локальный SOCKS5 (Xray) — по умолчанию EMAIL_PROXY_URL = TELEGRAM_PROXY_URL,
-# отдельная переменная окружения нужна только если захочется другой прокси
-# именно для почты. См. website/mail.py.
-EMAIL_PROXY_URL = os.getenv("EMAIL_PROXY_URL", TELEGRAM_PROXY_URL)
+# Адрес прокси для случая MailSettings.use_proxy=True — централизован в
+# website.models.VpnSettings (раздел «VPN» в админке), не отдельная
+# переменная окружения. См. website/mail.py.
 
 
 # Базовый URL сайта для ссылок в письмах

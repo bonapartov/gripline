@@ -13,7 +13,7 @@ import requests
 from django.conf import settings
 from django.utils import timezone
 
-from .models import TelegramSettings
+from .models import TelegramSettings, VpnSettings
 from .social_tags import get_active_tags_for_page, get_auto_tags_for_page, get_category_tag_for_page
 
 logger = logging.getLogger('telegram_announce')
@@ -72,9 +72,12 @@ def send_to_telegram(page, requesting_user):
     telegram_settings = TelegramSettings.get()
     message = build_telegram_message(page)
     image = getattr(page, 'cover_image', None)
-    # Прокси нужен там, где хостер блокирует прямые соединения к Telegram
-    # (см. settings.TELEGRAM_PROXY_URL). Локально не задан — идём напрямую.
-    proxies = {"https": settings.TELEGRAM_PROXY_URL} if settings.TELEGRAM_PROXY_URL else None
+    # Прокси нужен там, где хостер блокирует прямые соединения к Telegram.
+    # Галочка — TelegramSettings.use_vpn (по умолчанию включена, повторяет
+    # текущее рабочее поведение), сам адрес прокси — централизованно в
+    # VpnSettings (раздел «VPN» в админке), не здесь.
+    proxy_url = VpnSettings.get().effective_url() if telegram_settings.use_vpn else None
+    proxies = {"https": proxy_url} if proxy_url else None
 
     try:
         if image and len(message) <= CAPTION_LIMIT:

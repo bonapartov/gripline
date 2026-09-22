@@ -9,7 +9,7 @@ from website.mail import (
     admin_notify_email,
     default_from_email,
 )
-from website.models import MailSettings
+from website.models import MailSettings, VpnSettings
 
 
 class DefaultFromEmailTests(TestCase):
@@ -93,7 +93,9 @@ class ProxiedSmtpSocketTests(TestCase):
     маршрутизацию через SOCKS5. Диагностика 22.09.2026 показала: блокирован
     именно SMTP submission у провайдера, прокси не помогает — поэтому
     use_proxy по умолчанию ВЫКЛЮЧЕН (прямое соединение — дефолт), тумблер
-    оставлен в админке на будущее. Покрываем оба состояния явно.
+    оставлен в админке на будущее. Адрес прокси — централизованно в
+    VpnSettings (раздел «VPN»), не дублируется в MailSettings. Покрываем
+    оба состояния явно.
     """
 
     def test_use_proxy_false_by_default_falls_back_to_direct_connect(self):
@@ -104,9 +106,10 @@ class ProxiedSmtpSocketTests(TestCase):
         self.assertEqual(sock, 'direct-socket')
         mocked.assert_called_once_with('smtp.example.com', 587, 5)
 
-    @override_settings(EMAIL_PROXY_URL='socks5h://127.0.0.1:10808')
+    @override_settings(TELEGRAM_PROXY_URL='socks5h://127.0.0.1:10808')
     def test_use_proxy_true_without_db_override_falls_back_to_env_var(self):
-        MailSettings.objects.create(pk=1, use_proxy=True, proxy_url='')
+        MailSettings.objects.create(pk=1, use_proxy=True)
+        VpnSettings.objects.create(pk=1, proxy_url='')
         with patch('website.mail.socks.create_connection') as mocked:
             mocked.return_value = 'socks-socket'
             sock = _ProxiedSMTP()._get_socket('smtp.example.com', 587, 5)
@@ -116,8 +119,9 @@ class ProxiedSmtpSocketTests(TestCase):
         self.assertEqual(kwargs['proxy_addr'], '127.0.0.1')
         self.assertEqual(kwargs['proxy_port'], 10808)
 
-    def test_use_proxy_true_with_db_url_overrides_env_var(self):
-        MailSettings.objects.create(pk=1, use_proxy=True, proxy_url='socks5h://10.0.0.5:1080')
+    def test_use_proxy_true_with_vpn_settings_url(self):
+        MailSettings.objects.create(pk=1, use_proxy=True)
+        VpnSettings.objects.create(pk=1, proxy_url='socks5h://10.0.0.5:1080')
         with patch('website.mail.socks.create_connection') as mocked:
             mocked.return_value = 'socks-socket'
             _ProxiedSMTP()._get_socket('smtp.example.com', 587, 5)
@@ -125,10 +129,33 @@ class ProxiedSmtpSocketTests(TestCase):
         self.assertEqual(kwargs['proxy_addr'], '10.0.0.5')
         self.assertEqual(kwargs['proxy_port'], 1080)
 
-    @override_settings(EMAIL_PROXY_URL=None)
+    @override_settings(TELEGRAM_PROXY_URL=None)
     def test_use_proxy_true_but_no_url_anywhere_falls_back_to_direct(self):
-        MailSettings.objects.create(pk=1, use_proxy=True, proxy_url='')
+        MailSettings.objects.create(pk=1, use_proxy=True)
+        VpnSettings.objects.create(pk=1, proxy_url='')
         with patch('smtplib.SMTP._get_socket') as mocked:
             mocked.return_value = 'direct-socket'
             sock = _ProxiedSMTP()._get_socket('smtp.example.com', 587, 5)
         self.assertEqual(sock, 'direct-socket')
+
+
+class VpnSettingsTests(TestCase):
+    @override_settings(TELEGRAM_PROXY_URL='socks5h://127.0.0.1:10808')
+    def test_effective_url_falls_back_to_env_var_when_blank(self):
+        vpn = VpnSettings.objects.create(pk=1, proxy_url='')
+        self.assertEqual(vpn.effective_url(), 'socks5h://127.0.0.1:10808')
+
+    def test_effective_url_uses_db_value_when_set(self):
+        vpn = VpnSettings.objects.create(pk=1, proxy_url='socks5h://10.0.0.5:1080')
+        self.assertEqual(vpn.effective_url(), 'socks5h://10.0.0.5:1080')
+
+
+class TelegramUseVpnTests(TestCase):
+    """website/telegram.py::send_to_telegram — прокси теперь под галочкой
+    TelegramSettings.use_vpn (по умолчанию включена — повторяет прежнее
+    всегда-на поведение), адрес — из VpnSettings, не settings.TELEGRAM_PROXY_URL
+    напрямую."""
+
+    def test_use_vpn_defaults_to_true(self):
+        from website.models import TelegramSettings
+        self.assertTrue(TelegramSettings.get().use_vpn)

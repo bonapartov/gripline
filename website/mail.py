@@ -14,9 +14,9 @@ enabled=False — кил-свитч: письма молча не уходят (
 возвращает 0, ни одного исключения наружу) — на случай повторной
 компрометации ящика, чтобы не ждать деплоя.
 
-Прокси (use_proxy/proxy_url, 22.09.2026): изначально подозревали, что прод-
-хостинг блокирует прямой исходящий TCP на smtp.yandex.ru:587/465 тем же
-DPI-паттерном, что и api.telegram.org (см. website/telegram.py), и завели
+Прокси (use_proxy, 22.09.2026): изначально подозревали, что прод-хостинг
+блокирует прямой исходящий TCP на smtp.yandex.ru:587/465 тем же DPI-
+паттерном, что и api.telegram.org (см. website/telegram.py), и завели
 маршрутизацию через тот же локальный SOCKS5 Xray. Диагностика показала
 другую причину: IMAP (993) и обычный HTTPS с того же сервера работают
 мгновенно и напрямую, и через VPN-туннель, и с домашней сети пользователя —
@@ -26,14 +26,16 @@ DPI-паттерном, что и api.telegram.org (см. website/telegram.py), 
 помогает (тот же провайдер блокирует порт независимо от прокси) — поэтому
 use_proxy по умолчанию ВЫКЛЮЧЕН, прямое соединение остаётся дефолтом.
 Тумблер оставлен в админке на случай, если для другого хостинга/будущей
-ситуации это всё же понадобится — переключается без деплоя.
+ситуации это всё же понадобится — переключается без деплоя. Сам адрес
+прокси централизован в website.models.VpnSettings (раздел «VPN» в
+админке) — MailSettings хранит только галочку, не дублирует URL.
 """
-from urllib.parse import urlparse
 from smtplib import SMTP, SMTP_SSL
 
 import socks
 from django.conf import settings
 from django.core.mail.backends.smtp import EmailBackend as SMTPEmailBackend
+from urllib.parse import urlparse
 
 
 def _mail_settings():
@@ -43,11 +45,13 @@ def _mail_settings():
 
 def _proxy_url():
     """URL SOCKS5-прокси к использованию, или None если прокси выключен
-    тумблером use_proxy в админке (дефолт — выключен, см. docstring модуля)."""
+    тумблером use_proxy в админке (дефолт — выключен, см. docstring модуля).
+    Сам адрес — из центральной VpnSettings, не отсюда."""
     cfg = _mail_settings()
     if not cfg.use_proxy:
         return None
-    return cfg.proxy_url or getattr(settings, 'EMAIL_PROXY_URL', None)
+    from .models import VpnSettings
+    return VpnSettings.get().effective_url()
 
 
 def _socks_connect(proxy_url, host, port, timeout):

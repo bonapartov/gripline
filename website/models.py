@@ -2067,6 +2067,16 @@ class TelegramSettings(models.Model):
         verbose_name="Текст ссылки на статью",
         help_text="Показывается вместо длинного URL в тексте поста.",
     )
+    use_vpn = models.BooleanField(
+        default=True,
+        verbose_name="Использовать Xray/VPN",
+        help_text=(
+            "Хостинг блокирует прямые соединения к api.telegram.org — без "
+            "этого анонс-постинг не работает. Адрес прокси — в разделе "
+            "«VPN» (VpnSettings), не здесь. Включено по умолчанию — "
+            "повторяет текущее рабочее поведение."
+        ),
+    )
 
     class Meta:
         verbose_name = "Настройки Telegram"
@@ -2238,6 +2248,9 @@ class MailSettings(models.Model):
     enabled — кил-свитч: False мгновенно останавливает всю исходящую почту
     приложения (see DBConfiguredEmailBackend.send_messages) без исключений
     наружу — на случай повторной компрометации, чтобы не ждать деплоя.
+
+    use_proxy — только галочка «использовать Xray/VPN»; сам адрес прокси
+    централизован в VpnSettings (см. ниже), не дублируется здесь.
     """
 
     enabled = models.BooleanField(
@@ -2274,25 +2287,15 @@ class MailSettings(models.Model):
     )
     use_proxy = models.BooleanField(
         default=False,
-        verbose_name="Слать через SOCKS5-прокси (Xray/VPN-туннель)",
+        verbose_name="Использовать Xray/VPN",
         help_text=(
             "По умолчанию выключено — прямое соединение. Хостинг-провайдер "
             "блокирует исходящий SMTP (587/465) на сетевом уровне независимо "
             "от прокси/VPN (диагностировано 22.09.2026 — см. "
             "gripline_tz_zaschita_pochty.md), поэтому включать смысл есть "
             "только если это подтверждённо помогает в вашей конкретной сети. "
-            "Переключается без деплоя — для быстрых экспериментов, не заводя "
-            "новую переменную окружения на каждый тест."
-        ),
-    )
-    proxy_url = models.CharField(
-        max_length=255,
-        blank=True,
-        verbose_name="URL SOCKS5-прокси",
-        help_text=(
-            "Используется только если галочка выше включена. Пусто = "
-            "переменная окружения EMAIL_PROXY_URL на сервере (по умолчанию "
-            "тот же прокси, что и для Telegram). Формат: socks5h://host:port."
+            "Адрес прокси — в разделе «VPN» (VpnSettings), не здесь. "
+            "Переключается без деплоя."
         ),
     )
     host_user = models.CharField(
@@ -2340,6 +2343,55 @@ class MailSettings(models.Model):
     def get(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class VpnSettings(models.Model):
+    """
+    Singleton — единственное место, где живёт адрес локального SOCKS5-
+    прокси (Xray/VPN-туннель). Централизовано 22.09.2026 по просьбе
+    пользователя: раньше каждая интеграция (Telegram, потом Почта) хранила
+    свой собственный proxy_url — теперь у интеграций только галочка
+    «Использовать Xray/VPN» (TelegramSettings.use_vpn, MailSettings.use_proxy),
+    сам адрес — здесь и только здесь, не дублируется по разделам админки.
+
+    Сами настройки VLESS/Reality-туннеля (UUID, ключи Reality, адрес
+    VPN-сервера) живут ВНЕ Django — /usr/local/etc/xray/config.json на
+    сервере, права 600, не в git и не в БД (см. память
+    project_gripline_telegram_proxy). Здесь хранится только локальный адрес
+    SOCKS5-листенера Xray (127.0.0.1:10808) — сам по себе не секрет, Xray
+    слушает localhost без авторизации.
+    """
+
+    proxy_url = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="URL SOCKS5-прокси",
+        help_text=(
+            "Локальный SOCKS5-листенер Xray на сервере. Пусто = переменная "
+            "окружения TELEGRAM_PROXY_URL (историческое имя — прокси заводился "
+            "изначально только для Telegram). Формат: socks5h://host:port."
+        ),
+    )
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Настройки VPN"
+        verbose_name_plural = "Настройки VPN"
+
+    def __str__(self):
+        return f"VPN-прокси: {self.proxy_url}" if self.proxy_url else "VPN-прокси не задан"
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def effective_url(self):
+        """URL прокси к использованию — DB-значение или fallback на
+        переменную окружения TELEGRAM_PROXY_URL."""
+        from django.conf import settings
+        return self.proxy_url or getattr(settings, 'TELEGRAM_PROXY_URL', None)
 
 
 # ==================== РАЗВЕСОВКА (Balance) — справочники ====================
