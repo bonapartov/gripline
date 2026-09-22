@@ -14,19 +14,19 @@ enabled=False — кил-свитч: письма молча не уходят (
 возвращает 0, ни одного исключения наружу) — на случай повторной
 компрометации ящика, чтобы не ждать деплоя.
 
-Прод-хостинг блокирует прямой исходящий TCP на smtp.yandex.ru:587/465 на
-сетевом уровне (ICMP до IP проходит, TCP таймаутит — тот же DPI-паттерн, что
-уже был с api.telegram.org, см. project_gripline_telegram_proxy в памяти и
-website/telegram.py). Обнаружено 22.09.2026 при проверке новых SMTP-
-credentials после ротации пароля приложения. Решение то же: локальный
-SOCKS5-прокси Xray (127.0.0.1:10808, systemd-юнит xray.service, уже поднят
-и настроен на прокси ЛЮБОГО исходящего трафика, не только Telegram — см.
-routing-правила в /usr/local/etc/xray/config.json). settings.EMAIL_PROXY_URL
-переиспользует тот же прокси-URL, что и TELEGRAM_PROXY_URL (одна и та же
-переменная окружения на проде, см. ниже) — Django-бэкенд использует
-smtplib напрямую (не requests), поэтому проксирование сделано через PySocks
-(уже зависимость проекта — requirements.txt, используется для Telegram) на
-уровне _get_socket(), а не через proxies= как в website/telegram.py.
+Прокси (use_proxy/proxy_url, 22.09.2026): изначально подозревали, что прод-
+хостинг блокирует прямой исходящий TCP на smtp.yandex.ru:587/465 тем же
+DPI-паттерном, что и api.telegram.org (см. website/telegram.py), и завели
+маршрутизацию через тот же локальный SOCKS5 Xray. Диагностика показала
+другую причину: IMAP (993) и обычный HTTPS с того же сервера работают
+мгновенно и напрямую, и через VPN-туннель, и с домашней сети пользователя —
+блокирован конкретно SMTP submission (587/465), похоже на стандартную
+антиспам-политику хостинг-провайдера (блокирует исходящий SMTP у всех
+клиентов по умолчанию, снимается по заявке в поддержку). Прокси тут не
+помогает (тот же провайдер блокирует порт независимо от прокси) — поэтому
+use_proxy по умолчанию ВЫКЛЮЧЕН, прямое соединение остаётся дефолтом.
+Тумблер оставлен в админке на случай, если для другого хостинга/будущей
+ситуации это всё же понадобится — переключается без деплоя.
 """
 from urllib.parse import urlparse
 from smtplib import SMTP, SMTP_SSL
@@ -36,8 +36,18 @@ from django.conf import settings
 from django.core.mail.backends.smtp import EmailBackend as SMTPEmailBackend
 
 
+def _mail_settings():
+    from .models import MailSettings
+    return MailSettings.get()
+
+
 def _proxy_url():
-    return getattr(settings, 'EMAIL_PROXY_URL', None)
+    """URL SOCKS5-прокси к использованию, или None если прокси выключен
+    тумблером use_proxy в админке (дефолт — выключен, см. docstring модуля)."""
+    cfg = _mail_settings()
+    if not cfg.use_proxy:
+        return None
+    return cfg.proxy_url or getattr(settings, 'EMAIL_PROXY_URL', None)
 
 
 def _socks_connect(proxy_url, host, port, timeout):
@@ -53,8 +63,8 @@ def _socks_connect(proxy_url, host, port, timeout):
 
 
 class _ProxiedSMTP(SMTP):
-    """SMTP с TCP-соединением через SOCKS5, если settings.EMAIL_PROXY_URL задан
-    (иначе — обычное прямое соединение, как раньше)."""
+    """SMTP с TCP-соединением через SOCKS5, если MailSettings.use_proxy включён
+    (иначе — обычное прямое соединение)."""
 
     def _get_socket(self, host, port, timeout):
         proxy_url = _proxy_url()
@@ -73,11 +83,6 @@ class _ProxiedSMTP_SSL(SMTP_SSL):
             return super()._get_socket(host, port, timeout)
         raw_socket = _socks_connect(proxy_url, host, port, timeout)
         return self.context.wrap_socket(raw_socket, server_hostname=self._host)
-
-
-def _mail_settings():
-    from .models import MailSettings
-    return MailSettings.get()
 
 
 def default_from_email():

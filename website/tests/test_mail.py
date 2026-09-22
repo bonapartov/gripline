@@ -88,14 +88,16 @@ class DBConfiguredEmailBackendTests(TestCase):
 
 class ProxiedSmtpSocketTests(TestCase):
     """
-    website/mail.py::_ProxiedSMTP(_SSL) — прод-хостинг блокирует прямой TCP
-    на smtp.yandex.ru:587/465 (DPI-подобная блокировка, тот же паттерн, что
-    у api.telegram.org — см. project_gripline_telegram_proxy). Без
-    EMAIL_PROXY_URL поведение должно остаться прежним (прямое соединение).
+    website/mail.py::_ProxiedSMTP(_SSL) — изначально подозревали блокировку
+    сети хостинга (тот же DPI-паттерн, что у api.telegram.org), завели
+    маршрутизацию через SOCKS5. Диагностика 22.09.2026 показала: блокирован
+    именно SMTP submission у провайдера, прокси не помогает — поэтому
+    use_proxy по умолчанию ВЫКЛЮЧЕН (прямое соединение — дефолт), тумблер
+    оставлен в админке на будущее. Покрываем оба состояния явно.
     """
 
-    @override_settings(EMAIL_PROXY_URL=None)
-    def test_no_proxy_configured_falls_back_to_direct_connect(self):
+    def test_use_proxy_false_by_default_falls_back_to_direct_connect(self):
+        MailSettings.objects.create(pk=1)  # use_proxy=False по умолчанию
         with patch('smtplib.SMTP._get_socket') as mocked:
             mocked.return_value = 'direct-socket'
             sock = _ProxiedSMTP()._get_socket('smtp.example.com', 587, 5)
@@ -103,7 +105,8 @@ class ProxiedSmtpSocketTests(TestCase):
         mocked.assert_called_once_with('smtp.example.com', 587, 5)
 
     @override_settings(EMAIL_PROXY_URL='socks5h://127.0.0.1:10808')
-    def test_proxy_configured_routes_through_socks(self):
+    def test_use_proxy_true_without_db_override_falls_back_to_env_var(self):
+        MailSettings.objects.create(pk=1, use_proxy=True, proxy_url='')
         with patch('website.mail.socks.create_connection') as mocked:
             mocked.return_value = 'socks-socket'
             sock = _ProxiedSMTP()._get_socket('smtp.example.com', 587, 5)
@@ -112,3 +115,20 @@ class ProxiedSmtpSocketTests(TestCase):
         self.assertEqual(mocked.call_args[0][0], ('smtp.example.com', 587))
         self.assertEqual(kwargs['proxy_addr'], '127.0.0.1')
         self.assertEqual(kwargs['proxy_port'], 10808)
+
+    def test_use_proxy_true_with_db_url_overrides_env_var(self):
+        MailSettings.objects.create(pk=1, use_proxy=True, proxy_url='socks5h://10.0.0.5:1080')
+        with patch('website.mail.socks.create_connection') as mocked:
+            mocked.return_value = 'socks-socket'
+            _ProxiedSMTP()._get_socket('smtp.example.com', 587, 5)
+        _, kwargs = mocked.call_args
+        self.assertEqual(kwargs['proxy_addr'], '10.0.0.5')
+        self.assertEqual(kwargs['proxy_port'], 1080)
+
+    @override_settings(EMAIL_PROXY_URL=None)
+    def test_use_proxy_true_but_no_url_anywhere_falls_back_to_direct(self):
+        MailSettings.objects.create(pk=1, use_proxy=True, proxy_url='')
+        with patch('smtplib.SMTP._get_socket') as mocked:
+            mocked.return_value = 'direct-socket'
+            sock = _ProxiedSMTP()._get_socket('smtp.example.com', 587, 5)
+        self.assertEqual(sock, 'direct-socket')

@@ -2272,6 +2272,29 @@ class MailSettings(models.Model):
         default=5,
         verbose_name="Таймаут соединения, сек",
     )
+    use_proxy = models.BooleanField(
+        default=False,
+        verbose_name="Слать через SOCKS5-прокси (Xray/VPN-туннель)",
+        help_text=(
+            "По умолчанию выключено — прямое соединение. Хостинг-провайдер "
+            "блокирует исходящий SMTP (587/465) на сетевом уровне независимо "
+            "от прокси/VPN (диагностировано 22.09.2026 — см. "
+            "gripline_tz_zaschita_pochty.md), поэтому включать смысл есть "
+            "только если это подтверждённо помогает в вашей конкретной сети. "
+            "Переключается без деплоя — для быстрых экспериментов, не заводя "
+            "новую переменную окружения на каждый тест."
+        ),
+    )
+    proxy_url = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="URL SOCKS5-прокси",
+        help_text=(
+            "Используется только если галочка выше включена. Пусто = "
+            "переменная окружения EMAIL_PROXY_URL на сервере (по умолчанию "
+            "тот же прокси, что и для Telegram). Формат: socks5h://host:port."
+        ),
+    )
     host_user = models.CharField(
         max_length=255,
         blank=True,

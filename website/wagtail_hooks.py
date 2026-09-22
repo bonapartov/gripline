@@ -253,7 +253,7 @@ class MailSettingsAdmin(ModelAdmin):
     model = MailSettings
     menu_label = 'Настройки'
     menu_icon = 'fa-envelope'
-    list_display = ('enabled', 'host', 'host_user', 'default_from_email', 'updated_at')
+    list_display = ('enabled', 'host', 'host_user', 'use_proxy', 'default_from_email', 'updated_at')
 
 class MailGroup(ModelAdminGroup):
     # Вынесено 22.09.2026 по ТЗ gripline_tz_zaschita_pochty.md (компрометация
