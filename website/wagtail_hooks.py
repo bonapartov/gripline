@@ -1,5 +1,5 @@
 from wagtail_modeladmin.options import (ModelAdmin, ModelAdminGroup, modeladmin_register)
-from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, MaxSettings, VkSettings, WeatherSettings, SocialTag, ArticlePage, ChassisTypePreset, KartClass, BalanceThreshold, BalanceDiagnosticRule
+from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, MaxSettings, VkSettings, WeatherSettings, MailSettings, SocialTag, ArticlePage, ChassisTypePreset, KartClass, BalanceThreshold, BalanceDiagnosticRule
 from wagtail import hooks
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -249,6 +249,22 @@ class WeatherGroup(ModelAdminGroup):
     items = (WeatherSettingsAdmin,)
     add_to_admin_menu = False
 
+class MailSettingsAdmin(ModelAdmin):
+    model = MailSettings
+    menu_label = 'Настройки'
+    menu_icon = 'fa-envelope'
+    list_display = ('enabled', 'host', 'host_user', 'default_from_email', 'updated_at')
+
+class MailGroup(ModelAdminGroup):
+    # Вынесено 22.09.2026 по ТЗ gripline_tz_zaschita_pochty.md (компрометация
+    # gripline.ru@yandex.ru) — host/port/tls/ssl/логин/пароль/from-адрес
+    # редактируются здесь без деплоя, см. website/models.py::MailSettings и
+    # website/mail.py::DBConfiguredEmailBackend.
+    menu_label = 'Почта'
+    menu_icon = 'fa-envelope'
+    items = (MailSettingsAdmin,)
+    add_to_admin_menu = False
+
 # Регистрируем группы
 modeladmin_register(PilotsGroup)
 modeladmin_register(TeamsGroup)
@@ -273,6 +289,9 @@ social_tag_group.register_with_wagtail()
 weather_group = WeatherGroup()
 weather_group.register_with_wagtail()
 
+mail_group = MailGroup()
+mail_group.register_with_wagtail()
+
 def _menu_icon_kwargs(menu_icon):
     """Повторяет логику иконок wagtail_modeladmin.GroupMenuItem: старые
     fa-* иконки идут через CSS-класс, а не через современный icon_name."""
@@ -284,11 +303,12 @@ def _menu_icon_kwargs(menu_icon):
 def register_integrations_menu():
     """«Интеграции» в боковом меню — внешние сервисы: Telegram, MAX, VK
     (у каждого свои "Настройки"), общий top-level пункт "Теги" (один набор
-    тегов на все соцсети) и "Погода" (Open-Meteo). Раньше пункт назывался
-    "Соцсети" — переименован, когда сюда добавили Погоду (не соцсеть).
+    тегов на все соцсети), "Погода" (Open-Meteo) и "Почта" (SMTP исходящей
+    почты приложения, MailSettings). Раньше пункт назывался "Соцсети" —
+    переименован, когда сюда добавили Погоду (не соцсеть).
     Добавление нового провайдера — новая ModelAdminGroup с
     add_to_admin_menu=False + новый SubmenuMenuItem рядом с telegram_item/
-    max_item/vk_item/weather_item ниже."""
+    max_item/vk_item/weather_item/mail_item ниже."""
     telegram_item = SubmenuMenuItem(
         'Telegram', Menu(items=telegram_group.get_submenu_items()), name='telegram', order=1,
         **_menu_icon_kwargs('fa-paper-plane'),
@@ -309,7 +329,11 @@ def register_integrations_menu():
         'Погода', Menu(items=weather_group.get_submenu_items()), name='weather', order=5,
         **_menu_icon_kwargs('fa-cloud'),
     )
-    integrations_menu = Menu(items=[telegram_item, max_item, vk_item, tags_item, weather_item])
+    mail_item = SubmenuMenuItem(
+        'Почта', Menu(items=mail_group.get_submenu_items()), name='mail', order=6,
+        **_menu_icon_kwargs('fa-envelope'),
+    )
+    integrations_menu = Menu(items=[telegram_item, max_item, vk_item, tags_item, weather_item, mail_item])
     return SubmenuMenuItem(
         'Интеграции', integrations_menu, name='integrations', order=999,
         **_menu_icon_kwargs('fa-share-alt'),

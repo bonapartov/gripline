@@ -301,13 +301,19 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 # Email settings
+# Основные параметры (host/port/tls/ssl/timeout) теперь DB-авторитетны —
+# см. website.models.MailSettings + website.mail.DBConfiguredEmailBackend
+# (Wagtail admin → Интеграции → Почта). Значения ниже — только fallback
+# для случаев, когда поле в админке пустое (обычно host_user/host_password/
+# DEFAULT_FROM_EMAIL — секреты, задаются через переменные окружения, не
+# хардкодятся). См. website/mail.py и gripline_tz_zaschita_pochty.md.
 # EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = 'website.mail.DBConfiguredEmailBackend'
 EMAIL_HOST = 'smtp.yandex.ru'
 EMAIL_PORT = 587
-EMAIL_USE_TLS = False
-EMAIL_USE_SSL = True
-EMAIL_HOST_USER = 'gripline.ru@yandex.ru'
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'gripline.ru@yandex.ru')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 EMAIL_TIMEOUT = 5
 

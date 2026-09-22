@@ -4,6 +4,7 @@ from django.contrib.auth import login
 from django.db.models import Q
 from .forms import TeamRegistrationForm
 from website.models import Team, Driver, TeamSocialLink, TeamMembership
+from website.mail import default_from_email, admin_notify_email
 from .models import TeamClaim
 from django.contrib.auth import authenticate, login as auth_login
 
@@ -49,7 +50,7 @@ def send_team_verification_email(user, request):
     send_mail(
         subject,
         plain_message,
-        settings.DEFAULT_FROM_EMAIL,
+        default_from_email(),
         [user.email],
         html_message=html_message,
         fail_silently=False,
@@ -71,8 +72,8 @@ Email пользователя: {claim_data.get('user_email')}
     send_mail(
         subject,
         message,
-        settings.DEFAULT_FROM_EMAIL,
-        ['gripline.ru@yandex.ru'],
+        default_from_email(),
+        [admin_notify_email()],
         fail_silently=True,
     )
 
@@ -646,6 +647,7 @@ def _send_team_invitation_email(driver, team, user, invitation):
     from django.core.mail import send_mail
     from django.template.loader import render_to_string
     from django.conf import settings
+    from website.mail import default_from_email
     try:
         body = render_to_string('teams/email_invitation.html', {
             'driver': driver,
@@ -656,7 +658,7 @@ def _send_team_invitation_email(driver, team, user, invitation):
         send_mail(
             subject=f'Приглашение в команду {team.name}',
             message='',
-            from_email=settings.EMAIL_HOST_USER,
+            from_email=default_from_email(),
             recipient_list=[user.email],
             html_message=body,
             fail_silently=True,

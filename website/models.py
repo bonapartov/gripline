@@ -2218,6 +2218,107 @@ class WeatherSettings(models.Model):
         return obj
 
 
+class MailSettings(models.Model):
+    """
+    Singleton-модель настроек исходящей почты приложения.
+    Доступна через MailSettings.get(), фактически применяется через
+    website.mail.DBConfiguredEmailBackend (см. EMAIL_BACKEND в settings/base.py
+    и prod.py) — бэкенд читает эту модель при КАЖДОЙ отправке, не при старте
+    процесса, поэтому правка здесь действует мгновенно, без рестарта gunicorn.
+
+    Вынесено в админку 22.09.2026 по ТЗ gripline_tz_zaschita_pochty.md —
+    компрометация ящика gripline.ru@yandex.ru (сторонняя спам-рассылка через
+    валидный DKIM Яндекса). host_user/host_password/default_from_email пустые
+    по умолчанию — падают обратно на settings.EMAIL_HOST_USER/PASSWORD/
+    DEFAULT_FROM_EMAIL (переменные окружения), поэтому сам факт добавления
+    этой модели не меняет поведение прода, пока админ не заполнит поле сам.
+    host/port/use_tls/use_ssl/timeout — DB-авторитетны сразу (дефолты
+    повторяют текущий prod.py), это не секреты.
+
+    enabled — кил-свитч: False мгновенно останавливает всю исходящую почту
+    приложения (see DBConfiguredEmailBackend.send_messages) без исключений
+    наружу — на случай повторной компрометации, чтобы не ждать деплоя.
+    """
+
+    enabled = models.BooleanField(
+        default=True,
+        verbose_name="Отправка писем включена",
+        help_text=(
+            "Кил-свитч. Выключить — немедленно останавливает всю исходящую "
+            "почту приложения (уведомления, письма подтверждения) без деплоя. "
+            "Использовать при компрометации почтового ящика."
+        ),
+    )
+    host = models.CharField(
+        max_length=255,
+        default="smtp.yandex.ru",
+        verbose_name="SMTP host",
+    )
+    port = models.PositiveIntegerField(
+        default=587,
+        verbose_name="SMTP порт",
+    )
+    use_tls = models.BooleanField(
+        default=True,
+        verbose_name="STARTTLS (use_tls)",
+        help_text="Для порта 587. Взаимоисключимо с SSL ниже.",
+    )
+    use_ssl = models.BooleanField(
+        default=False,
+        verbose_name="SSL (use_ssl)",
+        help_text="Для порта 465. Взаимоисключимо с STARTTLS выше.",
+    )
+    timeout = models.PositiveIntegerField(
+        default=5,
+        verbose_name="Таймаут соединения, сек",
+    )
+    host_user = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Логин SMTP (адрес ящика)",
+        help_text="Пусто = переменная окружения EMAIL_HOST_USER на сервере.",
+    )
+    host_password = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Пароль SMTP",
+        help_text=(
+            "Пусто = переменная окружения EMAIL_HOST_PASSWORD на сервере. "
+            "Хранится в БД открытым текстом (как yandex_client_secret у "
+            "SocialAuthSettings) — доступ только у пользователей с правами "
+            "в Wagtail admin."
+        ),
+    )
+    default_from_email = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="From (адрес отправителя)",
+        help_text='Пусто = settings.DEFAULT_FROM_EMAIL. Формат: "Gripline <адрес@домен>".',
+    )
+    admin_notify_email = models.EmailField(
+        blank=True,
+        verbose_name="Адрес для уведомлений администратору",
+        help_text=(
+            "Куда падают уведомления о новых заявках (привязка пилота/команды). "
+            "Пусто = gripline.ru@yandex.ru (прежнее поведение)."
+        ),
+    )
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Настройки почты"
+        verbose_name_plural = "Настройки почты"
+
+    def __str__(self):
+        return "Настройки исходящей почты" if self.enabled else "Настройки исходящей почты (ВЫКЛЮЧЕНА)"
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
 # ==================== РАЗВЕСОВКА (Balance) — справочники ====================
 #
 # Все числа ниже (геометрия по умолчанию, минимальные веса классов, пороги

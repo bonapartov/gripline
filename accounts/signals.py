@@ -5,6 +5,7 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.urls import reverse
 from .models import UserProfile
+from website.mail import default_from_email
 
 
 def _sync_roles(user):
@@ -95,7 +96,7 @@ def send_driver_claim_approved_email(user, driver):
             subject=subject,
             message=message,
             html_message=html_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            from_email=default_from_email(),
             recipient_list=[user.email],
             fail_silently=False,
         )
@@ -143,7 +144,7 @@ def send_driver_claim_pending_email(user, claim):
             subject=subject,
             message=message,
             html_message=html_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            from_email=default_from_email(),
             recipient_list=[user.email],
             fail_silently=False,
         )
@@ -198,7 +199,7 @@ def send_driver_claim_rejected_email(user, claim):
             subject=subject,
             message=message,
             html_message=html_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            from_email=default_from_email(),
             recipient_list=[user.email],
             fail_silently=False,
         )

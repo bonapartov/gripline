@@ -36,7 +36,7 @@ USE_TZ = True
 TIME_ZONE = 'Europe/Moscow'
 
 # Email settings
-DEFAULT_FROM_EMAIL = "Gripline <info@gripline.ru>"
+DEFAULT_FROM_EMAIL = 'Gripline <gripline.ru@yandex.ru>'
 ADMINS = [("Administrator", "admin@gripline.ru")]
 MANAGERS = ADMINS
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
@@ -72,15 +72,17 @@ STORAGES = {
 DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
 
-# Email SMTP settings
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# Email SMTP settings — fallback-значения для website.mail.DBConfiguredEmailBackend,
+# используются только пока соответствующее поле в MailSettings (Wagtail admin →
+# Интеграции → Почта) пустое. host/port/tls/ssl/timeout DB-авторитетны всегда
+# (см. website/models.py::MailSettings) — значения ниже дублируют их только
+# как дефолт для первой строки singleton-таблицы.
 EMAIL_HOST = 'smtp.yandex.ru'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
-EMAIL_HOST_USER = 'gripline.ru@yandex.ru'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'gripline.ru@yandex.ru')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = 'Gripline <gripline.ru@yandex.ru>'
 PASSWORD_RESET_TIMEOUT = 1800  # токен сброса пароля живёт 30 минут
 
 # Security-настройки (найдено manage.py check --deploy при security-аудите,

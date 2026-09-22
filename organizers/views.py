@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.models import User
 from wagtail.models import Page
 from website.models import ChampionshipPage, StagePage, EventPage, RaceClass
+from website.mail import default_from_email
 from .models import OrganizerProfile, Championship, Stage, OrganizerSettings
 from .forms import ChampionshipForm, StageForm, OrganizerRegistrationForm
 from django.core.mail import send_mail
@@ -300,7 +301,7 @@ def send_organizer_verification_email(user, request):
         'verification_url': verification_url,
         'expiry_minutes': 30,
     })
-    send_mail(subject, '', settings.DEFAULT_FROM_EMAIL, [user.email], html_message=html_message, fail_silently=False)
+    send_mail(subject, '', default_from_email(), [user.email], html_message=html_message, fail_silently=False)
 
 def organizer_verification_sent(request):
     return render(request, 'organizers/verification_sent.html')

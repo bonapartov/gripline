@@ -12,6 +12,7 @@ from django.conf import settings
 from django.db.models import Q
 from .forms import RegistrationForm, DriverProfileForm, SocialLinkFormSet
 from website.models import Driver
+from website.mail import default_from_email, admin_notify_email
 from .models import DriverClaim, PilotDocument, SocialAuthSettings
 from wagtail.images.models import Image
 from django.utils import timezone
@@ -43,8 +44,8 @@ Email пользователя: {claim_data.get('user_email')}
     send_mail(
         subject,
         message,
-        settings.DEFAULT_FROM_EMAIL,
-        ['gripline.ru@yandex.ru'],
+        default_from_email(),
+        [admin_notify_email()],
         fail_silently=True,
     )
 
@@ -68,7 +69,7 @@ def send_verification_email(user, request):
     send_mail(
         subject,
         plain_message,
-        settings.DEFAULT_FROM_EMAIL,
+        default_from_email(),
         [user.email],
         html_message=html_message,
         fail_silently=False,
