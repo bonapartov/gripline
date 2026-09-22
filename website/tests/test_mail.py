@@ -1,6 +1,14 @@
+from unittest.mock import patch
+
 from django.test import TestCase, override_settings
 
-from website.mail import DBConfiguredEmailBackend, admin_notify_email, default_from_email
+from website.mail import (
+    DBConfiguredEmailBackend,
+    _ProxiedSMTP,
+    _ProxiedSMTP_SSL,
+    admin_notify_email,
+    default_from_email,
+)
 from website.models import MailSettings
 
 
@@ -69,3 +77,38 @@ class DBConfiguredEmailBackendTests(TestCase):
         backend = DBConfiguredEmailBackend()
         self.assertEqual(MailSettings.objects.count(), 1)
         self.assertTrue(backend._mail_enabled)
+
+    def test_connection_class_picks_proxied_smtp_variant_by_use_ssl(self):
+        MailSettings.objects.create(pk=1, use_tls=True, use_ssl=False)
+        self.assertIs(DBConfiguredEmailBackend().connection_class, _ProxiedSMTP)
+
+        MailSettings.objects.filter(pk=1).update(use_tls=False, use_ssl=True)
+        self.assertIs(DBConfiguredEmailBackend().connection_class, _ProxiedSMTP_SSL)
+
+
+class ProxiedSmtpSocketTests(TestCase):
+    """
+    website/mail.py::_ProxiedSMTP(_SSL) — прод-хостинг блокирует прямой TCP
+    на smtp.yandex.ru:587/465 (DPI-подобная блокировка, тот же паттерн, что
+    у api.telegram.org — см. project_gripline_telegram_proxy). Без
+    EMAIL_PROXY_URL поведение должно остаться прежним (прямое соединение).
+    """
+
+    @override_settings(EMAIL_PROXY_URL=None)
+    def test_no_proxy_configured_falls_back_to_direct_connect(self):
+        with patch('smtplib.SMTP._get_socket') as mocked:
+            mocked.return_value = 'direct-socket'
+            sock = _ProxiedSMTP()._get_socket('smtp.example.com', 587, 5)
+        self.assertEqual(sock, 'direct-socket')
+        mocked.assert_called_once_with('smtp.example.com', 587, 5)
+
+    @override_settings(EMAIL_PROXY_URL='socks5h://127.0.0.1:10808')
+    def test_proxy_configured_routes_through_socks(self):
+        with patch('website.mail.socks.create_connection') as mocked:
+            mocked.return_value = 'socks-socket'
+            sock = _ProxiedSMTP()._get_socket('smtp.example.com', 587, 5)
+        self.assertEqual(sock, 'socks-socket')
+        _, kwargs = mocked.call_args
+        self.assertEqual(mocked.call_args[0][0], ('smtp.example.com', 587))
+        self.assertEqual(kwargs['proxy_addr'], '127.0.0.1')
+        self.assertEqual(kwargs['proxy_port'], 10808)
