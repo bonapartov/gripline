@@ -2338,6 +2338,16 @@ class MailSettings(models.Model):
     def __str__(self):
         return "Настройки исходящей почты" if self.enabled else "Настройки исходящей почты (ВЫКЛЮЧЕНА)"
 
+    def clean(self):
+        super().clean()
+        if self.use_tls and self.use_ssl:
+            raise ValidationError(
+                "STARTTLS (use_tls) и SSL (use_ssl) взаимоисключимы — "
+                "включите только одно из двух (587+STARTTLS либо 465+SSL). "
+                "Обе галочки разом роняют отправку письма с необрабатываемым "
+                "исключением ДО проверки кил-свитча «Отправка писем включена»."
+            )
+
     @classmethod
     def get(cls):
         obj, _ = cls.objects.get_or_create(pk=1)

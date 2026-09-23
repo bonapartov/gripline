@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 
 from website.mail import (
@@ -20,6 +21,27 @@ class DefaultFromEmailTests(TestCase):
     def test_uses_db_value_when_set(self):
         MailSettings.objects.create(pk=1, default_from_email='Gripline <new@example.com>')
         self.assertEqual(default_from_email(), 'Gripline <new@example.com>')
+
+
+class MailSettingsValidationTests(TestCase):
+    """
+    Ревью нашло: use_tls+use_ssl оба True роняют DBConfiguredEmailBackend
+    исключением ValueError ДО проверки кил-свитча enabled=False — то есть
+    задокументированная гарантия "выключить рубильник = письма не уходят
+    без исключений" в этой комбинации не выполнялась. clean() блокирует
+    сохранение такой комбинации через форму ещё в админке.
+    """
+
+    def test_both_tls_and_ssl_true_rejected_by_clean(self):
+        m = MailSettings(pk=1, use_tls=True, use_ssl=True)
+        with self.assertRaises(ValidationError):
+            m.clean()
+
+    def test_only_tls_true_passes_clean(self):
+        MailSettings(pk=1, use_tls=True, use_ssl=False).clean()
+
+    def test_only_ssl_true_passes_clean(self):
+        MailSettings(pk=1, use_tls=False, use_ssl=True).clean()
 
 
 class AdminNotifyEmailTests(TestCase):

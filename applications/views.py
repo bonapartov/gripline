@@ -5,9 +5,9 @@ from django.http import JsonResponse, FileResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.core.mail import send_mail
-from django.conf import settings
 from decimal import Decimal
 
+from website.mail import default_from_email
 from organizers.models import Stage
 from .models import (
     Application, ApplicationApplicant, ApplicationPilot, ApplicationKart,
@@ -24,7 +24,7 @@ def _notify(to_email, subject, body_html):
     """Отправляет email-уведомление, не падает при ошибке"""
     try:
         send_mail(
-            subject, '', settings.EMAIL_HOST_USER, [to_email],
+            subject, '', default_from_email(), [to_email],
             html_message=body_html, fail_silently=True,
         )
     except Exception:
