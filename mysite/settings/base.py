@@ -222,6 +222,19 @@ LOGGING = {
             "level": "WARNING",
             "propagate": False,
         },
+        # Django по умолчанию шлёт ADMINS полный debug-дамп на каждый запрос
+        # с чужим Host-заголовком (сканеры интернета простукивают IP в поисках
+        # открытых .env/wp-config, подставляя произвольный домен — обычный
+        # фоновый шум, не инцидент). Без переопределения этого логгера
+        # (disable_existing_loggers=False сохраняет дефолтную привязку
+        # django.security.DisallowedHost → mail_admins) такие сканы
+        # заваливали бы ADMINS письмами на только что восстановленный ящик.
+        # Оставляем видимость через console/journalctl, убираем только почту.
+        "django.security.DisallowedHost": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
     },
 }
 
