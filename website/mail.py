@@ -103,13 +103,21 @@ class DBConfiguredEmailBackend(SMTPEmailBackend):
     def __init__(self, *args, **kwargs):
         cfg = _mail_settings()
         self._mail_enabled = cfg.enabled
-        kwargs.setdefault('host', cfg.host or None)
-        kwargs.setdefault('port', cfg.port or None)
-        kwargs.setdefault('username', cfg.host_user or None)
-        kwargs.setdefault('password', cfg.host_password or None)
-        kwargs.setdefault('use_tls', cfg.use_tls)
-        kwargs.setdefault('use_ssl', cfg.use_ssl)
-        kwargs.setdefault('timeout', cfg.timeout or None)
+        db_values = {
+            'host': cfg.host or None,
+            'port': cfg.port or None,
+            'username': cfg.host_user or None,
+            'password': cfg.host_password or None,
+            'use_tls': cfg.use_tls,
+            'use_ssl': cfg.use_ssl,
+            'timeout': cfg.timeout or None,
+        }
+        # Не setdefault: django.core.mail.send_mail() передаёт username=None,
+        # password=None явно — setdefault их не заменил бы, и базовый бэкенд
+        # подставил бы settings.EMAIL_HOST_PASSWORD вместо пароля из админки.
+        for key, value in db_values.items():
+            if kwargs.get(key) is None:
+                kwargs[key] = value
         super().__init__(*args, **kwargs)
 
     @property

@@ -94,6 +94,25 @@ class DBConfiguredEmailBackendTests(TestCase):
         self.assertFalse(backend.use_tls)
         self.assertTrue(backend.use_ssl)
 
+    @override_settings(
+        EMAIL_BACKEND='website.mail.DBConfiguredEmailBackend',
+        EMAIL_HOST_USER='stale-user', EMAIL_HOST_PASSWORD='stale-pass',
+    )
+    def test_send_mail_explicit_none_credentials_use_db_values(self):
+        # django.core.mail.send_mail() зовёт get_connection(username=None,
+        # password=None) — раньше это пробивало DB-пароль и уходило на env.
+        from django.core.mail import get_connection
+        MailSettings.objects.create(pk=1, host_user='db-user@example.com', host_password='db-secret')
+        conn = get_connection(username=None, password=None, fail_silently=False)
+        self.assertEqual(conn.username, 'db-user@example.com')
+        self.assertEqual(conn.password, 'db-secret')
+
+    def test_explicit_credentials_still_override_db(self):
+        MailSettings.objects.create(pk=1, host_user='db-user@example.com', host_password='db-secret')
+        backend = DBConfiguredEmailBackend(username='explicit', password='explicit-pass')
+        self.assertEqual(backend.username, 'explicit')
+        self.assertEqual(backend.password, 'explicit-pass')
+
     def test_singleton_row_created_on_demand_with_safe_defaults(self):
         self.assertEqual(MailSettings.objects.count(), 0)
         backend = DBConfiguredEmailBackend()
