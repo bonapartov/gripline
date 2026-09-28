@@ -285,7 +285,10 @@ MEDIA_URL = "/media/"
 
 # Login
 
-LOGIN_URL = "wagtailadmin_login"
+# Вход сайта, не админки: @login_required в кабинетах пилота/команды/заявок
+# иначе отправлял пользователей из писем на /admin/login/. Админка Wagtail
+# берёт свой WAGTAILADMIN_LOGIN_URL и от этой настройки не зависит.
+LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "wagtailadmin_home"
 
 
