@@ -179,12 +179,40 @@ VK_API_VERSION = os.getenv("VK_API_VERSION", "5.199")
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {
+        "require_debug_false": {"()": "django.utils.log.RequireDebugFalse"},
+        "require_debug_true": {"()": "django.utils.log.RequireDebugTrue"},
+    },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
         },
+        "console_errors": {
+            "class": "logging.StreamHandler",
+            "level": "ERROR",
+            "filters": ["require_debug_false"],
+        },
+        "console_debug": {
+            "class": "logging.StreamHandler",
+            "level": "INFO",
+            "filters": ["require_debug_true"],
+        },
+        "mail_admins": {
+            "class": "website.log.ThrottledAdminEmailHandler",
+            "level": "ERROR",
+            "filters": ["require_debug_false"],
+        },
     },
     "loggers": {
+        # Сбои 500 и прочие ошибки Django: в журнал (journalctl -u gripline)
+        # и письмом на адрес уведомлений из админки, с ограничителем частоты
+        # (website/log.py). Дефолтный mail_admins Django слал без ограничений
+        # на settings.ADMINS.
+        "django": {
+            "handlers": ["console_debug", "console_errors", "mail_admins"],
+            "level": "INFO",
+            "propagate": False,
+        },
         # Никогда не логировать TELEGRAM_ANNOUNCE_BOT_TOKEN и полный текст
         # исключений без фильтрации — см. website/telegram.py::send_to_telegram.
         "telegram_announce": {

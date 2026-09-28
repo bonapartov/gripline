@@ -37,7 +37,10 @@ TIME_ZONE = 'Europe/Moscow'
 
 # Email settings
 DEFAULT_FROM_EMAIL = 'Gripline <gripline.ru@yandex.ru>'
-ADMINS = [("Administrator", "admin@gripline.ru")]
+# admin@gripline.ru ничего не принимает (на MX-сервере нет почтовика). Письма
+# о сбоях шлёт website.log.ThrottledAdminEmailHandler на адрес из админки,
+# ADMINS оставлен для прочего кода Django, который читает его напрямую.
+ADMINS = [("Gripline", "gripline.ru@yandex.ru")]
 MANAGERS = ADMINS
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
