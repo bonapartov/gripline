@@ -1,0 +1,5 @@
+{% load email_tags %}{% autoescape off %}{% site_url as base_url %}--
+{% if admin %}Служебное уведомление Gripline для администраторов сайта
+{{ base_url }}{% else %}{% support_email as support %}{% support_telegram as tg %}Gripline · {{ base_url }}{% if support or tg %}
+Вопросы: {% if support %}{{ support }}{% endif %}{% if support and tg %}, {% endif %}{% if tg %}Telegram @{{ tg }}{% endif %}{% endif %}
+Письмо отправлено автоматически, отвечать на него не нужно.{% endif %}{% endautoescape %}

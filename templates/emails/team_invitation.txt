@@ -1,0 +1,15 @@
+{% autoescape off %}[ПРИГЛАШЕНИЕ]
+
+Приглашение в команду
+
+Здравствуйте, {{ driver_name }}! Команда {{ team_name }} приглашает вас в свой состав.
+
+{% include "emails/_rows.txt" %}
+
+Принять приглашение: {{ accept_url }}
+
+Отклонить: {{ decline_url }}
+
+Ответить на приглашение можно и позже в личном кабинете: {{ profile_url }}
+{% endautoescape %}
+{% include "emails/_footer.txt" %}

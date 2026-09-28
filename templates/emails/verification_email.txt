@@ -1,0 +1,1 @@
+{% include "emails/_verify_body.txt" with who="пилота" %}

@@ -1,0 +1,6 @@
+{% load email_tags %}{% include "emails/_h1.html" with text="Подтвердите e-mail" gap=16 %}
+{% row 16 %}<p style="{% s 'p' %}">Здравствуйте{% if user.first_name or user.last_name %}, {{ user.first_name }}{% if user.last_name %} {{ user.last_name }}{% endif %}{% endif %}!</p>{% endrow %}
+{% row 16 %}<p style="{% s 'p' %}">Чтобы завершить регистрацию {{ who }} на Gripline, подтвердите адрес электронной почты.</p>{% endrow %}
+{% include "emails/_button.html" with url=verification_url label="Подтвердить e-mail" gap=16 %}
+{% include "emails/_fallback.html" with url=verification_url gap=24 %}
+{% row 0 %}<p style="{% s 'note' %}">Ссылка действует {{ expiry_minutes }} мин. Если вы не регистрировались на Gripline, проигнорируйте это письмо.</p>{% endrow %}

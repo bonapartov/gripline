@@ -1,0 +1,13 @@
+{% autoescape off %}[ОДОБРЕНО]
+
+Профиль пилота привязан
+
+Здравствуйте! Администратор подтвердил вашу заявку на привязку к профилю пилота.
+
+{% include "emails/_rows.txt" %}
+
+Личный кабинет: {{ login_url }}{% if profile_url %}
+
+Профиль на сайте: {{ profile_url }}{% endif %}
+{% endautoescape %}
+{% include "emails/_footer.txt" %}

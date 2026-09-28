@@ -2,10 +2,9 @@ from django.db.models.signals import post_save, post_delete, pre_save
 from django.contrib.auth.models import User
 from django.dispatch import receiver
 from django.conf import settings
-from django.core.mail import send_mail
 from django.urls import reverse
 from .models import UserProfile
-from website.mail import default_from_email
+from website.mail import send_templated_mail
 
 
 def _sync_roles(user):
@@ -63,46 +62,24 @@ def save_user_profile(sender, instance, **kwargs):
         UserProfile.objects.get_or_create(user=instance)
 
 
-def send_driver_claim_approved_email(user, driver):
-    """Отправка уведомления пилоту о подтверждении заявки на привязку профиля."""
+def _send_claim_email(template, subject, user, context):
     if not user.email:
         return
-
-    login_url = f"{settings.BASE_URL}/accounts/login/"
-    profile_url = f"{settings.BASE_URL}{driver.get_absolute_url()}" if driver else ''
-    driver_name = driver.full_name if driver else ''
-
-    subject = '✅ Ваша заявка на привязку профиля пилота подтверждена'
-    message = f"""Здравствуйте!
-
-Ваша заявка на привязку к профилю пилота{f' "{driver_name}"' if driver_name else ''} подтверждена администратором.
-
-Личный кабинет: {login_url}
-{f'Профиль на сайте: {profile_url}' if profile_url else ''}
-
-С уважением,
-Команда Gripline
-"""
-    html_message = f"""<h2>✅ Заявка подтверждена</h2>
-<p>Здравствуйте!</p>
-<p>Ваша заявка на привязку к профилю пилота{f' <strong>{driver_name}</strong>' if driver_name else ''} подтверждена администратором.</p>
-<p>Теперь вы можете войти в <a href="{login_url}">личный кабинет</a>.</p>
-{f'<p>Профиль на сайте: <a href="{profile_url}">{profile_url}</a></p>' if profile_url else ''}
-<br>
-<p>С уважением,<br>Команда Gripline</p>
-"""
     try:
-        send_mail(
-            subject=subject,
-            message=message,
-            html_message=html_message,
-            from_email=default_from_email(),
-            recipient_list=[user.email],
-            fail_silently=False,
-        )
+        send_templated_mail(template, subject, [user.email], context)
     except Exception:
         # Не даём сбою почты сломать сохранение заявки в админке
         pass
+
+
+def send_driver_claim_approved_email(user, driver):
+    """Уведомление пилоту о подтверждении заявки на привязку профиля."""
+    name = driver.full_name if driver else ''
+    _send_claim_email('claim_approved', 'Ваша заявка на привязку профиля пилота подтверждена', user, {
+        'rows': _rows(('Профиль пилота', name), ('Статус', 'Подтверждена')),
+        'login_url': f"{settings.BASE_URL}/accounts/login/",
+        'profile_url': f"{settings.BASE_URL}{driver.get_absolute_url()}" if driver else '',
+    })
 
 
 def _claim_driver_name(claim):
@@ -111,100 +88,41 @@ def _claim_driver_name(claim):
     return f"{claim.requested_first_name} {claim.requested_last_name}".strip()
 
 
+def _rows(*pairs):
+    return [pair for pair in pairs if pair[1]]
+
+
 def send_driver_claim_pending_email(user, claim):
-    """Отправка уведомления пилоту о том, что заявка принята и ожидает проверки."""
-    if not user.email:
-        return
-
-    profile_url = f"{settings.BASE_URL}{reverse('accounts:profile')}"
-    driver_name = _claim_driver_name(claim)
-
-    subject = '⏳ Ваша заявка на привязку профиля пилота принята на рассмотрение'
-    message = f"""Здравствуйте!
-
-Ваша заявка на привязку к профилю пилота{f' "{driver_name}"' if driver_name else ''} принята и отправлена администратору на проверку.
-
-Обычно это занимает 1–2 рабочих дня. Как только заявку рассмотрят, мы пришлём письмо на этот адрес.
-
-Проверить статус заявки: {profile_url}
-
-С уважением,
-Команда Gripline
-"""
-    html_message = f"""<h2>⏳ Заявка принята на рассмотрение</h2>
-<p>Здравствуйте!</p>
-<p>Ваша заявка на привязку к профилю пилота{f' <strong>{driver_name}</strong>' if driver_name else ''} принята и отправлена администратору на проверку.</p>
-<p>Обычно это занимает 1–2 рабочих дня. Как только заявку рассмотрят, мы пришлём письмо на этот адрес.</p>
-<p>Проверить статус заявки: <a href="{profile_url}">{profile_url}</a></p>
-<br>
-<p>С уважением,<br>Команда Gripline</p>
-"""
-    try:
-        send_mail(
-            subject=subject,
-            message=message,
-            html_message=html_message,
-            from_email=default_from_email(),
-            recipient_list=[user.email],
-            fail_silently=False,
-        )
-    except Exception:
-        pass
+    """Уведомление пилоту о том, что заявка принята и ожидает проверки."""
+    _send_claim_email('claim_pending', 'Ваша заявка на привязку профиля пилота принята на рассмотрение', user, {
+        'rows': _rows(('Профиль пилота', _claim_driver_name(claim)), ('Срок рассмотрения', '1–2 рабочих дня')),
+        'profile_url': f"{settings.BASE_URL}{reverse('accounts:profile')}",
+    })
 
 
 def send_driver_claim_rejected_email(user, claim):
-    """Отправка уведомления пилоту об отклонении заявки на привязку профиля."""
-    if not user.email:
-        return
-
+    """Уведомление пилоту об отклонении заявки на привязку профиля."""
     from .models import SocialAuthSettings
 
-    driver_name = _claim_driver_name(claim)
-    reason = (claim.admin_comment or '').strip()
-
-    contact_email = ''
-    telegram_contact = ''
+    contact_email = telegram_contact = ''
     try:
         social_auth = SocialAuthSettings.get()
         contact_email = social_auth.contact_email
-        telegram_contact = social_auth.telegram_contact
+        telegram_contact = (social_auth.telegram_contact or '').strip()
     except Exception:
         pass
+    handle = telegram_contact.lstrip('@')
+    contact_rows = []
+    if contact_email:
+        contact_rows.append(('E-mail', contact_email, f'mailto:{contact_email}'))
+    if handle:
+        contact_rows.append(('Telegram', f'@{handle}'))
 
-    subject = '❌ Ваша заявка на привязку профиля пилота отклонена'
-    message = f"""Здравствуйте!
-
-Ваша заявка на привязку к профилю пилота{f' "{driver_name}"' if driver_name else ''} отклонена администратором.
-{f'Комментарий администратора: {reason}' if reason else ''}
-
-Если это ошибка или у вас есть вопросы, свяжитесь с нами:
-{f'Email: {contact_email}' if contact_email else ''}
-{f'Telegram: {telegram_contact}' if telegram_contact else ''}
-
-С уважением,
-Команда Gripline
-"""
-    html_message = f"""<h2>❌ Заявка отклонена</h2>
-<p>Здравствуйте!</p>
-<p>Ваша заявка на привязку к профилю пилота{f' <strong>{driver_name}</strong>' if driver_name else ''} отклонена администратором.</p>
-{f'<p>Комментарий администратора: {reason}</p>' if reason else ''}
-<p>Если это ошибка или у вас есть вопросы, свяжитесь с нами:</p>
-{f'<p>Email: <a href="mailto:{contact_email}">{contact_email}</a></p>' if contact_email else ''}
-{f'<p>Telegram: <a href="https://t.me/{telegram_contact.lstrip("@")}">{telegram_contact}</a></p>' if telegram_contact else ''}
-<br>
-<p>С уважением,<br>Команда Gripline</p>
-"""
-    try:
-        send_mail(
-            subject=subject,
-            message=message,
-            html_message=html_message,
-            from_email=default_from_email(),
-            recipient_list=[user.email],
-            fail_silently=False,
-        )
-    except Exception:
-        pass
+    _send_claim_email('claim_rejected', 'Ваша заявка на привязку профиля пилота отклонена', user, {
+        'rows': _rows(('Профиль пилота', _claim_driver_name(claim)), ('Статус', 'Отклонена')),
+        'reason': (claim.admin_comment or '').strip(),
+        'contact_rows': contact_rows,
+    })
 
 
 @receiver(pre_save, sender='accounts.DriverClaim')

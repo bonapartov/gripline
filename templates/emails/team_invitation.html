@@ -1,0 +1,13 @@
+{% extends "emails/base.html" %}{% load email_tags %}
+{% block title %}Приглашение в команду {{ team_name }}{% endblock %}
+{% block preheader %}Команда {{ team_name }} приглашает вас в состав. Примите или отклоните приглашение.{% endblock %}
+{% block content %}
+{% include "emails/_status.html" with kind="info" label="Приглашение" gap=16 %}
+{% include "emails/_h1.html" with text="Приглашение в команду" gap=16 %}
+{% row 16 %}<p style="{% s 'p' %}">Здравствуйте, {{ driver_name }}! Команда <b>{{ team_name }}</b> приглашает вас в свой состав.</p>{% endrow %}
+{% include "emails/_rows.html" with rows=rows gap=24 %}
+{% include "emails/_button.html" with url=accept_url label="Принять приглашение" gap=12 %}
+{% include "emails/_button.html" with url=decline_url label="Отклонить" kind="secondary" gap=16 %}
+{% include "emails/_fallback.html" with url=accept_url gap=24 %}
+{% row 0 %}<p style="{% s 'note' %}">Ответить на приглашение можно и позже в <a href="{{ profile_url }}" target="_blank" style="{% s 'link' %}">личном кабинете</a>.</p>{% endrow %}
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "emails/base.html" %}{% load email_tags %}
+{% block title %}{{ subject }}{% endblock %}
+{% block preheader %}{{ preheader }}{% endblock %}
+{% block content %}
+{% include "emails/_status.html" with kind=status label=status_label gap=16 %}
+{% include "emails/_h1.html" with text=title gap=16 %}
+{% row 16 %}<p style="{% s 'p' %}">Здравствуйте, {{ pilot_name }}!</p>{% endrow %}
+{% row 16 %}<p style="{% s 'p' %}">{{ lead }}</p>{% endrow %}
+{% include "emails/_rows.html" with rows=rows gap=24 %}
+{% if comment %}{% include "emails/_comment.html" with label=comment_label text=comment gap=24 %}{% endif %}
+{% include "emails/_button.html" with url=link label=button gap=16 %}
+{% include "emails/_fallback.html" with url=link gap=0 %}
+{% endblock %}

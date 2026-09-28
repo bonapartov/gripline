@@ -1,0 +1,2 @@
+{% autoescape off %}{% for r in rows %}{{ r.0 }}: {{ r.1 }}{% if not forloop.last %}
+{% endif %}{% endfor %}{% endautoescape %}

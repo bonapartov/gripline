@@ -6,11 +6,9 @@ from django.contrib import messages
 from django.contrib.auth.models import User
 from wagtail.models import Page
 from website.models import ChampionshipPage, StagePage, EventPage, RaceClass
-from website.mail import default_from_email
+from website.mail import send_templated_mail
 from .models import OrganizerProfile, Championship, Stage, OrganizerSettings
 from .forms import ChampionshipForm, StageForm, OrganizerRegistrationForm
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -295,13 +293,12 @@ def send_organizer_verification_email(user, request):
     token = default_token_generator.make_token(user)
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     verification_url = request.build_absolute_uri(f'/organizers/verify-email/{uid}/{token}/')
-    subject = 'Подтверждение регистрации организатора на Gripline'
-    html_message = render_to_string('emails/organizer_verification_email.html', {
+    send_templated_mail('organizer_verification_email', 'Подтверждение регистрации организатора на Gripline', [user.email], {
         'user': user,
         'verification_url': verification_url,
         'expiry_minutes': 30,
     })
-    send_mail(subject, '', default_from_email(), [user.email], html_message=html_message, fail_silently=False)
+
 
 def organizer_verification_sent(request):
     return render(request, 'organizers/verification_sent.html')

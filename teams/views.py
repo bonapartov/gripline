@@ -4,7 +4,7 @@ from django.contrib.auth import login
 from django.db.models import Q
 from .forms import TeamRegistrationForm
 from website.models import Team, Driver, TeamSocialLink, TeamMembership
-from website.mail import default_from_email, admin_notify_email
+from website.mail import admin_notify_email, send_templated_mail
 from .models import TeamClaim
 from django.contrib.auth import authenticate, login as auth_login
 
@@ -26,56 +26,35 @@ from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.models import User
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
 from django.conf import settings
 
 
 def send_team_verification_email(user, request):
-    """Отправка письма с подтверждением email для команды"""
     token = default_token_generator.make_token(user)
     uid = urlsafe_base64_encode(force_bytes(user.pk))
-    verification_url = request.build_absolute_uri(
-        f'/teams/verify-email/{uid}/{token}/'
-    )
-    
-    subject = 'Подтверждение регистрации команды на Gripline'
-    html_message = render_to_string('emails/team_verification_email.html', {
+    verification_url = request.build_absolute_uri(f'/teams/verify-email/{uid}/{token}/')
+    send_templated_mail('team_verification_email', 'Подтверждение регистрации команды на Gripline', [user.email], {
         'user': user,
         'verification_url': verification_url,
         'expiry_minutes': 30,
     })
-    plain_message = f'Перейдите по ссылке для подтверждения: {verification_url}'
-    
-    send_mail(
-        subject,
-        plain_message,
-        default_from_email(),
-        [user.email],
-        html_message=html_message,
-        fail_silently=False,
-    )
 
 
 def send_team_admin_notification(claim_data):
-    """Отправка уведомления администратору о новой заявке команды"""
+    """Уведомление администратору о новой заявке на управление командой."""
     subject = '[Gripline] Новая заявка от команды'
-    message = f"""
-Поступила новая заявка на управление командой:
-
-Email пользователя: {claim_data.get('user_email')}
-Название команды: {claim_data.get('team_name')}
-Статус: новая заявка
-
-Зайдите в админку для подтверждения: https://gripline.ru/admin/
-"""
-    send_mail(
-        subject,
-        message,
-        default_from_email(),
-        [admin_notify_email()],
-        fail_silently=True,
-    )
+    try:
+        send_templated_mail('admin_claim', subject, [admin_notify_email()], {
+            'admin': True,
+            'subject': subject,
+            'preheader': f"{claim_data.get('team_name')}, {claim_data.get('user_email')} — ожидает подтверждения в админке.",
+            'title': 'Заявка на управление командой',
+            'rows': [('E-mail', claim_data.get('user_email')), ('Команда', claim_data.get('team_name')),
+                     ('Статус', 'Новая заявка')],
+            'admin_url': f"{settings.BASE_URL.rstrip('/')}/admin/",
+        }, fail_silently=True)
+    except Exception:
+        pass
 
 
 def team_verification_sent(request):
@@ -644,25 +623,19 @@ def invite_driver(request):
 
 
 def _send_team_invitation_email(driver, team, user, invitation):
-    from django.core.mail import send_mail
-    from django.template.loader import render_to_string
-    from django.conf import settings
-    from website.mail import default_from_email
+    from django.urls import reverse
+    base_url = getattr(settings, 'BASE_URL', 'https://gripline.ru').rstrip('/')
+    race_class = invitation.race_class.name if invitation.race_class else ''
+    rows = [('Команда', team.name), ('Руководитель', getattr(team, 'manager_name', '')), ('Класс', race_class)]
     try:
-        body = render_to_string('teams/email_invitation.html', {
-            'driver': driver,
-            'team': team,
-            'invitation': invitation,
-            'base_url': getattr(settings, 'BASE_URL', 'https://gripline.ru'),
-        })
-        send_mail(
-            subject=f'Приглашение в команду {team.name}',
-            message='',
-            from_email=default_from_email(),
-            recipient_list=[user.email],
-            html_message=body,
-            fail_silently=True,
-        )
+        send_templated_mail('team_invitation', f'Приглашение в команду {team.name}', [user.email], {
+            'driver_name': driver.full_name,
+            'team_name': team.name,
+            'rows': [(label, value) for label, value in rows if value],
+            'accept_url': base_url + reverse('teams:accept_invitation', args=[invitation.pk]),
+            'decline_url': base_url + reverse('teams:decline_invitation', args=[invitation.pk]),
+            'profile_url': base_url + reverse('accounts:profile'),
+        }, fail_silently=True)
     except Exception:
         pass
 

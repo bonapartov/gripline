@@ -4,10 +4,10 @@ from django.contrib import messages
 from django.http import JsonResponse, FileResponse
 from django.urls import reverse
 from django.utils import timezone
-from django.core.mail import send_mail
+from django.conf import settings
 from decimal import Decimal
 
-from website.mail import default_from_email
+from website.mail import send_templated_mail
 from organizers.models import Stage
 from .models import (
     Application, ApplicationApplicant, ApplicationPilot, ApplicationKart,
@@ -20,13 +20,75 @@ from .forms import (
 )
 
 
-def _notify(to_email, subject, body_html):
-    """Отправляет email-уведомление, не падает при ошибке"""
+_NOTICES = {
+    'app_confirmed': dict(
+        subject='Заявка #{id} одобрена — {stage}', status='ok', title='Заявка одобрена',
+        preheader='Организатор одобрил вашу заявку на {stage}. Детали и комментарий — внутри.',
+        lead='Организатор одобрил вашу заявку на участие в этапе.',
+        comment_label='Комментарий организатора', championship=True),
+    'app_rejected': dict(
+        subject='Заявка #{id} отклонена — {stage}', status='bad', title='Заявка отклонена',
+        preheader='Организатор отклонил заявку на {stage}. Причина — внутри письма.',
+        lead='Организатор отклонил вашу заявку на участие в этапе. Подробности — на странице заявки.',
+        comment_label='Причина'),
+    'doc_verified': dict(
+        subject='Документ проверен — {stage}', status='ok', status_label='Принят', title='Документ проверен',
+        preheader='Организатор принял документ «{document}» по заявке №{id}.',
+        lead='Организатор проверил и принял загруженный документ.'),
+    'doc_rejected': dict(
+        subject='Документ отклонён — {stage}', status='bad', title='Документ отклонён',
+        preheader='Документ «{document}» нужно загрузить заново. Причина — внутри.',
+        lead='Организатор отклонил загруженный документ. Загрузите исправленный на странице заявки.',
+        comment_label='Причина', button='Загрузить документ'),
+    'pay_verified': dict(
+        subject='Оплата подтверждена — {stage}', status='ok', status_label='Оплачено', title='Оплата подтверждена',
+        preheader='Стартовый взнос по заявке №{id} получен и подтверждён.',
+        lead='Организатор подтвердил оплату стартового взноса.'),
+    'pay_rejected': dict(
+        subject='Оплата отклонена — {stage}', status='bad', title='Оплата отклонена',
+        preheader='Квитанцию по заявке №{id} нужно загрузить заново. Причина — внутри.',
+        lead='Организатор не принял квитанцию об оплате стартового взноса. Загрузите корректную квитанцию на странице заявки.',
+        comment_label='Причина', button='Загрузить квитанцию'),
+}
+
+
+def _notice(application, kind, comment='', document=None):
+    """Тема и контекст письма участнику об изменении статуса заявки (макет «Gripline Emails», 09–14)."""
+    from website.templatetags.email_tags import STATUS
+
+    spec = _NOTICES[kind]
+    stage = application.stage
+    fmt = {'id': application.id, 'stage': stage.title, 'document': document.name if document else ''}
+    rows = [('Документ', document.name)] if document else []
+    rows += [('Заявка', f'№{application.id}'), ('Этап', stage.title)]
+    if spec.get('championship'):
+        rows.append(('Чемпионат', stage.championship.title))
+    pilot = getattr(application, 'pilot', None)
+    subject = spec['subject'].format(**fmt)
+    context = {
+        'subject': subject,
+        'preheader': spec['preheader'].format(**fmt),
+        'status': spec['status'],
+        'status_label': spec.get('status_label', ''),
+        'status_text': spec.get('status_label') or STATUS[spec['status']][2],
+        'title': spec['title'],
+        'lead': spec['lead'],
+        'pilot_name': pilot.full_name if pilot else application.submitted_by.email,
+        'rows': rows,
+        'comment': comment if spec.get('comment_label') else '',
+        'comment_label': spec.get('comment_label', ''),
+        'button': spec.get('button', 'Открыть заявку'),
+        'link': _app_link(application),
+    }
+    return subject, context
+
+
+def _notify(application, kind, comment='', document=None):
+    """Письмо участнику; сбой почты не должен ломать действие организатора."""
     try:
-        send_mail(
-            subject, '', default_from_email(), [to_email],
-            html_message=body_html, fail_silently=True,
-        )
+        subject, context = _notice(application, kind, comment, document)
+        send_templated_mail('application_update', subject, [_participant_email(application)],
+                            context, fail_silently=True)
     except Exception:
         pass
 
@@ -36,7 +98,7 @@ def _participant_email(application):
 
 
 def _app_link(application):
-    base = getattr(settings, 'BASE_URL', 'http://gripline.ru')
+    base = getattr(settings, 'BASE_URL', 'https://gripline.ru').rstrip('/')
     return f"{base}/applications/{application.id}/"
 
 
@@ -417,34 +479,18 @@ def org_action(request, application_id):
     if request.method == 'POST':
         action = request.POST.get('action')
         comment = request.POST.get('comment', '').strip()
-        link = _app_link(application)
-        pilot_name = application.pilot.full_name if hasattr(application, 'pilot') else application.submitted_by.email
         if action == 'confirm':
             application.status = 'confirmed'
             application.organizer_comment = comment
             application.save()
             messages.success(request, 'Заявка подтверждена.')
-            _notify(
-                _participant_email(application),
-                f'Заявка #{application.id} одобрена — {application.stage.title}',
-                f'<p>Здравствуйте, {pilot_name}!</p>'
-                f'<p>Ваша заявка на <b>{application.stage.title}</b> (<b>{application.stage.championship.title}</b>) <b style="color:green">одобрена</b>. Вы допущены к соревнованиям.</p>'
-                + (f'<p>Комментарий организатора: {comment}</p>' if comment else '')
-                + f'<p><a href="{link}">Открыть заявку</a></p>',
-            )
+            _notify(application, 'app_confirmed', comment)
         elif action == 'reject':
             application.status = 'rejected'
             application.organizer_comment = comment
             application.save()
             messages.warning(request, 'Заявка отклонена.')
-            _notify(
-                _participant_email(application),
-                f'Заявка #{application.id} отклонена — {application.stage.title}',
-                f'<p>Здравствуйте, {pilot_name}!</p>'
-                f'<p>Ваша заявка на <b>{application.stage.title}</b> <b style="color:red">отклонена</b>.</p>'
-                + (f'<p>Причина: {comment}</p>' if comment else '')
-                + f'<p><a href="{link}">Открыть заявку</a></p>',
-            )
+            _notify(application, 'app_rejected', comment)
 
     return redirect('applications:detail', application_id=application.id)
 
@@ -460,34 +506,19 @@ def org_verify_document(request, document_id):
     if request.method == 'POST':
         action = request.POST.get('action')
         application = doc.application
-        link = _app_link(application)
-        pilot_name = application.pilot.full_name if hasattr(application, 'pilot') else application.submitted_by.email
         if action == 'verify':
             doc.status = 'verified'
             doc.verified_at = timezone.now()
             doc.verified_by = request.user
             doc.organizer_comment = ''
             doc.save()
-            _notify(
-                _participant_email(application),
-                f'Документ проверен — {application.stage.title}',
-                f'<p>Здравствуйте, {pilot_name}!</p>'
-                f'<p>Документ <b>«{doc.stage_document.name}»</b> по заявке #{application.id} <b style="color:green">принят</b>.</p>'
-                f'<p><a href="{link}">Открыть заявку</a></p>',
-            )
+            _notify(application, 'doc_verified', document=doc.stage_document)
         elif action == 'reject':
             comment = request.POST.get('comment', '').strip()
             doc.status = 'rejected'
             doc.organizer_comment = comment
             doc.save()
-            _notify(
-                _participant_email(application),
-                f'Документ отклонён — {application.stage.title}',
-                f'<p>Здравствуйте, {pilot_name}!</p>'
-                f'<p>Документ <b>«{doc.stage_document.name}»</b> по заявке #{application.id} <b style="color:red">отклонён</b>.</p>'
-                + (f'<p>Причина: {comment}</p>' if comment else '')
-                + f'<p>Пожалуйста, загрузите исправленный документ. <a href="{link}">Открыть заявку</a></p>',
-            )
+            _notify(application, 'doc_rejected', comment, document=doc.stage_document)
 
     return redirect('applications:detail', application_id=doc.application.id)
 
@@ -504,8 +535,6 @@ def org_verify_payment(request, application_id):
     if payment and request.method == 'POST':
         action = request.POST.get('action')
         comment = request.POST.get('comment', '').strip()
-        link = _app_link(application)
-        pilot_name = application.pilot.full_name if hasattr(application, 'pilot') else application.submitted_by.email
         if action == 'verify':
             payment.status = 'verified'
             payment.verified_at = timezone.now()
@@ -513,26 +542,13 @@ def org_verify_payment(request, application_id):
             payment.organizer_comment = ''
             payment.save()
             messages.success(request, 'Оплата подтверждена. Уведомление отправлено участнику.')
-            _notify(
-                _participant_email(application),
-                f'Оплата подтверждена — {application.stage.title}',
-                f'<p>Здравствуйте, {pilot_name}!</p>'
-                f'<p>Оплата по заявке #{application.id} на <b>{application.stage.title}</b> <b style="color:green">подтверждена</b>.</p>'
-                f'<p><a href="{link}">Открыть заявку</a></p>',
-            )
+            _notify(application, 'pay_verified')
         elif action == 'reject':
             payment.status = 'rejected'
             payment.organizer_comment = comment
             payment.save()
             messages.warning(request, 'Оплата отклонена. Уведомление отправлено участнику.')
-            _notify(
-                _participant_email(application),
-                f'Оплата отклонена — {application.stage.title}',
-                f'<p>Здравствуйте, {pilot_name}!</p>'
-                f'<p>Оплата по заявке #{application.id} на <b>{application.stage.title}</b> <b style="color:red">отклонена</b>.</p>'
-                + (f'<p>Причина: {comment}</p>' if comment else '')
-                + f'<p>Пожалуйста, загрузите корректную квитанцию. <a href="{link}">Открыть заявку</a></p>',
-            )
+            _notify(application, 'pay_rejected', comment)
 
     return redirect('applications:detail', application_id=application.id)
 

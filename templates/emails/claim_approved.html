@@ -1,0 +1,11 @@
+{% extends "emails/base.html" %}{% load email_tags %}
+{% block title %}Ваша заявка на привязку профиля пилота подтверждена{% endblock %}
+{% block preheader %}Профиль пилота привязан к вашему аккаунту. Войдите в личный кабинет.{% endblock %}
+{% block content %}
+{% include "emails/_status.html" with kind="ok" gap=16 %}
+{% include "emails/_h1.html" with text="Профиль пилота привязан" gap=16 %}
+{% row 16 %}<p style="{% s 'p' %}">Здравствуйте! Администратор подтвердил вашу заявку на привязку к профилю пилота.</p>{% endrow %}
+{% include "emails/_rows.html" with rows=rows gap=24 %}
+{% if profile_url %}{% include "emails/_button.html" with url=login_url label="Личный кабинет" gap=12 %}{% include "emails/_button.html" with url=profile_url label="Профиль на сайте" kind="secondary" gap=16 %}{% else %}{% include "emails/_button.html" with url=login_url label="Личный кабинет" gap=16 %}{% endif %}
+{% include "emails/_fallback.html" with url=login_url gap=0 %}
+{% endblock %}

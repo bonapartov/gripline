@@ -94,6 +94,20 @@ def default_from_email():
     return _mail_settings().default_from_email or settings.DEFAULT_FROM_EMAIL
 
 
+def send_templated_mail(template, subject, recipients, context=None, fail_silently=False):
+    """Письмо из пары шаблонов templates/emails/<template>.html + .txt."""
+    from django.core.mail import send_mail
+    from django.template.loader import render_to_string
+
+    context = context or {}
+    html = render_to_string(f'emails/{template}.html', context)
+    text = render_to_string(f'emails/{template}.txt', context).strip() + '\n'
+    return send_mail(
+        subject, text, default_from_email(), recipients,
+        html_message=html, fail_silently=fail_silently,
+    )
+
+
 def admin_notify_email():
     """Куда падают уведомления администратору о новых заявках — не адрес отправителя."""
     return _mail_settings().admin_notify_email or 'gripline.ru@yandex.ru'

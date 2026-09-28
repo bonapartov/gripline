@@ -1,0 +1,1 @@
+{% load email_tags %}{% row gap %}<p style="{% s 'fallback' %}">Если кнопка не работает, скопируйте ссылку в адресную строку браузера:<br><a href="{{ url }}" target="_blank" style="{% s 'fallback_link' %}">{{ url }}</a></p>{% endrow %}

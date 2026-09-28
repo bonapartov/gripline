@@ -71,6 +71,8 @@ urlpatterns = [
     path('accounts/password-reset/', auth_views.PasswordResetView.as_view(
         email_template_name='registration/password_reset_email.txt',
         html_email_template_name='registration/password_reset_email.html',
+        subject_template_name='registration/password_reset_subject.txt',
+        extra_email_context={'expiry_minutes': settings.PASSWORD_RESET_TIMEOUT // 60},
     ), name='password_reset'),
     path('accounts/password-reset/done/', auth_views.PasswordResetDoneView.as_view(), name='password_reset_done'),
     path('accounts/password-reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(

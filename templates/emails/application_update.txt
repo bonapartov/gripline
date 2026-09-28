@@ -1,0 +1,16 @@
+{% autoescape off %}[{{ status_text|upper }}]
+
+{{ title }}
+
+Здравствуйте, {{ pilot_name }}!
+
+{{ lead }}
+
+{% include "emails/_rows.txt" %}{% if comment %}
+
+{{ comment_label }}:
+{{ comment }}{% endif %}
+
+{{ button }}: {{ link }}
+{% endautoescape %}
+{% include "emails/_footer.txt" %}

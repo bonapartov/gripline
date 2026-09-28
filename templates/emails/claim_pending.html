@@ -1,0 +1,11 @@
+{% extends "emails/base.html" %}{% load email_tags %}
+{% block title %}Ваша заявка на привязку профиля пилота принята на рассмотрение{% endblock %}
+{% block preheader %}Администратор проверит заявку за 1–2 рабочих дня. Результат придёт на этот адрес.{% endblock %}
+{% block content %}
+{% include "emails/_status.html" with kind="wait" gap=16 %}
+{% include "emails/_h1.html" with text="Заявка на привязку принята" gap=16 %}
+{% row 16 %}<p style="{% s 'p' %}">Здравствуйте! Заявка на привязку к профилю пилота отправлена администратору на проверку. Как только её рассмотрят, мы пришлём письмо на этот адрес.</p>{% endrow %}
+{% include "emails/_rows.html" with rows=rows gap=24 %}
+{% include "emails/_button.html" with url=profile_url label="Статус заявки" gap=16 %}
+{% include "emails/_fallback.html" with url=profile_url gap=0 %}
+{% endblock %}

@@ -6,13 +6,11 @@ from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.models import User
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
 from django.conf import settings
 from django.db.models import Q
 from .forms import RegistrationForm, DriverProfileForm, SocialLinkFormSet
 from website.models import Driver
-from website.mail import default_from_email, admin_notify_email
+from website.mail import admin_notify_email, send_templated_mail
 from .models import DriverClaim, PilotDocument, SocialAuthSettings
 from wagtail.images.models import Image
 from django.utils import timezone
@@ -24,56 +22,34 @@ import json
 
 
 def send_admin_notification(claim_type, claim_data):
-    """Отправка уведомления администратору о новой заявке"""
+    """Уведомление администратору о новой заявке на управление профилем пилота."""
+    name = f"{claim_data.get('first_name', '')} {claim_data.get('last_name', '')}".strip()
+    rows = [('Тип', f'Управление {claim_type}'), ('E-mail', claim_data.get('user_email')), ('Имя', name),
+            ('Город', claim_data.get('city')), ('Выбранный пилот', claim_data.get('driver_name')),
+            ('Команда', claim_data.get('team_name'))]
     subject = f'[Gripline] Новая заявка на управление {claim_type}'
-    message = f"""
-Поступила новая заявка:
-
-Тип: {claim_type}
-Email пользователя: {claim_data.get('user_email')}
-Имя: {claim_data.get('first_name')} {claim_data.get('last_name')}
-Город: {claim_data.get('city', 'не указан')}
-"""
-    if claim_type == 'пилотом':
-        message += f"Выбранный пилот: {claim_data.get('driver_name', 'новый пилот')}\n"
-    else:
-        message += f"Команда: {claim_data.get('team_name')}\n"
-    
-    message += "\nЗайдите в админку для подтверждения: https://gripline.ru/admin/"
-    
-    send_mail(
-        subject,
-        message,
-        default_from_email(),
-        [admin_notify_email()],
-        fail_silently=True,
-    )
+    try:
+        send_templated_mail('admin_claim', subject, [admin_notify_email()], {
+            'admin': True,
+            'subject': subject,
+            'preheader': f"{name}, {claim_data.get('user_email')} — ожидает подтверждения в админке.",
+            'title': f'Заявка на управление {claim_type}',
+            'rows': [(label, value) for label, value in rows if value],
+            'admin_url': f"{settings.BASE_URL.rstrip('/')}/admin/",
+        }, fail_silently=True)
+    except Exception:
+        pass
 
 
 def send_verification_email(user, request):
-    """Отправка письма с подтверждением email"""
     token = default_token_generator.make_token(user)
     uid = urlsafe_base64_encode(force_bytes(user.pk))
-    verification_url = request.build_absolute_uri(
-        f'/accounts/verify-email/{uid}/{token}/'
-    )
-    
-    subject = 'Подтверждение регистрации на Gripline'
-    html_message = render_to_string('emails/verification_email.html', {
+    verification_url = request.build_absolute_uri(f'/accounts/verify-email/{uid}/{token}/')
+    send_templated_mail('verification_email', 'Подтверждение регистрации на Gripline', [user.email], {
         'user': user,
         'verification_url': verification_url,
         'expiry_minutes': 30,
     })
-    plain_message = f'Перейдите по ссылке для подтверждения: {verification_url}'
-    
-    send_mail(
-        subject,
-        plain_message,
-        default_from_email(),
-        [user.email],
-        html_message=html_message,
-        fail_silently=False,
-    )
 
 
 def register(request):
