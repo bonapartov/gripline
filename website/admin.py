@@ -3,6 +3,7 @@ from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from .models import RaceResult, Driver, Team, RaceClassResultGroup, DriverResource, Chassis
+from .services.driver_names import clean_name, find_drivers_by_name
 from django.urls import path
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
@@ -68,16 +69,15 @@ def analytics_dashboard(request):
 # ============= УМНЫЕ ВИДЖЕТЫ ДЛЯ ИМПОРТА =============
 class SmartDriverWidget(ForeignKeyWidget):
     def get_queryset(self, value, row, *args, **kwargs):
-        first_name = str(row.get('first_name', '')).strip()
-        last_name = str(row.get('last_name', '')).strip()
+        first_name = clean_name(str(row.get('first_name', '')))
+        last_name = clean_name(str(row.get('last_name', '')))
         city = str(row.get('city', '')).strip()
 
         if not first_name or not last_name:
             return self.model.objects.none()
 
         qs = self.model.objects.filter(
-            first_name__iexact=first_name,
-            last_name__iexact=last_name
+            id__in=[d.id for d in find_drivers_by_name(first_name, last_name)]
         )
 
         if qs.count() > 1 and city:
@@ -88,8 +88,8 @@ class SmartDriverWidget(ForeignKeyWidget):
         return qs
 
     def clean(self, value, row=None, **kwargs):
-        first_name = str(row.get('first_name', '')).strip()
-        last_name = str(row.get('last_name', '')).strip()
+        first_name = clean_name(str(row.get('first_name', '')))
+        last_name = clean_name(str(row.get('last_name', '')))
         city = str(row.get('city', '')).strip()
 
         obj = self.get_queryset(value, row)

@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from .models import Driver, Team, RaceResult, Chassis, LapPosition
+from .services.driver_names import clean_name, find_drivers_by_name
 
 SESSION_CONFIGS = {
     'combined': {
@@ -159,27 +160,26 @@ class PreviewForm(forms.Form):
 
 
 def find_drivers(first_name, last_name, city=None):
+    """Ищет пилота по ФИО без учёта регистра, е/ё и латинских «двойников» кириллицы
+    (см. website/services/driver_names.py). Несколько совпадений — город как уточнение."""
     found_drivers = []
     selected_id = None
 
     if first_name and last_name:
-        drivers = Driver.objects.filter(
-            first_name__iexact=first_name,
-            last_name__iexact=last_name
-        )
-        if drivers.count() == 1:
-            selected_id = drivers.first().id
-            found_drivers = list(drivers)
-        elif drivers.count() > 1:
+        drivers = find_drivers_by_name(first_name, last_name)
+        if len(drivers) == 1:
+            selected_id = drivers[0].id
+            found_drivers = drivers
+        elif len(drivers) > 1:
             if city:
-                drivers_by_city = drivers.filter(city__iexact=city)
-                if drivers_by_city.count() == 1:
-                    selected_id = drivers_by_city.first().id
-                    found_drivers = list(drivers_by_city)
+                drivers_by_city = [d for d in drivers if (d.city or '').lower() == city.lower()]
+                if len(drivers_by_city) == 1:
+                    selected_id = drivers_by_city[0].id
+                    found_drivers = drivers_by_city
                 else:
-                    found_drivers = list(drivers)
+                    found_drivers = drivers
             else:
-                found_drivers = list(drivers)
+                found_drivers = drivers
 
     return found_drivers, selected_id
 
@@ -187,17 +187,15 @@ def find_drivers(first_name, last_name, city=None):
 @require_POST
 def import_add_driver(request):
     """AJAX: быстро создать пилота прямо со страницы предпросмотра импорта."""
-    first_name = request.POST.get('first_name', '').strip()
-    last_name = request.POST.get('last_name', '').strip()
+    first_name = clean_name(request.POST.get('first_name', ''))
+    last_name = clean_name(request.POST.get('last_name', ''))
     city = request.POST.get('city', '').strip()
 
     if not first_name or not last_name:
         return JsonResponse({'error': 'Укажите имя и фамилию'}, status=400)
 
-    driver = Driver.objects.filter(
-        first_name__iexact=first_name,
-        last_name__iexact=last_name,
-    ).first()
+    found = find_drivers_by_name(first_name, last_name)
+    driver = found[0] if found else None
 
     if not driver:
         driver = Driver.objects.create(
@@ -437,8 +435,10 @@ def import_preview(request):
 
         row_cfg = SESSION_CONFIGS[row_type]
 
-        first_name = row.get('first_name', '').strip()
-        last_name = row.get('last_name', '').strip()
+        raw_first = row.get('first_name', '').strip()
+        raw_last = row.get('last_name', '').strip()
+        first_name = clean_name(raw_first)
+        last_name = clean_name(raw_last)
         city = row.get('city', '').strip()
         team_name = row.get('team_name', '').strip()
         chassis_name = row.get('chassis', '').strip()
@@ -457,7 +457,15 @@ def import_preview(request):
 
         found_drivers, selected_id = find_drivers(first_name, last_name, city or None)
 
+        name_notes = []
+        if (first_name, last_name) != (raw_first, raw_last):
+            name_notes.append('латинские буквы в имени заменены на кириллицу')
+        matched = next((d for d in found_drivers if str(d.id) == str(selected_id)), None)
+        if matched and (matched.first_name, matched.last_name) != (first_name, last_name):
+            name_notes.append(f'найден как {matched.last_name} {matched.first_name}')
+
         preview_rows.append({
+            'name_note': '; '.join(name_notes),
             'session_type': row_type,
             'first_name': first_name,
             'last_name': last_name,
@@ -633,16 +641,16 @@ def import_confirm(request):
 
             if driver_id == 'new':
                 driver = Driver.objects.create(
-                    first_name=row['first_name'],
-                    last_name=row['last_name'],
+                    first_name=clean_name(row['first_name']),
+                    last_name=clean_name(row['last_name']),
                     city=row.get('city', '') or None
                 )
             elif driver_id:
                 driver = Driver.objects.get(id=driver_id)
             else:
                 driver = Driver.objects.create(
-                    first_name=row['first_name'],
-                    last_name=row['last_name'],
+                    first_name=clean_name(row['first_name']),
+                    last_name=clean_name(row['last_name']),
                     city=row.get('city', '') or None
                 )
 

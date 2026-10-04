@@ -193,6 +193,7 @@
                             <input type="hidden" name="s3_{{ idx }}" value="{{ row.s3 }}">
                             <input type="hidden" name="penalty_{{ idx }}" value="{{ row.penalty }}">
                         </div>
+                        {% if row.name_note %}<div class="small text-muted mt-1">{{ row.name_note }}</div>{% endif %}
                         <button type="button" class="btn-add-driver" data-row="{{ idx }}"
                                 style="{% if row_found > 0 %}display:none;{% endif %}">+ Добавить пилота</button>
                     </td>
