@@ -1959,7 +1959,8 @@ def compare_drivers_view(request):
     classes = RaceClass.objects.all()
 
     # Получаем всех пилотов
-    all_drivers = Driver.objects.all().order_by('last_name', 'first_name')
+    from .services.demo import without_demo
+    all_drivers = without_demo(Driver.objects.all()).order_by('last_name', 'first_name')
 
     # Фильтруем пилотов по классу, если выбран класс
     filtered_drivers = all_drivers
@@ -2716,7 +2717,8 @@ def drivers_api(request):
     """
     from .models import Driver
 
-    drivers = Driver.objects.all().order_by('last_name', 'first_name')
+    from .services.demo import without_demo
+    drivers = without_demo(Driver.objects.all()).order_by('last_name', 'first_name')
 
     data = {
         'items': [

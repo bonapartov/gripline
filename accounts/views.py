@@ -787,9 +787,10 @@ def yandex_search_drivers(request):
     if len(q) < 2:
         return JsonResponse({'results': []})
     from django.db.models import Q as DQ
-    drivers = Driver.objects.filter(
+    from website.services.demo import without_demo
+    drivers = without_demo(Driver.objects.filter(
         DQ(first_name__icontains=q) | DQ(last_name__icontains=q)
-    ).values('id', 'first_name', 'last_name', 'city')[:20]
+    )).values('id', 'first_name', 'last_name', 'city')[:20]
     results = [
         {
             'id': d['id'],

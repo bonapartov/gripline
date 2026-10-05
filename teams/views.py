@@ -1153,6 +1153,7 @@ def team_driver_search(request):
     q = request.GET.get('q', '').strip()
     results = []
     if len(q) >= 2:
-        drivers = Driver.objects.filter(full_name__icontains=q)[:10]
+        from website.services.demo import without_demo
+        drivers = without_demo(Driver.objects.filter(full_name__icontains=q))[:10]
         results = [{'id': d.pk, 'name': d.full_name} for d in drivers]
     return JsonResponse({'drivers': results})
