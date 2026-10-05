@@ -190,3 +190,18 @@ def ru_word(value, arg):
         return forms[2]
     except (ValueError, TypeError):
         return ''
+
+
+@register.simple_tag(takes_context=True)
+def site_footers(context):
+    """Футеры (сниппеты CodeRed), подключённые к сайту, с непустым содержимым. Пустой список —
+    шаблон footer.html показывает встроенный запасной футер."""
+    from coderedcms.models import Footer, LayoutSettings
+    request = context.get('request')
+    if request is None:
+        return []
+    layout = LayoutSettings.for_request(request)
+    ordered = Footer.objects.filter(
+        footerorderable__in=layout.site_footer.all()
+    ).order_by('footerorderable__sort_order')
+    return [f for f in ordered if f.content]

@@ -80,3 +80,25 @@ def create_team_membership(sender, instance, created, **kwargs):
         )
         if created:
             logger.info(f'Автоматически создано членство: {instance.driver.full_name} → {instance.team.name}')
+
+# ── Футер из админки ─────────────────────────────────────────────────────────
+# Футер сайта — сниппет CodeRed «Footers» (templates/coderedcms/snippets/footer.html).
+# wagtailcache держит готовые страницы целиком, а правка сниппета его не сбрасывает —
+# без этого изменения в админке не были бы видны посетителям до истечения срока кэша.
+def _clear_page_cache(**kwargs):
+    try:
+        from wagtailcache.cache import clear_cache
+        clear_cache()
+    except Exception:  # кэш — удобство, а не причина ронять сохранение в админке
+        logger.exception('footer: не удалось сбросить wagtailcache')
+
+
+def _connect_footer_cache_signals():
+    from coderedcms.models import Footer, FooterOrderable
+    from django.db.models.signals import post_delete
+    for model in (Footer, FooterOrderable):
+        post_save.connect(_clear_page_cache, sender=model, dispatch_uid=f'footer_cache_save_{model.__name__}')
+        post_delete.connect(_clear_page_cache, sender=model, dispatch_uid=f'footer_cache_del_{model.__name__}')
+
+
+_connect_footer_cache_signals()

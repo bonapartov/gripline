@@ -183,3 +183,37 @@ class TestCookieConsent:
     def test_footer_has_cookie_links(self, client):
         html = client.get('/legal/data-request/').content.decode()
         assert 'href="/legal/cookies/#settings"' in html
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures('site')
+class TestAdminEditableFooter:
+    def _footer_html(self, client):
+        return client.get('/legal/data-request/').content.decode()
+
+    def test_default_footer_when_no_snippet(self, client):
+        html = self._footer_html(client)
+        assert '<div class="gl-footer__grid">' in html and 'href="/legal/privacy/"' in html
+
+    def test_seed_makes_footer_editable_and_it_is_rendered_from_snippet(self, client, site):
+        from coderedcms.models import Footer
+        call_command('seed_footer')
+        footer = Footer.objects.get(name='футер')
+        assert 'gl-footer__grid' in str(footer.content[0].value)
+        # правка в «админке» (в сниппете) сразу меняет футер сайта
+        footer.content = [('html', '<div class="gl-footer__main">МОЙ-ФУТЕР-123</div>')]
+        footer.save()
+        html = self._footer_html(client)
+        assert 'МОЙ-ФУТЕР-123' in html
+        assert '<div class="gl-footer__grid">' not in html   # встроенный запасной не дублируется
+
+    def test_seed_does_not_overwrite_without_force(self):
+        from coderedcms.models import Footer
+        call_command('seed_footer')
+        footer = Footer.objects.get(name='футер')
+        footer.content = [('html', '<p>правка админа</p>')]
+        footer.save()
+        call_command('seed_footer')
+        assert 'правка админа' in str(Footer.objects.get(name='футер').content[0].value)
+        call_command('seed_footer', force=True)
+        assert 'gl-footer__grid' in str(Footer.objects.get(name='футер').content[0].value)
