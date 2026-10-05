@@ -81,6 +81,7 @@
   function hideBanner() {
     if (banner && banner.parentNode) banner.parentNode.removeChild(banner);
     banner = null;
+    document.body.style.paddingBottom = "";
   }
 
   function choose(value) {
@@ -133,6 +134,8 @@
     banner.appendChild(text);
     banner.appendChild(actions);
     document.body.appendChild(banner);
+    // Плашка fixed — без отступа она закрывает низ страницы (ссылки подвала).
+    document.body.style.paddingBottom = banner.offsetHeight + "px";
   }
 
   document.addEventListener("click", function (e) {
