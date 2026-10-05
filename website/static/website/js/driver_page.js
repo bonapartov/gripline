@@ -302,22 +302,30 @@ document.addEventListener('DOMContentLoaded', function () {
         return html;
     }
 
+    // Данные, затем стикер сессии — одной строкой, как в колонке «Лучший круг».
+    function dynamicsRow(dataHtml, badgeHtml) {
+        return '<div class="d-flex align-items-center justify-content-center gap-1 text-nowrap">' +
+            '<span class="d-inline-flex align-items-center gap-1">' + dataHtml + '</span>' +
+            '<span class="flex-shrink-0">' + badgeHtml + '</span>' +
+            '</div>';
+    }
+
     function dynamicsCell(row) {
         if (row.status) { return '<span class="text-muted">—</span>'; }
         if (row.start_position != null && row.position != null) {
             var arrow = '<span class="text-secondary">—</span>';
             if (row.position_gain > 0) { arrow = '<span class="text-success fw-bold">▲' + row.position_gain + '</span>'; }
             else if (row.position_gain < 0) { arrow = '<span class="text-danger fw-bold">▼' + Math.abs(row.position_gain) + '</span>'; }
-            return '<span class="text-muted font-monospace">' + row.start_position + '→' + row.position + '</span> ' + arrow +
-                ' <span class="badge bg-success" style="font-size:10px; width:45px;" title="Финал">Ф</span>';
+            return dynamicsRow('<span class="text-muted font-monospace">' + row.start_position + '→' + row.position + '</span>' + arrow,
+                '<span class="badge bg-success" style="font-size:10px; width:45px;" title="Финал">Ф</span>');
         }
         if (row.pre_final_start_pos != null && row.pre_final_position != null) {
             var gain = row.pre_final_start_pos - row.pre_final_position;
             var pfArrow = '<span class="text-secondary">—</span>';
             if (gain > 0) { pfArrow = '<span class="text-success fw-bold">▲' + gain + '</span>'; }
             else if (gain < 0) { pfArrow = '<span class="text-danger fw-bold">▼' + Math.abs(gain) + '</span>'; }
-            return '<span class="text-muted font-monospace">' + row.pre_final_start_pos + '→' + row.pre_final_position + '</span> ' + pfArrow +
-                ' <span class="badge bg-warning text-dark" style="font-size:10px; width:45px;" title="Предфинал">Пф</span>';
+            return dynamicsRow('<span class="text-muted font-monospace">' + row.pre_final_start_pos + '→' + row.pre_final_position + '</span>' + pfArrow,
+                '<span class="badge bg-warning text-dark" style="font-size:10px; width:45px;" title="Предфинал">Пф</span>');
         }
         return '<span class="text-muted">—</span>';
     }
