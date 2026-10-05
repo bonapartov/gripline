@@ -55,6 +55,16 @@
                     </ul>
                 </div>
 
+                <!-- Колонка 4: правовая информация -->
+                <div class="gl-footer__col">
+                    <h4 class="gl-footer__col-title">Документы</h4>
+                    <ul class="gl-footer__links">
+                        <li><a href="/legal/privacy/">Политика конфиденциальности</a></li>
+                        <li><a href="/legal/terms/">Пользовательское соглашение</a></li>
+                        <li><a href="/legal/data-request/">Обращение по персональным данным</a></li>
+                    </ul>
+                </div>
+
             </div>
         </div>
     </div>
@@ -63,13 +73,8 @@
     <div class="gl-footer__bottom">
         <div class="container-xl">
             <div class="gl-footer__bottom-inner">
-                <span class="gl-footer__copyright">© 2026 Gripline.ru · Все права защищены. Оператор персональных данных: Бонапартов Владимир.</span>
+                <span class="gl-footer__copyright">© 2026 Gripline.ru · Все права защищены. Оператор персональных данных: <a href="/legal/privacy/">см. политику конфиденциальности</a>.</span>
                 <span class="gl-footer__copy-notice">При копировании материалов сайта индексируемая ссылка на <a href="/">gripline.ru</a> обязательна.</span>
-                <nav class="gl-footer__legal" aria-label="Правовая информация">
-                    <a href="/legal/privacy/" class="gl-footer__policy-link">Политика конфиденциальности</a>
-                    <a href="/legal/terms/" class="gl-footer__policy-link">Пользовательское соглашение</a>
-                    <a href="/legal/data-request/" class="gl-footer__policy-link">Обращение по персональным данным</a>
-                </nav>
             </div>
         </div>
     </div>
@@ -88,7 +93,7 @@
 
 .gl-footer__grid {
     display: grid;
-    grid-template-columns: 1.4fr 1fr 1fr;
+    grid-template-columns: 1.4fr 1fr 1fr 1fr;
     gap: 3rem;
 }
 
@@ -214,31 +219,15 @@
     font-size: 0.8rem;
 }
 
+.gl-footer__copyright a,
 .gl-footer__copy-notice a {
     color: var(--gl-fg-muted);
     text-decoration: underline;
 }
 
+.gl-footer__copyright a:hover,
 .gl-footer__copy-notice a:hover {
     color: var(--gl-fg-3);
-}
-
-.gl-footer__legal {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem 1.5rem;
-    margin-left: auto;
-}
-
-.gl-footer__policy-link {
-    color: var(--gl-fg-muted);
-    font-size: 0.8rem;
-    text-decoration: none;
-}
-
-.gl-footer__policy-link:hover {
-    color: var(--gl-fg-3);
-    text-decoration: underline;
 }
 
 @media (max-width: 991px) {
@@ -263,9 +252,6 @@
         flex-direction: column;
         align-items: flex-start;
         gap: 0.5rem;
-    }
-    .gl-footer__legal {
-        margin-left: 0;
     }
 }
 </style>
