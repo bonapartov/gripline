@@ -586,6 +586,11 @@
             </div>
             <div class="modal-body">
                 <p class="text-muted small mb-3">Выберите пилота — ему придёт приглашение на email и в личный кабинет</p>
+                {% if not all_drivers %}
+                <div class="alert alert-warning small py-2 mb-3">
+                    Список пилотов пуст — приглашать пока некого.{% if is_demo_team %} В демо-режиме доступны только демо-пилоты, привязанные к профилям, а таких нет.{% endif %}
+                </div>
+                {% endif %}
                 <div class="form-group mb-3">
                     <label class="form-label">Поиск пилота</label>
                     <input type="text" id="driverSearch" class="form-control" placeholder="Введите имя или фамилию...">

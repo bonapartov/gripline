@@ -473,6 +473,7 @@ def dashboard(request):
             'driver_classes': driver_classes,
             'pending_requests': pending_requests,
             'all_drivers': all_drivers,
+            'is_demo_team': is_demo_team,
             'all_staff': all_staff,
             'staff_members': staff_list,
             'form': form,
