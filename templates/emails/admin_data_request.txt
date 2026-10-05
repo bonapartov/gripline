@@ -1,0 +1,9 @@
+{% autoescape off %}[НОВОЕ ОБРАЩЕНИЕ]
+
+{{ title }}
+
+{% include "emails/_rows.txt" %}
+
+Открыть в админке: {{ admin_url }}
+{% endautoescape %}
+{% include "emails/_footer.txt" %}

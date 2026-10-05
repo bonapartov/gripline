@@ -1,0 +1,141 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block content %}
+<style>
+    .gl-dr { max-width: 760px; margin: 2rem auto 3rem; padding: 0 1rem; }
+    .gl-dr h1 { color: var(--gl-fg-1); font-size: 2rem; margin-bottom: 0.75rem; }
+    .gl-dr__lead { color: var(--gl-fg-3); line-height: 1.6; margin-bottom: 1.5rem; }
+    .gl-dr__form, .gl-dr__done {
+        background: var(--gl-surface-card);
+        border: 1px solid var(--gl-border-card);
+        border-radius: var(--gl-radius-lg);
+        padding: 1.5rem;
+    }
+    .gl-dr__field { margin-bottom: 1.25rem; }
+    .gl-dr__label {
+        display: block; margin-bottom: 0.4rem;
+        color: var(--gl-brand-cyan); font-size: 0.8rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .gl-dr__input {
+        width: 100%; min-height: 44px; padding: 0.6rem 0.75rem;
+        background: var(--gl-surface-body); color: var(--gl-fg-1);
+        border: 1px solid var(--gl-border-card); border-radius: var(--gl-radius-sm);
+        font: inherit;
+    }
+    .gl-dr__input:focus { outline: none; border-color: var(--gl-brand-yellow); }
+    textarea.gl-dr__input { resize: vertical; }
+    .gl-dr__hint { margin: 0.35rem 0 0; color: var(--gl-fg-muted); font-size: 0.8rem; line-height: 1.5; }
+    .gl-dr__error { margin: 0.35rem 0 0; color: var(--gl-signal-danger); font-size: 0.85rem; }
+    .gl-dr__check { display: flex; align-items: flex-start; gap: 0.6rem; color: var(--gl-fg-3); font-size: 0.9rem; line-height: 1.5; }
+    .gl-dr__check input { margin-top: 0.25rem; width: 1.1rem; height: 1.1rem; flex-shrink: 0; accent-color: var(--gl-brand-yellow); }
+    .gl-dr__note {
+        background: var(--gl-surface-body); border: 1px solid var(--gl-border-card);
+        border-radius: var(--gl-radius-md); padding: 0.85rem 1rem; margin: 1.25rem 0;
+        color: var(--gl-fg-muted); font-size: 0.85rem; line-height: 1.5;
+    }
+    .gl-dr__submit {
+        min-height: 44px; padding: 0.6rem 1.75rem; cursor: pointer;
+        background: var(--gl-brand-yellow); color: var(--gl-fg-on-yellow);
+        border: 0; border-radius: var(--gl-radius-sm);
+        font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+    }
+    .gl-dr__submit:hover { background: var(--gl-brand-yellow-hover); }
+    .gl-dr__foot { margin: 1.25rem 0 0; padding-top: 1rem; border-top: 1px solid var(--gl-border-card); color: var(--gl-fg-muted); font-size: 0.8rem; line-height: 1.5; }
+    .gl-dr a { color: var(--gl-brand-cyan); }
+    .gl-dr__hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+    .gl-dr__done h2 { color: var(--gl-signal-success); font-size: 1.4rem; margin-bottom: 0.75rem; }
+    .gl-dr__done p { color: var(--gl-fg-3); line-height: 1.6; }
+    @media (max-width: 575px) { .gl-dr__submit { width: 100%; } }
+</style>
+
+<div class="gl-dr">
+    <h1>Обращение по персональным данным</h1>
+
+    {% if sent %}
+    <div class="gl-dr__done" role="status">
+        <h2>Обращение принято</h2>
+        {% if sent.due %}
+        <p>Номер обращения: <b>№{{ sent.id }}</b>. Мы рассмотрим его и ответим по указанному контакту не позднее <b>{{ sent.due }}</b> (10 рабочих дней). Обращения по данным несовершеннолетних рассматриваются в приоритетном порядке.</p>
+        {% else %}
+        <p>Мы рассмотрим обращение и ответим по указанному контакту в течение 10 рабочих дней.</p>
+        {% endif %}
+        <p><a href="/">На главную</a> · <a href="/legal/privacy/">Политика обработки персональных данных</a></p>
+    </div>
+    {% else %}
+    <p class="gl-dr__lead">
+        Здесь вы можете потребовать удалить, уточнить или прекратить обработку ваших персональных данных на gripline.ru,
+        а также отозвать ранее данное согласие. Обращение может подать сам субъект персональных данных или его законный
+        представитель (для несовершеннолетних — родитель или иной законный представитель).
+    </p>
+
+    <form method="post" class="gl-dr__form" novalidate>
+        {% csrf_token %}
+
+        <div class="gl-dr__field">
+            <label class="gl-dr__label" for="id_request_type">Тип обращения</label>
+            <select name="request_type" id="id_request_type" class="gl-dr__input">
+                {% for value, label in form.fields.request_type.choices %}
+                <option value="{{ value }}"{% if form.request_type.value == value %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            {% for e in form.request_type.errors %}<p class="gl-dr__error">{{ e }}</p>{% endfor %}
+        </div>
+
+        <div class="gl-dr__field">
+            <label class="gl-dr__label" for="id_page_url">Ссылка на профиль или страницу</label>
+            <input type="text" name="page_url" id="id_page_url" class="gl-dr__input" maxlength="500"
+                   placeholder="https://gripline.ru/drivers/..." value="{{ form.page_url.value|default_if_none:'' }}">
+            <p class="gl-dr__hint">Вставьте адрес страницы gripline.ru, к которой относится обращение (например, страницы профиля пилота).</p>
+            {% for e in form.page_url.errors %}<p class="gl-dr__error">{{ e }}</p>{% endfor %}
+        </div>
+
+        <div class="gl-dr__field">
+            <label class="gl-dr__label" for="id_contact">Контакт для ответа</label>
+            <input type="text" name="contact" id="id_contact" class="gl-dr__input" maxlength="200" required
+                   value="{{ form.contact.value|default_if_none:'' }}">
+            <p class="gl-dr__hint">E-mail или Telegram — сюда придёт ответ на обращение.</p>
+            {% for e in form.contact.errors %}<p class="gl-dr__error">{{ e }}</p>{% endfor %}
+        </div>
+
+        <div class="gl-dr__field">
+            <label class="gl-dr__label" for="id_text">Текст обращения</label>
+            <textarea name="text" id="id_text" class="gl-dr__input" rows="5" maxlength="5000" required>{{ form.text.value|default_if_none:'' }}</textarea>
+            <p class="gl-dr__hint">Опишите требование. Для уточнения данных — укажите, что именно неверно и как должно быть. Если вы законный представитель несовершеннолетнего — укажите это.</p>
+            {% for e in form.text.errors %}<p class="gl-dr__error">{{ e }}</p>{% endfor %}
+        </div>
+
+        <div class="gl-dr__hp" aria-hidden="true">
+            <label>Не заполняйте это поле <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+        </div>
+
+        <div class="gl-dr__field">
+            <label class="gl-dr__check">
+                <input type="checkbox" name="confirm" id="id_confirm"{% if form.confirm.value %} checked{% endif %}>
+                <span>Я являюсь субъектом персональных данных либо его законным представителем и подтверждаю достоверность указанных сведений.</span>
+            </label>
+            {% for e in form.confirm.errors %}<p class="gl-dr__error">{{ e }}</p>{% endfor %}
+        </div>
+
+        <p class="gl-dr__hint">
+            Отправляя форму, вы соглашаетесь на обработку указанных в ней данных (контакта и текста обращения)
+            исключительно в целях рассмотрения вашего обращения и направления ответа. После завершения рассмотрения
+            эти данные удаляются или обезличиваются.
+        </p>
+
+        <div class="gl-dr__note">
+            Срок ответа — 10 рабочих дней. Обращения по данным несовершеннолетних подаёт законный представитель;
+            такие обращения рассматриваются в приоритетном порядке. Для подтверждения полномочий мы можем запросить
+            дополнительные сведения.
+        </div>
+
+        <button type="submit" class="gl-dr__submit">Отправить обращение</button>
+
+        <p class="gl-dr__foot">
+            Данные из обращения обрабатываются для его рассмотрения (ст. 20–21 152-ФЗ); подробнее —
+            <a href="/legal/privacy/">Политика обработки персональных данных</a>.
+        </p>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

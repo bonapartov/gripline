@@ -1,5 +1,5 @@
 from wagtail_modeladmin.options import (ModelAdmin, ModelAdminGroup, modeladmin_register)
-from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, MaxSettings, VkSettings, WeatherSettings, MailSettings, VpnSettings, SocialTag, ArticlePage, ChassisTypePreset, KartClass, BalanceThreshold, BalanceDiagnosticRule
+from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, MaxSettings, VkSettings, WeatherSettings, MailSettings, VpnSettings, SocialTag, ArticlePage, ChassisTypePreset, KartClass, BalanceThreshold, BalanceDiagnosticRule, DataRequest
 from wagtail import hooks
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -172,6 +172,19 @@ class BalanceDiagnosticRuleAdmin(ModelAdmin):
     menu_icon = 'help'
     list_display = ('condition', 'article')
 
+class DataRequestAdmin(ModelAdmin):
+    # Обращения субъектов ПД с формы /legal/data-request/ (website/legal_views.py).
+    # Срок ответа по закону — 10 рабочих дней: список отсортирован по новизне,
+    # колонка «Ответить до» и фильтр по статусу — чтобы ничего не просрочить.
+    model = DataRequest
+    menu_label = 'Обращения по ПД'
+    menu_icon = 'mail'
+    menu_order = 400
+    list_display = ('id', 'request_type', 'status', 'created_at', 'due_date')
+    list_filter = ('status', 'request_type')
+    search_fields = ('contact', 'page_url', 'text')
+    inspect_view_enabled = True
+
 class BalanceGroup(ModelAdminGroup):
     # Все справочники калькулятора развесовки (/balance/), которые не должны
     # быть захардкожены в коде — регламентные величины РАФ меняются между
@@ -289,6 +302,7 @@ modeladmin_register(TyresGroup)
 modeladmin_register(TracksGroup)
 modeladmin_register(AnalyticsGroup)
 modeladmin_register(BalanceGroup)
+modeladmin_register(DataRequestAdmin)
 
 telegram_group = TelegramGroup()
 telegram_group.register_with_wagtail()

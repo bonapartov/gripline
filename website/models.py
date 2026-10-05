@@ -3845,3 +3845,76 @@ class PulseCache(models.Model):
     def get(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+def add_working_days(start, days):
+    """Дата через `days` рабочих дней после `start` (суббота/воскресенье пропускаются).
+    Праздничный календарь РФ не учитывается — срок «не более 10 рабочих дней» (152-ФЗ,
+    ст. 20-21) считается по будням, с запасом это безопаснее, чем недосчитать."""
+    current = start
+    while days > 0:
+        current += timedelta(days=1)
+        if current.weekday() < 5:
+            days -= 1
+    return current
+
+
+class DataRequest(models.Model):
+    """
+    Обращение субъекта персональных данных с публичной формы /legal/data-request/
+    (Политика обработки ПД п. 8, Пользовательское соглашение п. 2.4 и 3).
+
+    Хранится в БД, а не только уходит письмом: исходящий SMTP на проде может
+    блокироваться хостингом (см. website/mail.py), а срок ответа по закону — 10
+    рабочих дней, обращение нельзя потерять. Разбирается в админке → «Обращения по ПД».
+
+    По политике (п. 4.3, 6.1) контакт и текст заявителя нужны только на время
+    рассмотрения — после статуса «Рассмотрено/Отклонено» их надо очистить
+    (поле admin_note с итогом решения остаётся).
+    """
+    TYPE_CHOICES = [
+        ('deletion', 'Удаление данных'),
+        ('correction', 'Уточнение данных'),
+        ('stop_processing', 'Прекращение обработки'),
+        ('consent_withdrawal', 'Отзыв согласия'),
+    ]
+    STATUS_CHOICES = [
+        ('new', 'Новое'),
+        ('in_progress', 'В работе'),
+        ('done', 'Рассмотрено'),
+        ('rejected', 'Отклонено'),
+    ]
+
+    request_type = models.CharField('Тип обращения', max_length=20, choices=TYPE_CHOICES)
+    page_url = models.CharField('Ссылка на страницу', max_length=500, blank=True)
+    # blank=True: после рассмотрения админ очищает контакт/текст (политика п. 6.1);
+    # публичная форма (DataRequestForm) при этом по-прежнему требует оба поля.
+    contact = models.CharField('Контакт для ответа', max_length=200, blank=True)
+    text = models.TextField('Текст обращения', blank=True)
+    is_confirmed = models.BooleanField(
+        'Заявитель подтвердил, что он субъект ПД или его законный представитель',
+        default=False,
+    )
+    status = models.CharField('Статус', max_length=12, choices=STATUS_CHOICES, default='new')
+    created_at = models.DateTimeField('Получено', auto_now_add=True)
+    due_date = models.DateField('Ответить до', null=True, blank=True)
+    resolved_at = models.DateTimeField('Рассмотрено', null=True, blank=True)
+    admin_note = models.TextField(
+        'Решение / заметка', blank=True,
+        help_text='Что сделано по обращению. После рассмотрения очистите «Контакт» и «Текст» '
+                  '(политика п. 6.1 — данные заявителя хранятся только на время рассмотрения).',
+    )
+
+    class Meta:
+        verbose_name = 'Обращение по персональным данным'
+        verbose_name_plural = 'Обращения по персональным данным'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'№{self.pk} · {self.get_request_type_display()} · {self.get_status_display()}'
+
+    def save(self, *args, **kwargs):
+        if self.due_date is None:
+            from django.utils import timezone
+            self.due_date = add_working_days(timezone.localdate(), 10)
+        super().save(*args, **kwargs)

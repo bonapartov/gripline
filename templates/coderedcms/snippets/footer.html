@@ -65,7 +65,11 @@
             <div class="gl-footer__bottom-inner">
                 <span class="gl-footer__copyright">© 2026 Gripline.ru · Все права защищены.</span>
                 <span class="gl-footer__copy-notice">При копировании материалов сайта индексируемая ссылка на <a href="/">gripline.ru</a> обязательна.</span>
-                <a href="/privacy-policy/" class="gl-footer__policy-link">Политика конфиденциальности</a>
+                <nav class="gl-footer__legal" aria-label="Правовая информация">
+                    <a href="/legal/privacy/" class="gl-footer__policy-link">Политика конфиденциальности</a>
+                    <a href="/legal/terms/" class="gl-footer__policy-link">Пользовательское соглашение</a>
+                    <a href="/legal/data-request/" class="gl-footer__policy-link">Обращение по персональным данным</a>
+                </nav>
             </div>
         </div>
     </div>
@@ -219,11 +223,17 @@
     color: var(--gl-fg-3);
 }
 
+.gl-footer__legal {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1.5rem;
+    margin-left: auto;
+}
+
 .gl-footer__policy-link {
     color: var(--gl-fg-muted);
     font-size: 0.8rem;
     text-decoration: none;
-    margin-left: auto;
 }
 
 .gl-footer__policy-link:hover {
@@ -254,7 +264,7 @@
         align-items: flex-start;
         gap: 0.5rem;
     }
-    .gl-footer__policy-link {
+    .gl-footer__legal {
         margin-left: 0;
     }
 }

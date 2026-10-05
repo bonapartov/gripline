@@ -3,6 +3,7 @@ from .import_utils import import_preview, import_confirm
 from wagtail.api.v2.views import PagesAPIViewSet
 from wagtail.api.v2.router import WagtailAPIRouter
 from . import views
+from .legal_views import data_request_view
 from .api import pulse_data  # Импортируем функцию напрямую
 from .views import (
     DriverViewSet, TeamViewSet, TrackViewSet, ChassisViewSet,
@@ -63,6 +64,7 @@ urlpatterns = [
     path("weather-impact/", weather_impact_view, name="weather_impact"),
     path("drivers-api/", drivers_api, name="drivers_api"),
     path("api/home-top-drivers/", home_top_drivers_api, name="home_top_drivers_api"),
+    path("legal/data-request/", data_request_view, name="data_request"),
     path('api/v2/', include([
         path('pages/', api_router.urls),  # Стандартный API Wagtail
         path('pulse/', pulse_data, name='pulse_api'),  # Наш кастомный эндпоинт
