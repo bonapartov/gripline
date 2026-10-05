@@ -137,7 +137,7 @@
                         <div>
                             <div class="text-white mb-1">Это ваша команда?</div>
                             <div class="text-muted small mb-2">Войдите, чтобы заполнить описание команды и загрузить логотип.</div>
-                            <a href="/accounts/login/?next=/teams/{{ team.slug }}/" class="btn btn-success btn-sm fw-bold"><i class="fas fa-sign-in-alt me-1"></i>Войти</a>
+                            <a href="/teams/login/" class="btn btn-success btn-sm fw-bold"><i class="fas fa-sign-in-alt me-1"></i>Войти</a>
                         </div>
                     </div>
                 {% endif %}
@@ -190,7 +190,7 @@
                 {% else %}
                     <p class="text-muted text-center mb-2">Информация о руководителе отсутствует</p>
                     <p class="text-center mb-0">
-                        <a href="/accounts/login/?next=/teams/{{ team.slug }}/" class="btn btn-outline-info btn-sm">
+                        <a href="/teams/login/" class="btn btn-outline-info btn-sm">
                             <i class="fas fa-sign-in-alt me-1"></i>Это вы? Войдите, чтобы заполнить
                         </a>
                     </p>
