@@ -597,7 +597,7 @@
                         <select name="driver_id" id="driverSelect" class="form-control" required size="6">
                             <option value="">-- Выберите пилота --</option>
                             {% for driver in all_drivers %}
-                            <option value="{{ driver.id }}" data-search="{{ driver.full_name|lower }} {{ driver.city|lower }}">
+                            <option value="{{ driver.id }}" data-search="{{ driver.full_name|lower }} {{ driver.city|default_if_none:''|lower }}">
                                 {{ driver.full_name }}{% if driver.city %} ({{ driver.city }}){% endif %}
                             </option>
                             {% endfor %}
@@ -901,45 +901,35 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Поиск пилотов
-    const searchInput = document.getElementById('driverSearch');
-    const driverSelect = document.getElementById('driverSelect');
-    if (searchInput && driverSelect) {
-        searchInput.addEventListener('keyup', function() {
-            const searchText = this.value.toLowerCase().trim();
-            const options = driverSelect.options;
-            for (let i = 0; i < options.length; i++) {
-                const option = options[i];
-                if (i === 0) continue;
-                const searchData = option.getAttribute('data-search') || option.text.toLowerCase();
-                if (searchText === '' || searchData.includes(searchText)) {
-                    option.style.display = '';
-                } else {
-                    option.style.display = 'none';
-                }
-            }
+    // Поиск в списках «Пилот» / «Сотрудник». Не display:none на <option> (Safari/iOS
+    // его игнорируют) — список пересобирается из исходных option. Слова запроса ищутся
+    // в любом порядке («иван иванов» = «Иванов Иван»), е/ё не различаются.
+    function attachListFilter(inputId, selectId) {
+        const input = document.getElementById(inputId);
+        const select = document.getElementById(selectId);
+        if (!input || !select) return;
+        const placeholder = select.options[0];
+        const items = Array.from(select.options).slice(1).map(function(o) {
+            const raw = o.getAttribute('data-search') || o.text;
+            return { option: o, key: raw.toLowerCase().replace(/ё/g, 'е') };
         });
-    }
-
-    // Поиск сотрудников
-    const staffSearch = document.getElementById('staffSearch');
-    const staffSelect = document.getElementById('staffSelect');
-    if (staffSearch && staffSelect) {
-        staffSearch.addEventListener('keyup', function() {
-            const searchText = this.value.toLowerCase().trim();
-            const options = staffSelect.options;
-            for (let i = 0; i < options.length; i++) {
-                const option = options[i];
-                if (i === 0) continue;
-                const searchData = option.getAttribute('data-search') || option.text.toLowerCase();
-                if (searchText === '' || searchData.includes(searchText)) {
-                    option.style.display = '';
-                } else {
-                    option.style.display = 'none';
+        function apply() {
+            const words = input.value.toLowerCase().replace(/ё/g, 'е').split(/\s+/).filter(Boolean);
+            const selected = select.value;
+            select.innerHTML = '';
+            select.appendChild(placeholder);
+            items.forEach(function(it) {
+                if (words.every(function(w) { return it.key.indexOf(w) !== -1; })) {
+                    select.appendChild(it.option);
                 }
-            }
-        });
+            });
+            select.value = selected;
+        }
+        input.addEventListener('input', apply);
+        input.addEventListener('keyup', apply);
     }
+    attachListFilter('driverSearch', 'driverSelect');
+    attachListFilter('staffSearch', 'staffSelect');
 });
 
 function editStaff(staffId) {
