@@ -26,6 +26,23 @@
     margin-top: 3rem;
 }
 
+/* Контейнер подвала защищён от глобальных правил страниц вида [class*="container"] { max-width:100% !important;
+   padding:0 !important } (championship_results_table.html) — иначе подвал на таких страницах шире и без отступов.
+   Размеры повторяют Bootstrap .container-xl; специфичность выше, чем у [class*="container"]. */
+.gl-footer .container-xl {
+    width: 100%;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    max-width: 100% !important;
+}
+@media (min-width: 576px)  { .gl-footer .container-xl { max-width: 540px !important; } }
+@media (min-width: 768px)  { .gl-footer .container-xl { max-width: 720px !important; } }
+@media (min-width: 992px)  { .gl-footer .container-xl { max-width: 960px !important; } }
+@media (min-width: 1200px) { .gl-footer .container-xl { max-width: 1140px !important; } }
+@media (min-width: 1400px) { .gl-footer .container-xl { max-width: 1320px !important; } }
+
 .gl-footer__main {
     padding: 3rem 0 2rem;
 }
