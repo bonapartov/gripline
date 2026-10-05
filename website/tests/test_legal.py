@@ -157,3 +157,29 @@ class TestPrivacyRedirectAndBalanceSection:
         html = str(WebPage.objects.get(slug='privacy').body[0].value)
         assert '11. Сервис расчёта развесовки карта' in html
         assert 'Дата рождения не запрашивается' in html or 'дата рождения не запрашивается' in html.lower()
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures('site')
+class TestCookieConsent:
+    def test_cookie_policy_page_created_with_settings_button(self):
+        call_command('create_legal_pages', operator='Иван', tg='@t', publish=True)
+        page = WebPage.objects.get(slug='cookies')
+        html = str(page.body[0].value)
+        assert page.live and page.url_path.endswith('/legal/cookies/')
+        assert 'data-cookie-settings' in html and 'Вебвизор' in html and '{{' not in html
+
+    def test_privacy_links_to_cookie_policy(self):
+        call_command('create_legal_pages', operator='Иван', tg='@t', publish=True)
+        assert 'href="/legal/cookies/"' in str(WebPage.objects.get(slug='privacy').body[0].value)
+
+    def test_site_pages_do_not_load_metrika_unconditionally(self, client):
+        html = client.get('/legal/data-request/').content.decode()
+        assert 'cookie-consent.js' in html and 'data-ym-counter' in html
+        assert 'mc.yandex.ru/metrika' not in html       # сам тег — только из cookie-consent.js
+        assert 'mc.yandex.ru/watch' not in html         # noscript-пиксель убран
+        assert 'gl_cookies_accepted' not in html        # старая плашка без выбора убрана
+
+    def test_footer_has_cookie_links(self, client):
+        html = client.get('/legal/data-request/').content.decode()
+        assert 'href="/legal/cookies/"' in html and 'data-cookie-settings' in html

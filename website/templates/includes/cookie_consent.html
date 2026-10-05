@@ -1,0 +1,6 @@
+{% load static %}{% comment %}
+Плашка согласия на cookie + условная загрузка Яндекс Метрики. Подключается ОДИН раз на страницу
+(base.html сайта и balance/app_base.html). Метрика грузится только после «Принять аналитику» —
+никакого <noscript>-пикселя (его нельзя поставить под согласие).
+{% endcomment %}<link rel="stylesheet" href="{% static 'website/css/cookie-consent.css' %}">
+<script src="{% static 'website/js/cookie-consent.js' %}" data-ym-counter="108405016" defer></script>

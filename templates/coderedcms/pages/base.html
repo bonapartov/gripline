@@ -40,59 +40,6 @@ Bootstrap CSS как самый тяжёлый render-blocking ресурс (~25
 
 {% block custom_scripts %}
 <script src="{% static 'website/js/custom.js' %}"></script>
-<script>
-(function() {
-    if (!localStorage.getItem('gl_cookies_accepted')) {
-        var banner = document.createElement('div');
-        banner.id = 'gl-cookie-banner';
-        banner.innerHTML = '<span>Для корректной работы сайта мы обрабатываем файлы cookies.</span><button onclick="document.getElementById(\'gl-cookie-banner\').remove();localStorage.setItem(\'gl_cookies_accepted\',\'1\')">Принять</button>';
-        document.body.appendChild(banner);
-    }
-})();
-</script>
-<style>
-#gl-cookie-banner {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 9999;
-    background: #1a1a25;
-    border-top: 1px solid #333;
-    padding: 0.75rem 1.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    font-size: 0.85rem;
-    color: #b0bec5;
-}
-#gl-cookie-banner button {
-    flex-shrink: 0;
-    background: #ffc107;
-    color: #1a1a25;
-    border: none;
-    border-radius: 6px;
-    padding: 0.4rem 1.2rem;
-    font-weight: 600;
-    font-size: 0.85rem;
-    cursor: pointer;
-}
-#gl-cookie-banner button:hover {
-    background: #ffca2c;
-}
-@media (max-width: 575px) {
-    #gl-cookie-banner { flex-direction: column; align-items: flex-start; }
-}
-</style>
-<script type="text/javascript">
-    (function(m,e,t,r,i,k,a){
-        m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-        m[i].l=1*new Date();
-        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
-    })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=108405016', 'ym');
-    ym(108405016, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
-</script>
-<noscript><div><img src="https://mc.yandex.ru/watch/108405016" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+{# Согласие на cookie + Яндекс Метрика (грузится только после согласия на аналитику) #}
+{% include "includes/cookie_consent.html" %}
 {% endblock %}

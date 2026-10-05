@@ -46,18 +46,9 @@ SeoMixin на обычный Django view не распространяется (
 Аналитика (Блок 10, ТЗ §10.1) — тот же счётчик Яндекс.Метрики, что и на
 gripline.ru (id 108405016), чтобы видеть сквозную воронку «Матчасть →
 калькулятор → регистрация». Отдельный счётчик для /balance/ не заводим.
+Грузится только после согласия на аналитику (includes/cookie_consent.html).
 {% endcomment %}
-<script type="text/javascript">
-  (function(m,e,t,r,i,k,a){
-    m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-    m[i].l=1*new Date();
-    for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-    k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
-  })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=108405016', 'ym');
-  ym(108405016, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
-  window.__balanceYmCounter = 108405016;
-</script>
-<noscript><div><img src="https://mc.yandex.ru/watch/108405016" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+{% include "includes/cookie_consent.html" %}
 </head>
 <body>
 <div class="gl-balance-shell">

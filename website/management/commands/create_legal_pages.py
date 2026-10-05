@@ -4,6 +4,7 @@
     /legal/                Правовая информация (оглавление)
     /legal/privacy/        Политика в отношении обработки персональных данных
     /legal/terms/          Пользовательское соглашение
+    /legal/cookies/        Политика использования cookie-файлов
 
 Тексты лежат в website/legal_pages/*.html с плейсхолдерами {{OPERATOR}}, {{TG}},
 {{DATE}} — ФИО оператора и Telegram подставляются при запуске, в репозитории их нет
@@ -38,6 +39,7 @@ LEGAL_DIR = Path(__file__).resolve().parents[2] / "legal_pages"
 PAGES = [
     ("Политика в отношении обработки персональных данных", "privacy", "privacy.html"),
     ("Пользовательское соглашение", "terms", "terms.html"),
+    ("Политика использования cookie-файлов", "cookies", "cookies.html"),
 ]
 
 # Только токены --gl-*, без hex (DESIGN_SYSTEM.md).
@@ -48,6 +50,17 @@ STYLE = """<style>
   .gl-legal p, .gl-legal li { color: var(--gl-fg-3); line-height: 1.6; }
   .gl-legal ul { padding-left: 1.25rem; }
   .gl-legal a { color: var(--gl-brand-cyan); }
+  .gl-legal h3 { margin-top: 1.5rem; color: var(--gl-fg-1); font-size: 1.1rem; }
+  .gl-legal table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  .gl-legal th, .gl-legal td { padding: 0.6rem 0.75rem; border: 1px solid var(--gl-border-card); text-align: left; vertical-align: top; color: var(--gl-fg-3); }
+  .gl-legal th { background: var(--gl-surface-card); color: var(--gl-fg-1); }
+  .gl-legal__btn {
+    min-height: 44px; padding: 0.55rem 1.4rem; cursor: pointer;
+    background: var(--gl-brand-yellow); color: var(--gl-fg-on-yellow);
+    border: 0; border-radius: var(--gl-radius-sm); font-weight: 700; text-transform: uppercase;
+  }
+  .gl-legal__btn:hover { background: var(--gl-brand-yellow-hover); }
+  @media (max-width: 575px) { .gl-legal table { display: block; overflow-x: auto; } }
 </style>"""
 
 

@@ -303,12 +303,14 @@
   // ── Аналитика (Блок 10, ТЗ §10.2) — Яндекс.Метрика reachGoal ────────
   // Счётчик общий с gripline.ru (id в balance/app_base.html). ym() может
   // ещё не подняться (блокировщики, медленная сеть) — тихо не шлём.
-  var YM_COUNTER = (window.__balanceYmCounter || 0);
+  // Счётчик поднимается только после согласия на аналитику (cookie-consent.js) — читаем
+  // лениво при каждой цели, а не один раз при загрузке скрипта.
   var firedGoals = {};
   function track(goal, params) {
-    if (!YM_COUNTER || typeof window.ym !== "function") return;
+    var counter = window.__balanceYmCounter || 0;
+    if (!counter || typeof window.ym !== "function") return;
     try {
-      window.ym(YM_COUNTER, "reachGoal", goal, params || undefined);
+      window.ym(counter, "reachGoal", goal, params || undefined);
     } catch (e) { /* аналитика не должна ронять калькулятор */ }
   }
   function trackOnce(goal, params) {
