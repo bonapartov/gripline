@@ -6,9 +6,10 @@
  * (и Вебвизор) НЕ загружается вообще, window.ym не существует. Это единственное место,
  * где грузится счётчик: base.html (сайт) и balance/app_base.html (/balance/).
  *
- * API для кнопки «Настройки cookie» (подвал, страница политики):
- *   любой элемент с атрибутом data-cookie-settings открывает плашку;
- *   элемент с data-cookie-status показывает текущий выбор.
+ * Управление на странице политики /legal/cookies/ (блок «Статистика посещений»):
+ *   [data-cookie-switch] — переключатель «Учитывать мои визиты» (all <-> necessary);
+ *   [data-cookie-status] — текст текущего состояния; [data-cookie-settings] — открыть плашку.
+ * Ссылка «Настройки cookie» в подвале ведёт на /legal/cookies/#settings (этот блок).
  */
 (function () {
   "use strict";
@@ -66,10 +67,15 @@
 
   function updateStatus() {
     var c = readConsent();
-    var text = c === "all" ? "Сейчас: аналитика включена."
-      : c === "necessary" ? "Сейчас: аналитика выключена, используются только необходимые cookie."
-      : "Сейчас: вы ещё не сделали выбор, аналитика выключена.";
+    var text = c === "all" ? "Аналитика включена: ваши визиты учитываются в статистике на этом устройстве."
+      : c === "necessary" ? "Аналитика выключена: ваши визиты не попадают в статистику на этом устройстве."
+      : "Аналитика сейчас выключена: вы не давали согласие на cookie.";
     [].forEach.call(document.querySelectorAll("[data-cookie-status]"), function (el) { el.textContent = text; });
+    [].forEach.call(document.querySelectorAll("[data-cookie-switch]"), function (sw) {
+      sw.setAttribute("aria-checked", c === "all" ? "true" : "false");
+      var label = sw.querySelector("[data-cookie-switch-label]");
+      if (label) label.textContent = c === "all" ? "Не учитывать меня" : "Учитывать мои визиты";
+    });
   }
 
   function hideBanner() {
@@ -130,6 +136,12 @@
   }
 
   document.addEventListener("click", function (e) {
+    var sw = e.target.closest && e.target.closest("[data-cookie-switch]");
+    if (sw) {
+      e.preventDefault();
+      choose(readConsent() === "all" ? "necessary" : "all");
+      return;
+    }
     var t = e.target.closest && e.target.closest("[data-cookie-settings]");
     if (!t) return;
     e.preventDefault();

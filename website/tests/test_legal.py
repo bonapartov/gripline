@@ -167,7 +167,7 @@ class TestCookieConsent:
         page = WebPage.objects.get(slug='cookies')
         html = str(page.body[0].value)
         assert page.live and page.url_path.endswith('/legal/cookies/')
-        assert 'data-cookie-settings' in html and 'Вебвизор' in html and '{{' not in html
+        assert 'data-cookie-switch' in html and 'id="settings"' in html and 'Вебвизор' in html and '{{' not in html
 
     def test_privacy_links_to_cookie_policy(self):
         call_command('create_legal_pages', operator='Иван', tg='@t', publish=True)
@@ -182,4 +182,4 @@ class TestCookieConsent:
 
     def test_footer_has_cookie_links(self, client):
         html = client.get('/legal/data-request/').content.decode()
-        assert 'href="/legal/cookies/"' in html and 'data-cookie-settings' in html
+        assert 'href="/legal/cookies/#settings"' in html
