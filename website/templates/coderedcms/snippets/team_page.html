@@ -246,19 +246,19 @@
                     <div class="col-4 col-md">
                         <div class="rounded-2 py-2 px-1" style="background:rgba(0,0,0,0.25); border:1px solid var(--gl-border-card, #2a2a35);">
                             <div class="fw-bold text-white fs-4">{{ team_stats.total_starts }}</div>
-                            <div class="text-info small text-uppercase">Старты</div>
+                            <div class="text-info small text-uppercase">{{ team_stats.total_starts|ru_word:"Старт,Старта,Стартов" }}</div>
                         </div>
                     </div>
                     <div class="col-4 col-md">
                         <div class="rounded-2 py-2 px-1" style="background:rgba(0,0,0,0.25); border:1px solid var(--gl-border-card, #2a2a35);">
                             <div class="fw-bold text-white fs-4">{{ team_stats.wins }}</div>
-                            <div class="text-info small text-uppercase">Победы</div>
+                            <div class="text-info small text-uppercase">{{ team_stats.wins|ru_word:"Победа,Победы,Побед" }}</div>
                         </div>
                     </div>
                     <div class="col-4 col-md">
                         <div class="rounded-2 py-2 px-1" style="background:rgba(0,0,0,0.25); border:1px solid var(--gl-border-card, #2a2a35);">
                             <div class="fw-bold text-white fs-4">{{ team_stats.podiums }}</div>
-                            <div class="text-info small text-uppercase">Подиумы</div>
+                            <div class="text-info small text-uppercase">{{ team_stats.podiums|ru_word:"Подиум,Подиума,Подиумов" }}</div>
                         </div>
                     </div>
                     <div class="col-6 col-md">

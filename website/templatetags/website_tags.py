@@ -173,3 +173,20 @@ def laptime(ms):
     minutes = ms // 60000
     seconds = (ms % 60000) / 1000
     return f"{minutes}:{seconds:06.3f}"
+
+
+@register.filter
+def ru_word(value, arg):
+    """Только слово в нужной форме, без числа: {{ n|ru_word:"старт,старта,стартов" }}"""
+    try:
+        n = abs(int(value))
+        forms = arg.split(',')
+        if len(forms) != 3:
+            return ''
+        if n % 10 == 1 and n % 100 != 11:
+            return forms[0]
+        if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+            return forms[1]
+        return forms[2]
+    except (ValueError, TypeError):
+        return ''
