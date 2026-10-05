@@ -136,3 +136,24 @@ class TestCreateLegalPages:
             html = str(WebPage.objects.get(slug=slug).body[0].value)
             assert 'Иванов Иван Иванович' in html and '@oper' in html
             assert '{{' not in html
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures('site')
+class TestPrivacyRedirectAndBalanceSection:
+    def test_old_url_redirects_permanently(self, client):
+        call_command('create_legal_pages', operator='Иван', tg='@t', publish=True)
+        r = client.get('/privacy-policy/')
+        assert r.status_code == 301 and r['Location'].endswith('/legal/privacy/')
+
+    def test_rerun_keeps_single_redirect(self):
+        from wagtail.contrib.redirects.models import Redirect
+        for _ in range(2):
+            call_command('create_legal_pages', operator='Иван', tg='@t', publish=True)
+        assert Redirect.objects.count() == 1
+
+    def test_policy_contains_balance_section(self):
+        call_command('create_legal_pages', operator='Иван', tg='@t', publish=True)
+        html = str(WebPage.objects.get(slug='privacy').body[0].value)
+        assert '11. Сервис расчёта развесовки карта' in html
+        assert 'Дата рождения не запрашивается' in html or 'дата рождения не запрашивается' in html.lower()

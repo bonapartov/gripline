@@ -17,13 +17,18 @@
 дату «последнего обновления», дубликатов не создаёт. Форма обращения
 (/legal/data-request/) — не Wagtail-страница, а обычный Django-view (website/legal_views.py).
 
-Почему команда, а не data-migration — см. create_privacy_policy_page.py (дерево
-Wagtail-страниц через frozen-модели миграций ломать нельзя).
+Почему команда, а не data-migration: операции с деревом Wagtail-страниц через
+frozen-модели миграций (treebeard path/depth/numchild) — известный источник
+проблем с целостностью дерева, Wagtail сам так делать не рекомендует.
+
+Также ставит постоянный редирект /privacy-policy/ → /legal/privacy/ (старый адрес
+политики; на нём остались ссылки у внешних источников и в старых письмах).
 """
 from datetime import date
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
+from wagtail.contrib.redirects.models import Redirect
 from wagtail.models import Site
 
 from website.models import WebPage
@@ -35,7 +40,7 @@ PAGES = [
     ("Пользовательское соглашение", "terms", "terms.html"),
 ]
 
-# Те же стили, что у /privacy-policy/ (create_privacy_policy_page.py) — только токены --gl-*.
+# Только токены --gl-*, без hex (DESIGN_SYSTEM.md).
 STYLE = """<style>
   .gl-legal { max-width: 860px; margin: 2rem auto; padding: 0 1rem; }
   .gl-legal h1 { margin-bottom: 0.5rem; }
@@ -101,3 +106,10 @@ class Command(BaseCommand):
         for title, slug, html in docs:
             self._upsert(parent, title, slug, wrap(title, html), publish)
             self.stdout.write(self.style.SUCCESS(f"legal/{slug}: готово ({'опубликована' if publish else 'черновик'})"))
+
+        Redirect.objects.update_or_create(
+            old_path=Redirect.normalise_path("/privacy-policy/"),
+            site=None,
+            defaults={"is_permanent": True, "redirect_link": "/legal/privacy/", "redirect_page": None},
+        )
+        self.stdout.write(self.style.SUCCESS("redirect /privacy-policy/ → /legal/privacy/: готово"))

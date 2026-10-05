@@ -2624,11 +2624,11 @@ class BalanceDiagnosticRule(models.Model):
 # Пометка для формы добавления записи в ростер (ТЗ 13.3, третий пункт) —
 # самой формы ещё нет (её строит Блок 3, ЛК менеджера команды), сюда просто
 # кладём готовую формулировку заранее, чтобы Блок 3 не изобретал её заново.
-# Ссылка — на страницу, создаваемую management-командой
-# create_privacy_policy_page (см. website/management/commands/).
+# Ссылка — на политику, создаваемую management-командой
+# create_legal_pages (см. website/management/commands/).
 ROSTER_PRIVACY_NOTICE = (
     'Данные (только фамилия и имя) обрабатываются согласно '
-    '<a href="/privacy-policy/" target="_blank" rel="noopener">политике конфиденциальности</a>. '
+    '<a href="/legal/privacy/" target="_blank" rel="noopener">политике конфиденциальности</a>. '
     'Дату рождения указывать не нужно — мы её не собираем.'
 )
 
