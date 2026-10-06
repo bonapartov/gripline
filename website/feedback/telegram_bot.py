@@ -11,6 +11,7 @@
 import asyncio
 import html
 import logging
+import re
 import signal
 from dataclasses import dataclass
 from typing import Optional
@@ -318,7 +319,7 @@ class FeedbackTelegramBot:
             await self._present(user, await run_sync(service.add_attachment, draft, data, name))
 
         # --- админ-чат ---
-        @r.callback_query(F.data.regexp(r'^fb:\d+:(work|done)$'))
+        @r.callback_query(F.data.regexp(r'^fb:\d+:(work|done|reply)$'))
         async def on_status_button(cb: CallbackQuery):
             if not cb.message or not await self._is_admin_chat(cb.message.chat.id):
                 await cb.answer()
@@ -331,6 +332,18 @@ class FeedbackTelegramBot:
             fb = await run_sync(lambda: Feedback.objects.select_related('user').filter(pk=int(fb_id)).first())
             if fb is None or fb.anonymized_at:
                 await cb.answer('Обращение недоступно')
+                return
+            if action == 'reply':
+                await cb.answer()
+                if fb.user is None:
+                    await cb.message.answer('Данные пользователя удалены — ответить нельзя.')
+                    return
+                # ForceReply сам открывает у модератора поле «ответа на сообщение»;
+                # обращение находится по «№N» в тексте подсказки (_feedback_from_reply)
+                await self.adapter.send_admin_text(
+                    fb, f'✍️ Ответ по обращению <b>№{fb.pk}</b>. Напишите ответом на это сообщение — текст уйдёт пользователю.',
+                    reply_to=fb.admin_chat_message_id, force_reply=True,
+                )
                 return
             status = Feedback.STATUS_IN_WORK if action == 'work' else Feedback.STATUS_DONE
             changed = await run_sync(service.change_status, fb, status, moderator)
@@ -408,9 +421,19 @@ class FeedbackTelegramBot:
         target = message.reply_to_message
         if target is None:
             return None
-        return await run_sync(
+        fb = await run_sync(
             lambda: _with_user(service.find_feedback_by_admin_message(target.message_id)),
         )
+        if fb is not None:
+            return fb
+        # подсказка кнопки «Ответить» и прочие сообщения бота с «№N» в тексте
+        if target.from_user is not None and target.from_user.is_bot and target.text:
+            m = re.search(r'№(\d+)', target.text)
+            if m:
+                return await run_sync(
+                    lambda: _with_user(Feedback.objects.select_related('user').filter(pk=int(m.group(1))).first()),
+                )
+        return None
 
     async def _dialog_message(self, user, message: Message):
         """Сообщение вне сценария: к открытому обращению — в его тему,

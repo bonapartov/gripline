@@ -135,7 +135,7 @@ def test_full_flow_creates_card_in_category_topic(env):
     assert card.parse_mode == 'HTML'
     # пользовательский текст экранирован, разметку не сломать
     assert '&lt;b&gt;1&lt;/b&gt;' in card.text and '<b>1</b>' not in card.text
-    assert [b.callback_data for b in card.reply_markup.inline_keyboard[0]] == [f'fb:{fb.pk}:work', f'fb:{fb.pk}:done']
+    assert [b.callback_data for b in card.reply_markup.inline_keyboard[0]] == [f'fb:{fb.pk}:work', f'fb:{fb.pk}:reply', f'fb:{fb.pk}:done']
     fb.refresh_from_db()
     assert fb.admin_chat_message_id and fb.admin_thread_id == 77
 
@@ -429,3 +429,33 @@ def test_anonymous_sender_from_other_chat_is_not_trusted(env):
     env.session.calls.clear()
     feed(env, anonymous_admin_msg('подделка', card_message(fb), sender_chat_id=-100999))
     assert not fb.messages.exists() and not env.session.texts_to(111)
+
+
+def test_reply_button_sends_force_reply_prompt(env):
+    fb = complete_flow(env)
+    env.session.calls.clear()
+    feed(env, press(900, f'fb:{fb.pk}:reply', chat_id=ADMIN_CHAT))
+    prompt = [c for c in env.session.sent() if c.chat_id == ADMIN_CHAT][0]
+    assert f'№{fb.pk}' in prompt.text and prompt.reply_markup.force_reply is True
+    assert prompt.message_thread_id == fb.admin_thread_id
+    assert not env.session.texts_to(111)  # пользователю пока ничего не ушло
+
+
+def test_reply_to_prompt_is_delivered_to_user(env):
+    fb = complete_flow(env)
+    prompt = Message(
+        message_id=8800, date=NOW, chat=Chat(id=ADMIN_CHAT, type='supergroup'),
+        from_user=User(id=1, is_bot=True, first_name='bot'),
+        text=f'✍️ Ответ по обращению №{fb.pk}. Напишите ответом на это сообщение — текст уйдёт пользователю.',
+    )
+    env.session.calls.clear()
+    feed(env, msg(900, 'Ответ через кнопку', chat_id=ADMIN_CHAT, chat_type='supergroup', reply_to=prompt))
+    assert 'Ответ через кнопку' in env.session.texts_to(111)[-1]
+    assert fb.messages.get().delivered
+
+
+def test_reply_button_ignored_for_non_moderator(env):
+    fb = complete_flow(env)
+    env.session.calls.clear()
+    feed(env, press(555, f'fb:{fb.pk}:reply', chat_id=ADMIN_CHAT))
+    assert not [c for c in env.session.sent() if c.chat_id == ADMIN_CHAT]

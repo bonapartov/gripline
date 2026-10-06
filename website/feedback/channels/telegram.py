@@ -18,7 +18,7 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.exceptions import (
     TelegramBadRequest, TelegramForbiddenError, TelegramRetryAfter,
 )
-from aiogram.types import FSInputFile, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import ForceReply, FSInputFile, InlineKeyboardButton, InlineKeyboardMarkup
 from asgiref.sync import sync_to_async
 
 from website.feedback import service
@@ -108,12 +108,13 @@ def _card_sync(feedback_id):
     if len(body) > CARD_LIMIT:
         body = body[:CARD_LIMIT - 1] + '…'
 
+    reply_button = ('Ответить', f'fb:{fb.pk}:reply')
     if fb.status == Feedback.STATUS_NEW:
-        rows = [[('В работу', f'fb:{fb.pk}:work'), ('Закрыто', f'fb:{fb.pk}:done')]]
+        rows = [[('В работу', f'fb:{fb.pk}:work'), reply_button, ('Закрыто', f'fb:{fb.pk}:done')]]
     elif fb.status == Feedback.STATUS_IN_WORK:
-        rows = [[('Закрыто', f'fb:{fb.pk}:done')]]
+        rows = [[reply_button, ('Закрыто', f'fb:{fb.pk}:done')]]
     else:
-        rows = [[('Вернуть в работу', f'fb:{fb.pk}:work')]]
+        rows = [[('Вернуть в работу', f'fb:{fb.pk}:work'), reply_button]]
     return body, rows
 
 
@@ -189,7 +190,7 @@ class TelegramAdapter(ChannelAdapter):
             except Exception:
                 logger.exception('Не удалось отправить вложение id=%s в админ-чат', att.pk)
 
-    async def send_admin_text(self, feedback, text_html, reply_to=None):
+    async def send_admin_text(self, feedback, text_html, reply_to=None, force_reply=False):
         """Сообщение в тему обращения (диалог, служебные заметки). Возвращает message_id."""
         cfg = await sync_to_async(FeedbackBotSettings.get)()
         if not cfg.admin_chat_id:
@@ -201,6 +202,7 @@ class TelegramAdapter(ChannelAdapter):
                 message_thread_id=feedback.admin_thread_id,
                 reply_to_message_id=reply_to or feedback.admin_chat_message_id,
                 disable_web_page_preview=True,
+                reply_markup=ForceReply(force_reply=True, input_field_placeholder='Ответ пользователю…') if force_reply else None,
             )
         try:
             return (await self._admin_call(send)).message_id
