@@ -16,14 +16,14 @@ def _clean(text, token):
     return str(text).replace(token, '***') if token else str(text)
 
 
-def api_call(token, method, proxy_url=None, payload=None):
+def api_call(token, method, proxy_url=None, payload=None, timeout=TIMEOUT):
     if not token:
         raise TelegramApiError('Токен бота не задан.')
     proxies = {'https': proxy_url, 'http': proxy_url} if proxy_url else None
     try:
         resp = requests.post(
             f'https://api.telegram.org/bot{token}/{method}',
-            json=payload or {}, proxies=proxies, timeout=TIMEOUT,
+            json=payload or {}, proxies=proxies, timeout=timeout,
         )
     except requests.RequestException as exc:
         raise TelegramApiError(f'Нет соединения с Telegram: {_clean(exc, token)[:300]}') from None

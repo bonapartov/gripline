@@ -18,6 +18,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 from wagtailcache.cache import nocache_page
 
+from .feedback.notify import notify_data_request
 from .mail import admin_notify_email, send_templated_mail
 from .models import DataRequest
 from .services.balance_limits import balance_ratelimit
@@ -93,6 +94,7 @@ def _submit(request, form):
         is_confirmed=True,
     )
     _notify_admin(obj)
+    notify_data_request(obj)
     request.session[SESSION_KEY] = {'id': obj.pk, 'due': obj.due_date.strftime('%d.%m.%Y')}
     return redirect('data_request')
 
