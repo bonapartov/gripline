@@ -4022,7 +4022,7 @@ class FeedbackBotSettings(models.Model):
         return VpnSettings.get().effective_url() if self.use_vpn else None
 
 
-class FeedbackCategory(models.Model):
+class FeedbackCategory(ClusterableModel):
     slug = models.SlugField('Слаг', max_length=40, unique=True)
     title = models.CharField('Название', max_length=100)
     emoji = models.CharField('Эмодзи', max_length=8, blank=True)
@@ -4052,13 +4052,13 @@ class FeedbackCategory(models.Model):
             raise ValidationError({'deep_link_code': 'Только латинские буквы и цифры (без _ и -).'})
 
 
-class FeedbackStep(models.Model):
+class FeedbackStep(Orderable):
+    # sort_order — из Orderable (порядок шагов перетаскиванием в админке)
     TYPE_TEXT = 'text'
     TYPE_ATTACHMENT = 'attachment'
     TYPE_CHOICES = [(TYPE_TEXT, 'Текст'), (TYPE_ATTACHMENT, 'Вложение')]
 
-    category = models.ForeignKey(FeedbackCategory, on_delete=models.CASCADE, related_name='steps', verbose_name='Категория')
-    sort_order = models.PositiveIntegerField('Порядок', default=10)
+    category = ParentalKey(FeedbackCategory, on_delete=models.CASCADE, related_name='steps', verbose_name='Категория')
     key = models.SlugField('Ключ', max_length=40, help_text='Ключ ответа в карточке и JSON (например, where).')
     prompt_text = models.TextField('Вопрос пользователю')
     type = models.CharField('Тип', max_length=12, choices=TYPE_CHOICES, default=TYPE_TEXT)
@@ -4071,8 +4071,7 @@ class FeedbackStep(models.Model):
         'Пропускать, если обращение пришло по ссылке с объектом', default=False,
     )
 
-    class Meta:
-        ordering = ['category', 'sort_order', 'id']
+    class Meta(Orderable.Meta):
         verbose_name = 'Шаг сценария'
         verbose_name_plural = 'Шаги сценария'
         unique_together = [('category', 'key')]

@@ -1,0 +1,35 @@
+{% extends "modeladmin/inspect.html" %}
+{% load i18n %}
+
+{% block fields_output %}
+    <dl>
+        <dt>Номер</dt><dd>№{{ instance.pk }}</dd>
+        <dt>Категория</dt><dd>{{ instance.category|default:"—" }}</dd>
+        <dt>Статус</dt><dd>{{ instance.get_status_display }}{% if instance.assigned_to %} · {{ instance.assigned_to }}{% endif %}</dd>
+        <dt>От</dt>
+        <dd>{% if instance.user %}{{ instance.user }} (id {{ instance.user.external_user_id }}, {{ instance.user.get_channel_display }}){% else %}данные удалены{% endif %}</dd>
+        {% if instance.source_kind %}<dt>Источник</dt><dd>{{ instance.get_source_kind_display }} #{{ instance.source_id }}</dd>{% endif %}
+        <dt>Создано</dt><dd>{{ instance.created_at }}</dd>
+        {% if instance.closed_at %}<dt>Закрыто</dt><dd>{{ instance.closed_at }}</dd>{% endif %}
+        {% if instance.anonymized_at %}<dt>Анонимизировано</dt><dd>{{ instance.anonymized_at }}</dd>{% endif %}
+    </dl>
+
+    <h3>Ответы</h3>
+    {% if instance.answers %}
+        <dl>{% for key, value in instance.answers.items %}<dt>{{ key }}</dt><dd style="white-space:pre-wrap">{{ value }}</dd>{% endfor %}</dl>
+    {% else %}<p>—</p>{% endif %}
+
+    <h3>Вложения</h3>
+    {% for att in instance.attachments.all %}
+        <p><a href="{% url 'feedback_attachment' att.pk %}" target="_blank" rel="noopener">{{ att.original_name|default:att.file.name }}</a> ({{ att.mime }}, {{ att.size }} Б)</p>
+    {% empty %}<p>—</p>{% endfor %}
+
+    <h3>Диалог</h3>
+    {% for msg in instance.messages.all %}
+        <p><strong>{% if msg.direction == 'in' %}Пользователь{% else %}{{ msg.moderator|default:"Модератор" }}{% endif %}</strong>
+           <small>{{ msg.created_at }}{% if msg.direction == 'out' and not msg.delivered %} · не доставлено{% endif %}</small><br>
+           <span style="white-space:pre-wrap">{{ msg.text }}</span></p>
+    {% empty %}<p>—</p>{% endfor %}
+
+    {% if instance.admin_note %}<h3>Заметка</h3><p style="white-space:pre-wrap">{{ instance.admin_note }}</p>{% endif %}
+{% endblock %}

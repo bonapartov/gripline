@@ -1,0 +1,31 @@
+{% extends "modeladmin/edit.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block extra_js %}
+    {{ block.super }}
+    <script src="{% static 'website/js/feedback-admin.js' %}" defer></script>
+{% endblock %}
+
+{% block form %}
+    <section class="w-panel" id="feedbackBotPanel"
+             data-status-url="{% url 'feedback_bot_status' %}"
+             data-check-url="{% url 'feedback_bot_check' %}"
+             data-test-url="{% url 'feedback_bot_test_chat' %}"
+             data-restart-url="{% url 'feedback_bot_restart' %}"
+             data-topics-url="{% url 'feedback_bot_create_topics' %}">
+        <div class="w-panel__header"><h2 class="w-panel__heading">Состояние бота</h2></div>
+        <div class="w-panel__content">
+            <p id="feedbackBotAlive">Проверяю…</p>
+            <p>
+                <button type="button" class="button button-secondary" data-feedback-action="check">Проверить соединение</button>
+                <button type="button" class="button button-secondary" data-feedback-action="test">Тест админ-чата</button>
+                <button type="button" class="button button-secondary" data-feedback-action="topics">Создать темы по категориям</button>
+                <button type="button" class="button no" data-feedback-action="restart">Перезапустить бота</button>
+            </p>
+            <p id="feedbackBotResult" role="status"></p>
+            <p class="help">Кнопки работают с сохранёнными настройками — сначала сохраните изменения, затем проверяйте.</p>
+        </div>
+    </section>
+    {{ block.super }}
+{% endblock %}

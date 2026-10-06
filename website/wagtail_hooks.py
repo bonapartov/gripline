@@ -16,6 +16,8 @@ from .max_admin_views import max_status, max_send
 from .max import send_to_max
 from .vk_admin_views import vk_status, vk_send
 from .vk import send_to_vk
+from .feedback.admin import FeedbackGroup
+from .feedback import admin_views as feedback_admin_views
 import wagtail.admin.rich_text.editors.draftail.features as draftail_features
 from draftjs_exporter.dom import DOM
 from wagtail.admin.rich_text.converters.html_to_contentstate import InlineEntityElementHandler
@@ -295,6 +297,7 @@ class VpnGroup(ModelAdminGroup):
     add_to_admin_menu = False
 
 # Регистрируем группы
+modeladmin_register(FeedbackGroup)
 modeladmin_register(PilotsGroup)
 modeladmin_register(TeamsGroup)
 modeladmin_register(EquipmentGroup)
@@ -512,6 +515,12 @@ def register_import_urls():
         path('import/add-driver/', import_add_driver, name='event_import_add_driver'),
         path('analytics/', analytics_dashboard, name='analytics_dashboard'),
         path('analytics/status/', analytics_status, name='analytics_status'),
+        path('feedback-bot/status/', feedback_admin_views.bot_status, name='feedback_bot_status'),
+        path('feedback-bot/check/', feedback_admin_views.bot_check, name='feedback_bot_check'),
+        path('feedback-bot/test-chat/', feedback_admin_views.bot_test_chat, name='feedback_bot_test_chat'),
+        path('feedback-bot/restart/', feedback_admin_views.bot_restart, name='feedback_bot_restart'),
+        path('feedback-bot/create-topics/', feedback_admin_views.bot_create_topics, name='feedback_bot_create_topics'),
+        path('feedback-bot/attachment/<int:pk>/', feedback_admin_views.attachment_download, name='feedback_attachment'),
         path('article/<int:page_id>/telegram-status/', telegram_status, name='article_telegram_status'),
         path('article/<int:page_id>/telegram-send/', telegram_send, name='article_telegram_send'),
         path('article/<int:page_id>/max-status/', max_status, name='article_max_status'),

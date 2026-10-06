@@ -7,10 +7,17 @@ from django.core.files.storage import FileSystemStorage
 from django.utils import timezone
 
 
+class PrivateStorage(FileSystemStorage):
+    """У файлов нет публичного URL (FileSystemStorage с base_url=None
+    подставил бы MEDIA_URL — вводящую в заблуждение ссылку). Отдача — только
+    через админ-вьюху с проверкой прав."""
+
+    def url(self, name):
+        raise ValueError('Вложения обращений не имеют публичного URL')
+
+
 def private_storage():
-    # base_url=None — у файла нет публичного URL; отдача только через
-    # админ-вьюху с проверкой прав.
-    return FileSystemStorage(location=str(settings.PRIVATE_MEDIA_ROOT), base_url=None)
+    return PrivateStorage(location=str(settings.PRIVATE_MEDIA_ROOT))
 
 
 def attachment_upload_path(instance, filename):
