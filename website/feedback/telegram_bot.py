@@ -12,7 +12,9 @@ import asyncio
 import html
 import logging
 import re
+import secrets
 import signal
+import time
 from dataclasses import dataclass
 from typing import Optional
 
@@ -33,6 +35,8 @@ logger = logging.getLogger('feedback')
 CHANNEL = 'telegram'
 # Сообщения анонимного администратора группы приходят от этого «пользователя»
 ANONYMOUS_ADMIN_ID = 1087968824
+# Сколько секунд после «Ответить» следующее сообщение в теме уходит пользователю
+PENDING_REPLY_TTL = 300
 HEARTBEAT_SEC = 30
 
 
@@ -81,6 +85,12 @@ class FeedbackTelegramBot:
         self.bot = build_bot(token, proxy)
         self.adapter = TelegramAdapter(self.bot)
         self.dp = Dispatcher()
+        # (chat_id, thread_id) -> (feedback_id, истекает). Только в памяти: TTL 5 минут,
+        # потеря при перезапуске бота безвредна.
+        self._pending_replies = {}
+        # token -> (feedback_id, текст, id исходного сообщения, истекает): ответы без reply
+        # ждут подтверждения «Да/Отмена» перед отправкой пользователю
+        self._confirmations = {}
         self.router = Router()
         self.dp.include_router(self.router)
         self._register()
@@ -340,8 +350,10 @@ class FeedbackTelegramBot:
                     return
                 # ForceReply сам открывает у модератора поле «ответа на сообщение»;
                 # обращение находится по «№N» в тексте подсказки (_feedback_from_reply)
+                self._pending_replies[self._thread_key(cb.message)] = (fb.pk, time.monotonic() + PENDING_REPLY_TTL)
                 await self.adapter.send_admin_text(
-                    fb, f'✍️ Ответ по обращению <b>№{fb.pk}</b>. Напишите ответом на это сообщение — текст уйдёт пользователю.',
+                    fb, f'✍️ Ответ по обращению <b>№{fb.pk}</b>. Следующее сообщение в этой теме '
+                        f'(в течение {PENDING_REPLY_TTL // 60} мин) уйдёт пользователю.',
                     reply_to=fb.admin_chat_message_id, force_reply=True,
                 )
                 return
@@ -371,7 +383,7 @@ class FeedbackTelegramBot:
             await run_sync(service.set_banned, fb.user, banned, (command.args or '')[:255])
             await message.reply('Пользователь заблокирован.' if banned else 'Пользователь разблокирован.')
 
-        @r.message(F.chat.type.in_({'group', 'supergroup'}), F.reply_to_message, F.text & ~F.text.startswith('/'))
+        @r.message(F.chat.type.in_({'group', 'supergroup'}), F.text & ~F.text.startswith('/'))
         async def on_moderator_reply(message: Message):
             if not await self._is_admin_chat(message.chat.id):
                 return
@@ -379,28 +391,100 @@ class FeedbackTelegramBot:
             if not allowed:
                 return
             fb = await self._feedback_from_reply(message)
+            if fb is not None:
+                # явный reply на карточку/сообщение обращения — однозначно, шлём сразу
+                if fb.user is None:
+                    await message.reply('Данные пользователя удалены — ответить нельзя.')
+                    return
+                await self._deliver_reply(fb, message.text, moderator, message.chat.id, message.message_id)
+                return
+            fb = await self._pending_feedback(message)
             if fb is None:
                 return
             if fb.user is None:
                 await message.reply('Данные пользователя удалены — ответить нельзя.')
                 return
-            prefix = await run_sync(service.text, 'reply_prefix', number=fb.pk)
-            delivered = True
-            try:
-                await self.adapter.send_message(fb.user, f'{prefix}\n\n{message.text}')
-            except DeliveryError as exc:
-                delivered = False
-                await message.reply(f'⚠️ Не доставлено: {exc}')
-            await run_sync(
-                service.add_message, fb, 'out', message.text, moderator, message.message_id, delivered,
+            # без reply адресат определён только кнопкой «Ответить» (одна на тему) —
+            # переспрашиваем, чтобы текст не ушёл не тому пользователю
+            token = secrets.token_hex(4)
+            self._confirmations[token] = (fb.pk, message.text, message.message_id, time.monotonic() + PENDING_REPLY_TTL)
+            preview = html.escape(message.text if len(message.text) <= 500 else message.text[:500] + '…')
+            await self.adapter.send_admin_text(
+                fb, f'Отправить пользователю по <b>№{fb.pk}</b>?\n\n<i>{preview}</i>',
+                reply_to=message.message_id,
+                buttons=[[('✅ Отправить', f'fbc:{token}:yes'), ('Отмена', f'fbc:{token}:no')]],
             )
-            if delivered:
-                try:
-                    await self.bot.set_message_reaction(
-                        message.chat.id, message.message_id, reaction=[ReactionTypeEmoji(emoji='👍')],
-                    )
-                except Exception:
-                    pass  # реакции — удобство, не критичный путь
+
+        @r.callback_query(F.data.regexp(r'^fbc:[0-9a-f]{8}:(yes|no)$'))
+        async def on_confirm_reply(cb: CallbackQuery):
+            if not cb.message or not await self._is_admin_chat(cb.message.chat.id):
+                await cb.answer()
+                return
+            moderator = await run_sync(service.get_moderator, CHANNEL, cb.from_user.id)
+            if moderator is None:
+                await cb.answer()  # не модератор: ничего не происходит, подтверждение остаётся
+                return
+            _, token, answer = cb.data.split(':')
+            entry = self._confirmations.pop(token, None)
+            if entry is None or time.monotonic() > entry[3]:
+                await cb.answer('Устарело — нажмите «Ответить» ещё раз')
+                await cb.message.edit_text('Подтверждение устарело.')
+                return
+            fb_id, text, original_id, _ = entry
+            await cb.answer()
+            if answer == 'no':
+                await cb.message.edit_text('Отменено, пользователю ничего не отправлено.')
+                return
+            fb = await run_sync(
+                lambda: _with_user(Feedback.objects.select_related('user').filter(pk=fb_id).first()),
+            )
+            if fb is None or fb.user is None:
+                await cb.message.edit_text('Данные пользователя удалены — ответить нельзя.')
+                return
+            delivered = await self._deliver_reply(fb, text, moderator, cb.message.chat.id, original_id)
+            await cb.message.edit_text(
+                f'✅ Отправлено по №{fb.pk}.' if delivered else f'⚠️ По №{fb.pk} не доставлено.',
+            )
+
+    async def _deliver_reply(self, fb, text, moderator, chat_id, original_message_id):
+        """Отправить ответ модератора пользователю и записать в историю диалога."""
+        prefix = await run_sync(service.text, 'reply_prefix', number=fb.pk)
+        delivered = True
+        try:
+            await self.adapter.send_message(fb.user, f'{prefix}\n\n{text}')
+        except DeliveryError as exc:
+            delivered = False
+            await self.adapter.send_admin_text(
+                fb, f'⚠️ Не доставлено: {html.escape(str(exc))}', reply_to=original_message_id,
+            )
+        await run_sync(service.add_message, fb, 'out', text, moderator, original_message_id, delivered)
+        if delivered:
+            try:
+                await self.bot.set_message_reaction(
+                    chat_id, original_message_id, reaction=[ReactionTypeEmoji(emoji='👍')],
+                )
+            except Exception:
+                pass  # реакции — удобство, не критичный путь
+        return delivered
+
+    @staticmethod
+    def _thread_key(message: Message):
+        thread = message.message_thread_id if message.is_topic_message else None
+        return message.chat.id, thread
+
+    async def _pending_feedback(self, message: Message):
+        """Обращение, на которое модератор нажал «Ответить» (одноразово, с TTL)."""
+        key = self._thread_key(message)
+        entry = self._pending_replies.get(key)
+        if entry is None:
+            return None
+        feedback_id, expires = entry
+        del self._pending_replies[key]
+        if time.monotonic() > expires:
+            return None
+        return await run_sync(
+            lambda: _with_user(Feedback.objects.select_related('user').filter(pk=feedback_id).first()),
+        )
 
     async def _moderator_of(self, message: Message):
         """(допущен ли автор, модератор|None). Анонимный администратор группы

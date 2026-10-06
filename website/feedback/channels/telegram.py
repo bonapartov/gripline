@@ -190,7 +190,7 @@ class TelegramAdapter(ChannelAdapter):
             except Exception:
                 logger.exception('Не удалось отправить вложение id=%s в админ-чат', att.pk)
 
-    async def send_admin_text(self, feedback, text_html, reply_to=None, force_reply=False):
+    async def send_admin_text(self, feedback, text_html, reply_to=None, force_reply=False, buttons=None):
         """Сообщение в тему обращения (диалог, служебные заметки). Возвращает message_id."""
         cfg = await sync_to_async(FeedbackBotSettings.get)()
         if not cfg.admin_chat_id:
@@ -202,7 +202,10 @@ class TelegramAdapter(ChannelAdapter):
                 message_thread_id=feedback.admin_thread_id,
                 reply_to_message_id=reply_to or feedback.admin_chat_message_id,
                 disable_web_page_preview=True,
-                reply_markup=ForceReply(force_reply=True, input_field_placeholder='Ответ пользователю…') if force_reply else None,
+                reply_markup=(
+                    ForceReply(force_reply=True, input_field_placeholder='Ответ пользователю…')
+                    if force_reply else make_markup(buttons)
+                ),
             )
         try:
             return (await self._admin_call(send)).message_id

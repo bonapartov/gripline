@@ -436,7 +436,7 @@ def test_reply_button_sends_force_reply_prompt(env):
     env.session.calls.clear()
     feed(env, press(900, f'fb:{fb.pk}:reply', chat_id=ADMIN_CHAT))
     prompt = [c for c in env.session.sent() if c.chat_id == ADMIN_CHAT][0]
-    assert f'№{fb.pk}' in prompt.text and prompt.reply_markup.force_reply is True
+    assert f'№{fb.pk}' in prompt.text and prompt.reply_markup.force_reply is True and '5 мин' in prompt.text
     assert prompt.message_thread_id == fb.admin_thread_id
     assert not env.session.texts_to(111)  # пользователю пока ничего не ушло
 
@@ -459,3 +459,103 @@ def test_reply_button_ignored_for_non_moderator(env):
     env.session.calls.clear()
     feed(env, press(555, f'fb:{fb.pk}:reply', chat_id=ADMIN_CHAT))
     assert not [c for c in env.session.sent() if c.chat_id == ADMIN_CHAT]
+
+
+def confirmation_of(env):
+    """Сообщение-подтверждение «Отправить пользователю по №N?» в админ-чате."""
+    sent = [c for c in env.session.sent() if c.chat_id == ADMIN_CHAT and 'Отправить пользователю' in c.text]
+    return sent[-1] if sent else None
+
+
+def token_of(confirmation, answer):
+    for row in confirmation.reply_markup.inline_keyboard:
+        for b in row:
+            if b.callback_data.endswith(f':{answer}'):
+                return b.callback_data
+
+
+def test_plain_message_after_reply_button_asks_confirmation(env):
+    fb = complete_flow(env)
+    feed(env, press(900, f'fb:{fb.pk}:reply', chat_id=ADMIN_CHAT))
+    env.session.calls.clear()
+    feed(env, msg(900, 'просто текст без reply', chat_id=ADMIN_CHAT, chat_type='supergroup'))
+    conf = confirmation_of(env)
+    assert conf and f'№{fb.pk}' in conf.text and 'просто текст без reply' in conf.text
+    assert not env.session.texts_to(111) and not fb.messages.exists()  # пока ничего не ушло
+
+
+def test_confirm_yes_delivers_and_attributes_to_pressing_moderator(env):
+    fb = complete_flow(env)
+    feed(env, press(900, f'fb:{fb.pk}:reply', chat_id=ADMIN_CHAT))
+    feed(env, msg(900, 'ответ после подтверждения', chat_id=ADMIN_CHAT, chat_type='supergroup'))
+    data = token_of(confirmation_of(env), 'yes')
+    env.session.calls.clear()
+    feed(env, press(900, data, chat_id=ADMIN_CHAT))
+    assert 'ответ после подтверждения' in env.session.texts_to(111)[-1]
+    out = fb.messages.get()
+    assert out.delivered and out.moderator.name == 'Модератор Иван'
+    assert env.session.sent(EditMessageText)[-1].text.startswith('✅ Отправлено')
+    # повторное нажатие не шлёт второй раз
+    env.session.calls.clear()
+    feed(env, press(900, data, chat_id=ADMIN_CHAT))
+    assert not env.session.texts_to(111)
+
+
+def test_confirm_no_sends_nothing(env):
+    fb = complete_flow(env)
+    feed(env, press(900, f'fb:{fb.pk}:reply', chat_id=ADMIN_CHAT))
+    feed(env, msg(900, 'передумал', chat_id=ADMIN_CHAT, chat_type='supergroup'))
+    data = token_of(confirmation_of(env), 'no')
+    env.session.calls.clear()
+    feed(env, press(900, data, chat_id=ADMIN_CHAT))
+    assert not env.session.texts_to(111) and not fb.messages.exists()
+
+
+def test_confirm_by_non_moderator_does_nothing(env):
+    fb = complete_flow(env)
+    feed(env, press(900, f'fb:{fb.pk}:reply', chat_id=ADMIN_CHAT))
+    feed(env, msg(900, 'текст', chat_id=ADMIN_CHAT, chat_type='supergroup'))
+    data = token_of(confirmation_of(env), 'yes')
+    env.session.calls.clear()
+    feed(env, press(555, data, chat_id=ADMIN_CHAT))
+    assert not env.session.texts_to(111)
+    feed(env, press(900, data, chat_id=ADMIN_CHAT))  # подтверждение осталось доступным модератору
+    assert 'текст' in env.session.texts_to(111)[-1]
+
+
+def test_confirmation_expires(env, monkeypatch):
+    fb = complete_flow(env)
+    feed(env, press(900, f'fb:{fb.pk}:reply', chat_id=ADMIN_CHAT))
+    feed(env, msg(900, 'поздно', chat_id=ADMIN_CHAT, chat_type='supergroup'))
+    data = token_of(confirmation_of(env), 'yes')
+    real = telegram_bot.time.monotonic
+    monkeypatch.setattr(telegram_bot.time, 'monotonic', lambda: real() + telegram_bot.PENDING_REPLY_TTL + 1)
+    env.session.calls.clear()
+    feed(env, press(900, data, chat_id=ADMIN_CHAT))
+    assert not env.session.texts_to(111)
+
+
+def test_explicit_reply_still_sends_immediately_even_with_pending(env):
+    """Reply на карточку однозначен — без подтверждения и без «чужого» pending."""
+    a = complete_flow(env)
+    feed(env, press(900, f'fb:{a.pk}:reply', chat_id=ADMIN_CHAT))
+    env.session.calls.clear()
+    feed(env, msg(900, 'прямой ответ', chat_id=ADMIN_CHAT, chat_type='supergroup', reply_to=card_message(a)))
+    assert 'прямой ответ' in env.session.texts_to(111)[-1]
+    assert not confirmation_of(env)
+
+
+def test_plain_message_without_pending_is_ignored(env):
+    complete_flow(env)
+    env.session.calls.clear()
+    feed(env, msg(900, 'обсуждение в теме', chat_id=ADMIN_CHAT, chat_type='supergroup'))
+    assert not env.session.texts_to(111) and not confirmation_of(env)
+
+
+def test_pending_is_consumed_by_first_message(env):
+    fb = complete_flow(env)
+    feed(env, press(900, f'fb:{fb.pk}:reply', chat_id=ADMIN_CHAT))
+    feed(env, msg(900, 'первое', chat_id=ADMIN_CHAT, chat_type='supergroup'))
+    env.session.calls.clear()
+    feed(env, msg(900, 'второе для коллег', chat_id=ADMIN_CHAT, chat_type='supergroup'))
+    assert not confirmation_of(env)
