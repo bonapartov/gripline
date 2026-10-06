@@ -12,10 +12,12 @@ class Command(BaseCommand):
     help = 'Сбросить демо-аккаунты в исходное состояние'
 
     def handle(self, *args, **options):
-        self._release_slots()
-        self._reset_organizer_data()
-        self._reset_pilot_data()
-        self._reset_team_data()
+        from website.dashboard.jobs import record_job
+        with record_job('reset_demo_accounts'):
+            self._release_slots()
+            self._reset_organizer_data()
+            self._reset_pilot_data()
+            self._reset_team_data()
         self.stdout.write(self.style.SUCCESS('Демо-данные сброшены.'))
 
     def _release_slots(self):

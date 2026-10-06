@@ -2891,6 +2891,15 @@ class UpdateLog(models.Model):
     updated_at = models.DateTimeField("Дата обновления", auto_now_add=True)
     status = models.CharField("Статус", max_length=50, default="success")
     message = models.TextField("Сообщение", blank=True, null=True)
+    # Сколько результатов было на момент пересчёта — дашборд админки считает по нему,
+    # сколько добавлено с тех пор («пора пересчитать»). Заполняется в save(), поэтому
+    # работает для любого места, создающего лог. У старых записей — NULL.
+    race_results_count = models.PositiveIntegerField("Результатов на момент обновления", null=True, blank=True, editable=False)
+
+    def save(self, *args, **kwargs):
+        if self.race_results_count is None:
+            self.race_results_count = RaceResult.objects.count()
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = "Лог обновления"
@@ -3978,6 +3987,15 @@ class FeedbackBotSettings(models.Model):
         'Ссылка на политику конфиденциальности', blank=True,
         default='https://gripline.ru/legal/privacy/',
     )
+    digest_enabled = models.BooleanField(
+        'Утренняя сводка включена', default=True,
+        help_text='Сводка уходит в админ-чат: что требует внимания, что нового за сутки, состояние системы.',
+    )
+    digest_time = models.TimeField(
+        'Время отправки сводки', default=datetime.time(9, 0),
+        help_text='По московскому времени. Проверка идёт каждые 10 минут, поэтому сводка придёт в ближайшие 10 минут после этого времени.',
+    )
+    digest_last_sent_on = models.DateField('Сводка последний раз отправлена', null=True, blank=True, editable=False)
     restart_requested_at = models.DateTimeField('Перезапуск запрошен', null=True, blank=True, editable=False)
     heartbeat_at = models.DateTimeField('Последний heartbeat бота', null=True, blank=True, editable=False)
     updated_at = models.DateTimeField(auto_now=True)
@@ -4245,3 +4263,34 @@ class FeedbackMessage(models.Model):
         ordering = ['created_at', 'id']
         verbose_name = 'Сообщение по обращению'
         verbose_name_plural = 'Сообщения по обращениям'
+
+
+# ==================== ГЛАВНАЯ СТРАНИЦА АДМИНКИ (дашборд) ====================
+# Панели и проверки — website/dashboard/. Здесь только то, что нужно хранить.
+
+class ScheduledJobRun(models.Model):
+    """Последний запуск регулярной (cron) задачи — чтобы дашборд видел, что она не молчит.
+    Пишется через website.dashboard.jobs.record_job(); реестр ожидаемых задач — там же."""
+    name = models.CharField('Задача', max_length=64, unique=True)
+    last_success_at = models.DateTimeField('Последний успешный запуск', null=True, blank=True)
+    last_failure_at = models.DateTimeField('Последний сбой', null=True, blank=True)
+    last_message = models.CharField('Сообщение', max_length=255, blank=True)
+
+    class Meta:
+        verbose_name = 'Запуск регулярной задачи'
+        verbose_name_plural = 'Запуски регулярных задач'
+
+    def __str__(self):
+        return self.name
+
+
+class AdminDashboardVisit(models.Model):
+    """Когда пользователь админки в последний раз смотрел главную — для блока
+    «Что нового с вашего прошлого визита». since — начало текущего окна."""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='dashboard_visit')
+    last_seen = models.DateTimeField()
+    since = models.DateTimeField()
+
+    class Meta:
+        verbose_name = 'Визит на главную админки'
+        verbose_name_plural = 'Визиты на главную админки'

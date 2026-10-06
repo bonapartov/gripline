@@ -40,8 +40,12 @@ class Command(BaseCommand):
         parser.add_argument('--no-cards', action='store_true', help='Не перерисовывать карточки в админ-чате.')
 
     def handle(self, *args, **options):
-        affected, drafts, users = service.cleanup_expired()
-        self.stdout.write(f'Анонимизировано обращений: {len(affected)}; черновиков удалено: {drafts}; пользователей удалено: {users}.')
-        if affected and not options['no_cards']:
-            refreshed = asyncio.run(_refresh_cards(affected))
-            self.stdout.write(f'Карточек перерисовано: {refreshed}.')
+        from website.dashboard.jobs import record_job
+        with record_job('feedback_cleanup') as info:
+            affected, drafts, users = service.cleanup_expired()
+            summary = f'Анонимизировано обращений: {len(affected)}; черновиков удалено: {drafts}; пользователей удалено: {users}.'
+            self.stdout.write(summary)
+            info['message'] = f'обращений: {len(affected)}, черновиков: {drafts}'
+            if affected and not options['no_cards']:
+                refreshed = asyncio.run(_refresh_cards(affected))
+                self.stdout.write(f'Карточек перерисовано: {refreshed}.')

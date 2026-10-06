@@ -108,6 +108,10 @@ class FeedbackBotSettingsAdmin(ModelAdmin):
                 FieldPanel('privacy_policy_url'),
             ], heading='Персональные данные'),
             MultiFieldPanel([
+                FieldPanel('digest_enabled'),
+                FieldPanel('digest_time'),
+            ], heading='Утренняя сводка в Telegram'),
+            MultiFieldPanel([
                 FieldPanel('settings_refresh_sec'),
             ], heading='Служебное'),
         ],

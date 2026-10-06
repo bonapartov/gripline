@@ -13,7 +13,8 @@
              data-check-url="{% url 'feedback_bot_check' %}"
              data-test-url="{% url 'feedback_bot_test_chat' %}"
              data-restart-url="{% url 'feedback_bot_restart' %}"
-             data-topics-url="{% url 'feedback_bot_create_topics' %}">
+             data-topics-url="{% url 'feedback_bot_create_topics' %}"
+             data-digest-url="{% url 'feedback_bot_digest_now' %}">
         <div class="w-panel__header"><h2 class="w-panel__heading">Состояние бота</h2></div>
         <div class="w-panel__content">
             <p id="feedbackBotAlive">Проверяю…</p>
@@ -21,6 +22,7 @@
                 <button type="button" class="button button-secondary" data-feedback-action="check">Проверить соединение</button>
                 <button type="button" class="button button-secondary" data-feedback-action="test">Тест админ-чата</button>
                 <button type="button" class="button button-secondary" data-feedback-action="topics">Создать темы по категориям</button>
+                <button type="button" class="button button-secondary" data-feedback-action="digest">Отправить сводку сейчас</button>
                 <button type="button" class="button no" data-feedback-action="restart">Перезапустить бота</button>
             </p>
             <p id="feedbackBotResult" role="status"></p>

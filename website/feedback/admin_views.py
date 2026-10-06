@@ -76,6 +76,17 @@ def bot_restart(request):
 
 @login_required
 @require_POST
+def bot_digest_now(request):
+    def run(cfg):
+        from website.dashboard import digest
+        if not digest.send_digest():
+            raise tg_sync.TelegramApiError('Не отправлено: проверьте токен и ID админ-чата в настройках.')
+        return 'Сводка отправлена в админ-чат.'
+    return _action(request, run)
+
+
+@login_required
+@require_POST
 def bot_create_topics(request):
     def run(cfg):
         created, errors = tg_sync.create_category_topics(cfg)

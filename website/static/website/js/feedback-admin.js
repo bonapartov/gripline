@@ -29,7 +29,8 @@
     check: panel.dataset.checkUrl,
     test: panel.dataset.testUrl,
     restart: panel.dataset.restartUrl,
-    topics: panel.dataset.topicsUrl
+    topics: panel.dataset.topicsUrl,
+    digest: panel.dataset.digestUrl
   };
 
   panel.addEventListener('click', function (e) {

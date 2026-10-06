@@ -1,0 +1,125 @@
+{% load i18n %}
+<style>
+    .gld { --gld-ok: var(--w-color-positive-100, #1f845a); --gld-warn: #c27803; --gld-fail: var(--w-color-critical-100, #cd3636); --gld-muted: var(--w-color-text-meta); margin: 0 0 2rem; }
+    .gld h2 { margin: 0 0 .75rem; font-size: 1.05rem; }
+    .gld-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem; }
+    .gld-box { padding: 1rem 1.15rem; border: 1px solid var(--w-color-border-furniture); border-radius: 6px; background: var(--w-color-surface-field); }
+    .gld-box--span { grid-column: 1 / -1; }
+    .gld-list { list-style: none; margin: 0; padding: 0; }
+    .gld-list li { display: flex; align-items: baseline; gap: .6rem; padding: .4rem 0; border-bottom: 1px solid var(--w-color-border-furniture); }
+    .gld-list li:last-child { border-bottom: 0; }
+    .gld-dot { width: .6rem; height: .6rem; border-radius: 50%; flex: none; background: var(--gld-muted); }
+    .gld-dot.ok { background: var(--gld-ok); } .gld-dot.warn { background: var(--gld-warn); } .gld-dot.fail { background: var(--gld-fail); }
+    .gld-label { flex: 1; } .gld-label small, .gld-note { display: block; color: var(--gld-muted); font-size: .82rem; }
+    .gld-count { font-weight: 700; font-size: 1.15rem; min-width: 2ch; text-align: right; }
+    .gld-count.zero { color: var(--gld-muted); font-weight: 400; }
+    .gld-periods { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .6rem; }
+    .gld-periods a { padding: .2rem .7rem; border: 1px solid var(--w-color-border-furniture); border-radius: 999px; text-decoration: none; font-size: .85rem; }
+    .gld-periods a.is-active { background: var(--gld-ok); border-color: var(--gld-ok); color: #fff; }
+    .gld-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: .75rem; }
+    .gld-card b { display: block; font-size: 1.5rem; line-height: 1.2; } .gld-card span { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--gld-muted); }
+    .gld-days { display: flex; align-items: flex-end; gap: 2px; height: 56px; margin-top: .8rem; border-bottom: 1px solid var(--w-color-border-furniture); }
+    .gld-days i { flex: 1; min-width: 2px; background: var(--gld-ok); border-radius: 2px 2px 0 0; opacity: .85; } .gld-days i.is-empty { background: var(--w-color-border-furniture); height: 2px !important; }
+    .gld-badge { display: inline-block; padding: .1rem .55rem; border-radius: 999px; font-size: .78rem; font-weight: 600; color: #fff; background: var(--gld-ok); }
+    .gld-badge.warn { background: var(--gld-warn); } .gld-badge.fail { background: var(--gld-fail); } .gld-badge.unknown { background: var(--gld-muted); }
+    .gld-more { margin-top: .6rem; font-size: .85rem; }
+</style>
+
+<section class="gld" aria-label="Пульт Gripline">
+    <div class="gld-grid">
+
+        {# 1. Требует внимания #}
+        <div class="gld-box">
+            <h2>Требует внимания</h2>
+            <ul class="gld-list">
+                {% for a in attention %}
+                <li>
+                    <span class="gld-dot {{ a.level }}" aria-hidden="true"></span>
+                    <span class="gld-label">{% if a.url and a.count %}<a href="{{ a.url }}">{{ a.label }}</a>{% else %}{{ a.label }}{% endif %}{% if a.note %}<small>{{ a.note }}</small>{% endif %}</span>
+                    <span class="gld-count{% if not a.count %} zero{% endif %}">{{ a.count }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        {# 2. Что нового #}
+        <div class="gld-box">
+            <h2>Что нового</h2>
+            <nav class="gld-periods" aria-label="Период">
+                {% for value, label in periods %}<a href="?dash={{ value }}"{% if value == period %} class="is-active" aria-current="true"{% endif %}>{{ label }}</a>{% endfor %}
+            </nav>
+            <p class="gld-note">с {{ news_since|date:"d.m.Y H:i" }}</p>
+            <ul class="gld-list">
+                {% for n in news %}
+                <li><span class="gld-label">{{ n.label }}</span><span class="gld-count{% if not n.count %} zero{% endif %}">{{ n.count }}</span></li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        {# 3. Состояние системы #}
+        <div class="gld-box">
+            <h2>Состояние системы <span class="gld-badge {{ health_level }}">{% if health_level == 'ok' %}всё в порядке{% elif health_level == 'warn' %}есть замечания{% elif health_level == 'fail' %}есть проблемы{% else %}часть данных недоступна{% endif %}</span></h2>
+            <ul class="gld-list">
+                {% for c in health %}
+                <li><span class="gld-dot {{ c.level }}" aria-hidden="true"></span><span class="gld-label">{{ c.name }}<small>{{ c.text }}</small></span></li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        {# 4. Рейтинг #}
+        <div class="gld-box">
+            <h2>Рейтинг и результаты</h2>
+            <ul class="gld-list">
+                <li>
+                    <span class="gld-dot {% if rating.needs_update %}warn{% elif rating.last_at %}ok{% endif %}" aria-hidden="true"></span>
+                    <span class="gld-label">Последний пересчёт рейтинга
+                        <small>{% if rating.last_at %}{{ rating.last_at|date:"d.m.Y H:i" }}{% else %}ещё не выполнялся{% endif %}</small></span>
+                </li>
+                <li>
+                    <span class="gld-dot {% if rating.needs_update %}warn{% endif %}" aria-hidden="true"></span>
+                    <span class="gld-label">{% if rating.added is None %}Новых результатов с пересчёта<small>нет данных (старый пересчёт без отметки)</small>
+                        {% elif rating.needs_update %}<a href="{{ rating.url }}">Пора пересчитать рейтинг</a><small>добавлено результатов: {{ rating.added }}</small>
+                        {% else %}Новых результатов с пересчёта нет{% endif %}</span>
+                </li>
+                <li>
+                    <span class="gld-dot {% if rating.events_without_results_count %}warn{% else %}ok{% endif %}" aria-hidden="true"></span>
+                    <span class="gld-label">Прошедшие заезды без результатов (60 дней)
+                        {% for e in rating.events_without_results %}<small><a href="{{ e.url }}">{{ e.title }}</a></small>{% endfor %}
+                        {% if rating.events_without_results_count > 5 %}<small>и ещё {{ rating.events_without_results_count|add:"-5" }}</small>{% endif %}</span>
+                    <span class="gld-count{% if not rating.events_without_results_count %} zero{% endif %}">{{ rating.events_without_results_count }}</span>
+                </li>
+            </ul>
+        </div>
+
+        {# Обращения: компактная статистика #}
+        {% if feedback_stats %}
+        <div class="gld-box">
+            <h2>Обратная связь за 30 дней</h2>
+            <div class="gld-cards">
+                <div class="gld-card"><b>{{ feedback_stats.total }}</b><span>обращений</span></div>
+                <div class="gld-card"><b>{{ feedback_stats.open_now }}</b><span>открыто</span></div>
+                <div class="gld-card"><b>{{ feedback_stats.median_first_reply }}</b><span>до ответа</span></div>
+            </div>
+            {% if feedback_stats.daily_peak %}
+            <div class="gld-days" role="img" aria-label="Обращения по дням">
+                {% for d in feedback_stats.daily %}<i{% if not d.count %} class="is-empty"{% endif %} style="height: {{ d.height }}%" title="{{ d.date|date:'d.m' }}: {{ d.count }}"></i>{% endfor %}
+            </div>
+            {% endif %}
+            <ul class="gld-list" style="margin-top:.6rem">
+                {% for c in feedback_stats.categories|slice:":4" %}
+                <li><span class="gld-label">{{ c.title }}</span><span class="gld-count">{{ c.count }}</span></li>
+                {% endfor %}
+            </ul>
+            <p class="gld-more"><a href="{% url 'feedback_stats' %}">Вся статистика обращений →</a></p>
+        </div>
+        {% endif %}
+
+        {# 5. Сводка по сайту #}
+        <div class="gld-box">
+            <h2>Сайт в цифрах</h2>
+            <ul class="gld-list">
+                {% for s in summary %}<li><span class="gld-label">{{ s.label }}</span><span class="gld-count">{{ s.count }}</span></li>{% endfor %}
+            </ul>
+        </div>
+    </div>
+</section>

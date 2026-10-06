@@ -382,6 +382,12 @@ def register_integrations_menu():
         **_menu_icon_kwargs('fa-share-alt'),
     )
 
+@hooks.register('construct_homepage_panels')
+def add_gripline_dashboard(request, panels):
+    """«Пульт Gripline» на главной странице админки: очереди, новое, здоровье системы, рейтинг."""
+    from .dashboard.panels import DashboardPanel
+    panels.append(DashboardPanel())
+
 # === КНОПКИ ПУБЛИКАЦИИ СТАТЬИ: "НА САЙТЕ" / "ВЕЗДЕ" (+ TELEGRAM) ===
 
 PUBLISH_EVERYWHERE_VALUE = 'action-publish-everywhere'
@@ -520,6 +526,7 @@ def register_import_urls():
         path('feedback-bot/check/', feedback_admin_views.bot_check, name='feedback_bot_check'),
         path('feedback-bot/test-chat/', feedback_admin_views.bot_test_chat, name='feedback_bot_test_chat'),
         path('feedback-bot/restart/', feedback_admin_views.bot_restart, name='feedback_bot_restart'),
+        path('feedback-bot/digest-now/', feedback_admin_views.bot_digest_now, name='feedback_bot_digest_now'),
         path('feedback-bot/create-topics/', feedback_admin_views.bot_create_topics, name='feedback_bot_create_topics'),
         path('feedback-bot/attachment/<int:pk>/', feedback_admin_views.attachment_download, name='feedback_attachment'),
         path('article/<int:page_id>/telegram-status/', telegram_status, name='article_telegram_status'),
