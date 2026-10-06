@@ -286,7 +286,8 @@ def test_command_force_and_dry_run(db, monkeypatch):
 
 
 def test_command_failure_is_recorded(db, monkeypatch):
-    FeedbackBotSettings.objects.update(digest_time=datetime.time(0, 0))      # бот не настроен — отправить нечем
+    FeedbackBotSettings.get()                                                 # строки настроек в пустой БД ещё нет
+    FeedbackBotSettings.objects.update(digest_time=datetime.time(0, 0))      # время наступило, а бот не настроен — отправить нечем
     with pytest.raises(CommandError):
         call_command('daily_digest', stdout=StringIO())
     run = ScheduledJobRun.objects.get(name='daily_digest')
