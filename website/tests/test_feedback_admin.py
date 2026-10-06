@@ -36,7 +36,7 @@ def valid_post(**over):
         'rate_limit_per_hour': 5, 'max_text_length': 2000, 'max_file_size_mb': 10,
         'max_files_per_feedback': 3, 'allowed_file_types': 'jpg, png, pdf',
         'retention_months': 12, 'privacy_policy_url': 'https://gripline.ru/legal/privacy/',
-        'new_bot_token': '',
+        'new_bot_token': '', 'digest_enabled': 'on', 'digest_time': '09:00',
     }
     data.update(over)
     return data
