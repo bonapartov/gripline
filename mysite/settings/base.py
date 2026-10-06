@@ -176,6 +176,18 @@ VK_ANNOUNCE_ACCESS_TOKEN = os.getenv("VK_ANNOUNCE_ACCESS_TOKEN")
 # прокси не нужен (российский сервис, та же логика, что MAX).
 VK_API_VERSION = os.getenv("VK_API_VERSION", "5.199")
 
+# Бот обратной связи (website/feedback/). Токен бота хранится в БД в
+# зашифрованном виде (Fernet, раздел «Бот обратной связи» в админке);
+# ключ шифрования — только здесь, в окружении. Потеря ключа = повторный
+# ввод токена. Генерация: python -c "from cryptography.fernet import
+# Fernet; print(Fernet.generate_key().decode())"
+FEEDBACK_FERNET_KEY = os.getenv("FEEDBACK_FERNET_KEY")
+
+# Вложения обращений могут содержать персональные данные (скриншоты) —
+# лежат ВНЕ MEDIA_ROOT, который раздаётся nginx публично. Отдаются только
+# через админ-вьюху с проверкой прав (website/feedback/admin_views.py).
+PRIVATE_MEDIA_ROOT = BASE_DIR / "private_media"
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
