@@ -1,5 +1,5 @@
 {% extends "coderedcms/pages/web_page.html" %}
-{% load wagtailimages_tags website_tags feedback_tags %}
+{% load wagtailimages_tags website_tags %}
 
 {% block content %}
 <style>
@@ -144,7 +144,6 @@
                     {% if track.address %} {{ track.address }}{% endif %}
                     {% if not track.city and not track.address %}Город не указан{% endif %}
                 </p>
-                <p class="mb-3">{% feedback_link 'track' track %}</p>
 
                 <div class="card bg-dark border-secondary p-3">
                     <h5 class="text-primary border-bottom border-secondary pb-2 mb-3 text-uppercase">О трассе</h5>

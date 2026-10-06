@@ -139,7 +139,7 @@ class FeedbackCategoryAdmin(ModelAdmin):
         MultiFieldPanel([
             FieldPanel('title'), FieldPanel('emoji'), FieldPanel('slug'),
             FieldPanel('sort_order'), FieldPanel('is_active'),
-            FieldPanel('admin_topic_id'), FieldPanel('deep_link_code'),
+            FieldPanel('widget_hint'), FieldPanel('admin_topic_id'), FieldPanel('deep_link_code'),
         ], heading='Категория'),
         InlinePanel('steps', label='Шаг сценария', heading='Шаги (порядок — перетаскиванием)'),
     ])

@@ -1,0 +1,54 @@
+/* Виджет «Обратная связь» (templates/includes/feedback_widget.html). Только токены --gl-*. */
+.gl-fb {
+    position: fixed; right: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    z-index: 1040; /* ниже плашки cookie (9999) и модалок Bootstrap (1055) */
+    font-size: 0.9rem;
+}
+/* Пока показана плашка согласия на cookie — не конкурируем с ней за низ экрана */
+body:has(.gl-cookie) .gl-fb { display: none; }
+
+.gl-fb__toggle {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    min-height: 44px; min-width: 44px; padding: 0.5rem 0.9rem; cursor: pointer;
+    background: var(--gl-surface-card); color: var(--gl-fg-2);
+    border: 1px solid var(--gl-border-mid); border-radius: var(--gl-radius-sm);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    font: inherit; font-weight: 600;
+}
+.gl-fb__toggle:hover { border-color: var(--gl-brand-yellow); color: var(--gl-fg-1); }
+.gl-fb__toggle:focus-visible, .gl-fb__item:focus-visible, .gl-fb__close:focus-visible {
+    outline: 2px solid var(--gl-brand-yellow); outline-offset: 2px;
+}
+.gl-fb__toggle i { color: var(--gl-brand-yellow); }
+
+.gl-fb__panel {
+    position: absolute; right: 0; bottom: calc(100% + 0.6rem);
+    width: 20rem; max-width: calc(100vw - 2rem);
+    background: var(--gl-surface-card); color: var(--gl-fg-2);
+    border: 1px solid var(--gl-border-mid); border-radius: var(--gl-radius-sm);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+    padding: 1rem;
+}
+.gl-fb__panel[hidden] { display: none; }
+.gl-fb__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem; }
+.gl-fb__title { color: var(--gl-fg-1); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.8rem; }
+.gl-fb__close {
+    min-width: 32px; min-height: 32px; cursor: pointer;
+    background: transparent; color: var(--gl-fg-4); border: 0; border-radius: var(--gl-radius-sm);
+}
+.gl-fb__close:hover { color: var(--gl-fg-1); }
+.gl-fb__lead { margin: 0 0 0.8rem; color: var(--gl-fg-4); font-size: 0.82rem; }
+.gl-fb__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.gl-fb__item {
+    display: block; padding: 0.65rem 0.8rem; text-decoration: none;
+    background: var(--gl-surface-body); border: 1px solid var(--gl-border-card); border-radius: var(--gl-radius-sm);
+}
+.gl-fb__item:hover { border-color: var(--gl-brand-yellow); }
+.gl-fb__item-title { display: block; color: var(--gl-fg-1); font-weight: 600; }
+.gl-fb__item-hint { display: block; margin-top: 0.15rem; color: var(--gl-fg-4); font-size: 0.8rem; }
+
+@media (max-width: 767px) {
+    .gl-fb__toggle-label { display: none; }  /* на телефоне — только иконка */
+    .gl-fb__toggle { padding: 0.5rem; justify-content: center; border-radius: 50%; width: 48px; height: 48px; }
+}
+@media print { .gl-fb { display: none; } }

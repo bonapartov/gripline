@@ -42,4 +42,5 @@ Bootstrap CSS как самый тяжёлый render-blocking ресурс (~25
 <script src="{% static 'website/js/custom.js' %}"></script>
 {# Согласие на cookie + Яндекс Метрика (грузится только после согласия на аналитику) #}
 {% include "includes/cookie_consent.html" %}
+{% load feedback_tags %}{% feedback_widget %}
 {% endblock %}

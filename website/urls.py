@@ -4,6 +4,7 @@ from wagtail.api.v2.views import PagesAPIViewSet
 from wagtail.api.v2.router import WagtailAPIRouter
 from . import views
 from .legal_views import data_request_view
+from .feedback.public_views import feedback_redirect
 from .api import pulse_data  # Импортируем функцию напрямую
 from .views import (
     DriverViewSet, TeamViewSet, TrackViewSet, ChassisViewSet,
@@ -65,6 +66,7 @@ urlpatterns = [
     path("drivers-api/", drivers_api, name="drivers_api"),
     path("api/home-top-drivers/", home_top_drivers_api, name="home_top_drivers_api"),
     path("legal/data-request/", data_request_view, name="data_request"),
+    path("feedback/", feedback_redirect, name="feedback"),
     path('api/v2/', include([
         path('pages/', api_router.urls),  # Стандартный API Wagtail
         path('pulse/', pulse_data, name='pulse_api'),  # Наш кастомный эндпоинт

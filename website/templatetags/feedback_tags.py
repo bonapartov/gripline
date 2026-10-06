@@ -1,58 +1,77 @@
-"""Кнопка «Сообщить об ошибке» — deep link в бота обратной связи.
+"""Виджет «Обратная связь» — плавающая кнопка и окно со ссылками в бота.
 
-{% feedback_link 'stage' page %}   — этап (EventPage), 'pilot' driver, 'track' track
-{% feedback_link '' %}             — без объекта (страница рейтинга)
+{% feedback_widget %} подключён в базовом шаблоне сайта (templates/coderedcms/pages/base.html).
+Пункты окна — активные категории из админки («Обратная связь» → «Категории и шаги»)
+с кодом deep link; порядок, названия и подсказки правятся там же. Контекст страницы
+(этап/пилот/трасса) подставляется только в категории, у которых есть шаг с
+«пропускать, если обращение пришло по ссылке с объектом» (по умолчанию — «Ошибка в данных»).
 
-Не выводится, если бот выключен, не задан юзернейм или нет активной
-категории с нужным кодом.
+Не выводится, если бот выключен, не задан юзернейм или нет подходящих категорий.
 """
 from django import template
 from django.core.cache import cache
-from django.utils.html import format_html
 
 from website.feedback import sources
 
 register = template.Library()
 
-CACHE_KEY = 'feedback_link_config_v1'
-CACHE_TTL = 60  # сек; плюс страницы кэширует wagtailcache — настройки подхватятся при его очистке
+CACHE_KEY = 'feedback_widget_config_v2'
+CACHE_TTL = 60  # сек; страницы дополнительно кэширует wagtailcache — после правок нужен clear_wagtail_cache
 
 
 def _config():
-    """(username, {код категории}) или None, если кнопку показывать нельзя."""
+    """{'username': str, 'items': [...]} или None, если виджет показывать нельзя."""
     cached = cache.get(CACHE_KEY)
     if cached is not None:
         return cached or None
-    from website.models import FeedbackBotSettings, FeedbackCategory
+    from website.models import FeedbackBotSettings, FeedbackCategory, FeedbackStep
     cfg = FeedbackBotSettings.get()
-    if not cfg.is_enabled or not cfg.bot_username.strip():
-        value = ()
-    else:
-        codes = set(FeedbackCategory.objects.filter(is_active=True).exclude(deep_link_code='')
-                    .values_list('deep_link_code', flat=True))
-        value = (cfg.bot_username.strip().lstrip('@'), codes)
+    value = {}
+    if cfg.is_enabled and cfg.bot_username.strip():
+        with_context = set(
+            FeedbackStep.objects.filter(skip_if_source_set=True).values_list('category_id', flat=True)
+        )
+        items = [
+            {
+                'code': c.deep_link_code,
+                'title': c.title,
+                'emoji': c.emoji,
+                'hint': c.widget_hint,
+                'context': c.pk in with_context,
+            }
+            for c in FeedbackCategory.objects.filter(is_active=True).exclude(deep_link_code='')
+        ]
+        if items:
+            value = {'username': cfg.bot_username.strip().lstrip('@'), 'items': items}
     cache.set(CACHE_KEY, value, CACHE_TTL)
     return value or None
 
 
-@register.simple_tag
-def feedback_link(kind='', obj=None, category='err', css='btn btn-outline-secondary btn-sm',
-                  label='Сообщить об ошибке'):
+def _page_object(context):
+    """(вид источника, объект) для текущей страницы или (None, None)."""
+    from website.models import Driver, EventPage, Track
+    page = context.get('page') or context.get('self')
+    if isinstance(page, EventPage):
+        return 'stage', page
+    for key, kind, model in (('driver', 'pilot', Driver), ('track', 'track', Track)):
+        obj = context.get(key)
+        if isinstance(obj, model):
+            return kind, obj
+    return None, None
+
+
+@register.inclusion_tag('includes/feedback_widget.html', takes_context=True)
+def feedback_widget(context):
     cfg = _config()
     if not cfg:
-        return ''
-    username, codes = cfg
-    if category not in codes:
-        return ''
-    if kind and obj is not None and getattr(obj, 'pk', None):
-        letter = sources.KIND_TO_LETTER.get(kind)
-        if not letter:
-            return ''
-        url = sources.build_deep_link(username, category, letter, obj.pk)
-    else:
-        url = f'https://t.me/{username}?start={category}'
-    return format_html(
-        '<a href="{}" class="{}" target="_blank" rel="noopener nofollow">'
-        '<i class="fas fa-bug me-1"></i>{}</a>',
-        url, css, label,
-    )
+        return {'items': []}
+    kind, obj = _page_object(context)
+    letter = sources.KIND_TO_LETTER.get(kind) if kind else None
+    items = []
+    for it in cfg['items']:
+        if letter and it['context']:
+            url = sources.build_deep_link(cfg['username'], it['code'], letter, obj.pk)
+        else:
+            url = f'https://t.me/{cfg["username"]}?start={it["code"]}'
+        items.append({**it, 'url': url})
+    return {'items': items}

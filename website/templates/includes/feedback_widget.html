@@ -1,0 +1,26 @@
+{% load static %}{% if items %}
+<link rel="stylesheet" href="{% static 'website/css/feedback-widget.css' %}">
+<div class="gl-fb" id="glFeedback">
+    <div class="gl-fb__panel" id="glFeedbackPanel" role="dialog" aria-modal="false" aria-labelledby="glFeedbackTitle" hidden>
+        <div class="gl-fb__head">
+            <span class="gl-fb__title" id="glFeedbackTitle">Обратная связь</span>
+            <button type="button" class="gl-fb__close" data-fb-close aria-label="Закрыть"><i class="fas fa-times" aria-hidden="true"></i></button>
+        </div>
+        <p class="gl-fb__lead">Напишите нам в Telegram — ответим там же.</p>
+        <ul class="gl-fb__list">
+            {% for it in items %}
+            <li>
+                <a class="gl-fb__item" href="{{ it.url }}" target="_blank" rel="noopener nofollow" data-fb-category="{{ it.code }}">
+                    <span class="gl-fb__item-title">{% if it.emoji %}{{ it.emoji }} {% endif %}{{ it.title }}</span>
+                    {% if it.hint %}<span class="gl-fb__item-hint">{{ it.hint }}</span>{% endif %}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    <button type="button" class="gl-fb__toggle" id="glFeedbackToggle" aria-expanded="false" aria-controls="glFeedbackPanel">
+        <i class="fas fa-comment-dots" aria-hidden="true"></i><span class="gl-fb__toggle-label">Обратная связь</span>
+    </button>
+</div>
+<script src="{% static 'website/js/feedback-widget.js' %}" defer></script>
+{% endif %}

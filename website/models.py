@@ -4032,6 +4032,10 @@ class FeedbackCategory(ClusterableModel):
         'ID темы в админ-чате', null=True, blank=True,
         help_text='Пусто = общий чат. Заполняется кнопкой «Создать темы по категориям».',
     )
+    widget_hint = models.CharField(
+        'Подсказка в виджете на сайте', max_length=120, blank=True,
+        help_text='Короткая строка под названием в окне «Обратная связь» на сайте.',
+    )
     deep_link_code = models.SlugField(
         'Код для deep link', max_length=10, blank=True,
         help_text='Короткий код (например, err) для ссылки t.me/<бот>?start=err_s_142. '
