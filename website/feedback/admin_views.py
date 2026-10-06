@@ -4,10 +4,11 @@ from urllib.parse import quote
 
 from django.contrib.auth.decorators import login_required
 from django.http import FileResponse, Http404, HttpResponseForbidden, JsonResponse
+from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from website.feedback import tg_sync
+from website.feedback import stats, tg_sync
 from website.models import FeedbackAttachment, FeedbackBotSettings
 
 HEARTBEAT_OK_SEC = 90
@@ -104,3 +105,16 @@ def attachment_download(request, pk):
     response['X-Content-Type-Options'] = 'nosniff'
     response['Cache-Control'] = 'private, no-store'
     return response
+
+
+@login_required
+def stats_view(request):
+    """Статистика обращений. Доступна тем же, кто видит обращения (view_feedback)."""
+    if not request.user.has_perm('website.view_feedback'):
+        return HttpResponseForbidden()
+    days = stats.parse_period(request.GET.get('days'))
+    return render(request, 'feedback/admin/stats.html', {
+        'stats': stats.compute_stats(days),
+        'periods': stats.PERIODS,
+        'days': days,
+    })

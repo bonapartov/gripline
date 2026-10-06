@@ -515,6 +515,7 @@ def register_import_urls():
         path('import/add-driver/', import_add_driver, name='event_import_add_driver'),
         path('analytics/', analytics_dashboard, name='analytics_dashboard'),
         path('analytics/status/', analytics_status, name='analytics_status'),
+        path('feedback-bot/stats/', feedback_admin_views.stats_view, name='feedback_stats'),
         path('feedback-bot/status/', feedback_admin_views.bot_status, name='feedback_bot_status'),
         path('feedback-bot/check/', feedback_admin_views.bot_check, name='feedback_bot_check'),
         path('feedback-bot/test-chat/', feedback_admin_views.bot_test_chat, name='feedback_bot_test_chat'),

@@ -1,0 +1,99 @@
+{% extends "wagtailadmin/base.html" %}
+{% load i18n wagtailadmin_tags %}
+
+{% block titletag %}Статистика обращений{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+    .fbs { --fbs-accent: var(--w-color-positive-100, #1f845a); padding: 0 1.5rem 3rem; max-width: 1200px; }
+    .fbs-periods { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1.5rem; }
+    .fbs-periods a { padding: .35rem .9rem; border: 1px solid var(--w-color-border-furniture); border-radius: 999px; text-decoration: none; }
+    .fbs-periods a.is-active { background: var(--fbs-accent); border-color: var(--fbs-accent); color: #fff; }
+    .fbs-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .fbs-card { padding: 1rem 1.1rem; border: 1px solid var(--w-color-border-furniture); border-radius: 6px; background: var(--w-color-surface-field); }
+    .fbs-card b { display: block; font-size: 1.9rem; line-height: 1.15; }
+    .fbs-card span { display: block; margin-top: .25rem; font-size: .8rem; color: var(--w-color-text-label); text-transform: uppercase; letter-spacing: .04em; }
+    .fbs-card small { display: block; margin-top: .3rem; color: var(--w-color-text-meta); }
+    .fbs h2 { margin: 2rem 0 .75rem; font-size: 1.1rem; }
+    .fbs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 2rem; }
+    .fbs table { width: 100%; border-collapse: collapse; }
+    .fbs th, .fbs td { padding: .5rem .6rem; text-align: left; border-bottom: 1px solid var(--w-color-border-furniture); vertical-align: middle; }
+    .fbs th { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--w-color-text-label); }
+    .fbs td.num, .fbs th.num { text-align: right; white-space: nowrap; }
+    .fbs-bar { height: .5rem; min-width: 2px; background: var(--fbs-accent); border-radius: 2px; }
+    .fbs-days { display: flex; align-items: flex-end; gap: 2px; height: 130px; padding-top: .5rem; border-bottom: 1px solid var(--w-color-border-furniture); }
+    .fbs-days i { flex: 1; min-width: 2px; background: var(--fbs-accent); border-radius: 2px 2px 0 0; opacity: .85; }
+    .fbs-days i.is-empty { background: var(--w-color-border-furniture); height: 2px !important; opacity: 1; }
+    .fbs-days-axis { display: flex; justify-content: space-between; color: var(--w-color-text-meta); font-size: .8rem; margin-top: .3rem; }
+    .fbs-warn { padding: .9rem 1.1rem; border-left: 4px solid var(--w-color-warning-100, #c27803); background: var(--w-color-surface-field); }
+    .fbs-empty { color: var(--w-color-text-meta); }
+</style>
+{% endblock %}
+
+{% block content %}
+{% include "wagtailadmin/shared/header.html" with title="Статистика обращений" icon="doc-full" %}
+<div class="fbs">
+    <nav class="fbs-periods" aria-label="Период">
+        {% for value, label in periods %}
+        <a href="?days={{ value }}"{% if value == days %} class="is-active" aria-current="true"{% endif %}>{{ label }}</a>
+        {% endfor %}
+    </nav>
+
+    <div class="fbs-cards">
+        <div class="fbs-card"><b>{{ stats.total }}</b><span>Обращений за период</span><small>{{ stats.authors }} авторов{% if stats.anonymized %} · {{ stats.anonymized }} анонимизировано{% endif %}</small></div>
+        <div class="fbs-card"><b>{{ stats.open_now }}</b><span>Открытых сейчас</span><small>новых {{ stats.new }} · в работе {{ stats.in_work }} (за период)</small></div>
+        <div class="fbs-card"><b>{{ stats.done }}</b><span>Из них закрыто</span></div>
+        <div class="fbs-card"><b>{{ stats.median_first_reply }}</b><span>До первого ответа</span><small>медиана, по {{ stats.replied_count }} обращ.</small></div>
+        <div class="fbs-card"><b>{{ stats.median_to_close }}</b><span>До закрытия</span><small>медиана</small></div>
+    </div>
+
+    {% if stats.unanswered %}
+    <div class="fbs-warn">
+        <strong>Без ответа дольше {{ stats.unanswered_hours }} ч:</strong>
+        {% for u in stats.unanswered %}<a href="{% url 'website_feedback_modeladmin_inspect' u.id %}">№{{ u.id }}</a> ({{ u.category }}, {{ u.age }}){% if not forloop.last %}, {% endif %}{% endfor %}
+    </div>
+    {% endif %}
+
+    <h2>Динамика по дням</h2>
+    {% if stats.daily_peak %}
+    <div class="fbs-days" role="img" aria-label="Обращения по дням, максимум {{ stats.daily_peak }}">
+        {% for d in stats.daily %}<i{% if not d.count %} class="is-empty"{% endif %} style="height: {{ d.height }}%" title="{{ d.date|date:'d.m.Y' }}: {{ d.count }}"></i>{% endfor %}
+    </div>
+    <div class="fbs-days-axis"><span>{{ stats.daily.0.date|date:"d.m" }}</span><span>пик за день: {{ stats.daily_peak }}</span><span>{{ stats.last_day|date:"d.m" }}</span></div>
+    {% else %}<p class="fbs-empty">За этот период обращений не было.</p>{% endif %}
+
+    <div class="fbs-grid">
+        <div>
+            <h2>По категориям</h2>
+            {% if stats.categories %}
+            <table>
+                <thead><tr><th>Категория</th><th class="num">Всего</th><th class="num">Открыто</th><th style="width:30%"></th></tr></thead>
+                <tbody>{% for c in stats.categories %}
+                    <tr><td>{{ c.title }}</td><td class="num">{{ c.count }} <small>({{ c.share }}%)</small></td><td class="num">{{ c.open }}</td><td><div class="fbs-bar" style="width: {{ c.share }}%"></div></td></tr>
+                {% endfor %}</tbody>
+            </table>
+            {% else %}<p class="fbs-empty">Нет данных.</p>{% endif %}
+        </div>
+        <div>
+            <h2>С какой страницы пишут</h2>
+            {% if stats.kinds %}
+            <table>
+                <thead><tr><th>Источник</th><th class="num">Обращений</th></tr></thead>
+                <tbody>{% for k in stats.kinds %}<tr><td>{{ k.label }}</td><td class="num">{{ k.count }}</td></tr>{% endfor %}</tbody>
+            </table>
+            {% else %}<p class="fbs-empty">Нет данных.</p>{% endif %}
+        </div>
+    </div>
+
+    <h2>Страницы, на которые жалуются чаще всего</h2>
+    {% if stats.top_sources %}
+    <table>
+        <thead><tr><th>Страница</th><th class="num">Обращений</th></tr></thead>
+        <tbody>{% for s in stats.top_sources %}
+            <tr><td>{% if s.url %}<a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.title }}</a>{% else %}{{ s.title }}{% endif %}</td><td class="num">{{ s.count }}</td></tr>
+        {% endfor %}</tbody>
+    </table>
+    {% else %}<p class="fbs-empty">Пока никто не писал со страницы с привязкой (этап, пилот, трасса, чемпионат, рейтинг).</p>{% endif %}
+</div>
+{% endblock %}

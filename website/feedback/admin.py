@@ -7,6 +7,7 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.html import format_html
 from wagtail.admin.forms import WagtailAdminModelForm
+from wagtail.admin.menu import MenuItem
 from wagtail.admin.panels import FieldPanel, InlinePanel, MultiFieldPanel, ObjectList
 from wagtail_modeladmin.helpers import PermissionHelper
 from wagtail_modeladmin.options import ModelAdmin, ModelAdminGroup
@@ -174,6 +175,12 @@ class FeedbackUserAdmin(ModelAdmin):
     edit_handler = ObjectList([FieldPanel('is_banned'), FieldPanel('ban_reason')])
 
 
+class FeedbackStatsMenuItem(MenuItem):
+    """Пункт «Статистика» в подменю «Обратная связь» — виден тем, кто видит обращения."""
+    def is_shown(self, request):
+        return request.user.has_perm('website.view_feedback')
+
+
 class FeedbackGroup(ModelAdminGroup):
     menu_label = 'Обратная связь'
     menu_icon = 'mail'
@@ -182,3 +189,9 @@ class FeedbackGroup(ModelAdminGroup):
         FeedbackAdmin, FeedbackBotSettingsAdmin, FeedbackCategoryAdmin,
         FeedbackTextAdmin, FeedbackModeratorAdmin, FeedbackUserAdmin,
     )
+
+    def get_submenu_items(self):
+        items = super().get_submenu_items()
+        # сразу после «Обращений», до настроек
+        items.insert(1, FeedbackStatsMenuItem('Статистика', reverse('feedback_stats'), icon_name='doc-full', order=150))
+        return items
