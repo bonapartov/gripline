@@ -109,3 +109,69 @@ def test_driver_page_has_widget_with_pilot_context_and_cookie_banner(client, rea
     html = client.get(d.get_absolute_url()).content.decode()
     assert 'id="glFeedback"' in html and f'start=err_p_{d.pk}' in html
     assert 'cookie-consent.js' in html
+
+
+# ---- новые виды источников: чемпионат, хаб этапа, рейтинг класса ----
+
+def test_championship_and_stage_hub_context(ready):
+    from website.models import ChampionshipPage, StagePage
+    assert 'start=err_c_5"' in render(page=ChampionshipPage(pk=5, title='Кубок'))
+    assert 'start=err_h_7"' in render(page=StagePage(pk=7, title='Этап'))
+
+
+def test_rating_context_from_explicit_view_source(ready):
+    html = render(feedback_source=('rating', 3))
+    assert 'start=err_r_3"' in html
+    # для JS: шаблон ссылки с плейсхолдером класса (класс переключается без перезагрузки)
+    assert 'data-fb-template="https://t.me/gripline_support_bot?start=err_r_{id}"' in html
+    assert 'start=idea"' in html and html.count('data-fb-template') == 1
+
+
+def test_no_template_attr_on_regular_pages(ready):
+    d = Driver.objects.create(first_name='Иван', last_name='Иванов')
+    assert 'data-fb-template' not in render(driver=d)
+
+
+def test_explicit_source_ignored_when_unknown_or_empty(ready):
+    assert 'err_' not in render(feedback_source=('bogus', 1))
+    assert 'err_' not in render(feedback_source=('rating', None))
+
+
+@pytest.fixture
+def pages(site):
+    from datetime import timedelta
+    from django.utils import timezone
+    from website.models import ChampionshipPage, StagePage
+    champ = site.root_page.add_child(instance=ChampionshipPage(title='Кубок 2026', slug='kubok'))
+    now = timezone.now()
+    hub = champ.add_child(instance=StagePage(title='1 этап', slug='etap-1', start_date=now, end_date=now + timedelta(days=2)))
+    return champ, hub
+
+
+def test_resolvers_return_title_and_url(pages, db):
+    from website.feedback import sources
+    from website.models import RaceClass
+    champ, hub = pages
+    r = sources.resolve('champ', champ.pk)
+    assert r.title == 'Кубок 2026' and r.url.endswith('/kubok/')
+    assert sources.resolve('hub', hub.pk).title == '1 этап'
+    cls = RaceClass.objects.create(name='Rotax Max Mini')
+    r = sources.resolve('rating', cls.pk)
+    assert r.title == 'Рейтинг пилотов — Rotax Max Mini' and r.url.endswith(f'/top/drivers/?class={cls.pk}')
+    for kind in ('champ', 'hub', 'rating'):
+        assert sources.resolve(kind, 999999) is None
+
+
+def test_start_param_parsing_new_kinds():
+    from website.feedback import sources
+    assert sources.parse_start_param('err_c_5') == ('err', 'champ', 5)
+    assert sources.parse_start_param('err_h_7') == ('err', 'hub', 7)
+    assert sources.parse_start_param('err_r_3') == ('err', 'rating', 3)
+
+
+def test_rating_page_passes_selected_class_to_widget(client, ready, site, db):
+    from website.models import RaceClass
+    cls = RaceClass.objects.create(name='Rotax Max Mini')
+    d = Driver.objects.create(first_name='Иван', last_name='Иванов', rating_by_class={str(cls.pk): {'score': 0.5, 'starts': 6}})
+    html = client.get(f'/top/drivers/?class={cls.pk}').content.decode()
+    assert f'start=err_r_{cls.pk}' in html

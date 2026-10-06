@@ -4026,7 +4026,11 @@ class FeedbackCategory(ClusterableModel):
     slug = models.SlugField('Слаг', max_length=40, unique=True)
     title = models.CharField('Название', max_length=100)
     emoji = models.CharField('Эмодзи', max_length=8, blank=True)
-    sort_order = models.PositiveIntegerField('Порядок', default=10)
+    sort_order = models.PositiveIntegerField(
+        'Порядок', default=10,
+        help_text='Чем меньше число, тем выше пункт. Порядок общий: в меню бота и в виджете «Обратная связь» на сайте. '
+                  'Удобно нумеровать с шагом 10 — чтобы потом вставить новый пункт между старыми.',
+    )
     is_active = models.BooleanField('Активна', default=True)
     admin_topic_id = models.BigIntegerField(
         'ID темы в админ-чате', null=True, blank=True,
@@ -4147,7 +4151,13 @@ class Feedback(models.Model):
     SOURCE_STAGE = 'stage'
     SOURCE_PILOT = 'pilot'
     SOURCE_TRACK = 'track'
-    SOURCE_CHOICES = [(SOURCE_STAGE, 'Этап'), (SOURCE_PILOT, 'Пилот'), (SOURCE_TRACK, 'Трасса')]
+    SOURCE_CHAMP = 'champ'
+    SOURCE_HUB = 'hub'
+    SOURCE_RATING = 'rating'
+    SOURCE_CHOICES = [
+        (SOURCE_STAGE, 'Этап (класс)'), (SOURCE_PILOT, 'Пилот'), (SOURCE_TRACK, 'Трасса'),
+        (SOURCE_CHAMP, 'Чемпионат'), (SOURCE_HUB, 'Этап (общая страница)'), (SOURCE_RATING, 'Рейтинг (класс)'),
+    ]
 
     # id — публичный номер обращения (№123)
     user = models.ForeignKey(FeedbackUser, null=True, blank=True, on_delete=models.SET_NULL, related_name='feedbacks', verbose_name='Пользователь')

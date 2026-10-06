@@ -49,11 +49,34 @@ def _resolve_track(pk):
     return ResolvedSource('track', pk, str(obj), _abs(obj.get_absolute_url())) if obj else None
 
 
+def _resolve_championship(pk):
+    from website.models import ChampionshipPage
+    page = ChampionshipPage.objects.filter(pk=pk, live=True).first()
+    return ResolvedSource('champ', pk, page.title, _abs(page.url or '/')) if page else None
+
+
+def _resolve_stage_hub(pk):
+    """StagePage — общая страница этапа чемпионата (хаб классов), не EventPage."""
+    from website.models import StagePage
+    page = StagePage.objects.filter(pk=pk, live=True).first()
+    return ResolvedSource('hub', pk, page.title, _abs(page.url or '/')) if page else None
+
+
+def _resolve_rating(pk):
+    """Рейтинг пилотов в конкретном классе: /top/drivers/?class=<id>."""
+    from website.models import RaceClass
+    cls = RaceClass.objects.filter(pk=pk).first()
+    return ResolvedSource('rating', pk, f'Рейтинг пилотов — {cls.name}', _abs(f'/top/drivers/?class={pk}')) if cls else None
+
+
 # буква в ссылке -> (значение Feedback.source_kind, резолвер)
 RESOLVERS: dict[str, tuple[str, Callable[[int], Optional[ResolvedSource]]]] = {
     's': ('stage', _resolve_stage),
     'p': ('pilot', _resolve_pilot),
     't': ('track', _resolve_track),
+    'c': ('champ', _resolve_championship),
+    'h': ('hub', _resolve_stage_hub),
+    'r': ('rating', _resolve_rating),
 }
 KIND_TO_LETTER = {kind: letter for letter, (kind, _) in RESOLVERS.items()}
 

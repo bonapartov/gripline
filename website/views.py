@@ -1899,6 +1899,7 @@ def top_drivers_view(request):
             "highlight_slug": highlight_slug,
             "site": current_site,
             "page": None,
+            "feedback_source": ("rating", selected_class_id),
         })
 
     # Байесовское сглаживание: тянем новичков к медиане класса (C=15)
@@ -1933,6 +1934,7 @@ def top_drivers_view(request):
         "highlight_slug": highlight_slug,
         "site": current_site,
         "page": None,
+        "feedback_source": ("rating", selected_class_id),  # виджет «Обратная связь»
     })
 
 

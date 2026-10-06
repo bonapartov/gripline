@@ -48,15 +48,22 @@ def _config():
 
 
 def _page_object(context):
-    """(вид источника, объект) для текущей страницы или (None, None)."""
-    from website.models import Driver, EventPage, Track
+    """(вид источника, pk объекта) для текущей страницы или (None, None).
+
+    Вьюха без Wagtail-страницы может явно задать источник в контексте:
+    feedback_source=('rating', <pk>) — так страница рейтинга передаёт выбранный класс."""
+    from website.models import ChampionshipPage, Driver, EventPage, StagePage, Track
+    explicit = context.get('feedback_source')
+    if explicit and explicit[0] in sources.KIND_TO_LETTER and explicit[1]:
+        return explicit
     page = context.get('page') or context.get('self')
-    if isinstance(page, EventPage):
-        return 'stage', page
+    for model, kind in ((EventPage, 'stage'), (StagePage, 'hub'), (ChampionshipPage, 'champ')):
+        if isinstance(page, model):
+            return kind, page.pk
     for key, kind, model in (('driver', 'pilot', Driver), ('track', 'track', Track)):
         obj = context.get(key)
         if isinstance(obj, model):
-            return kind, obj
+            return kind, obj.pk
     return None, None
 
 
@@ -65,13 +72,17 @@ def feedback_widget(context):
     cfg = _config()
     if not cfg:
         return {'items': []}
-    kind, obj = _page_object(context)
+    kind, pk = _page_object(context)
     letter = sources.KIND_TO_LETTER.get(kind) if kind else None
     items = []
     for it in cfg['items']:
+        template = ''
         if letter and it['context']:
-            url = sources.build_deep_link(cfg['username'], it['code'], letter, obj.pk)
+            url = sources.build_deep_link(cfg['username'], it['code'], letter, pk)
+            if kind == 'rating':
+                # класс переключается на странице без перезагрузки — JS виджета подставит актуальный
+                template = sources.build_deep_link(cfg['username'], it['code'], letter, '{id}')
         else:
             url = f'https://t.me/{cfg["username"]}?start={it["code"]}'
-        items.append({**it, 'url': url})
+        items.append({**it, 'url': url, 'template': template})
     return {'items': items}

@@ -11,7 +11,18 @@
     try { if (typeof window.ym === 'function') window.ym(COUNTER, 'reachGoal', name, params); } catch (e) {}
   }
 
+  // Страница рейтинга меняет класс без перезагрузки (pushState ?class=ID) — пересобираем ссылки
+  // с контекстом в момент открытия, иначе они указывали бы на класс, открытый при загрузке.
+  function refreshLinks() {
+    var m = location.search.match(/[?&]class=(\d+)/);
+    if (!m) return;
+    panel.querySelectorAll('[data-fb-template]').forEach(function (a) {
+      a.href = a.getAttribute('data-fb-template').replace('{id}', m[1]);
+    });
+  }
+
   function setOpen(open) {
+    if (open) refreshLinks();
     panel.hidden = !open;
     toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     if (open) goal('feedback_widget_open');

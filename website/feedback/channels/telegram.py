@@ -90,7 +90,8 @@ def _card_sync(feedback_id):
         lines.append(f'От: {e(who)} (id {e(fb.user.external_user_id)})')
     src = service.source_info(fb)
     if src:
-        kinds = {'stage': 'Этап', 'pilot': 'Пилот', 'track': 'Трасса'}
+        kinds = {'stage': 'Этап', 'pilot': 'Пилот', 'track': 'Трасса', 'champ': 'Чемпионат',
+                 'hub': 'Этап (общая страница)', 'rating': 'Рейтинг'}
         lines.append(f'Источник: {kinds.get(src.kind, "")} «{e(src.title)}» → <a href="{e(src.url, quote=True)}">{e(src.url)}</a>')
     status = STATUS_LABELS[fb.status]
     if fb.status == Feedback.STATUS_IN_WORK and fb.assigned_to:
