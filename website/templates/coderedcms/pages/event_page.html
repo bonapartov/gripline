@@ -1,5 +1,5 @@
 {% extends "coderedcms/pages/web_page.html" %}
-{% load wagtailcore_tags wagtailimages_tags coderedcms_tags website_tags static %}
+{% load wagtailcore_tags wagtailimages_tags coderedcms_tags website_tags feedback_tags static %}
 
 {% block content %}
 {# Убираем стандартную обложку, чтобы не двоился заголовок #}
@@ -67,6 +67,7 @@
                     <i class="fas fa-map-marker-alt me-2"></i>{{ page.location }}
                 {% endif %}
             </p>
+            {% feedback_link 'stage' page %}
         </div>
 
         <!-- Блок трассы (справа) -->

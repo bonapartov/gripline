@@ -14,7 +14,7 @@ from typing import Callable, Optional
 
 from django.conf import settings
 
-START_PARAM_RE = re.compile(r'^([A-Za-z0-9]+)_([a-z])_(\d+)$')
+START_PARAM_RE = re.compile(r'^([A-Za-z0-9]+)(?:_([a-z])_(\d+))?$')
 
 
 @dataclass
@@ -59,11 +59,14 @@ KIND_TO_LETTER = {kind: letter for letter, (kind, _) in RESOLVERS.items()}
 
 
 def parse_start_param(param):
-    """'err_s_142' -> ('err', 'stage', 142); мусор -> None."""
+    """'err_s_142' -> ('err', 'stage', 142); 'err' -> ('err', None, None)
+    (страница без объекта, например рейтинг); мусор -> None."""
     m = START_PARAM_RE.match((param or '').strip())
     if not m:
         return None
     code, letter, pk = m.groups()
+    if letter is None:
+        return code, None, None
     if letter not in RESOLVERS:
         return None
     return code, RESOLVERS[letter][0], int(pk)

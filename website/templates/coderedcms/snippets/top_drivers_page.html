@@ -1,5 +1,5 @@
 {% extends "coderedcms/pages/web_page.html" %}
-{% load wagtailimages_tags %}
+{% load wagtailimages_tags feedback_tags %}
 
 {% block content %}
 <style>
@@ -176,6 +176,7 @@
         <a href="/rating-info/" class="btn-filter" style="text-decoration: none;">
             <i class="fas fa-question-circle me-2"></i>Как считается?
         </a>
+        {% feedback_link '' css='btn-filter' %}
     </div>
 
     <!-- Навигация по классам (AJAX, без "Все") -->

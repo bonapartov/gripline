@@ -161,7 +161,7 @@ def _advance_or_finish(draft):
 
 def _next(draft):
     draft.step_index += 1
-    draft.save(update_fields=['step_index', 'updated_at'])
+    draft.save(update_fields=['step_index', 'answers', 'updated_at'])
     return _advance_or_finish(draft)
 
 

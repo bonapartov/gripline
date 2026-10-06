@@ -225,6 +225,7 @@ def test_start_param_parsing():
     assert sources.parse_start_param('мусор') is None
     assert sources.parse_start_param('err_x_1') is None
     assert sources.parse_start_param('err_s_') is None
+    assert sources.parse_start_param('err') == ('err', None, None)
 
 
 def test_find_feedback_by_admin_message(category, user):
@@ -234,3 +235,14 @@ def test_find_feedback_by_admin_message(category, user):
     assert service.find_feedback_by_admin_message(500) == fb
     assert service.find_feedback_by_admin_message(600) == msg_fb
     assert service.find_feedback_by_admin_message(1) is None
+
+
+def test_answers_survive_reloading_draft_from_db(category, user):
+    """Бот на каждое сообщение перечитывает черновик из БД (и переживает
+    перезапуски) — ответы должны сохраняться между сообщениями."""
+    service.begin(user, category)
+    service.answer_text(service.get_draft(user), 'где')
+    service.answer_text(service.get_draft(user), 'что')
+    out = service.skip_step(service.get_draft(user))
+    assert out.kind == 'complete'
+    assert out.feedback.answers == {'where': 'где', 'what': 'что'}

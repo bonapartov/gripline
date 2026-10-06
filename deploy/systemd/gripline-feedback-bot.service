@@ -1,0 +1,25 @@
+# Бот обратной связи Gripline (website/feedback/, manage.py run_feedback_bot).
+# Установка на сервере — см. CLAUDE.md, раздел «Бот обратной связи».
+[Unit]
+Description=Gripline feedback bot (Telegram)
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/www/wwwroot/gripline.ru
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/www/wwwroot/gripline.ru/venv/bin/python manage.py run_feedback_bot
+# Смена токена/прокси/«Перезапустить бота» в админке завершает процесс с кодом 0,
+# systemd поднимает его с новыми параметрами.
+Restart=always
+RestartSec=5
+# Время на корректную дообработку апдейтов при SIGTERM
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gripline-feedback-bot
+
+[Install]
+WantedBy=multi-user.target

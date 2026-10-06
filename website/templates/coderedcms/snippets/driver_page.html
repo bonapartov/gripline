@@ -1,5 +1,5 @@
 {% extends "coderedcms/pages/web_page.html" %}
-{% load wagtailimages_tags website_tags static %}
+{% load wagtailimages_tags website_tags feedback_tags static %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'website/css/driver_page.css' %}">
@@ -56,6 +56,7 @@
             <button type="button" class="glv2-btn" id="glv2ShareBtn" data-driver-name="{{ driver.full_name }}">
                 <i class="fas fa-share-nodes"></i>Поделиться результатом
             </button>
+            {% feedback_link 'pilot' driver css='glv2-btn' %}
             {% if is_unclaimed %}
             <a href="/accounts/login/" class="glv2-btn">
                 <i class="fas fa-flag"></i>Заявить профиль

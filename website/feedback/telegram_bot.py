@@ -156,7 +156,7 @@ class FeedbackTelegramBot:
         r = self.router
         private = F.chat.type == 'private'
 
-        @r.update.outer_middleware()
+        @self.dp.update.outer_middleware()
         async def db_connections(handler, event, data):
             # долгоживущий процесс: не держим мёртвые соединения с PostgreSQL
             await run_sync(close_old_connections)
@@ -177,9 +177,12 @@ class FeedbackTelegramBot:
             if parsed:
                 code, kind, pk = parsed
                 category = await run_sync(service.category_by_code, code)
-                resolved = await run_sync(sources.resolve, kind, pk)
-                if category and resolved:
-                    outcome = await run_sync(service.begin, user, category, kind, pk)
+                # объект ссылки должен существовать; без объекта (kind=None) — просто категория
+                resolved = await run_sync(sources.resolve, kind, pk) if kind else None
+                if category and (resolved or kind is None):
+                    outcome = await run_sync(
+                        service.begin, user, category, kind if resolved else '', pk if resolved else None,
+                    )
                     await self._present(user, outcome)
                     return
             await self._show_menu(user)
