@@ -1,0 +1,26 @@
+{% extends "modeladmin/inspect.html" %}
+
+{% block fields_output %}
+    <dl>
+        <dt>Номер</dt><dd>№{{ instance.pk }}</dd>
+        <dt>Этап</dt><dd>{{ instance.stage }}</dd>
+        <dt>Класс</dt><dd>{{ instance.race_class|default:"—" }}</dd>
+        <dt>Стартовый номер</dt><dd>{{ instance.start_number|default:"—" }}</dd>
+        <dt>Статус</dt><dd>{{ instance.get_status_display }}</dd>
+        <dt>Подана</dt><dd>{{ instance.get_submitted_by_type_display }} · {{ instance.submitted_by.email }}</dd>
+        <dt>Стартовый взнос</dt><dd>{{ instance.entry_fee_amount }} ₽ · итого с опциями {{ total_amount }} ₽</dd>
+        <dt>Создана</dt><dd>{{ instance.created_at }}{% if instance.submitted_at %} · подана {{ instance.submitted_at }}{% endif %}</dd>
+        {% if instance.organizer_comment %}<dt>Комментарий организатора</dt><dd style="white-space:pre-wrap">{{ instance.organizer_comment }}</dd>{% endif %}
+    </dl>
+
+    {% for section in sections %}
+        <h3>{{ section.title }}</h3>
+        {% if section.rows %}
+            <dl>{% for label, value, url in section.rows %}<dt>{{ label }}</dt><dd>{% if url %}<a href="{{ url }}" target="_blank" rel="noopener">{{ value }}</a>{% else %}{{ value }}{% endif %}</dd>{% endfor %}</dl>
+        {% else %}
+            {% for item in section.items %}
+                <dl style="margin-bottom:1rem">{% for label, value, url in item %}<dt>{{ label }}</dt><dd>{% if url %}<a href="{{ url }}" target="_blank" rel="noopener">{{ value }}</a>{% else %}{{ value }}{% endif %}</dd>{% endfor %}</dl>
+            {% endfor %}
+        {% endif %}
+    {% endfor %}
+{% endblock %}

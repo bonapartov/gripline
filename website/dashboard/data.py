@@ -75,9 +75,9 @@ def attention_items(now=None):
     add('Заявки на привязку пилота', DriverClaim.objects.filter(status='pending').count(),
         _url('accounts_driverclaim_modeladmin_index'))
     add('Заявки на управление командой', TeamClaim.objects.filter(status='pending').count(),
-        _url('admin:teams_teamclaim_changelist', '?status__exact=pending'))
+        _url('teams_teamclaim_modeladmin_index', '?status__exact=pending'))
     add('Заявки на участие в этапах', Application.objects.filter(status='submitted').count(),
-        _url('admin:applications_application_changelist', '?status__exact=submitted'))
+        _url('applications_application_modeladmin_index', '?status__exact=submitted'))
 
     pd_open = DataRequest.objects.filter(status__in=('new', 'in_progress'))
     pd_count = pd_open.count()

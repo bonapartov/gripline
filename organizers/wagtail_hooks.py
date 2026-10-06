@@ -1,4 +1,5 @@
 from wagtail_modeladmin.options import ModelAdmin, ModelAdminGroup, modeladmin_register
+from applications.wagtail_hooks import ApplicationAdmin
 from .models import OrganizerProfile, Championship, Stage, OrganizerSettings
 
 
@@ -88,6 +89,7 @@ class OrganizersGroup(ModelAdminGroup):
     menu_label = "Организаторы"
     menu_icon = "group"
     items = (
+        ApplicationAdmin,
         OrganizerProfileAdmin,
         ChampionshipAdmin,
         StageAdmin,
