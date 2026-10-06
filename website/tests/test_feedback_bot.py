@@ -397,3 +397,35 @@ def test_supervisor_stops_on_signal_event(env):
         stop.set()
         await asyncio.wait_for(task, timeout=10)
     asyncio.run(run())
+
+
+def anonymous_admin_msg(text, reply_to, chat_id=ADMIN_CHAT, sender_chat_id=ADMIN_CHAT):
+    """Сообщение администратора, отправленное «от имени группы»."""
+    return Update(update_id=3, message=Message(
+        message_id=7100, date=NOW, chat=Chat(id=chat_id, type='supergroup'),
+        from_user=User(id=telegram_bot.ANONYMOUS_ADMIN_ID, is_bot=True, first_name='Group', username='GroupAnonymousBot'),
+        sender_chat=Chat(id=sender_chat_id, type='supergroup'), text=text, reply_to_message=reply_to,
+    ))
+
+
+def test_anonymous_admin_reply_is_delivered(env):
+    fb = complete_flow(env)
+    env.session.calls.clear()
+    feed(env, anonymous_admin_msg('Ответ от анонимного админа', card_message(fb)))
+    out = fb.messages.get()
+    assert out.direction == 'out' and out.delivered and out.moderator is None
+    assert 'Ответ от анонимного админа' in env.session.texts_to(111)[-1]
+
+
+def test_anonymous_admin_can_ban(env):
+    fb = complete_flow(env)
+    feed(env, anonymous_admin_msg('/ban', card_message(fb)))
+    assert FeedbackUser.objects.get(external_user_id='111').is_banned
+
+
+def test_anonymous_sender_from_other_chat_is_not_trusted(env):
+    """«Анонимность» из чужого чата (sender_chat != админ-чат) не даёт прав."""
+    fb = complete_flow(env)
+    env.session.calls.clear()
+    feed(env, anonymous_admin_msg('подделка', card_message(fb), sender_chat_id=-100999))
+    assert not fb.messages.exists() and not env.session.texts_to(111)

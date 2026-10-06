@@ -30,6 +30,8 @@ from website.models import Feedback, FeedbackBotSettings, FeedbackStep
 logger = logging.getLogger('feedback')
 
 CHANNEL = 'telegram'
+# Сообщения анонимного администратора группы приходят от этого «пользователя»
+ANONYMOUS_ADMIN_ID = 1087968824
 HEARTBEAT_SEC = 30
 
 
@@ -345,7 +347,8 @@ class FeedbackTelegramBot:
         async def on_ban(message: Message, command: CommandObject):
             if not await self._is_admin_chat(message.chat.id):
                 return
-            if await run_sync(service.get_moderator, CHANNEL, message.from_user.id) is None:
+            allowed, _ = await self._moderator_of(message)
+            if not allowed:
                 return
             fb = await self._feedback_from_reply(message)
             if fb is None or fb.user is None:
@@ -359,8 +362,8 @@ class FeedbackTelegramBot:
         async def on_moderator_reply(message: Message):
             if not await self._is_admin_chat(message.chat.id):
                 return
-            moderator = await run_sync(service.get_moderator, CHANNEL, message.from_user.id)
-            if moderator is None:
+            allowed, moderator = await self._moderator_of(message)
+            if not allowed:
                 return
             fb = await self._feedback_from_reply(message)
             if fb is None:
@@ -385,6 +388,21 @@ class FeedbackTelegramBot:
                     )
                 except Exception:
                     pass  # реакции — удобство, не критичный путь
+
+    async def _moderator_of(self, message: Message):
+        """(допущен ли автор, модератор|None). Анонимный администратор группы
+        (сообщение «от имени группы») допускается без привязки к человеку:
+        писать в закрытую админ-группу могут только её администраторы."""
+        sender = message.from_user
+        if (
+            sender is not None and sender.id == ANONYMOUS_ADMIN_ID
+            and message.sender_chat is not None and message.sender_chat.id == message.chat.id
+        ):
+            return True, None
+        if sender is None:
+            return False, None
+        moderator = await run_sync(service.get_moderator, CHANNEL, sender.id)
+        return moderator is not None, moderator
 
     async def _feedback_from_reply(self, message: Message):
         target = message.reply_to_message
