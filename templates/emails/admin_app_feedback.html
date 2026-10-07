@@ -1,0 +1,10 @@
+{% extends "emails/base.html" %}{% load email_tags %}
+{% block title %}{{ subject }}{% endblock %}
+{% block preheader %}{{ preheader }}{% endblock %}
+{% block content %}
+{% include "emails/_status.html" with kind="info" label="Приложение SetupKart" gap=16 %}
+{% include "emails/_h1.html" with text=title gap=16 %}
+{% include "emails/_rows.html" with rows=rows gap=24 %}
+{% include "emails/_comment.html" with label="Сообщение" text=text gap=24 %}
+{% include "emails/_button.html" with url=admin_url label="Открыть обращения" gap=0 %}
+{% endblock %}

@@ -1,0 +1,12 @@
+{% autoescape off %}[ОБРАЩЕНИЕ ИЗ ПРИЛОЖЕНИЯ]
+
+{{ title }}
+
+{% include "emails/_rows.txt" %}
+
+Сообщение:
+{{ text }}
+
+Открыть обращения: {{ admin_url }}
+{% endautoescape %}
+{% include "emails/_footer.txt" %}

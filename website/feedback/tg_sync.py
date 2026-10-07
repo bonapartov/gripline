@@ -55,11 +55,14 @@ def create_category_topics(cfg):
     """Тема на каждую активную категорию без admin_topic_id. Возвращает
     (создано, [ошибки]). Нужны супергруппа с включёнными темами и право
     бота «Управление темами»."""
-    from website.models import FeedbackCategory
+    from django.db.models import Q
+    from website.models import APP_FEEDBACK_CATEGORY_SLUG, FeedbackCategory
     if not cfg.admin_chat_id:
         raise TelegramApiError('ID админ-чата не задан.')
     created, errors = 0, []
-    for cat in FeedbackCategory.objects.filter(is_active=True, admin_topic_id__isnull=True):
+    # категория приложения неактивна (её нет в меню бота), но тема ей нужна
+    for cat in FeedbackCategory.objects.filter(
+            Q(is_active=True) | Q(slug=APP_FEEDBACK_CATEGORY_SLUG), admin_topic_id__isnull=True):
         try:
             topic = api_call(cfg.get_token(), 'createForumTopic', cfg.proxy_url(), {
                 'chat_id': cfg.admin_chat_id,

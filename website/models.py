@@ -3992,7 +3992,10 @@ class DataRequest(models.Model):
 # `manage.py run_feedback_bot`.
 
 FEEDBACK_CHANNEL_TELEGRAM = 'telegram'
-FEEDBACK_CHANNEL_CHOICES = [(FEEDBACK_CHANNEL_TELEGRAM, 'Telegram')]
+FEEDBACK_CHANNEL_SETUPKART = 'setupkart'
+FEEDBACK_CHANNEL_CHOICES = [(FEEDBACK_CHANNEL_TELEGRAM, 'Telegram'), (FEEDBACK_CHANNEL_SETUPKART, 'Приложение SetupKart')]
+# Категория обращений из приложения: своя тема в админ-чате, но в меню бота и виджете сайта её нет (is_active=False).
+APP_FEEDBACK_CATEGORY_SLUG = 'setupkart'
 
 
 class FeedbackBotSettings(models.Model):

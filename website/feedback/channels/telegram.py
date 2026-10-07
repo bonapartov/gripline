@@ -23,7 +23,7 @@ from asgiref.sync import sync_to_async
 
 from website.feedback import service
 from website.feedback.channels.base import ChannelAdapter, DeliveryError
-from website.models import Feedback, FeedbackBotSettings
+from website.models import FEEDBACK_CHANNEL_TELEGRAM, Feedback, FeedbackBotSettings
 
 logger = logging.getLogger('feedback')
 
@@ -85,7 +85,10 @@ def _card_sync(feedback_id):
         lines.append(f'<i>{e(service.DELETED_NOTE)}</i>')
         return '\n'.join(lines), None
 
-    if fb.user:
+    if fb.user and fb.user.channel != FEEDBACK_CHANNEL_TELEGRAM:
+        lines.append('От: пользователь приложения GripLine SetupKart')
+        lines.append('<i>Ответ — только по e-mail (если указан, он в письме администратору)</i>')
+    elif fb.user:
         who = f'@{fb.user.username}' if fb.user.username else (fb.user.display_name or 'без имени')
         lines.append(f'От: {e(who)} (id {e(fb.user.external_user_id)})')
     src = service.source_info(fb)
@@ -109,13 +112,15 @@ def _card_sync(feedback_id):
     if len(body) > CARD_LIMIT:
         body = body[:CARD_LIMIT - 1] + '…'
 
-    reply_button = ('Ответить', f'fb:{fb.pk}:reply')
+    # из приложения ответить в Telegram нельзя — кнопку «Ответить» не показываем
+    from_app = fb.user is not None and fb.user.channel != FEEDBACK_CHANNEL_TELEGRAM
+    reply = [] if from_app else [('Ответить', f'fb:{fb.pk}:reply')]
     if fb.status == Feedback.STATUS_NEW:
-        rows = [[('В работу', f'fb:{fb.pk}:work'), reply_button, ('Закрыто', f'fb:{fb.pk}:done')]]
+        rows = [[('В работу', f'fb:{fb.pk}:work'), *reply, ('Закрыто', f'fb:{fb.pk}:done')]]
     elif fb.status == Feedback.STATUS_IN_WORK:
-        rows = [[reply_button, ('Закрыто', f'fb:{fb.pk}:done')]]
+        rows = [[*reply, ('Закрыто', f'fb:{fb.pk}:done')]]
     else:
-        rows = [[('Вернуть в работу', f'fb:{fb.pk}:work'), reply_button]]
+        rows = [[('Вернуть в работу', f'fb:{fb.pk}:work'), *reply]]
     return body, rows
 
 
@@ -128,6 +133,9 @@ class TelegramAdapter(ChannelAdapter):
 
     # --- пользователю ---
     async def send_message(self, user, text, buttons: Optional[Sequence] = None):
+        if getattr(user, 'channel', FEEDBACK_CHANNEL_TELEGRAM) != FEEDBACK_CHANNEL_TELEGRAM:
+            # обращение из приложения SetupKart: входящих сообщений там нет, ответ — только по e-mail
+            raise DeliveryError('обращение из приложения — ответ только по e-mail (адрес в письме администратору)')
         try:
             msg = await self.bot.send_message(int(user.external_user_id), text, reply_markup=make_markup(buttons))
         except TelegramForbiddenError as exc:

@@ -8,6 +8,9 @@ import json
 import logging
 
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from django.db import transaction
 from django.db.models import F
 from django.http import JsonResponse
 from django.utils import timezone
@@ -100,3 +103,45 @@ def suggestions(request):
     if not created:
         AppSuggestion.objects.filter(pk=obj.pk).update(count=F('count') + 1, last_seen=timezone.now())
     return JsonResponse({'ok': True}, status=201 if created else 200)
+
+
+@nocache_page
+@csrf_exempt
+@require_POST
+def feedback(request):
+    """Обратная связь из приложения → бот (своя тема) + письмо администратору (ТЗ приложения §13.2)."""
+    from website.feedback import service
+    from .feedback import CATEGORY_LABELS, TEXT_MAX, create_app_feedback, notify_admins
+
+    ip = get_client_ip(request)
+    if _limited(f'setupkart:fb:ip:{ip}', 10, 3600):
+        return JsonResponse({'error': 'rate_limited'}, status=429)
+    try:
+        body = json.loads(request.body or b'{}')
+    except ValueError:
+        return JsonResponse({'error': 'bad_json'}, status=400)
+
+    client_id = str(body.get('client_id') or '').strip()[:64]
+    kind = str(body.get('category') or '')
+    text = str(body.get('text') or '').strip()
+    email = str(body.get('contact_email') or '').strip()[:254]
+    if not client_id or kind not in CATEGORY_LABELS or not text or len(text) > TEXT_MAX:
+        return JsonResponse({'error': 'invalid'}, status=400)
+    if email:
+        try:
+            validate_email(email)
+        except ValidationError:
+            return JsonResponse({'error': 'invalid_email'}, status=400)
+        if body.get('consent') is not True:
+            return JsonResponse({'error': 'consent_required'}, status=400)
+
+    user = service.get_or_create_user('setupkart', client_id)
+    if user.is_banned or service.is_rate_limited(user):
+        return JsonResponse({'error': 'rate_limited'}, status=429)
+
+    fb = create_app_feedback(
+        client_id=client_id, kind=kind, text=text, contact_email=email,
+        app_version=str(body.get('app_version') or '')[:40], device_info=str(body.get('device_info') or '')[:120],
+    )
+    transaction.on_commit(lambda: notify_admins(fb, email))
+    return JsonResponse({'ok': True, 'number': fb.pk}, status=201)
