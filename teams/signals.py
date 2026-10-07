@@ -13,7 +13,7 @@ def stash_old_team_claim_state(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=TeamClaim)
-def create_team_manager_on_approval(sender, instance, **kwargs):
+def create_team_manager_on_approval(sender, instance, created=False, **kwargs):
     """
     Подтверждение заявки (status='approved'):
     - команда не выбрана админом → создаём её по запрошенному названию (заявка на «новую команду»);
@@ -22,7 +22,10 @@ def create_team_manager_on_approval(sender, instance, **kwargs):
     созданные до того, как менеджер стал выдаваться только после подтверждения).
     """
     if instance.status == 'approved':
-        if not instance.team_id and instance.requested_team_name.strip():
+        # автосоздание команды — только при переходе в «подтверждено» (решение админа),
+        # не при создании уже подтверждённой записи скриптом
+        if (not instance.team_id and instance.requested_team_name.strip()
+                and not created and getattr(instance, '_old_status', None) != 'approved'):
             from website.models import Team
             team = Team.objects.create(name=instance.requested_team_name.strip(),
                                        city=instance.requested_city or None)

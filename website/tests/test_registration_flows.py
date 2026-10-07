@@ -330,14 +330,74 @@ def test_yandex_pilot_select_existing(client, social_user, tg, commit):
     assert_no_pii(tg, 'ya@example.ru', 'Иванов')
 
 
-def test_yandex_pilot_new_profile(client, social_user, tg, commit):
+def test_yandex_new_pilot_waits_for_approval_then_creates_driver(client, social_user, tg, commit):
     client.force_login(social_user)
     with commit():
         client.post('/accounts/yandex/onboarding/pilot/', {'action': 'new', 'first_name': 'Пётр', 'last_name': 'Иванов'})
-    assert DriverClaim.objects.get().status == 'pending'
-    assert Driver.objects.filter(last_name='Иванов').count() == 1
+    claim = DriverClaim.objects.get()
+    # до одобрения: заявка есть, публичного профиля пилота нет, прав нет
+    assert claim.status == 'pending' and claim.driver is None
+    assert not Driver.objects.filter(last_name='Иванов').exists()
+    social_user.profile.refresh_from_db()
+    assert 'pilot' not in social_user.profile.roles and not social_user.profile.verified
     assert subjects().count(SUBJ_ADMIN_DRIVER) == 1 and len(tg) == 1
     assert_no_pii(tg, 'Иванов', 'ya@example.ru')
+    # одобрение админом
+    mail.outbox.clear()
+    claim.status = 'approved'
+    claim.save()
+    claim.save()
+    driver = Driver.objects.get(last_name='Иванов')
+    claim.refresh_from_db()
+    assert claim.driver == driver and driver.slug
+    social_user.profile.refresh_from_db()
+    assert 'pilot' in social_user.profile.roles and social_user.profile.verified
+    assert social_user.profile.driver == driver
+    approved = mails('подтверждена', 'ya@example.ru')
+    assert len(approved) == 1 and f'/drivers/{driver.slug}/' in approved[0].body
+
+
+def test_yandex_new_pilot_rejected_leaves_no_public_profile(client, social_user, tg, commit):
+    client.force_login(social_user)
+    with commit():
+        client.post('/accounts/yandex/onboarding/pilot/', {'action': 'new', 'first_name': 'Спам', 'last_name': 'Спамов'})
+    claim = DriverClaim.objects.get()
+    claim.status = 'rejected'
+    claim.save()
+    assert not Driver.objects.filter(last_name='Спамов').exists()
+
+
+def test_approving_claim_without_driver_gets_unique_slug_and_keeps_chosen_driver(tg):
+    Driver.objects.create(first_name='Пётр', last_name='Иванов', slug='пётр-иванов')
+    u1 = User.objects.create_user('a', 'a@example.ru', 'x')
+    c1 = DriverClaim.objects.create(user=u1, requested_first_name='Пётр', requested_last_name='Иванов')
+    c1.status = 'approved'
+    c1.save()
+    c1.refresh_from_db()
+    assert c1.driver.slug == 'пётр-иванов-1' and Driver.objects.count() == 2
+    # админ выбрал существующего — новый профиль не создаётся
+    chosen = Driver.objects.create(first_name='Иван', last_name='Смирнов', slug='ivan-smirnov')
+    u2 = User.objects.create_user('b', 'b@example.ru', 'x')
+    c2 = DriverClaim.objects.create(user=u2, requested_first_name='Иван', requested_last_name='Смирнов')
+    c2.driver, c2.status = chosen, 'approved'
+    c2.save()
+    assert Driver.objects.count() == 3 and DriverClaim.objects.get(pk=c2.pk).driver == chosen
+
+
+def test_email_registration_claim_without_driver_also_creates_profile_on_approval(tg, commit):
+    user = User.objects.create_user('pilot', 'pilot@example.ru', 'x', first_name='Иван', last_name='Смирнов')
+    user.profile.city = 'Казань'
+    user.profile.save()
+    with commit():
+        claim = DriverClaim.objects.create(user=user, requested_first_name='Иван', requested_last_name='Смирнов',
+                                           requested_city='Казань')
+    claim.status = 'approved'
+    claim.save()
+    driver = Driver.objects.get(last_name='Смирнов')
+    assert driver.city == 'Казань'
+    user.profile.refresh_from_db()
+    assert user.profile.driver == driver and 'pilot' in user.profile.roles
+
 
 
 def test_yandex_pilot_preselected_in_choose_role(client, social_user, tg, commit):

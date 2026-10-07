@@ -750,19 +750,9 @@ def yandex_pilot_onboarding(request):
                 return render(request, 'accounts/yandex_pilot_onboarding.html', {
                     'first_name': first_name, 'last_name': last_name, 'show_new_form': True,
                 })
-            from django.utils.text import slugify as dslugify
-            import uuid
-            base_slug = dslugify(f"{fn}-{ln}", allow_unicode=True) or str(uuid.uuid4())[:8]
-            slug = base_slug
-            counter = 1
-            while Driver.objects.filter(slug=slug).exists():
-                slug = f"{base_slug}-{counter}"
-                counter += 1
-            driver = Driver(first_name=fn, last_name=ln, slug=slug)
-            driver.save()
+            # Профиль пилота создаст сигнал при подтверждении заявки админом (accounts/signals.py)
             DriverClaim.objects.create(
                 user=request.user,
-                driver=driver,
                 requested_first_name=fn,
                 requested_last_name=ln,
                 status='pending',
@@ -770,7 +760,7 @@ def yandex_pilot_onboarding(request):
             for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
                 request.session.pop(key, None)
             request.session['active_role'] = 'pilot'
-            messages.success(request, 'Профиль создан, появится в рейтингах после первого этапа.')
+            messages.success(request, 'Заявка отправлена. Профиль пилота появится на сайте после подтверждения администратором.')
             return redirect('accounts:profile')
 
     return render(request, 'accounts/yandex_pilot_onboarding.html', {

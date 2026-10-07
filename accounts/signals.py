@@ -171,8 +171,44 @@ def stash_old_driver_claim_status(sender, instance, **kwargs):
         instance._old_status = None
 
 
+def unique_driver_slug(first_name, last_name):
+    import uuid
+    from django.utils.text import slugify
+    from website.models import Driver
+
+    base = slugify(f"{first_name}-{last_name}", allow_unicode=True) or str(uuid.uuid4())[:8]
+    slug, n = base, 1
+    while Driver.objects.filter(slug=slug).exists():
+        slug = f"{base}-{n}"
+        n += 1
+    return slug
+
+
+def _create_driver_for_approved_claim(claim):
+    """Заявка на «нового пилота» одобрена, а админ не выбрал существующего: профиль создаём
+    только сейчас — до одобрения никаких публичных страниц (спам-заявки ничего не оставляют).
+    Если админ хотел привязать существующего пилота, ему достаточно выбрать его в заявке."""
+    from website.models import Driver
+
+    if claim.status != 'approved' or claim.driver_id:
+        return
+    first, last = claim.requested_first_name.strip(), claim.requested_last_name.strip()
+    if not first or not last:
+        return
+    driver = Driver(first_name=first, last_name=last, city=claim.requested_city or None,
+                    slug=unique_driver_slug(first, last))
+    driver.save()
+    sender = type(claim)
+    sender.objects.filter(pk=claim.pk).update(driver=driver)
+    claim.driver = driver
+
+
 @receiver(post_save, sender='accounts.DriverClaim')
 def on_driver_claim_save(sender, instance, created, **kwargs):
+    # Только при переходе в «подтверждено» (решение админа), не при создании записи: скрипты
+    # (demo, create_test_users) создают уже подтверждённые заявки и сами привязывают пилота.
+    if not created and getattr(instance, '_old_status', None) != 'approved':
+        _create_driver_for_approved_claim(instance)
     _sync_roles(instance.user)
 
     old_status = getattr(instance, '_old_status', None)
