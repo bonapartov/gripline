@@ -63,6 +63,7 @@ urlpatterns = [
     path("weights-table/", weights_table_view, name="weights_table"),
     path("matrix/", chassis_track_matrix_view, name="chassis_track_matrix"),
     path("weather-impact/", weather_impact_view, name="weather_impact"),
+    path("api/setupkart/", include("website.setupkart.urls")),
     path("drivers-api/", drivers_api, name="drivers_api"),
     path("api/home-top-drivers/", home_top_drivers_api, name="home_top_drivers_api"),
     path("legal/data-request/", data_request_view, name="data_request"),

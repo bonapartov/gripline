@@ -1,0 +1,25 @@
+{% extends "wagtailadmin/base.html" %}
+{% block titletag %}Приложение — публикация{% endblock %}
+{% block content %}
+{% include "wagtailadmin/shared/header.html" with title="Публикация справочников приложения" icon="upload" %}
+{% include "setupkart/admin/_style.html" %}
+<div class="skp">
+  <p>Приложения получают только опубликованную версию. Правки в карточках двигателей, шинах, шасси и параметрах до публикации на телефоны не попадают.</p>
+  <p>Текущая версия: {% if latest %}<b>v{{ latest.version }}</b> от {{ latest.published_at|date:"d.m.Y H:i" }}{% else %}<span class="warn">ещё не публиковалась</span>{% endif %}.
+  {% if unpublished %}<span class="warn">Есть неопубликованные изменения.</span>{% else %}<span class="ok">Изменений нет.</span>{% endif %}</p>
+  {% if errors %}
+    <p class="err">Опубликовать нельзя — исправьте:</p>
+    <ul class="errs err">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+  {% else %}
+    <form method="post">{% csrf_token %}
+      <p><input type="text" name="note" maxlength="200" placeholder="Комментарий (необязательно): что изменилось" style="width:100%;max-width:600px"></p>
+      <button class="button" type="submit">Опубликовать новую версию</button>
+    </form>
+  {% endif %}
+  <h2>История</h2>
+  <table><thead><tr><th>Версия</th><th>Когда</th><th>Кто</th><th>Комментарий</th><th>Двигателей</th></tr></thead><tbody>
+  {% for v in versions %}<tr><td>v{{ v.version }}</td><td>{{ v.published_at|date:"d.m.Y H:i" }}</td><td>{{ v.published_by|default:"—" }}</td><td>{{ v.note|default:"" }}</td><td>{{ v.payload.engines|length }}</td></tr>
+  {% empty %}<tr><td colspan="5" class="muted">Публикаций ещё не было.</td></tr>{% endfor %}
+  </tbody></table>
+</div>
+{% endblock %}

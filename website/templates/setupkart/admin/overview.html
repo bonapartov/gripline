@@ -1,0 +1,40 @@
+{% extends "wagtailadmin/base.html" %}
+{% block titletag %}Приложение — обзор{% endblock %}
+{% block content %}
+{% include "wagtailadmin/shared/header.html" with title="Приложение: что уходит в GripLine SetupKart" icon="mobile-alt" %}
+{% include "setupkart/admin/_style.html" %}
+<div class="skp">
+  <p>
+    Опубликованная версия: {% if latest %}<b>v{{ latest.version }}</b> от {{ latest.published_at|date:"d.m.Y H:i" }}{% else %}<span class="warn">ещё ни одной</span>{% endif %}.
+    {% if unpublished %}<span class="warn">Есть неопубликованные изменения.</span>{% else %}<span class="ok">Всё опубликовано.</span>{% endif %}
+    <a href="{% url 'setupkart_publication' %}">Публикация →</a>
+    {% if new_suggestions %} · <a href="{% url 'setupkart_suggestions' %}">Новых предложений: {{ new_suggestions }}</a>{% endif %}
+  </p>
+  {% if errors %}<p class="err">Перед публикацией нужно исправить:</p><ul class="errs err">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+
+  <h2>Двигатели в приложении ({{ engines|length }})</h2>
+  <table><thead><tr><th>Двигатель</th><th>Семейство</th><th>Классы</th><th>Поля карбюратора</th><th>Свечи</th></tr></thead><tbody>
+  {% for e in engines %}
+    <tr><td><a href="{% url 'website_engine_modeladmin_edit' e.pk %}">{{ e.name }}</a></td>
+      <td>{{ e.get_app_family_display|default:"—" }}</td>
+      <td>{% for rc in e.app_race_classes.all %}{{ rc.name }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="muted">—</span>{% endfor %}</td>
+      <td>{% for f in e.app_fields.all %}{{ f.get_key_display }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="err">нет</span>{% endfor %}</td>
+      <td>{{ e.app_spark_plugs.all|length }}</td></tr>
+  {% empty %}<tr><td colspan="5" class="muted">Ни один двигатель не отмечен. Откройте «Техника → Двигатели», вкладка «Приложение».</td></tr>{% endfor %}
+  </tbody></table>
+  {% if engines_off %}<p class="muted">Только на сайте: {% for e in engines_off %}<a href="{% url 'website_engine_modeladmin_edit' e.pk %}">{{ e.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+
+  <h2>Шины ({{ tyre_brands|length }}) · Шасси ({{ chassis|length }})</h2>
+  <p>{% for t in tyre_brands %}<a href="{% url 'website_tyrebrand_modeladmin_edit' t.pk %}">{{ t.name }}</a>{% if not t.live %} <span class="warn">(не опубликован на сайте — в приложение не попадёт)</span>{% endif %}{% if not forloop.last %}, {% endif %}{% empty %}<span class="muted">Нет отмеченных производителей шин.</span>{% endfor %}</p>
+  <p>{% for c in chassis %}<a href="{% url 'website_chassis_modeladmin_edit' c.pk %}">{{ c.name }}</a>{% if not forloop.last %}, {% endif %}{% empty %}<span class="muted">Нет отмеченных шасси.</span>{% endfor %}</p>
+
+  <h2>Трассы ({{ tracks|length }})</h2>
+  <p>{% for t in tracks %}{{ t.name }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="muted">Нет отмеченных трасс с координатами.</span>{% endfor %}</p>
+  {% if tracks_without_coords %}<p class="warn">Отмечено, но без координат (в приложение не попадут): {{ tracks_without_coords }}.</p>{% endif %}
+  <p class="muted">Трассы приходят в приложение сразу, без публикации справочников.</p>
+
+  <h2>Общие параметры ({{ params|length }})</h2>
+  <p>{% for p in params %}{{ p }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="muted">Не заданы — приложение использует встроенные значения.</span>{% endfor %}
+  · <a href="{% url 'website_appparameter_modeladmin_index' %}">Параметры →</a></p>
+</div>
+{% endblock %}

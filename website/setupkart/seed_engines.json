@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "engines": [
+    {
+      "id": "rotax", "make": "Rotax",
+      "categories": ["Micro", "Mini", "Junior", "Senior", "DD2"],
+      "carburetor_title": "Карбюратор (Dell'Orto)",
+      "carburetor_fields": [
+        {"key": "main_jet", "label": "Главный жиклёр", "type": "choice", "allow_custom": true, "default": "120",
+         "range": {"from": 105, "to": 135, "step": 1}},
+        {"key": "idle_turns", "label": "Холостой ход", "type": "choice", "default": "1.50",
+         "range": {"from": 0.25, "to": 6.0, "step": 0.25, "decimals": 2}},
+        {"key": "air_screw_turns", "label": "Воздушный винт", "type": "choice", "default": "1.00",
+         "range": {"from": 0.0, "to": 6.0, "step": 0.25, "decimals": 2}, "note": "[проверить] верх списка"},
+        {"key": "needle_position", "label": "Положение иглы", "type": "radio", "default": "3",
+         "options": [{"value": "1", "label": "1 — бедная"}, "2", {"value": "3", "label": "3 — стандарт"}, "4", {"value": "5", "label": "5 — богатая"}]},
+        {"key": "spark_plug", "label": "Свеча", "type": "choice", "allow_custom": true, "default": "GR9DI-8",
+         "options": ["GR8DI-8", "GR9DI-8"]},
+        {"key": "plug_gap_mm", "label": "Зазор свечи", "type": "choice", "unit": "мм", "allow_custom": true, "default": "0.80",
+         "range": {"from": 0.5, "to": 0.9, "step": 0.05, "decimals": 2}, "note": "[проверить] список"}
+      ]
+    },
+    {
+      "id": "iame", "make": "IAME",
+      "categories": ["Swift 60 Micro", "Swift 60 Mini", "X30 Junior", "X30 Senior", "KA100 Junior", "KA100 Senior"],
+      "carburetor_title": "Карбюратор (Tillotson)",
+      "carburetor_fields": [
+        {"key": "needle_high", "label": "Винт High", "type": "choice", "default": "60",
+         "range": {"from": 15, "to": 180, "step": 5}, "note": "[проверить] единицы"},
+        {"key": "needle_low", "label": "Винт Low", "type": "choice", "default": "60",
+         "range": {"from": 15, "to": 180, "step": 5}, "note": "[проверить] единицы"},
+        {"key": "spark_plug", "label": "Свеча", "type": "choice", "allow_custom": true, "default": "NGK B9EG",
+         "options": ["NGK B8EG", "NGK B9EG", "NGK B10EG", "NGK BR8EG", "NGK BR9EG", "NGK BR10EG", "NGK BR8EIX", "NGK BR9EIX", "NGK BR10EIX"]},
+        {"key": "plug_gap_mm", "label": "Зазор свечи", "type": "choice", "unit": "мм", "allow_custom": true, "default": "0.80",
+         "range": {"from": 0.5, "to": 0.9, "step": 0.05, "decimals": 2}}
+      ]
+    },
+    {
+      "id": "vortex", "make": "Vortex",
+      "categories": ["Micro ROK", "Mini ROK", "ROK Junior", "ROK Senior", "ROK Shifter"],
+      "carburetor_title": "Карбюратор (Dell'Orto VHSH)",
+      "carburetor_fields": [
+        {"key": "main_jet", "label": "Главный жиклёр", "type": "choice", "allow_custom": true, "default": "150",
+         "range": {"from": 120, "to": 190, "step": 2}, "note": "[проверить] диапазон для Vortex"},
+        {"key": "idle_jet", "label": "Жиклёр холостого хода", "type": "choice", "allow_custom": true, "default": "50",
+         "range": {"from": 40, "to": 60, "step": 5}},
+        {"key": "needle", "label": "Игла", "type": "choice", "allow_custom": true, "default": "K50",
+         "range": {"from": 46, "to": 60, "step": 1, "prefix": "K"}},
+        {"key": "mixing_tube", "label": "Смесительная трубка", "type": "choice", "allow_custom": true, "default": "DQ 268",
+         "options": ["DQ 268", "DP 266"]},
+        {"key": "throttle_slide", "label": "Золотник", "type": "choice", "allow_custom": true, "default": "50",
+         "range": {"from": 45, "to": 60, "step": 5}},
+        {"key": "idle_turns", "label": "Холостой ход", "type": "choice", "default": "1.50",
+         "range": {"from": 0.25, "to": 6.0, "step": 0.25, "decimals": 2}},
+        {"key": "air_screw_turns", "label": "Воздушный винт", "type": "choice", "default": "1.00",
+         "range": {"from": 0.0, "to": 6.0, "step": 0.25, "decimals": 2}},
+        {"key": "needle_position", "label": "Положение иглы", "type": "radio", "default": "3",
+         "options": [{"value": "1", "label": "1 — бедная"}, "2", {"value": "3", "label": "3 — стандарт"}, "4", {"value": "5", "label": "5 — богатая"}]},
+        {"key": "spark_plug", "label": "Свеча", "type": "choice", "allow_custom": true, "default": "NGK B9EG",
+         "options": ["NGK B8EG", "NGK B9EG", "NGK B10EG", "NGK BR8EIX", "NGK BR9EIX", "NGK BR10EIX"]},
+        {"key": "plug_gap_mm", "label": "Зазор свечи", "type": "choice", "unit": "мм", "allow_custom": true, "default": "0.80",
+         "range": {"from": 0.5, "to": 0.9, "step": 0.05, "decimals": 2}, "note": "[проверить] по умолчанию"}
+      ]
+    },
+    {
+      "id": "tm", "make": "TM",
+      "categories": ["KZ Junior", "KZ Senior"],
+      "carburetor_title": "Карбюратор (Dell'Orto VHSH)",
+      "carburetor_fields": [
+        {"key": "main_jet", "label": "Главный жиклёр", "type": "choice", "allow_custom": true, "default": "170",
+         "range": {"from": 120, "to": 190, "step": 2}, "note": "[проверить] начало списка"},
+        {"key": "idle_jet", "label": "Жиклёр холостого хода", "type": "choice", "allow_custom": true, "default": "50",
+         "range": {"from": 40, "to": 60, "step": 5}},
+        {"key": "needle", "label": "Игла", "type": "choice", "allow_custom": true, "default": "K50",
+         "range": {"from": 46, "to": 60, "step": 1, "prefix": "K"}},
+        {"key": "mixing_tube", "label": "Смесительная трубка", "type": "choice", "allow_custom": true, "default": "DQ 268",
+         "options": ["DQ 268", "DP 266"]},
+        {"key": "throttle_slide", "label": "Золотник", "type": "choice", "allow_custom": true, "default": "50",
+         "range": {"from": 45, "to": 60, "step": 5}},
+        {"key": "idle_turns", "label": "Холостой ход", "type": "choice", "default": "1.50",
+         "range": {"from": 0.25, "to": 6.0, "step": 0.25, "decimals": 2}},
+        {"key": "air_screw_turns", "label": "Воздушный винт", "type": "choice", "default": "1.00",
+         "range": {"from": 0.0, "to": 6.0, "step": 0.25, "decimals": 2}},
+        {"key": "needle_position", "label": "Положение иглы", "type": "radio", "default": "3",
+         "options": [{"value": "1", "label": "1 — бедная"}, "2", {"value": "3", "label": "3 — стандарт"}, "4", {"value": "5", "label": "5 — богатая"}]},
+        {"key": "spark_plug", "label": "Свеча", "type": "choice", "allow_custom": true, "default": "NGK BR10EG",
+         "options": ["NGK BR10EG", "NGK R7282", "Brisk L08S"]},
+        {"key": "plug_gap_mm", "label": "Зазор свечи", "type": "choice", "unit": "мм", "allow_custom": true, "default": "0.50",
+         "range": {"from": 0.5, "to": 0.9, "step": 0.05, "decimals": 2}}
+      ]
+    },
+    {
+      "id": "honda", "make": "Honda",
+      "categories": ["GX120", "GX160", "GX200", "GX270", "GX390"],
+      "carburetor_title": "Карбюратор",
+      "carburetor_fields": [
+        {"key": "main_jet", "label": "Главный жиклёр", "type": "choice", "allow_custom": true, "default": "112",
+         "options": ["108", "112"]},
+        {"key": "idle_turns", "label": "Холостой ход", "type": "choice", "default": "1.50",
+         "range": {"from": 0.25, "to": 6.0, "step": 0.25, "decimals": 2}},
+        {"key": "air_screw_turns", "label": "Воздушный винт", "type": "choice", "default": "1.00",
+         "range": {"from": 0.0, "to": 6.0, "step": 0.25, "decimals": 2}},
+        {"key": "spark_plug", "label": "Свеча", "type": "choice", "allow_custom": true, "default": "NGK BPR6ES",
+         "options": ["NGK BPR5ES", "NGK BPR6ES", "DENSO W20EPR-U11"]},
+        {"key": "plug_gap_mm", "label": "Зазор свечи", "type": "choice", "unit": "мм", "allow_custom": true, "default": "0.75",
+         "options": ["0.75"], "note": "[проверить] список"}
+      ]
+    },
+    {
+      "id": "briggs", "make": "Briggs",
+      "categories": ["LO206 Cadet", "LO206 Junior", "LO206 Senior", "LO206 Masters"],
+      "carburetor_title": "Карбюратор",
+      "carburetor_fields": [
+        {"key": "main_jet_in", "label": "Главный жиклёр", "type": "choice", "unit": "дюйм", "allow_custom": true,
+         "default": ".037", "options": [".036", ".037", ".038"]},
+        {"key": "needle_clip", "label": "Клипса иглы", "type": "choice", "default": "3",
+         "options": ["1", "2", "3", "4", "5"]},
+        {"key": "idle_turns", "label": "Холостой ход", "type": "choice", "default": "1.50",
+         "range": {"from": 0.25, "to": 6.0, "step": 0.25, "decimals": 2}},
+        {"key": "air_screw_turns", "label": "Воздушный винт", "type": "choice", "default": "1.00",
+         "range": {"from": 0.0, "to": 6.0, "step": 0.25, "decimals": 2}},
+        {"key": "spark_plug", "label": "Свеча", "type": "choice", "allow_custom": true, "default": "Champion RC12YC",
+         "options": ["Champion RC12YC", "Champion RC14YC", "NGK BPR5ES"]},
+        {"key": "plug_gap_mm", "label": "Зазор свечи", "type": "choice", "unit": "мм", "allow_custom": true, "default": "0.76",
+         "options": ["0.76", "0.80"]}
+      ]
+    },
+    {
+      "id": "other", "make": "Другой",
+      "categories": [],
+      "carburetor_title": "Карбюратор",
+      "carburetor_fields": [
+        {"key": "main_jet", "label": "Главный жиклёр", "type": "text"},
+        {"key": "idle_turns", "label": "Холостой ход", "type": "choice", "default": "1.50",
+         "range": {"from": 0.25, "to": 6.0, "step": 0.25, "decimals": 2}},
+        {"key": "air_screw_turns", "label": "Воздушный винт", "type": "choice", "default": "1.00",
+         "range": {"from": 0.0, "to": 6.0, "step": 0.25, "decimals": 2}},
+        {"key": "spark_plug", "label": "Свеча", "type": "text"},
+        {"key": "plug_gap_mm", "label": "Зазор свечи", "type": "number", "unit": "мм", "min": 0.3, "max": 1.2, "step": 0.05, "decimals": 2}
+      ]
+    }
+  ]
+}

@@ -307,6 +307,40 @@ modeladmin_register(AnalyticsGroup)
 modeladmin_register(BalanceGroup)
 modeladmin_register(DataRequestAdmin)
 
+
+# ---------- Приложение GripLine SetupKart (ТЗ приложения §13.3) ----------
+from .models import AppParameter  # noqa: E402
+from .setupkart import admin_views as setupkart_admin_views  # noqa: E402
+
+
+class AppParameterAdmin(ModelAdmin):
+    model = AppParameter
+    menu_label = 'Параметры'
+    menu_icon = 'list-ul'
+    list_display = ('__str__', 'mode', 'min_value', 'max_value', 'step', 'default_value')
+
+
+class SetupKartMenuItem(MenuItem):
+    def is_shown(self, request):
+        return request.user.has_perm(setupkart_admin_views.PERM)
+
+
+class SetupKartGroup(ModelAdminGroup):
+    menu_label = 'Приложение'
+    menu_icon = 'mobile-alt'
+    menu_order = 360
+    items = (AppParameterAdmin,)
+
+    def get_submenu_items(self):
+        items = super().get_submenu_items()
+        items.insert(0, SetupKartMenuItem('Обзор', reverse('setupkart_overview'), icon_name='view', order=100))
+        items.append(SetupKartMenuItem('Предложения пользователей', reverse('setupkart_suggestions'), icon_name='comment', order=300))
+        items.append(SetupKartMenuItem('Публикация', reverse('setupkart_publication'), icon_name='upload', order=400))
+        return items
+
+
+modeladmin_register(SetupKartGroup)
+
 telegram_group = TelegramGroup()
 telegram_group.register_with_wagtail()
 
@@ -511,6 +545,17 @@ def send_announcements_on_publish_everywhere(request, page):
             messages.error(request, 'Публикация: отправка в VK не удалась — проверьте логи.')
         else:
             messages.success(request, 'Опубликовано в сообществе VK.')
+
+@hooks.register('register_admin_urls')
+def register_setupkart_admin_urls():
+    return [
+        path('setupkart/', setupkart_admin_views.overview, name='setupkart_overview'),
+        path('setupkart/publication/', setupkart_admin_views.publication, name='setupkart_publication'),
+        path('setupkart/suggestions/', setupkart_admin_views.suggestions, name='setupkart_suggestions'),
+        path('setupkart/suggestions/<int:pk>/<str:action>/', setupkart_admin_views.suggestion_action,
+             name='setupkart_suggestion_action'),
+    ]
+
 
 @hooks.register('register_admin_urls')
 def register_import_urls():

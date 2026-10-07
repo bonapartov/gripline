@@ -15,7 +15,7 @@ from django.db import models
 from modelcluster.models import ClusterableModel
 from wagtail.api import APIField
 from wagtail.snippets.models import register_snippet
-from wagtail.admin.panels import FieldPanel, FieldRowPanel, HelpPanel, InlinePanel, MultiFieldPanel
+from wagtail.admin.panels import FieldPanel, FieldRowPanel, HelpPanel, InlinePanel, MultiFieldPanel, ObjectList, TabbedInterface
 from wagtail.admin.forms.pages import WagtailAdminPageForm
 from wagtail.models import DraftStateMixin, RevisionMixin, PreviewableMixin, Orderable
 from django.urls import reverse
@@ -1176,7 +1176,14 @@ class Track(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, 
         editable=False,
     )
 
+    show_in_app = models.BooleanField(
+        "Показывать в приложении", default=False,
+        help_text="Запись попадёт в мобильное приложение GripLine SetupKart после публикации справочников "
+                  "(меню «Приложение» → «Публикация»). Без галочки — только на сайте.",
+    )
+
     panels = [
+        FieldPanel('show_in_app'),
         FieldPanel('name'),
         FieldPanel('slug'),
         FieldPanel('city'),
@@ -1285,7 +1292,14 @@ class Chassis(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel
         blank=True
     )
 
+    show_in_app = models.BooleanField(
+        "Показывать в приложении", default=False,
+        help_text="Запись попадёт в мобильное приложение GripLine SetupKart после публикации справочников "
+                  "(меню «Приложение» → «Публикация»). Без галочки — только на сайте.",
+    )
+
     panels = [
+        FieldPanel('show_in_app'),
         FieldPanel('name'),
         FieldPanel('slug'),
         FieldPanel('country'),
@@ -1331,7 +1345,14 @@ class TyreBrand(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableMod
     description = models.TextField("Описание", blank=True, null=True)
     website = models.URLField("Официальный сайт", blank=True, null=True)
 
+    show_in_app = models.BooleanField(
+        "Показывать в приложении", default=False,
+        help_text="Запись попадёт в мобильное приложение GripLine SetupKart после публикации справочников "
+                  "(меню «Приложение» → «Публикация»). Без галочки — только на сайте.",
+    )
+
     panels = [
+        FieldPanel('show_in_app'),
         FieldPanel('name'),
         FieldPanel('slug'),
         FieldPanel('country'),
@@ -1453,6 +1474,22 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
     description = models.TextField("Описание", blank=True, null=True)
     website = models.URLField("Официальный сайт", blank=True, null=True)
 
+    show_in_app = models.BooleanField(
+        "Показывать в приложении", default=False,
+        help_text="Запись попадёт в мобильное приложение GripLine SetupKart после публикации справочников "
+                  "(меню «Приложение» → «Публикация»). Без галочки — только на сайте.",
+    )
+    app_family = models.CharField(
+        "Семейство (для импорта .kart)", max_length=20, blank=True,
+        choices=[('rotax', 'Rotax'), ('iame', 'IAME'), ('vortex', 'Vortex'), ('tm', 'TM'),
+                 ('honda', 'Honda'), ('briggs', 'Briggs'), ('other', 'Другое')],
+        help_text="Нужно, чтобы сетапы из оригинального приложения (марка + категория) сопоставлялись с этим двигателем.",
+    )
+    app_race_classes = ParentalManyToManyField(
+        'website.RaceClass', blank=True, related_name='app_engines', verbose_name="Классы в приложении",
+        help_text="Классы, которые пользователь сможет выбрать с этим двигателем.",
+    )
+
     panels = [
         FieldPanel('name'),
         FieldPanel('slug'),
@@ -1461,6 +1498,19 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
         FieldPanel('description'),
         FieldPanel('website'),
     ]
+
+    app_panels = [
+        FieldPanel('show_in_app'),
+        FieldPanel('app_family'),
+        FieldPanel('app_race_classes', widget=forms.CheckboxSelectMultiple),
+        InlinePanel('app_fields', label="Поле карбюратора",
+                    help_text="Числа — минимум, максимум и шаг; остальное — список (по одному значению в строке)."),
+        InlinePanel('app_spark_plugs', label="Свеча"),
+    ]
+    edit_handler = TabbedInterface([
+        ObjectList(panels, heading="Основное"),
+        ObjectList(app_panels, heading="Приложение"),
+    ])
 
     def __str__(self):
         return self.name
@@ -4299,3 +4349,158 @@ class AdminDashboardVisit(models.Model):
     class Meta:
         verbose_name = 'Визит на главную админки'
         verbose_name_plural = 'Визиты на главную админки'
+
+
+# ---------- Справочники мобильного приложения GripLine SetupKart (ТЗ приложения §13.3) ----------
+# Принцип: справочники сайта (Engine, Chassis, TyreBrand, Track, RaceClass) не дублируются —
+# приложение ссылается на них (галочка show_in_app). Здесь только то, чего на сайте нет:
+# поля карбюратора и свечи двигателя, общие параметры, версии публикации, предложения пользователей.
+
+# Поля, которые приложение умеет показывать (виджет выбирается по ключу — как в оригинале на скриншотах:
+# список с «Другое…», плитки 1–5 для положения иглы).
+APP_ENGINE_FIELD_CHOICES = [
+    ('main_jet', 'Главный жиклёр'),
+    ('main_jet_in', 'Главный жиклёр (дюймы)'),
+    ('idle_jet', 'Жиклёр холостого хода'),
+    ('needle', 'Игла'),
+    ('mixing_tube', 'Смесительная трубка'),
+    ('throttle_slide', 'Золотник'),
+    ('idle_turns', 'Холостой ход'),
+    ('air_screw_turns', 'Воздушный винт'),
+    ('needle_position', 'Положение иглы (1 — бедная … 5 — богатая)'),
+    ('needle_clip', 'Клипса иглы'),
+    ('needle_high', 'Винт High (Tillotson)'),
+    ('needle_low', 'Винт Low (Tillotson)'),
+    ('plug_gap_mm', 'Зазор свечи, мм'),
+]
+APP_PARAMETER_CHOICES = [
+    ('hub_width_mm', 'Ширина ступицы, мм'),
+    ('pinion_teeth', 'Пиньон, зубья'),
+    ('sprocket_teeth', 'Звёздочка, зубья'),
+    ('spacer', 'Проставки (кольца)'),
+]
+# Колея и давление в шинах — свободный ввод числа в приложении (решение владельца 07.10.2026), здесь не настраиваются.
+
+
+class AppValueSpec(models.Model):
+    """Описание набора значений поля: диапазон (мин/макс/шаг) или явный список."""
+    MODE_RANGE = 'range'
+    MODE_LIST = 'list'
+
+    label = models.CharField("Подпись", max_length=80, blank=True,
+                             help_text="Пусто — стандартное название поля.")
+    unit = models.CharField("Единица", max_length=20, blank=True)
+    mode = models.CharField("Значения", max_length=5, default=MODE_RANGE,
+                            choices=[(MODE_RANGE, 'Диапазон: минимум, максимум, шаг'), (MODE_LIST, 'Список')])
+    min_value = models.DecimalField("Минимум", max_digits=9, decimal_places=3, null=True, blank=True)
+    max_value = models.DecimalField("Максимум", max_digits=9, decimal_places=3, null=True, blank=True)
+    step = models.DecimalField("Шаг", max_digits=9, decimal_places=3, null=True, blank=True,
+                               help_text="Например 1, 0.25 или 0.5.")
+    prefix = models.CharField("Префикс", max_length=10, blank=True, help_text="Например K → K46, K47…")
+    options_text = models.TextField("Список значений", blank=True, help_text="По одному значению в строке.")
+    default_value = models.CharField("По умолчанию", max_length=40, blank=True)
+    allow_custom = models.BooleanField("Можно своё значение («Другое…»)", default=True)
+
+    panels = [
+        FieldRowPanel([FieldPanel('label'), FieldPanel('unit')]),
+        FieldPanel('mode'),
+        FieldRowPanel([FieldPanel('min_value'), FieldPanel('max_value'), FieldPanel('step'), FieldPanel('prefix')]),
+        FieldPanel('options_text'),
+        FieldRowPanel([FieldPanel('default_value'), FieldPanel('allow_custom')]),
+    ]
+
+    class Meta:
+        abstract = True
+
+    def clean(self):
+        from website.setupkart.spec import spec_errors
+        errors = spec_errors(self)
+        if errors:
+            raise ValidationError(errors)
+
+
+class AppEngineField(Orderable, AppValueSpec):
+    engine = ParentalKey('website.Engine', on_delete=models.CASCADE, related_name='app_fields')
+    key = models.CharField("Поле", max_length=30, choices=APP_ENGINE_FIELD_CHOICES)
+
+    panels = [FieldPanel('key')] + AppValueSpec.panels
+
+    class Meta(Orderable.Meta):
+        verbose_name = "Поле карбюратора"
+        verbose_name_plural = "Поля карбюратора"
+        constraints = [models.UniqueConstraint(fields=['engine', 'key'], name='app_engine_field_unique_key')]
+
+    def __str__(self):
+        return f"{self.engine} · {self.get_key_display()}"
+
+
+class AppEngineSparkPlug(Orderable):
+    engine = ParentalKey('website.Engine', on_delete=models.CASCADE, related_name='app_spark_plugs')
+    name = models.CharField("Свеча", max_length=60)
+    is_default = models.BooleanField("По умолчанию", default=False)
+
+    panels = [FieldRowPanel([FieldPanel('name'), FieldPanel('is_default')])]
+
+    class Meta(Orderable.Meta):
+        verbose_name = "Свеча"
+        verbose_name_plural = "Свечи"
+
+    def __str__(self):
+        return self.name
+
+
+class AppParameter(AppValueSpec):
+    key = models.CharField("Параметр", max_length=30, choices=APP_PARAMETER_CHOICES, unique=True)
+
+    panels = [FieldPanel('key')] + AppValueSpec.panels
+
+    class Meta:
+        verbose_name = "Параметр приложения"
+        verbose_name_plural = "Параметры приложения"
+        ordering = ['key']
+
+    def __str__(self):
+        return self.get_key_display()
+
+
+class AppCatalogVersion(models.Model):
+    """Опубликованная версия справочников. Приложение получает только опубликованное."""
+    version = models.PositiveIntegerField("Версия", unique=True)
+    published_at = models.DateTimeField("Опубликовано", auto_now_add=True)
+    published_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, verbose_name="Кто")
+    note = models.CharField("Комментарий", max_length=200, blank=True)
+    payload = models.JSONField("Содержимое", default=dict)
+
+    class Meta:
+        verbose_name = "Версия справочников приложения"
+        verbose_name_plural = "Версии справочников приложения"
+        ordering = ['-version']
+
+    def __str__(self):
+        return f"v{self.version} от {self.published_at:%d.%m.%Y %H:%M}"
+
+
+class AppSuggestion(models.Model):
+    """Значение из «Другое…», присланное пользователями с согласия (анонимно), сгруппированное."""
+    STATUS_NEW = 'new'
+    STATUS_ADDED = 'added'
+    STATUS_HIDDEN = 'hidden'
+    STATUS_CHOICES = [(STATUS_NEW, 'Новое'), (STATUS_ADDED, 'Добавлено в справочник'), (STATUS_HIDDEN, 'Скрыто')]
+
+    field_key = models.CharField("Поле", max_length=30)
+    value = models.CharField("Значение", max_length=60)
+    engine = models.ForeignKey('website.Engine', null=True, blank=True, on_delete=models.CASCADE,
+                               related_name='app_suggestions', verbose_name="Двигатель")
+    count = models.PositiveIntegerField("Сколько раз прислали", default=1)
+    first_seen = models.DateTimeField("Впервые", auto_now_add=True)
+    last_seen = models.DateTimeField("Последний раз", auto_now=True)
+    status = models.CharField("Статус", max_length=10, choices=STATUS_CHOICES, default=STATUS_NEW, db_index=True)
+
+    class Meta:
+        verbose_name = "Предложение пользователей"
+        verbose_name_plural = "Предложения пользователей"
+        ordering = ['-count', '-last_seen']
+        constraints = [models.UniqueConstraint(fields=['field_key', 'engine', 'value'], name='app_suggestion_unique')]
+
+    def __str__(self):
+        return f"{self.field_key}: {self.value}"

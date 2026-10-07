@@ -1,0 +1,19 @@
+{% extends "wagtailadmin/base.html" %}
+{% block titletag %}Приложение — предложения пользователей{% endblock %}
+{% block content %}
+{% include "wagtailadmin/shared/header.html" with title="Предложения пользователей" icon="comment" %}
+{% include "setupkart/admin/_style.html" %}
+<div class="skp">
+  <p class="muted">Значения, которые пользователи ввели через «Другое…» и отправили с согласия (анонимно). Добавленное попадёт в приложение после публикации справочников.</p>
+  <p class="tabs">{% for code, label in statuses %}<a href="?status={{ code }}" class="{% if code == status %}is-active{% endif %}">{{ label }}</a>{% endfor %}<a href="?status=all" class="{% if status == 'all' %}is-active{% endif %}">Все</a></p>
+  <table><thead><tr><th>Поле</th><th>Двигатель</th><th>Значение</th><th>Раз</th><th>Последний раз</th><th></th></tr></thead><tbody>
+  {% for s in items %}
+    <tr><td>{{ s.field_key }}</td><td>{{ s.engine|default:"—" }}</td><td><b>{{ s.value }}</b></td><td>{{ s.count }}</td><td>{{ s.last_seen|date:"d.m.Y" }}</td>
+      <td>{% if s.status == 'new' %}
+        <form class="inline" method="post" action="{% url 'setupkart_suggestion_action' s.pk 'add' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="button button-small" type="submit">Добавить в справочник</button></form>
+        <form class="inline" method="post" action="{% url 'setupkart_suggestion_action' s.pk 'hide' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="button button-small button-secondary" type="submit">Скрыть</button></form>
+      {% else %}<span class="badge">{{ s.get_status_display }}</span>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="6" class="muted">Пусто.</td></tr>{% endfor %}
+  </tbody></table>
+</div>
+{% endblock %}
