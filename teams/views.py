@@ -4,7 +4,7 @@ from django.contrib.auth import login
 from django.db.models import Q
 from .forms import TeamRegistrationForm
 from website.models import Team, Driver, TeamSocialLink, TeamMembership
-from website.mail import admin_notify_email, send_templated_mail
+from website.mail import send_templated_mail
 from .models import TeamClaim
 from django.contrib.auth import authenticate, login as auth_login
 
@@ -38,23 +38,6 @@ def send_team_verification_email(user, request):
         'verification_url': verification_url,
         'expiry_minutes': 30,
     })
-
-
-def send_team_admin_notification(claim_data):
-    """Уведомление администратору о новой заявке на управление командой."""
-    subject = '[Gripline] Новая заявка от команды'
-    try:
-        send_templated_mail('admin_claim', subject, [admin_notify_email()], {
-            'admin': True,
-            'subject': subject,
-            'preheader': f"{claim_data.get('team_name')}, {claim_data.get('user_email')} — ожидает подтверждения в админке.",
-            'title': 'Заявка на управление командой',
-            'rows': [('E-mail', claim_data.get('user_email')), ('Команда', claim_data.get('team_name')),
-                     ('Статус', 'Новая заявка')],
-            'admin_url': f"{settings.BASE_URL.rstrip('/')}/admin/",
-        }, fail_silently=True)
-    except Exception:
-        pass
 
 
 def team_verification_sent(request):
@@ -95,10 +78,6 @@ def team_verify_email(request, uidb64, token):
                     requested_team_name=requested_team_name,
                     status='pending'
                 )
-                send_team_admin_notification({
-                    'user_email': user.email,
-                    'team_name': requested_team_name,
-                })
                 messages.success(request, 'Email подтверждён! Заявка отправлена администратору.')
                 return redirect('teams:login')
         else:
@@ -177,10 +156,6 @@ def select_team(request):
                 requested_team_name=requested_team_name,
                 status='pending'
             )
-            send_team_admin_notification({
-                'user_email': user.email,
-                'team_name': requested_team_name,
-            })
             messages.success(request, 'Заявка на создание команды отправлена администратору')
         else:
             team = Team.objects.get(id=selected_id)
@@ -190,10 +165,6 @@ def select_team(request):
                 requested_team_name=requested_team_name,
                 status='pending'
             )
-            send_team_admin_notification({
-                'user_email': user.email,
-                'team_name': team.name,
-            })
             messages.success(request, f'Заявка на управление командой {team.name} отправлена администратору')
 
         for key in ['found_teams', 'user_id', 'requested_team_name', 'team_requested_name', 'team_user_id']:

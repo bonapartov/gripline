@@ -1,0 +1,12 @@
+{% autoescape off %}[ПОДТВЕРЖДЕНО]
+
+Доступ к команде открыт
+
+Здравствуйте! Администратор подтвердил вашу заявку на управление командой.
+
+{% include "emails/_rows.txt" %}
+
+Кабинет команды: {{ dashboard_url }}{% if team_url %}
+Страница команды: {{ team_url }}{% endif %}
+{% endautoescape %}
+{% include "emails/_footer.txt" %}

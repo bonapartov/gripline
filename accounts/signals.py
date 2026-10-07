@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models.signals import post_save, post_delete, pre_save
 from django.contrib.auth.models import User
 from django.dispatch import receiver
@@ -100,8 +101,8 @@ def send_driver_claim_pending_email(user, claim):
     })
 
 
-def send_driver_claim_rejected_email(user, claim):
-    """Уведомление пилоту об отклонении заявки на привязку профиля."""
+def _support_contact_rows():
+    """Контакты поддержки из SocialAuthSettings — для письма об отказе."""
     from .models import SocialAuthSettings
 
     contact_email = telegram_contact = ''
@@ -117,11 +118,45 @@ def send_driver_claim_rejected_email(user, claim):
         contact_rows.append(('E-mail', contact_email, f'mailto:{contact_email}'))
     if handle:
         contact_rows.append(('Telegram', f'@{handle}'))
+    return contact_rows
 
+
+def send_driver_claim_rejected_email(user, claim):
+    """Уведомление пилоту об отклонении заявки на привязку профиля."""
     _send_claim_email('claim_rejected', 'Ваша заявка на привязку профиля пилота отклонена', user, {
         'rows': _rows(('Профиль пилота', _claim_driver_name(claim)), ('Статус', 'Отклонена')),
         'reason': (claim.admin_comment or '').strip(),
-        'contact_rows': contact_rows,
+        'contact_rows': _support_contact_rows(),
+    })
+
+
+def _team_claim_name(claim):
+    return claim.team.name if claim.team else claim.requested_team_name
+
+
+def send_team_claim_pending_email(user, claim):
+    """Уведомление представителю команды: заявка принята и ожидает проверки."""
+    _send_claim_email('team_claim_pending', 'Ваша заявка на управление командой принята на рассмотрение', user, {
+        'rows': _rows(('Команда', _team_claim_name(claim)), ('Срок рассмотрения', '1–2 рабочих дня')),
+        'dashboard_url': f"{settings.BASE_URL}{reverse('teams:dashboard')}",
+    })
+
+
+def send_team_claim_approved_email(user, claim):
+    """Уведомление представителю команды: доступ к управлению командой выдан."""
+    _send_claim_email('team_claim_approved', 'Ваша заявка на управление командой подтверждена', user, {
+        'rows': _rows(('Команда', _team_claim_name(claim)), ('Статус', 'Подтверждена')),
+        'dashboard_url': f"{settings.BASE_URL}{reverse('teams:dashboard')}",
+        'team_url': f"{settings.BASE_URL}{claim.team.get_absolute_url()}" if claim.team else '',
+    })
+
+
+def send_team_claim_rejected_email(user, claim):
+    """Уведомление представителю команды об отклонении заявки."""
+    _send_claim_email('team_claim_rejected', 'Ваша заявка на управление командой отклонена', user, {
+        'rows': _rows(('Команда', _team_claim_name(claim)), ('Статус', 'Отклонена')),
+        'reason': (claim.admin_comment or '').strip(),
+        'contact_rows': _support_contact_rows(),
     })
 
 
@@ -144,6 +179,8 @@ def on_driver_claim_save(sender, instance, created, **kwargs):
 
     if created and instance.status == 'pending':
         send_driver_claim_pending_email(instance.user, instance)
+        from website.claim_notify import notify_admins_new_claim
+        transaction.on_commit(lambda: notify_admins_new_claim(instance))
     elif not created and old_status != 'approved' and instance.status == 'approved':
         send_driver_claim_approved_email(instance.user, instance.driver)
     elif not created and old_status != 'rejected' and instance.status == 'rejected':

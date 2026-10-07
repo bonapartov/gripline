@@ -1,0 +1,16 @@
+{% autoescape off %}[ОТКЛОНЕНО]
+
+Заявка на управление командой отклонена
+
+Здравствуйте! Администратор отклонил заявку на управление командой.
+
+{% include "emails/_rows.txt" %}{% if reason %}
+
+Комментарий администратора:
+{{ reason }}{% endif %}{% if contact_rows %}
+
+Если это ошибка или у вас есть вопросы, свяжитесь с нами:
+
+{% include "emails/_rows.txt" with rows=contact_rows %}{% endif %}
+{% endautoescape %}
+{% include "emails/_footer.txt" %}

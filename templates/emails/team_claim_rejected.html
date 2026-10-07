@@ -1,0 +1,14 @@
+{% extends "emails/base.html" %}{% load email_tags %}
+{% block title %}Ваша заявка на управление командой отклонена{% endblock %}
+{% block preheader %}Администратор отклонил заявку. Причина и контакты для связи — внутри письма.{% endblock %}
+{% block content %}
+{% include "emails/_status.html" with kind="bad" gap=16 %}
+{% include "emails/_h1.html" with text="Заявка на управление командой отклонена" gap=16 %}
+{% row 16 %}<p style="{% s 'p' %}">Здравствуйте! Администратор отклонил заявку на управление командой.</p>{% endrow %}
+{% if contact_rows %}{% include "emails/_rows.html" with rows=rows gap=24 %}{% else %}{% include "emails/_rows.html" with rows=rows gap=reason|yesno:"24,0" %}{% endif %}
+{% if reason %}{% include "emails/_comment.html" with label="Комментарий администратора" text=reason gap=contact_rows|yesno:"24,0" %}{% endif %}
+{% if contact_rows %}
+{% row 16 %}<p style="{% s 'p' %}">Если это ошибка или у вас есть вопросы, свяжитесь с нами:</p>{% endrow %}
+{% include "emails/_rows.html" with rows=contact_rows gap=0 %}
+{% endif %}
+{% endblock %}

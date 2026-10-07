@@ -1,0 +1,11 @@
+{% extends "emails/base.html" %}{% load email_tags %}
+{% block title %}Ваша заявка на управление командой подтверждена{% endblock %}
+{% block preheader %}Доступ к управлению командой открыт. Войдите в кабинет команды.{% endblock %}
+{% block content %}
+{% include "emails/_status.html" with kind="ok" gap=16 %}
+{% include "emails/_h1.html" with text="Доступ к команде открыт" gap=16 %}
+{% row 16 %}<p style="{% s 'p' %}">Здравствуйте! Администратор подтвердил вашу заявку на управление командой.</p>{% endrow %}
+{% include "emails/_rows.html" with rows=rows gap=24 %}
+{% if team_url %}{% include "emails/_button.html" with url=dashboard_url label="Кабинет команды" gap=12 %}{% include "emails/_button.html" with url=team_url label="Страница команды" kind="secondary" gap=16 %}{% else %}{% include "emails/_button.html" with url=dashboard_url label="Кабинет команды" gap=16 %}{% endif %}
+{% include "emails/_fallback.html" with url=dashboard_url gap=0 %}
+{% endblock %}

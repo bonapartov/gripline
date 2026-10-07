@@ -103,20 +103,22 @@ class EmailTemplatesTests(TestCase):
         self.assertEqual(_app_link(NS(id=5)), 'https://gripline.ru/applications/5/')
 
     def test_admin_notifications_use_compact_layout(self):
-        from accounts.views import send_admin_notification
-        from teams.views import send_team_admin_notification
-        send_admin_notification('пилотом', {'user_email': 'ivan@example.ru', 'first_name': 'Иван',
-                                            'last_name': 'Смирнов', 'city': '', 'driver_name': 'Иван Смирнов'})
-        send_team_admin_notification({'user_email': 'm@kartlab.example', 'team_name': '<Kart Lab>'})
-        self.assertEqual(len(mail.outbox), 2)
-        first_html = dict((t, c) for c, t in mail.outbox[0].alternatives)['text/html']
+        from accounts.models import DriverClaim
+        from teams.models import TeamClaim
+        with self.captureOnCommitCallbacks(execute=True):
+            DriverClaim.objects.create(user=self.user, requested_first_name='Иван', requested_last_name='Смирнов')
+            TeamClaim.objects.create(user=self.user, requested_team_name='<Kart Lab>')
+        to_admin = [m for m in mail.outbox if m.subject.startswith('[Gripline] Новая заявка')]
+        self.assertEqual(len(to_admin), 2)
+        first_html = dict((t, c) for c, t in to_admin[0].alternatives)['text/html']
         self.assertIn('Администратору', first_html)
         self.assertIn('Служебное уведомление', first_html)
         self.assertNotIn('Город', first_html)
-        msg, html = self.last()
+        msg = to_admin[1]
+        html = dict((t, c) for c, t in msg.alternatives)['text/html']
         self.assertEqual(msg.subject, '[Gripline] Новая заявка от команды')
         self.assertIn('&lt;Kart Lab&gt;', html)
-        self.assertIn('https://gripline.ru/admin/', msg.body)
+        self.assertIn('https://gripline.ru/admin/teams/teamclaim/edit/', msg.body)
 
 
 @override_settings(
@@ -174,7 +176,7 @@ class EmailLinksWorkTests(TestCase):
         from urllib.parse import urlparse
         from django.urls import Resolver404, resolve
         from accounts.signals import send_driver_claim_approved_email, send_driver_claim_pending_email
-        from accounts.views import send_admin_notification
+        from accounts.models import DriverClaim
         from applications.views import _NOTICES, _notify
         from teams.views import _send_team_invitation_email
 
@@ -187,7 +189,8 @@ class EmailLinksWorkTests(TestCase):
                  pilot=NS(full_name='Иван'), submitted_by=user)
         for kind in _NOTICES:
             _notify(app, kind, 'комментарий', document=NS(name='Справка'))
-        send_admin_notification('пилотом', {'user_email': 'ivan@example.ru', 'first_name': 'Иван'})
+        with self.captureOnCommitCallbacks(execute=True):
+            DriverClaim.objects.create(user=user, requested_first_name='Иван', requested_last_name='Смирнов')
 
         checked = set()
         for msg in mail.outbox:

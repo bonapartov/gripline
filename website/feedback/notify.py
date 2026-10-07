@@ -1,7 +1,8 @@
 """
 Служебные уведомления в админ-чат бота обратной связи — не про обращения
-бота, а про другие события сайта, которые нельзя пропустить (сейчас — новое
-обращение субъекта ПД: по закону на него 10 рабочих дней).
+бота, а про другие события сайта, которые нельзя пропустить: новое обращение
+субъекта ПД (по закону на него 10 рабочих дней) и новая заявка пилота/команды
+(см. website/claim_notify.py).
 
 Работает и без запущенного процесса бота: прямой вызов Bot API через
 tg_sync (с тем же прокси). Отправка — в фоновом потоке и с коротким
@@ -67,21 +68,29 @@ def data_request_text(obj):
     )
 
 
-def notify_data_request(obj):
+def notify_admin_chat(text_html, label):
     """Не блокирует запрос и не бросает исключений: БД читается здесь, в фоне —
-    только сетевой вызов."""
+    только сетевой вызов. `label` — для логов (без ПД)."""
     try:
         params = _delivery_params()
-        if not params:
-            return
-        text = data_request_text(obj)
     except Exception:
-        logger.exception('data-request #%s: уведомление в Telegram не подготовлено', obj.pk)
+        logger.exception('%s: уведомление в Telegram не подготовлено', label)
+        return
+    if not params:
         return
 
     def run():
         try:
-            _send(params, text)
+            _send(params, text_html)
         except Exception:
-            logger.exception('data-request #%s: уведомление в Telegram не отправлено', obj.pk)
+            logger.exception('%s: уведомление в Telegram не отправлено', label)
     threading.Thread(target=run, daemon=True).start()
+
+
+def notify_data_request(obj):
+    try:
+        text = data_request_text(obj)
+    except Exception:
+        logger.exception('data-request #%s: уведомление в Telegram не подготовлено', obj.pk)
+        return
+    notify_admin_chat(text, f'data-request #{obj.pk}')

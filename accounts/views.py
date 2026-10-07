@@ -10,7 +10,7 @@ from django.conf import settings
 from django.db.models import Q
 from .forms import RegistrationForm, DriverProfileForm, SocialLinkFormSet
 from website.models import Driver
-from website.mail import admin_notify_email, send_templated_mail
+from website.mail import send_templated_mail
 from .models import DriverClaim, PilotDocument, SocialAuthSettings
 from wagtail.images.models import Image
 from django.utils import timezone
@@ -19,26 +19,6 @@ from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.admin.views.decorators import staff_member_required
 import json
-
-
-def send_admin_notification(claim_type, claim_data):
-    """Уведомление администратору о новой заявке на управление профилем пилота."""
-    name = f"{claim_data.get('first_name', '')} {claim_data.get('last_name', '')}".strip()
-    rows = [('Тип', f'Управление {claim_type}'), ('E-mail', claim_data.get('user_email')), ('Имя', name),
-            ('Город', claim_data.get('city')), ('Выбранный пилот', claim_data.get('driver_name')),
-            ('Команда', claim_data.get('team_name'))]
-    subject = f'[Gripline] Новая заявка на управление {claim_type}'
-    try:
-        send_templated_mail('admin_claim', subject, [admin_notify_email()], {
-            'admin': True,
-            'subject': subject,
-            'preheader': f"{name}, {claim_data.get('user_email')} — ожидает подтверждения в админке.",
-            'title': f'Заявка на управление {claim_type}',
-            'rows': [(label, value) for label, value in rows if value],
-            'admin_url': f"{settings.BASE_URL.rstrip('/')}/admin/",
-        }, fail_silently=True)
-    except Exception:
-        pass
 
 
 def send_verification_email(user, request):
@@ -71,7 +51,8 @@ def register(request):
             last_name = form.cleaned_data['last_name']
             city = form.cleaned_data.get('city', '')
 
-            login(request, user)
+            # backend обязателен: бэкендов несколько, а user не проходил authenticate()
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
 
             drivers = Driver.objects.filter(
                 first_name__iexact=first_name,
@@ -97,13 +78,6 @@ def register(request):
                     requested_city=city,
                     status='pending',
                 )
-                send_admin_notification('пилотом', {
-                    'user_email': user.email,
-                    'first_name': first_name,
-                    'last_name': last_name,
-                    'city': city,
-                    'driver_name': 'новый пилот',
-                })
                 messages.success(request, 'Аккаунт создан! Ваша заявка отправлена администратору.')
                 return redirect('accounts:profile')
         else:
@@ -170,15 +144,6 @@ def verify_email(request, uidb64, token):
                     requested_city=city,
                     status='pending'
                 )
-                
-                # Отправляем уведомление администратору
-                send_admin_notification('пилотом', {
-                    'user_email': user.email,
-                    'first_name': first_name,
-                    'last_name': last_name,
-                    'city': city,
-                    'driver_name': 'новый пилот',
-                })
                 
                 messages.success(request, 'Email подтверждён! Ваша заявка отправлена администратору.')
                 return redirect('accounts:login')
@@ -254,15 +219,6 @@ def select_driver(request):
                 status='pending'
             )
             
-            # Отправляем уведомление администратору
-            send_admin_notification('пилотом', {
-                'user_email': user.email,
-                'first_name': request.session.get('first_name'),
-                'last_name': request.session.get('last_name'),
-                'city': request.session.get('city', ''),
-                'driver_name': 'новый пилот',
-            })
-            
             messages.success(request, 'Ваша заявка отправлена администратору.')
         elif selected_id:
             driver = Driver.objects.get(id=selected_id)
@@ -274,15 +230,6 @@ def select_driver(request):
                 requested_city=request.session.get('city', ''),
                 status='pending'
             )
-            
-            # Отправляем уведомление администратору
-            send_admin_notification('пилотом', {
-                'user_email': user.email,
-                'first_name': request.session.get('first_name'),
-                'last_name': request.session.get('last_name'),
-                'city': request.session.get('city', ''),
-                'driver_name': driver.full_name,
-            })
             
             messages.success(request, f'Заявка на привязку к {driver.full_name} отправлена администратору.')
 
@@ -834,13 +781,6 @@ def yandex_pilot_onboarding(request):
                     requested_last_name=driver.last_name,
                     status='pending',
                 )
-                send_admin_notification('пилотом', {
-                    'user_email': request.user.email,
-                    'first_name': driver.first_name,
-                    'last_name': driver.last_name,
-                    'city': driver.city or '',
-                    'driver_name': f'{driver.first_name} {driver.last_name}',
-                })
                 for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
                     request.session.pop(key, None)
                 request.session['active_role'] = 'pilot'
@@ -873,13 +813,6 @@ def yandex_pilot_onboarding(request):
                 requested_last_name=driver.last_name,
                 status='pending',
             )
-            send_admin_notification('пилотом', {
-                'user_email': request.user.email,
-                'first_name': driver.first_name,
-                'last_name': driver.last_name,
-                'city': driver.city or '',
-                'driver_name': driver.first_name + ' ' + driver.last_name,
-            })
             for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
                 request.session.pop(key, None)
             request.session['active_role'] = 'pilot'
@@ -912,13 +845,6 @@ def yandex_pilot_onboarding(request):
                 requested_last_name=ln,
                 status='pending',
             )
-            send_admin_notification('пилотом', {
-                'user_email': request.user.email,
-                'first_name': fn,
-                'last_name': ln,
-                'city': '',
-                'driver_name': f'{fn} {ln} (новый)',
-            })
             for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
                 request.session.pop(key, None)
             request.session['active_role'] = 'pilot'
@@ -943,7 +869,6 @@ def yandex_team_onboarding(request):
     if preselected_team_name and request.method == 'GET':
         from website.models import Team as WebTeam
         from teams.models import TeamClaim as TC, TeamManager as TM
-        from teams.views import send_team_admin_notification
         team = WebTeam(name=preselected_team_name)
         team.save()
         TM.objects.create(user=request.user, team=team, role='manager', is_active=True)
@@ -953,7 +878,6 @@ def yandex_team_onboarding(request):
             requested_team_name=preselected_team_name,
             status='pending',
         )
-        send_team_admin_notification({'user_email': request.user.email, 'team_name': preselected_team_name})
         for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
             request.session.pop(key, None)
         request.session['active_role'] = 'team'
@@ -964,7 +888,6 @@ def yandex_team_onboarding(request):
     preselected_team_id = request.session.pop('yandex_preselected_team_id', None)
     if preselected_team_id and request.method == 'GET':
         from website.models import Team as WebTeam
-        from teams.views import send_team_admin_notification
         try:
             team = WebTeam.objects.get(pk=preselected_team_id)
             if not _TM.objects.filter(team=team, is_active=True).exists():
@@ -974,7 +897,6 @@ def yandex_team_onboarding(request):
                     requested_team_name=team.name,
                     status='pending',
                 )
-                send_team_admin_notification({'user_email': request.user.email, 'team_name': team.name})
                 for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
                     request.session.pop(key, None)
                 request.session['active_role'] = 'team'
@@ -986,7 +908,6 @@ def yandex_team_onboarding(request):
     if request.method == 'POST':
         from website.models import Team as WebTeam
         from teams.models import TeamClaim as TC, TeamManager as TM
-        from teams.views import send_team_admin_notification
         action = request.POST.get('action')
 
         if action == 'select':
@@ -1005,7 +926,6 @@ def yandex_team_onboarding(request):
                 requested_team_name=team.name,
                 status='pending',
             )
-            send_team_admin_notification({'user_email': request.user.email, 'team_name': team.name})
             for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
                 request.session.pop(key, None)
             request.session['active_role'] = 'team'
@@ -1027,7 +947,6 @@ def yandex_team_onboarding(request):
                 requested_team_name=team_name,
                 status='pending',
             )
-            send_team_admin_notification({'user_email': request.user.email, 'team_name': team_name})
             for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
                 request.session.pop(key, None)
             request.session['active_role'] = 'team'
