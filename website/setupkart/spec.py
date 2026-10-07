@@ -38,7 +38,7 @@ def expand(spec):
     if count + 1 > MAX_OPTIONS:
         return []
     d = decimals_of(step)
-    return [f"{spec.prefix}{(lo + step * i):.{d}f}" for i in range(count + 1)]
+    return [f"{spec.value_prefix}{(lo + step * i):.{d}f}" for i in range(count + 1)]
 
 
 def spec_errors(spec):
@@ -99,7 +99,7 @@ def to_profile_field(spec, key, label, extra=None):
     if spec.mode == spec.MODE_RANGE:
         field['range'] = {
             'from': float(spec.min_value), 'to': float(spec.max_value), 'step': float(spec.step),
-            'decimals': decimals_of(D(spec.step)), 'prefix': spec.prefix or '',
+            'decimals': decimals_of(D(spec.step)), 'prefix': spec.value_prefix or '',
         }
     else:
         field['options'] = expand(spec)

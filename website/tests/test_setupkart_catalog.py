@@ -36,7 +36,7 @@ def rotax_seeded():
 # ---------- значения поля ----------
 
 def spec(**kw):
-    base = dict(mode='range', min_value=None, max_value=None, step=None, prefix='', options_text='',
+    base = dict(mode='range', min_value=None, max_value=None, step=None, value_prefix='', options_text='',
                 default_value='', allow_custom=True)
     base.update(kw)
     return AppParameter(key='hub_width_mm', **base)
@@ -50,7 +50,7 @@ def test_range_expands_with_step_precision():
 
 
 def test_range_with_prefix():
-    s = spec(min_value=46, max_value=60, step=1, prefix='K', default_value='K50')
+    s = spec(min_value=46, max_value=60, step=1, value_prefix='K', default_value='K50')
     assert expand(s)[0] == 'K46' and expand(s)[-1] == 'K60'
     assert spec_errors(s) == {}
 
@@ -261,3 +261,17 @@ def test_admin_pages_forbidden_without_permission(client, django_user_model):
     client.force_login(user)
     assert client.get('/admin/setupkart/').status_code == 403
     assert client.post('/admin/setupkart/publication/').status_code == 403
+
+
+def test_spec_models_have_no_field_named_prefix():
+    """Поле «prefix» перекрывает служебный form.prefix — Wagtail ломает разметку инлайн-панели."""
+    from website.models import AppEngineField, AppParameter, AppEngineSparkPlug
+    for model in (AppEngineField, AppParameter, AppEngineSparkPlug):
+        assert 'prefix' not in {f.name for f in model._meta.get_fields()}, model.__name__
+
+
+def test_spec_models_have_no_field_named_prefix():
+    """Поле «prefix» перекрывает служебный form.prefix — Wagtail ломает разметку инлайн-панели."""
+    from website.models import AppEngineField, AppParameter, AppEngineSparkPlug
+    for model in (AppEngineField, AppParameter, AppEngineSparkPlug):
+        assert 'prefix' not in {f.name for f in model._meta.get_fields()}, model.__name__

@@ -4399,7 +4399,9 @@ class AppValueSpec(models.Model):
     max_value = models.DecimalField("Максимум", max_digits=9, decimal_places=3, null=True, blank=True)
     step = models.DecimalField("Шаг", max_digits=9, decimal_places=3, null=True, blank=True,
                                help_text="Например 1, 0.25 или 0.5.")
-    prefix = models.CharField("Префикс", max_length=10, blank=True, help_text="Например K → K46, K47…")
+    # Не «prefix»: так называется служебный атрибут Django-формы, Wagtail строит из него id инлайн-блока
+    # (inline_child_{{ form.prefix }}) — поле с таким именем подменяет его и ломает разметку админки.
+    value_prefix = models.CharField("Префикс", max_length=10, blank=True, help_text="Например K → K46, K47…")
     options_text = models.TextField("Список значений", blank=True, help_text="По одному значению в строке.")
     default_value = models.CharField("По умолчанию", max_length=40, blank=True)
     allow_custom = models.BooleanField("Можно своё значение («Другое…»)", default=True)
@@ -4407,7 +4409,7 @@ class AppValueSpec(models.Model):
     panels = [
         FieldRowPanel([FieldPanel('label'), FieldPanel('unit')]),
         FieldPanel('mode'),
-        FieldRowPanel([FieldPanel('min_value'), FieldPanel('max_value'), FieldPanel('step'), FieldPanel('prefix')]),
+        FieldRowPanel([FieldPanel('min_value'), FieldPanel('max_value'), FieldPanel('step'), FieldPanel('value_prefix')]),
         FieldPanel('options_text'),
         FieldRowPanel([FieldPanel('default_value'), FieldPanel('allow_custom')]),
     ]

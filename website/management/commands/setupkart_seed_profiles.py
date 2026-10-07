@@ -40,7 +40,7 @@ def field_kwargs(f):
     if 'range' in f:
         r = f['range']
         kw.update(mode='range', min_value=Decimal(str(r['from'])), max_value=Decimal(str(r['to'])),
-                  step=Decimal(str(r['step'])), prefix=r.get('prefix', ''))
+                  step=Decimal(str(r['step'])), value_prefix=r.get('prefix', ''))
     else:
         values = [o['value'] if isinstance(o, dict) else o for o in f.get('options', [])]
         kw.update(mode='list', options_text='\n'.join(values))
