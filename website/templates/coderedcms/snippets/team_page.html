@@ -130,7 +130,7 @@
             <div class="card bg-dark border-secondary p-3 mb-4">
                 <h5 class="text-info border-bottom border-secondary pb-2 mb-3 text-uppercase small fw-bold">О команде</h5>
                 {% if team.description %}
-                    <div class="text-light">{{ team.description|safe }}</div>
+                    <div class="text-light">{{ team.description|safe_html }}</div>
                 {% else %}
                     <div class="d-flex gap-2 align-items-start">
                         <i class="fas fa-flag-checkered text-warning mt-1"></i>

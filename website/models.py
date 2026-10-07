@@ -1086,7 +1086,12 @@ class Team(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, m
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(unidecode(self.name))
+            base = slugify(unidecode(self.name)) or 'team'
+            slug, n = base, 1
+            while Team.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                n += 1
+                slug = f'{base}-{n}'
+            self.slug = slug
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):

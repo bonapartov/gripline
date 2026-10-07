@@ -148,7 +148,7 @@
                 <div class="card bg-dark border-secondary p-3">
                     <h5 class="text-primary border-bottom border-secondary pb-2 mb-3 text-uppercase">О трассе</h5>
                     <div class="text-light">
-                        {{ track.description|safe|default:"Информация о трассе скоро будет дополнена." }}
+                        {{ track.description|safe_html|default:"Информация о трассе скоро будет дополнена." }}
                     </div>
                 </div>
 

@@ -1,4 +1,5 @@
 {% extends "coderedcms/pages/web_page.html" %}
+{% load website_tags %}
 {% load wagtailimages_tags %}
 
 {% block content %}
@@ -46,7 +47,7 @@
             <div class="card bg-dark border-secondary p-3 mb-4">
                 <h5 class="text-primary border-bottom border-secondary pb-2 mb-3 text-uppercase">О производителе</h5>
                 <div class="text-light">
-                    {{ brand.description|safe|default:"Информация о производителе скоро будет дополнена." }}
+                    {{ brand.description|safe_html|default:"Информация о производителе скоро будет дополнена." }}
                 </div>
                 {% if brand.website %}
                     <div class="mt-3">

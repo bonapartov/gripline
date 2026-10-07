@@ -343,7 +343,7 @@
         {% if driver.biography %}
         <div class="glv2-card mb-3">
             <div class="glv2-card-title-plain mb-2">Биография</div>
-            <div class="glv2-bio-text">{{ driver.biography|safe }}</div>
+            <div class="glv2-bio-text">{{ driver.biography|safe_html }}</div>
         </div>
         {% endif %}
 

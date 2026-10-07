@@ -11,6 +11,7 @@ from django.db.models import Q
 from .forms import RegistrationForm, DriverProfileForm, SocialLinkFormSet
 from website.models import Driver
 from website.mail import send_templated_mail
+from website.services.balance_limits import ratelimit_post
 from .models import DriverClaim, PilotDocument, SocialAuthSettings
 from wagtail.images.models import Image
 from django.db import transaction
@@ -33,6 +34,7 @@ def send_verification_email(user, request):
     })
 
 
+@ratelimit_post('register_pilot', limit=20, window_seconds=3600)
 def register(request):
     """Регистрация нового пользователя — мгновенная, без подтверждения email"""
     if request.method == 'POST':
@@ -115,6 +117,7 @@ def verify_email(request, uidb64, token):
     return render(request, 'accounts/verification_failed.html')
 
 
+@ratelimit_post('resend_verification', limit=10, window_seconds=3600)
 def resend_verification(request):
     """Повторная отправка письма с подтверждением"""
     if request.method == 'POST':
@@ -170,6 +173,11 @@ def select_driver(request):
         user = User.objects.get(id=user_id)
 
         selected_id = request.POST.get('driver_id')
+
+        # выбрать можно только пилота из списка, найденного при регистрации
+        if selected_id != 'none' and selected_id not in {str(d['id']) for d in found_drivers}:
+            messages.error(request, 'Выберите пилота из списка.')
+            return redirect('accounts:select_driver')
 
         if selected_id == 'none':
             DriverClaim.objects.create(

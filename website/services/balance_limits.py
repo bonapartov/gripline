@@ -68,3 +68,18 @@ def balance_ratelimit(key, limit, window_seconds):
             return view_func(request, *args, **kwargs)
         return wrapped
     return decorator
+
+
+def ratelimit_post(key, limit, window_seconds):
+    """То же, что balance_ratelimit, но считает только POST: просмотр страницы формы
+    (GET) лимит не расходует. Для регистраций и повторной отправки писем."""
+    def decorator(view_func):
+        limited = balance_ratelimit(key, limit, window_seconds)(view_func)
+
+        @wraps(view_func)
+        def wrapped(request, *args, **kwargs):
+            if request.method == "POST":
+                return limited(request, *args, **kwargs)
+            return view_func(request, *args, **kwargs)
+        return wrapped
+    return decorator

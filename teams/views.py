@@ -4,7 +4,9 @@ from django.contrib.auth import login
 from django.db.models import Q
 from .forms import TeamRegistrationForm
 from website.models import Team, Driver, TeamSocialLink, TeamMembership
+import logging
 from website.mail import send_templated_mail
+from website.services.balance_limits import ratelimit_post
 from .models import TeamClaim
 from django.contrib.auth import authenticate, login as auth_login
 
@@ -27,6 +29,8 @@ from django.contrib.auth.models import User
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 def send_team_verification_email(user, request):
@@ -72,12 +76,16 @@ def team_verify_email(request, uidb64, token):
                 messages.success(request, 'Email подтверждён! Теперь выберите команду.')
                 return redirect('teams:select_team')
             else:
-                # Создаём заявку на новую команду
-                TeamClaim.objects.create(
-                    user=user,
-                    requested_team_name=requested_team_name,
-                    status='pending'
-                )
+                # Создаём заявку на новую команду — один раз: ссылку можно открыть повторно
+                if not TeamClaim.objects.filter(user=user, requested_team_name=requested_team_name,
+                                                status='pending').exists():
+                    TeamClaim.objects.create(
+                        user=user,
+                        requested_team_name=requested_team_name,
+                        status='pending'
+                    )
+                for key in ('team_requested_name', 'team_user_id'):
+                    request.session.pop(key, None)
                 messages.success(request, 'Email подтверждён! Заявка отправлена администратору.')
                 return redirect('teams:login')
         else:
@@ -87,6 +95,7 @@ def team_verify_email(request, uidb64, token):
         return render(request, 'teams/verification_failed.html')
 
 
+@ratelimit_post('resend_verification_team', limit=10, window_seconds=3600)
 def team_resend_verification(request):
     """Повторная отправка письма для команды"""
     if request.method == 'POST':
@@ -101,6 +110,7 @@ def team_resend_verification(request):
     return render(request, 'teams/verification_resend.html')
 
 
+@ratelimit_post('register_team', limit=20, window_seconds=3600)
 def register(request):
     """Регистрация представителя команды с email-подтверждением"""
     if request.method == 'POST':
@@ -125,7 +135,8 @@ def register(request):
                 return redirect('teams:team_verification_sent')
             except Exception as e:
                 user.delete()
-                messages.error(request, f'Ошибка отправки письма: {str(e)}')
+                logger.exception('team register: письмо подтверждения не отправлено')
+                messages.error(request, 'Не удалось отправить письмо. Попробуйте позже.')
         else:
             messages.error(request, 'Пожалуйста, исправьте ошибки в форме.')
     else:
@@ -149,6 +160,10 @@ def select_team(request):
         user = User.objects.get(id=user_id)
 
         selected_id = request.POST.get('team_id')
+
+        if selected_id != 'none' and selected_id not in {str(t['id']) for t in found_teams}:
+            messages.error(request, 'Выберите команду из списка.')
+            return redirect('teams:select_team')
 
         if selected_id == 'none':
             TeamClaim.objects.create(
@@ -454,7 +469,8 @@ def dashboard(request):
         })
 
     except Exception as e:
-        messages.error(request, f'Ошибка: {str(e)}')
+        logger.exception('team dashboard: ошибка')
+        messages.error(request, 'Не удалось загрузить кабинет. Попробуйте обновить страницу.')
         return redirect('/')
 
 

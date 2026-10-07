@@ -1,6 +1,23 @@
 from django import template
+from django.utils.safestring import mark_safe
 
 register = template.Library()
+
+_SAFE_TAGS = {'p', 'br', 'b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li', 'a', 'h3', 'h4', 'h5', 'blockquote', 'span'}
+
+
+@register.filter
+def safe_html(value):
+    """Замена `|safe` для текстов, которые правят пользователи (описание команды, биография):
+    разрешает простую разметку, вырезает скрипты, обработчики событий и javascript:-ссылки.
+    None/пусто → '' (чтобы после фильтра сработал `|default:`)."""
+    if not value:
+        return ''
+    import nh3
+    return mark_safe(nh3.clean(
+        str(value), tags=_SAFE_TAGS, attributes={'a': {'href', 'title'}},
+        url_schemes={'http', 'https', 'mailto'}, link_rel='noopener noreferrer',
+    ))
 
 @register.simple_tag(takes_context=True)
 def breadcrumb_schema(context):

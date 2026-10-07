@@ -1,3 +1,4 @@
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from datetime import datetime
 from django.contrib.auth.decorators import login_required
@@ -256,7 +257,8 @@ def organizer_register(request):
                 return redirect('organizers:organizer_verification_sent')
             except Exception as e:
                 user.delete()
-                messages.error(request, f'Ошибка отправки письма: {str(e)}')
+                logging.getLogger(__name__).exception('organizer register: письмо подтверждения не отправлено')
+                messages.error(request, 'Не удалось отправить письмо. Попробуйте позже.')
         else:
             messages.error(request, 'Пожалуйста, исправьте ошибки в форме.')
     else:
