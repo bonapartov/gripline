@@ -140,7 +140,8 @@ def test_select_driver_path_notifies_admin_once(db, client, chat, django_capture
     with django_capture_on_commit_callbacks(execute=True):
         client.post('/accounts/select-driver/', {'driver_id': driver.pk})
     claim = DriverClaim.objects.get(user__email='new@example.ru')
-    assert claim.driver == driver and len(to_admin()) == 1 and len(chat) == 1
+    # в чат: уведомление о регистрации (до выбора) + о самой заявке
+    assert claim.driver == driver and len(to_admin()) == 1 and len(chat) == 2
 
 
 def test_select_team_path_notifies_admin_once(client, user, chat, django_capture_on_commit_callbacks):
@@ -206,3 +207,60 @@ def test_team_claim_emails_skip_user_without_email(chat, db):
     claim.status = 'rejected'
     claim.save()
     assert [m for m in mail.outbox if m.to == ['']] == []
+
+
+# ---------- регистрация без заявки ----------
+
+def registration_letters():
+    return [m for m in mail.outbox if m.subject == '[Gripline] Новая регистрация пилота (профиль не выбран)']
+
+
+def test_registration_with_name_match_notifies_admin_before_choice(db, client, chat, django_capture_on_commit_callbacks):
+    Driver.objects.create(first_name='Иван', last_name='Смирнов', slug='ivan-smirnov')
+    with django_capture_on_commit_callbacks(execute=True):
+        client.post('/accounts/register/', REGISTER)
+    letters = registration_letters()
+    assert len(letters) == 1 and 'new@example.ru' in letters[0].body
+    assert len(chat) == 1 and 'new@example.ru' not in chat[0][0] and 'Смирнов' not in chat[0][0]
+    assert '/admin/users/edit/' in chat[0][0]
+    assert DriverClaim.objects.count() == 0
+
+
+def test_registration_without_match_gets_only_claim_notice(db, client, chat, django_capture_on_commit_callbacks):
+    with django_capture_on_commit_callbacks(execute=True):
+        client.post('/accounts/register/', REGISTER)
+    assert registration_letters() == [] and len(to_admin()) == 1 and len(chat) == 1
+
+
+def test_verify_email_activates_inactive_account(db, client, monkeypatch):
+    from django.contrib.auth.tokens import default_token_generator
+    from django.utils.encoding import force_bytes
+    from django.utils.http import urlsafe_base64_encode
+    inactive = User.objects.create_user('old', 'old@example.ru', 'pass-12345', is_active=False)
+    uid, token = urlsafe_base64_encode(force_bytes(inactive.pk)), default_token_generator.make_token(inactive)
+    response = client.get(f'/accounts/verify-email/{uid}/{token}/')
+    inactive.refresh_from_db()
+    assert response.status_code == 302 and inactive.is_active
+    # неверный токен: аккаунт не активируется (страницу отказа подменяем — ей нужен Site Wagtail)
+    from django.http import HttpResponse
+    monkeypatch.setattr('accounts.views.render', lambda request, template, *a, **kw: HttpResponse(template))
+    other = User.objects.create_user('old2', 'old2@example.ru', 'pass-12345', is_active=False)
+    uid2 = urlsafe_base64_encode(force_bytes(other.pk))
+    assert client.get(f'/accounts/verify-email/{uid2}/bad-token/').content == b'accounts/verification_failed.html'
+    other.refresh_from_db()
+    assert not other.is_active
+
+
+def test_yandex_new_team_saves_city(db, client, user, chat):
+    client.force_login(user)
+    client.post('/accounts/yandex/onboarding/team/', {'action': 'new', 'team_name': 'Kart Lab', 'city': 'Казань'})
+    assert Team.objects.get(name='Kart Lab').city == 'Казань'
+
+
+def test_url_namespaces_are_unique():
+    from django.core.management import call_command
+    from django.core.management.base import SystemCheckError
+    try:
+        call_command('check')
+    except SystemCheckError as exc:  # pragma: no cover
+        pytest.fail(str(exc))

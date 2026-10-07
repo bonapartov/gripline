@@ -65,26 +65,56 @@ def telegram_text(parts, claim_id, admin_url):
     )
 
 
-def notify_admins_new_claim(claim):
-    """Письмо на admin_notify_email и сообщение в админ-чат. Сбой одного канала
-    не мешает другому и не ломает создание заявки."""
-    parts = _driver_parts(claim) if claim._meta.model_name == 'driverclaim' else _team_parts(claim)
-    admin_url = _admin_edit_url(claim)
-
+def _deliver(subject, preheader, title, rows, admin_url, tg_text, ref):
+    """Письмо на admin_notify_email + сообщение в админ-чат. Сбой одного канала
+    не мешает другому и не ломает основное действие пользователя."""
     try:
-        send_templated_mail('admin_claim', parts['subject'], [admin_notify_email()], {
+        send_templated_mail('admin_claim', subject, [admin_notify_email()], {
             'admin': True,
-            'subject': parts['subject'],
-            'preheader': f"{parts['who']}, {claim.user.email} — ожидает подтверждения в админке.",
-            'title': parts['title'],
-            'rows': [(label, value) for label, value in parts['rows'] if value],
+            'subject': subject,
+            'preheader': preheader,
+            'title': title,
+            'rows': [(label, value) for label, value in rows if value],
             'admin_url': admin_url,
         }, fail_silently=True)
     except Exception:
-        logger.exception('claim #%s: письмо админу не отправлено', claim.pk)
+        logger.exception('%s: письмо админу не отправлено', ref)
 
     try:
         from website.feedback.notify import notify_admin_chat
-        notify_admin_chat(telegram_text(parts, claim.pk, admin_url), f'claim #{claim.pk}')
+        notify_admin_chat(tg_text, ref)
     except Exception:
-        logger.exception('claim #%s: уведомление в Telegram не подготовлено', claim.pk)
+        logger.exception('%s: уведомление в Telegram не подготовлено', ref)
+
+
+def notify_admins_new_claim(claim):
+    parts = _driver_parts(claim) if claim._meta.model_name == 'driverclaim' else _team_parts(claim)
+    admin_url = _admin_edit_url(claim)
+    _deliver(
+        parts['subject'],
+        f"{parts['who']}, {claim.user.email} — ожидает подтверждения в админке.",
+        parts['title'], parts['rows'], admin_url,
+        telegram_text(parts, claim.pk, admin_url), f'claim #{claim.pk}',
+    )
+
+
+def notify_admins_registration_without_claim(user, first_name, last_name, city, matches):
+    """Пилот зарегистрировался, а в базе есть однофамильцы — заявки ещё нет, она
+    появится после выбора профиля. Без этого уведомления админ о таком человеке
+    не узнаёт, если тот закрыл страницу выбора."""
+    try:
+        admin_url = f"{settings.BASE_URL.rstrip('/')}{reverse('wagtailusers_users:edit', args=[user.pk])}"
+    except Exception:
+        admin_url = f"{settings.BASE_URL.rstrip('/')}/admin/"
+    name = f'{first_name} {last_name}'.strip()
+    _deliver(
+        '[Gripline] Новая регистрация пилота (профиль не выбран)',
+        f'{name}, {user.email} — зарегистрировался, но ещё не выбрал профиль пилота.',
+        'Регистрация пилота без заявки',
+        [('E-mail', user.email), ('Имя', name), ('Город', city),
+         ('Совпадений в базе', str(matches)), ('Статус', 'Профиль пилота не выбран, заявки нет')],
+        admin_url,
+        (f'👤 <b>Новая регистрация пилота</b>\nПрофиль пока не выбран, заявки нет.\n'
+         f'<a href="{html.escape(admin_url, quote=True)}">Открыть пользователя в админке</a>'),
+        f'registration user#{user.pk}',
+    )

@@ -41,7 +41,7 @@ urlpatterns = [
     path("ads/<int:ad_id>/responses/", views.ad_responses, name="ad_responses"),
     path("ads/<int:ad_id>/favorite/", views.ads_favorite, name="ads_favorite"),
     path("drivers/", include(driver_viewset.get_urlpatterns())),
-    path("teams/", include((team_viewset.get_urlpatterns(), 'website'), namespace='teams')),
+    path("teams/", include((team_viewset.get_urlpatterns(), 'website'), namespace='team_snippet')),
     path("teams/<slug:slug>/", views.team_detail_view, name='team_detail'),
     path("tracks/", include((track_viewset.get_urlpatterns(), 'website'), namespace='tracks')),
     path("tracks/<slug:slug>/", views.track_detail_view, name='track_detail'),

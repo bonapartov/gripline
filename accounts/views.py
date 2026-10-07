@@ -13,6 +13,7 @@ from website.models import Driver
 from website.mail import send_templated_mail
 from .models import DriverClaim, PilotDocument, SocialAuthSettings
 from wagtail.images.models import Image
+from django.db import transaction
 from django.utils import timezone
 from django.http import JsonResponse, FileResponse
 from django.urls import reverse
@@ -68,6 +69,9 @@ def register(request):
                 request.session['first_name'] = first_name
                 request.session['last_name'] = last_name
                 request.session['city'] = city
+                from website.claim_notify import notify_admins_registration_without_claim
+                transaction.on_commit(lambda: notify_admins_registration_without_claim(
+                    user, first_name, last_name, city, drivers.count()))
                 messages.success(request, 'Аккаунт создан! Выберите своего пилота.')
                 return redirect('accounts:select_driver')
             else:
@@ -94,64 +98,21 @@ def verification_sent(request):
 
 
 def verify_email(request, uidb64, token):
-    """Подтверждение email по ссылке из письма"""
+    """Активация аккаунта по ссылке из письма (для аккаунтов, созданных неактивными).
+    Регистрация пилота теперь мгновенная; сюда ведёт вход неактивного аккаунта
+    через «запросить новое письмо»."""
     try:
         uid = force_str(urlsafe_base64_decode(uidb64))
         user = User.objects.get(pk=uid)
     except (TypeError, ValueError, OverflowError, User.DoesNotExist):
         user = None
-    
+
     if user and default_token_generator.check_token(user, token):
         user.is_active = True
         user.save()
-        
-        # Восстанавливаем данные из сессии (если они есть)
-        pending_user_id = request.session.get('pending_user_id')
-        if pending_user_id == user.id:
-            first_name = request.session.get('pending_first_name')
-            last_name = request.session.get('pending_last_name')
-            city = request.session.get('pending_city', '')
-            
-            # Ищем похожих пилотов
-            drivers = Driver.objects.filter(
-                first_name__iexact=first_name,
-                last_name__iexact=last_name
-            )
-            
-            if drivers.exists():
-                request.session['found_drivers'] = [
-                    {'id': d.id, 'name': d.full_name, 'city': d.city or ''}
-                    for d in drivers
-                ]
-                request.session['user_id'] = user.id
-                request.session['first_name'] = first_name
-                request.session['last_name'] = last_name
-                request.session['city'] = city
-                
-                # Очищаем временные данные
-                for key in ['pending_user_id', 'pending_first_name', 'pending_last_name', 'pending_city']:
-                    if key in request.session:
-                        del request.session[key]
-                
-                messages.success(request, 'Email подтверждён! Теперь выберите пилота.')
-                return redirect('accounts:select_driver')
-            else:
-                # Создаём заявку без привязки
-                claim = DriverClaim.objects.create(
-                    user=user,
-                    requested_first_name=first_name,
-                    requested_last_name=last_name,
-                    requested_city=city,
-                    status='pending'
-                )
-                
-                messages.success(request, 'Email подтверждён! Ваша заявка отправлена администратору.')
-                return redirect('accounts:login')
-        else:
-            messages.success(request, 'Email подтверждён! Теперь вы можете войти.')
-            return redirect('accounts:login')
-    else:
-        return render(request, 'accounts/verification_failed.html')
+        messages.success(request, 'Email подтверждён! Теперь вы можете войти.')
+        return redirect('accounts:login')
+    return render(request, 'accounts/verification_failed.html')
 
 
 def resend_verification(request):
@@ -211,7 +172,7 @@ def select_driver(request):
         selected_id = request.POST.get('driver_id')
 
         if selected_id == 'none':
-            claim = DriverClaim.objects.create(
+            DriverClaim.objects.create(
                 user=user,
                 requested_first_name=request.session['first_name'],
                 requested_last_name=request.session['last_name'],
@@ -222,7 +183,7 @@ def select_driver(request):
             messages.success(request, 'Ваша заявка отправлена администратору.')
         elif selected_id:
             driver = Driver.objects.get(id=selected_id)
-            claim = DriverClaim.objects.create(
+            DriverClaim.objects.create(
                 user=user,
                 driver=driver,
                 requested_first_name=request.session['first_name'],
@@ -822,7 +783,6 @@ def yandex_pilot_onboarding(request):
         elif action == 'new':
             fn = request.POST.get('first_name', first_name).strip()
             ln = request.POST.get('last_name', last_name).strip()
-            birth_year = request.POST.get('birth_year', '').strip()
             if not fn or not ln:
                 messages.error(request, 'Введите имя и фамилию.')
                 return render(request, 'accounts/yandex_pilot_onboarding.html', {
@@ -938,7 +898,7 @@ def yandex_team_onboarding(request):
             if not team_name:
                 messages.error(request, 'Введите название команды.')
                 return render(request, 'accounts/yandex_team_onboarding.html', {'show_new_form': True})
-            team = WebTeam(name=team_name)
+            team = WebTeam(name=team_name, city=city)
             team.save()
             TM.objects.create(user=request.user, team=team, role='manager', is_active=True)
             TC.objects.create(
