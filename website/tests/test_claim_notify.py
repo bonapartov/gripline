@@ -125,35 +125,10 @@ REGISTER = {
 }
 
 
-def test_register_new_pilot_path_notifies_admin_once(db, client, chat, django_capture_on_commit_callbacks):
-    with django_capture_on_commit_callbacks(execute=True):
-        client.post('/accounts/register/', REGISTER)
-    assert DriverClaim.objects.filter(user__email='new@example.ru').count() == 1
-    assert len(to_admin()) == 1 and len(chat) == 1
 
 
-def test_select_driver_path_notifies_admin_once(db, client, chat, django_capture_on_commit_callbacks):
-    driver = Driver.objects.create(first_name='Иван', last_name='Смирнов', slug='ivan-smirnov', city='Казань')
-    with django_capture_on_commit_callbacks(execute=True):
-        client.post('/accounts/register/', REGISTER)
-    assert to_admin() == []  # пока пилот не выбран — заявки нет
-    with django_capture_on_commit_callbacks(execute=True):
-        client.post('/accounts/select-driver/', {'driver_id': driver.pk})
-    claim = DriverClaim.objects.get(user__email='new@example.ru')
-    # в чат: уведомление о регистрации (до выбора) + о самой заявке
-    assert claim.driver == driver and len(to_admin()) == 1 and len(chat) == 2
 
 
-def test_select_team_path_notifies_admin_once(client, user, chat, django_capture_on_commit_callbacks):
-    team = Team.objects.create(name='Kart Lab')
-    session = client.session
-    session.update({'found_teams': [{'id': team.pk, 'name': team.name}], 'user_id': user.pk,
-                    'requested_team_name': 'Kart Lab'})
-    session.save()
-    with django_capture_on_commit_callbacks(execute=True):
-        client.post('/teams/select-team/', {'team_id': team.pk})
-    assert TeamClaim.objects.filter(user=user, team=team).count() == 1
-    assert len(to_admin()) == 1 and len(chat) == 1
 
 
 # ---------- заявителю (команда) ----------
@@ -179,15 +154,6 @@ def test_team_claim_approval_creates_manager_and_sends_email_once(user, chat):
     assert 'https://gripline.ru/teams/dashboard/' in letters[0].body
 
 
-def test_team_claim_approved_without_team_sends_nothing_until_team_chosen(user, chat):
-    claim = TeamClaim.objects.create(user=user, requested_team_name='Kart Lab')
-    mail.outbox.clear()
-    claim.status = 'approved'
-    claim.save()
-    assert to_user('подтверждена') == [] and not TeamManager.objects.filter(user=user).exists()
-    claim.team = Team.objects.create(name='Kart Lab')
-    claim.save()
-    assert len(to_user('подтверждена')) == 1 and TeamManager.objects.filter(user=user).exists()
 
 
 def test_team_claim_rejection_email_carries_reason_once(user, chat):
@@ -215,46 +181,12 @@ def registration_letters():
     return [m for m in mail.outbox if m.subject == '[Gripline] Новая регистрация пилота (профиль не выбран)']
 
 
-def test_registration_with_name_match_notifies_admin_before_choice(db, client, chat, django_capture_on_commit_callbacks):
-    Driver.objects.create(first_name='Иван', last_name='Смирнов', slug='ivan-smirnov')
-    with django_capture_on_commit_callbacks(execute=True):
-        client.post('/accounts/register/', REGISTER)
-    letters = registration_letters()
-    assert len(letters) == 1 and 'new@example.ru' in letters[0].body
-    assert len(chat) == 1 and 'new@example.ru' not in chat[0][0] and 'Смирнов' not in chat[0][0]
-    assert '/admin/users/edit/' in chat[0][0]
-    assert DriverClaim.objects.count() == 0
 
 
-def test_registration_without_match_gets_only_claim_notice(db, client, chat, django_capture_on_commit_callbacks):
-    with django_capture_on_commit_callbacks(execute=True):
-        client.post('/accounts/register/', REGISTER)
-    assert registration_letters() == [] and len(to_admin()) == 1 and len(chat) == 1
 
 
-def test_verify_email_activates_inactive_account(db, client, monkeypatch):
-    from django.contrib.auth.tokens import default_token_generator
-    from django.utils.encoding import force_bytes
-    from django.utils.http import urlsafe_base64_encode
-    inactive = User.objects.create_user('old', 'old@example.ru', 'pass-12345', is_active=False)
-    uid, token = urlsafe_base64_encode(force_bytes(inactive.pk)), default_token_generator.make_token(inactive)
-    response = client.get(f'/accounts/verify-email/{uid}/{token}/')
-    inactive.refresh_from_db()
-    assert response.status_code == 302 and inactive.is_active
-    # неверный токен: аккаунт не активируется (страницу отказа подменяем — ей нужен Site Wagtail)
-    from django.http import HttpResponse
-    monkeypatch.setattr('accounts.views.render', lambda request, template, *a, **kw: HttpResponse(template))
-    other = User.objects.create_user('old2', 'old2@example.ru', 'pass-12345', is_active=False)
-    uid2 = urlsafe_base64_encode(force_bytes(other.pk))
-    assert client.get(f'/accounts/verify-email/{uid2}/bad-token/').content == b'accounts/verification_failed.html'
-    other.refresh_from_db()
-    assert not other.is_active
 
 
-def test_yandex_new_team_saves_city(db, client, user, chat):
-    client.force_login(user)
-    client.post('/accounts/yandex/onboarding/team/', {'action': 'new', 'team_name': 'Kart Lab', 'city': 'Казань'})
-    assert Team.objects.get(name='Kart Lab').city == 'Казань'
 
 
 def test_url_namespaces_are_unique():
@@ -264,3 +196,41 @@ def test_url_namespaces_are_unique():
         call_command('check')
     except SystemCheckError as exc:  # pragma: no cover
         pytest.fail(str(exc))
+
+
+# ---------- подтверждение/отказ заявки команды без выбранной команды ----------
+
+def test_team_claim_approved_without_team_creates_team_and_manager(user, chat):
+    claim = TeamClaim.objects.create(user=user, requested_team_name='Fresh Team', requested_city='Казань')
+    mail.outbox.clear()
+    claim.status = 'approved'
+    claim.save()
+    claim.save()  # повторное сохранение ничего не дублирует
+    claim.refresh_from_db()
+    team = claim.team
+    assert team and team.name == 'Fresh Team' and team.city == 'Казань'
+    assert Team.objects.filter(name='Fresh Team').count() == 1
+    assert TeamManager.objects.filter(user=user, team=team, is_active=True).count() == 1
+    assert len(to_user('подтверждена')) == 1
+
+
+def test_team_claim_approved_with_chosen_team_does_not_create_another(user, chat):
+    team = Team.objects.create(name='Existing')
+    claim = TeamClaim.objects.create(user=user, requested_team_name='Existing')
+    claim.team, claim.status = team, 'approved'
+    claim.save()
+    assert Team.objects.count() == 1 and TeamManager.objects.filter(user=user, team=team).exists()
+
+
+def test_rejecting_claim_deactivates_legacy_manager(user, chat):
+    # старые заявки: менеджер был выдан до подтверждения
+    team = Team.objects.create(name='Legacy')
+    claim = TeamClaim.objects.create(user=user, team=team, requested_team_name='Legacy')
+    TeamManager.objects.create(user=user, team=team, role='manager', is_active=True)
+    user.profile.refresh_from_db()
+    assert 'manager' in user.profile.roles
+    claim.status = 'rejected'
+    claim.save()
+    assert not TeamManager.objects.get(user=user, team=team).is_active
+    user.profile.refresh_from_db()
+    assert 'manager' not in user.profile.roles

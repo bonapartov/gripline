@@ -15,22 +15,31 @@ def stash_old_team_claim_state(sender, instance, **kwargs):
 @receiver(post_save, sender=TeamClaim)
 def create_team_manager_on_approval(sender, instance, **kwargs):
     """
-    При подтверждении заявки (status='approved') автоматически создаем TeamManager
+    Подтверждение заявки (status='approved'):
+    - команда не выбрана админом → создаём её по запрошенному названию (заявка на «новую команду»);
+    - создаём TeamManager (капитан), если его ещё нет.
+    Отказ (status='rejected') — снимаем менеджера этой команды, если он уже был (старые заявки,
+    созданные до того, как менеджер стал выдаваться только после подтверждения).
     """
-    if instance.status == 'approved' and instance.team:
-        # Проверяем, не создан ли уже менеджер
-        manager_exists = TeamManager.objects.filter(
-            user=instance.user,
-            team=instance.team
-        ).exists()
-
-        if not manager_exists:
-            TeamManager.objects.create(
-                user=instance.user,
-                team=instance.team,
-                role='captain',  # Капитан по умолчанию
-                is_active=True
+    if instance.status == 'approved':
+        if not instance.team_id and instance.requested_team_name.strip():
+            from website.models import Team
+            team = Team.objects.create(name=instance.requested_team_name.strip(),
+                                       city=instance.requested_city or None)
+            TeamClaim.objects.filter(pk=instance.pk).update(team=team)
+            instance.team = team
+        if instance.team:
+            manager, created = TeamManager.objects.get_or_create(
+                user=instance.user, team=instance.team,
+                defaults={'role': 'captain', 'is_active': True},
             )
+            if not created and not manager.is_active:
+                manager.is_active = True
+                manager.save()
+    elif instance.status == 'rejected' and instance.team_id:
+        for manager in TeamManager.objects.filter(user=instance.user, team=instance.team, is_active=True):
+            manager.is_active = False
+            manager.save()  # post_save пересчитает роли профиля
 
 
 @receiver(post_save, sender=TeamClaim)

@@ -138,15 +138,17 @@ class EmailLinksWorkTests(TestCase):
 
     def _check_verification(self, send, path_prefix):
         from urllib.parse import urlparse
-        user = User.objects.create_user('new', 'new@example.ru', 'pass-12345', first_name='Пётр', is_active=False)
+        user = User.objects.create_user('new', 'new@example.ru', 'pass-12345', first_name='Пётр')
+        user.profile.email_verified = False
+        user.profile.save()
         send(user, RequestFactory().get('/', HTTP_HOST='gripline.ru', secure=True))
         text_links, html_links = self._links(mail.outbox[-1])
         link = next(u for u in text_links if path_prefix in u)
         self.assertIn(link, html_links, 'ссылка в кнопке и в тексте должна совпадать')
         response = self.client.get(urlparse(link).path, HTTP_HOST='gripline.ru', secure=True)
         self.assertIn(response.status_code, (200, 302))
-        user.refresh_from_db()
-        self.assertTrue(user.is_active, f'переход по {link} не активировал аккаунт')
+        user.profile.refresh_from_db()
+        self.assertTrue(user.profile.email_verified, f'переход по {link} не подтвердил email')
 
     def test_pilot_verification_link_activates_account(self):
         from accounts.views import send_verification_email

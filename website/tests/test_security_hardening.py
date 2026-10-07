@@ -99,26 +99,40 @@ def test_team_verify_link_in_fresh_session_does_not_duplicate(client):
     assert TeamClaim.objects.count() == 1
 
 
-def test_select_driver_rejects_id_not_in_found_list(client):
-    client.post('/accounts/register/', {**PILOT, 'email': 'a@example.ru'})
+def test_select_driver_accepts_only_candidates_for_logged_in_user(client):
+    user = User.objects.create_user('pilot', 'pilot@example.ru', 'x', first_name='Иван', last_name='Смирнов')
+    mine = Driver.objects.create(first_name='Иван', last_name='Смирнов', slug='ivan-smirnov')
     stranger = Driver.objects.create(first_name='Чужой', last_name='Пилот', slug='chuzhoy')
+    client.force_login(user)
+    for bad in (stranger.pk, '999999', 'abc'):
+        r = client.post('/accounts/select-driver/', {'driver_id': bad})
+        assert r.status_code == 302 and DriverClaim.objects.count() == 0
+    client.post('/accounts/select-driver/', {'driver_id': mine.pk})
+    assert DriverClaim.objects.get().driver == mine
+
+
+def test_select_driver_requires_login_and_verified_email(client):
     Driver.objects.create(first_name='Иван', last_name='Смирнов', slug='ivan-smirnov')
-    # повторная регистрация другого пользователя с совпадением — чтобы был found_drivers в сессии
-    client.logout()
-    client.post('/accounts/register/', {**PILOT, 'email': 'b@example.ru'})
-    r = client.post('/accounts/select-driver/', {'driver_id': stranger.pk})
-    assert r.status_code == 302 and DriverClaim.objects.filter(driver=stranger).count() == 0
-    assert client.post('/accounts/select-driver/', {'driver_id': '999999'}).status_code == 302
+    assert client.post('/accounts/select-driver/', {'driver_id': 'none'}).status_code == 302   # на вход
+    user = User.objects.create_user('p', 'p@example.ru', 'x', first_name='Иван', last_name='Смирнов')
+    user.profile.email_verified = False
+    user.profile.save()
+    client.force_login(user)
+    r = client.post('/accounts/select-driver/', {'driver_id': 'none'})
+    assert r.status_code == 302 and 'resend' in r['Location'] and DriverClaim.objects.count() == 0
 
 
-def test_select_team_rejects_id_not_in_found_list(client):
+def test_select_team_accepts_only_candidates_for_logged_in_user(client):
     user = User.objects.create_user('u', 'u@example.ru', 'x')
-    mine, stranger = Team.objects.create(name='Mine'), Team.objects.create(name='Stranger')
-    s = client.session
-    s.update({'found_teams': [{'id': mine.pk, 'name': 'Mine'}], 'user_id': user.pk, 'requested_team_name': 'Mine'})
-    s.save()
-    r = client.post('/teams/select-team/', {'team_id': stranger.pk})
-    assert r.status_code == 302 and TeamClaim.objects.count() == 0
+    user.profile.pending_team_name = 'Mine'
+    user.profile.save()
+    mine, stranger = Team.objects.create(name='Mine Racing'), Team.objects.create(name='Stranger')
+    client.force_login(user)
+    for bad in (stranger.pk, '999999', 'abc'):
+        r = client.post('/teams/select-team/', {'team_id': bad})
+        assert r.status_code == 302 and TeamClaim.objects.count() == 0
+    client.post('/teams/select-team/', {'team_id': mine.pk})
+    assert TeamClaim.objects.get().team == mine
 
 
 # ---------- 500 и утечки ----------

@@ -36,6 +36,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         )
 
     profile = db.query(UserProfile).filter(UserProfile.user_id == user.id).first()
+    if profile is not None and profile.email_verified is False:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Подтвердите email: письмо отправлено при регистрации")
     token = _build_token(user, profile)
     return {"access_token": token, "token_type": "bearer"}
 
@@ -54,6 +56,8 @@ def refresh_token(token: str = Depends(oauth2_scheme), db: Session = Depends(get
         raise HTTPException(status_code=401, detail="Пользователь не найден")
 
     profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
+    if profile is not None and profile.email_verified is False:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Подтвердите email: письмо отправлено при регистрации")
     token = _build_token(user, profile)
     return {"access_token": token, "token_type": "bearer"}
 

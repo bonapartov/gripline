@@ -12,6 +12,8 @@ from .forms import RegistrationForm, DriverProfileForm, SocialLinkFormSet
 from website.models import Driver
 from website.mail import send_templated_mail
 from website.services.balance_limits import ratelimit_post
+from .verification import (NEUTRAL_RESEND_MESSAGE, confirm_email, is_email_verified, mark_unverified,
+                           resend_verification_emails, user_from_token)
 from .models import DriverClaim, PilotDocument, SocialAuthSettings
 from wagtail.images.models import Image
 from django.db import transaction
@@ -21,6 +23,9 @@ from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.admin.views.decorators import staff_member_required
 import json
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 def send_verification_email(user, request):
@@ -36,7 +41,8 @@ def send_verification_email(user, request):
 
 @ratelimit_post('register_pilot', limit=20, window_seconds=3600)
 def register(request):
-    """Регистрация нового пользователя — мгновенная, без подтверждения email"""
+    """Регистрация пилота по email: аккаунт создаётся сразу, но войти и подать заявку
+    можно только после перехода по ссылке из письма (см. verify_email)."""
     if request.method == 'POST':
         form = RegistrationForm(request.POST)
 
@@ -49,43 +55,16 @@ def register(request):
             user = form.save(commit=False)
             user.is_active = True
             user.save()
+            mark_unverified(user, city=form.cleaned_data.get('city', ''))
 
-            first_name = form.cleaned_data['first_name']
-            last_name = form.cleaned_data['last_name']
-            city = form.cleaned_data.get('city', '')
-
-            # backend обязателен: бэкендов несколько, а user не проходил authenticate()
-            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
-
-            drivers = Driver.objects.filter(
-                first_name__iexact=first_name,
-                last_name__iexact=last_name,
-            )
-
-            if drivers.exists():
-                request.session['found_drivers'] = [
-                    {'id': d.id, 'name': d.full_name, 'city': d.city or ''}
-                    for d in drivers
-                ]
-                request.session['user_id'] = user.id
-                request.session['first_name'] = first_name
-                request.session['last_name'] = last_name
-                request.session['city'] = city
-                from website.claim_notify import notify_admins_registration_without_claim
-                transaction.on_commit(lambda: notify_admins_registration_without_claim(
-                    user, first_name, last_name, city, drivers.count()))
-                messages.success(request, 'Аккаунт создан! Выберите своего пилота.')
-                return redirect('accounts:select_driver')
-            else:
-                DriverClaim.objects.create(
-                    user=user,
-                    requested_first_name=first_name,
-                    requested_last_name=last_name,
-                    requested_city=city,
-                    status='pending',
-                )
-                messages.success(request, 'Аккаунт создан! Ваша заявка отправлена администратору.')
-                return redirect('accounts:profile')
+            try:
+                send_verification_email(user, request)
+            except Exception:
+                logger.exception('pilot register: письмо подтверждения не отправлено')
+                user.delete()
+                messages.error(request, 'Не удалось отправить письмо. Попробуйте позже.')
+                return render(request, 'accounts/register.html', {'form': form})
+            return redirect('accounts:verification_sent')
         else:
             messages.error(request, 'Пожалуйста, исправьте ошибки в форме.')
     else:
@@ -99,120 +78,95 @@ def verification_sent(request):
     return render(request, 'accounts/verification_sent.html')
 
 
-def verify_email(request, uidb64, token):
-    """Активация аккаунта по ссылке из письма (для аккаунтов, созданных неактивными).
-    Регистрация пилота теперь мгновенная; сюда ведёт вход неактивного аккаунта
-    через «запросить новое письмо»."""
-    try:
-        uid = force_str(urlsafe_base64_decode(uidb64))
-        user = User.objects.get(pk=uid)
-    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-        user = None
+def _pilot_candidates(user):
+    return Driver.objects.filter(first_name__iexact=user.first_name, last_name__iexact=user.last_name)
 
-    if user and default_token_generator.check_token(user, token):
-        user.is_active = True
-        user.save()
+
+def verify_email(request, uidb64, token):
+    """Ссылка из письма: подтверждает email и продолжает регистрацию пилота — заявка (и уведомление
+    админу) появляется только теперь. Данные берутся из БД, а не из сессии: ссылку можно открыть
+    в другом браузере. Заблокированный аккаунт ссылкой не оживляется."""
+    user = user_from_token(uidb64, token)
+    if user is None:
+        return render(request, 'accounts/verification_failed.html')
+
+    first_time = confirm_email(user)
+    profile = user.profile
+
+    if DriverClaim.objects.filter(user=user).exists() or not (user.first_name and user.last_name):
         messages.success(request, 'Email подтверждён! Теперь вы можете войти.')
         return redirect('accounts:login')
-    return render(request, 'accounts/verification_failed.html')
+
+    candidates = _pilot_candidates(user)
+    if candidates.exists():
+        if first_time:
+            from website.claim_notify import notify_admins_registration_without_claim
+            transaction.on_commit(lambda: notify_admins_registration_without_claim(
+                user, user.first_name, user.last_name, profile.city, candidates.count()))
+        messages.success(request, 'Email подтверждён! Теперь выберите своего пилота.')
+        target = reverse('accounts:select_driver')
+        if request.user.is_authenticated and request.user.pk == user.pk:
+            return redirect(target)
+        return redirect(f"{reverse('accounts:login')}?next={target}")
+
+    DriverClaim.objects.create(
+        user=user, requested_first_name=user.first_name, requested_last_name=user.last_name,
+        requested_city=profile.city, status='pending',
+    )
+    messages.success(request, 'Email подтверждён! Заявка отправлена администратору.')
+    return redirect('accounts:login')
 
 
 @ratelimit_post('resend_verification', limit=10, window_seconds=3600)
 def resend_verification(request):
-    """Повторная отправка письма с подтверждением"""
+    """Повторная отправка письма с подтверждением (ответ одинаковый для любого адреса)."""
     if request.method == 'POST':
-        email = request.POST.get('email')
-        try:
-            user = User.objects.get(email=email, is_active=False)
-            send_verification_email(user, request)
-            messages.success(request, 'Письмо отправлено повторно. Проверьте почту.')
-            return redirect('accounts:verification_sent')
-        except User.DoesNotExist:
-            messages.error(request, 'Пользователь с таким email не найден или уже активирован.')
+        resend_verification_emails(request.POST.get('email'), request)
+        messages.success(request, NEUTRAL_RESEND_MESSAGE)
+        return redirect('accounts:verification_sent')
     return render(request, 'accounts/verification_resend.html')
 
 
+@login_required
 def select_driver(request):
-    """Страница выбора пилота из найденных"""
-    found_drivers = request.session.get('found_drivers', [])
-    user_id = request.session.get('user_id')
-    
-    # Если нет данных в сессии — пробуем взять из pending
-    if not found_drivers or not user_id:
-        pending_user_id = request.session.get('pending_user_id')
-        if pending_user_id:
-            user = User.objects.get(id=pending_user_id)
-            first_name = request.session.get('pending_first_name')
-            last_name = request.session.get('pending_last_name')
-            city = request.session.get('pending_city', '')
-            
-            drivers = Driver.objects.filter(
-                first_name__iexact=first_name,
-                last_name__iexact=last_name
-            )
-            
-            if drivers.exists():
-                request.session['found_drivers'] = [
-                    {'id': d.id, 'name': d.full_name, 'city': d.city or ''}
-                    for d in drivers
-                ]
-                request.session['user_id'] = user.id
-                request.session['first_name'] = first_name
-                request.session['last_name'] = last_name
-                request.session['city'] = city
-                found_drivers = request.session['found_drivers']
-                user_id = request.session['user_id']
-            else:
-                return redirect('accounts:register')
-        else:
-            return redirect('accounts:register')
+    """Выбор своего пилота среди однофамильцев. Список считается по БД для request.user —
+    ничего из сессии не доверяем, выбрать можно только пилота из этого списка."""
+    user = request.user
+    if not is_email_verified(user):
+        messages.error(request, 'Сначала подтвердите email — письмо со ссылкой отправлено при регистрации.')
+        return redirect('accounts:resend_verification')
+    if DriverClaim.objects.filter(user=user).exists():
+        return redirect('accounts:profile')
+
+    found = _pilot_candidates(user)
+    if not found.exists():
+        return redirect('accounts:profile')
+    city = user.profile.city
 
     if request.method == 'POST':
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        user = User.objects.get(id=user_id)
-
         selected_id = request.POST.get('driver_id')
+        allowed = {str(d.id): d for d in found}
 
-        # выбрать можно только пилота из списка, найденного при регистрации
-        if selected_id != 'none' and selected_id not in {str(d['id']) for d in found_drivers}:
+        if selected_id != 'none' and selected_id not in allowed:
             messages.error(request, 'Выберите пилота из списка.')
             return redirect('accounts:select_driver')
 
-        if selected_id == 'none':
-            DriverClaim.objects.create(
-                user=user,
-                requested_first_name=request.session['first_name'],
-                requested_last_name=request.session['last_name'],
-                requested_city=request.session.get('city', ''),
-                status='pending'
-            )
-            
-            messages.success(request, 'Ваша заявка отправлена администратору.')
-        elif selected_id:
-            driver = Driver.objects.get(id=selected_id)
-            DriverClaim.objects.create(
-                user=user,
-                driver=driver,
-                requested_first_name=request.session['first_name'],
-                requested_last_name=request.session['last_name'],
-                requested_city=request.session.get('city', ''),
-                status='pending'
-            )
-            
+        driver = None if selected_id == 'none' else allowed[selected_id]
+        DriverClaim.objects.create(
+            user=user, driver=driver,
+            requested_first_name=user.first_name, requested_last_name=user.last_name,
+            requested_city=city, status='pending',
+        )
+        if driver:
             messages.success(request, f'Заявка на привязку к {driver.full_name} отправлена администратору.')
-
-        # Очищаем сессию
-        for key in ['found_drivers', 'user_id', 'first_name', 'last_name', 'city', 'pending_user_id', 'pending_first_name', 'pending_last_name', 'pending_city']:
-            if key in request.session:
-                del request.session[key]
-
-        return redirect('accounts:login')
+        else:
+            messages.success(request, 'Ваша заявка отправлена администратору.')
+        return redirect('accounts:profile')
 
     return render(request, 'accounts/select_driver.html', {
-        'drivers': found_drivers,
-        'first_name': request.session.get('first_name'),
-        'last_name': request.session.get('last_name'),
+        'drivers': [{'id': d.id, 'name': d.full_name, 'city': d.city or ''} for d in found],
+        'first_name': user.first_name,
+        'last_name': user.last_name,
     })
 
 
@@ -230,6 +184,9 @@ def login_view(request):
                     break
 
         if user is not None:
+            if not is_email_verified(user):
+                messages.error(request, 'Подтвердите email: мы отправляли письмо со ссылкой. Можно запросить новое.')
+                return redirect('accounts:resend_verification')
             if user.is_active:
                 login(request, user)
                 next_url = request.GET.get('next') or request.POST.get('next')
@@ -837,19 +794,16 @@ def yandex_team_onboarding(request):
     if preselected_team_name and request.method == 'GET':
         from website.models import Team as WebTeam
         from teams.models import TeamClaim as TC, TeamManager as TM
-        team = WebTeam(name=preselected_team_name)
-        team.save()
-        TM.objects.create(user=request.user, team=team, role='manager', is_active=True)
+        # Команду и менеджера создаст сигнал при подтверждении заявки админом (teams/signals.py)
         TC.objects.create(
             user=request.user,
-            team=team,
             requested_team_name=preselected_team_name,
             status='pending',
         )
         for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
             request.session.pop(key, None)
         request.session['active_role'] = 'team'
-        messages.success(request, 'Команда создана, появится на сайте после проверки.')
+        messages.success(request, 'Заявка отправлена. Команда появится на сайте после проверки администратором.')
         return redirect('teams:dashboard')
 
     # Auto-select pre-chosen team from choose-role modal
@@ -906,19 +860,17 @@ def yandex_team_onboarding(request):
             if not team_name:
                 messages.error(request, 'Введите название команды.')
                 return render(request, 'accounts/yandex_team_onboarding.html', {'show_new_form': True})
-            team = WebTeam(name=team_name, city=city)
-            team.save()
-            TM.objects.create(user=request.user, team=team, role='manager', is_active=True)
+            # Команду и менеджера создаст сигнал при подтверждении заявки админом (teams/signals.py)
             TC.objects.create(
                 user=request.user,
-                team=team,
                 requested_team_name=team_name,
+                requested_city=city,
                 status='pending',
             )
             for key in ('yandex_onboarding', 'yandex_first_name', 'yandex_last_name'):
                 request.session.pop(key, None)
             request.session['active_role'] = 'team'
-            messages.success(request, 'Команда создана, появится на сайте после проверки.')
+            messages.success(request, 'Заявка отправлена. Команда появится на сайте после проверки администратором.')
             return redirect('teams:dashboard')
 
     return render(request, 'accounts/yandex_team_onboarding.html')

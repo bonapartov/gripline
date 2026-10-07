@@ -22,5 +22,6 @@ class UserProfile(Base):
     user_id = Column(Integer)
     roles = Column(ARRAY(String))
     verified = Column(Boolean)
+    email_verified = Column(Boolean)  # False — email регистрации не подтверждён (вход запрещён)
     driver_id = Column(Integer, nullable=True)
     team_id = Column(Integer, nullable=True)

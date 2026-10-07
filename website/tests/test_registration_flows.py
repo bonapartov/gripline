@@ -8,6 +8,7 @@
 import re
 
 import pytest
+from django.test import Client
 from django.contrib.auth.models import User
 from django.core import mail
 
@@ -78,50 +79,88 @@ def assert_no_pii(tg, *private):
             assert p not in text, f'ПД «{p}» попали в Telegram: {text}'
 
 
-# ===================== ПИЛОТ, регистрация по email =====================
+def link(subject_part, to, prefix):
+    """Путь ссылки подтверждения из письма (без хоста)."""
+    letter = mails(subject_part, to)[-1]
+    url = re.search(r'https?://[^\s"<]+' + re.escape(prefix) + r'[^\s"<]+', letter.body).group(0)
+    return re.sub(r'^https?://[^/]+', '', url)
 
-def test_pilot_email_no_name_match(client, tg, commit):
+
+def pilot_link():
+    return link('Подтверждение регистрации на Gripline', 'pilot@example.ru', '/accounts/verify-email/')
+
+
+def team_link():
+    return link('Подтверждение регистрации команды', 'boss@example.ru', '/teams/verify-email/')
+
+
+def login(client, email, password='Str0ng-pass-123', path='/accounts/login/', **extra):
+    return client.post(path, {'email': email, 'password': password}, **extra)
+
+
+# ===================== ПИЛОТ: регистрация по email с подтверждением =====================
+
+def test_pilot_register_sends_only_verification_mail_and_blocks_login(client, tg, commit):
     with commit():
         r = client.post('/accounts/register/', PILOT_FORM)
     assert r.status_code == 302
-    claim = DriverClaim.objects.get(user__email='pilot@example.ru')
-    assert claim.status == 'pending' and claim.driver is None
-    assert len(mails('принята на рассмотрение', 'pilot@example.ru')) == 1     # заявителю
+    user = User.objects.get(email='pilot@example.ru')
+    assert user.is_active and user.profile.email_verified is False
+    assert DriverClaim.objects.count() == 0
+    assert len(mails('Подтверждение регистрации на Gripline', 'pilot@example.ru')) == 1
+    assert subjects().count(SUBJ_ADMIN_DRIVER) == 0 and SUBJ_ADMIN_REG not in subjects() and tg == []
+    # до подтверждения войти нельзя
+    other = Client()
+    assert login(other, 'pilot@example.ru').status_code == 302
+    assert '_auth_user_id' not in other.session
+
+
+def test_pilot_verify_no_name_match_creates_claim_from_another_browser(client, tg, commit):
+    with commit():
+        client.post('/accounts/register/', PILOT_FORM)
+    mail.outbox[:] = [m for m in mail.outbox if 'Подтверждение' in m.subject]
+    phone = Client()                                  # ссылку открыли в другом браузере — сессии нет
+    with commit():
+        r = phone.get(pilot_link())
+    assert r.status_code == 302
+    user = User.objects.get(email='pilot@example.ru')
+    assert user.profile.email_verified
+    claim = DriverClaim.objects.get()
+    assert claim.status == 'pending' and claim.driver is None and claim.requested_city == 'Казань'
+    assert len(mails('принята на рассмотрение', 'pilot@example.ru')) == 1
     assert subjects().count(SUBJ_ADMIN_DRIVER) == 1 and SUBJ_ADMIN_REG not in subjects()
     assert len(tg) == 1 and 'Новая заявка пилота' in tg[0]
     assert_no_pii(tg, 'pilot@example.ru', 'Смирнов')
+    with commit():
+        phone.get(pilot_link())                       # повторный клик ничего не дублирует
+    assert DriverClaim.objects.count() == 1 and subjects().count(SUBJ_ADMIN_DRIVER) == 1 and len(tg) == 1
+    assert login(Client(), 'pilot@example.ru').status_code == 302   # теперь вход работает
 
 
-def test_pilot_email_match_then_select_existing_driver(client, tg, commit):
+@pytest.mark.parametrize('choose', ['existing', 'none'])
+def test_pilot_verify_with_name_match_then_select(client, tg, commit, choose):
     driver = Driver.objects.create(first_name='Иван', last_name='Смирнов', slug='ivan-smirnov')
     with commit():
         client.post('/accounts/register/', PILOT_FORM)
-    # до выбора: заявки нет, админ знает о регистрации, заявителю писем нет
-    assert DriverClaim.objects.count() == 0
-    assert subjects().count(SUBJ_ADMIN_REG) == 1 and mails('принята', 'pilot@example.ru') == []
-    assert len(tg) == 1 and 'Новая регистрация пилота' in tg[0]
+    browser = Client()
     with commit():
-        client.post('/accounts/select-driver/', {'driver_id': driver.pk})
+        r = browser.get(pilot_link())
+    # заявки ещё нет; админ знает о регистрации; человека ведут на вход, потом на выбор профиля
+    assert DriverClaim.objects.count() == 0
+    assert r['Location'].startswith('/accounts/login/?next=/accounts/select-driver/')
+    assert subjects().count(SUBJ_ADMIN_REG) == 1 and len(tg) == 1 and 'Новая регистрация пилота' in tg[0]
+    with commit():
+        browser.post('/accounts/login/?next=/accounts/select-driver/',
+                     {'email': 'pilot@example.ru', 'password': 'Str0ng-pass-123'})
+        browser.post('/accounts/select-driver/', {'driver_id': driver.pk if choose == 'existing' else 'none'})
     claim = DriverClaim.objects.get()
-    assert claim.driver == driver and claim.status == 'pending'
+    assert (claim.driver == driver) if choose == 'existing' else (claim.driver is None)
     assert len(mails('принята на рассмотрение', 'pilot@example.ru')) == 1
-    assert subjects().count(SUBJ_ADMIN_DRIVER) == 1
-    assert len(tg) == 2 and 'Новая заявка пилота' in tg[1]
+    assert subjects().count(SUBJ_ADMIN_DRIVER) == 1 and len(tg) == 2
     assert_no_pii(tg, 'pilot@example.ru', 'Смирнов')
 
 
-def test_pilot_email_match_then_choose_none(client, tg, commit):
-    Driver.objects.create(first_name='Иван', last_name='Смирнов', slug='ivan-smirnov')
-    with commit():
-        client.post('/accounts/register/', PILOT_FORM)
-    with commit():
-        client.post('/accounts/select-driver/', {'driver_id': 'none'})
-    claim = DriverClaim.objects.get()
-    assert claim.driver is None and claim.requested_last_name == 'Смирнов'
-    assert subjects().count(SUBJ_ADMIN_DRIVER) == 1 and len(tg) == 2
-
-
-def test_pilot_email_duplicate_email_rejected(client, tg, commit, monkeypatch):
+def test_pilot_duplicate_email_rejected(client, tg, commit, monkeypatch):
     from django.http import HttpResponse
     monkeypatch.setattr('accounts.views.render', lambda request, template, *a, **kw: HttpResponse(template))
     User.objects.create_user('x', 'pilot@example.ru', 'pass-12345')
@@ -130,21 +169,18 @@ def test_pilot_email_duplicate_email_rejected(client, tg, commit, monkeypatch):
     assert DriverClaim.objects.count() == 0 and mail.outbox == [] and tg == []
 
 
-# ===================== ПИЛОТ, подтверждение заявки =====================
-
-def test_pilot_claim_approval_and_rejection_emails(client, tg, commit):
-    with commit():
-        client.post('/accounts/register/', PILOT_FORM)
-    claim = DriverClaim.objects.get()
+def test_pilot_claim_approval_and_rejection_emails(tg, commit):
+    user = User.objects.create_user('pilot', 'pilot@example.ru', 'x', first_name='Иван', last_name='Смирнов')
     driver = Driver.objects.create(first_name='Иван', last_name='Смирнов', slug='ivan-smirnov')
+    with commit():
+        claim = DriverClaim.objects.create(user=user, requested_first_name='Иван', requested_last_name='Смирнов')
     mail.outbox.clear()
     claim.driver, claim.status = driver, 'approved'
     claim.save()
     claim.save()
-    assert len(mails('подтверждена', 'pilot@example.ru')) == 1                 # ровно одно
-    profile = claim.user.profile
-    profile.refresh_from_db()
-    assert 'pilot' in profile.roles and profile.verified and profile.driver == driver
+    assert len(mails('подтверждена', 'pilot@example.ru')) == 1
+    user.profile.refresh_from_db()
+    assert 'pilot' in user.profile.roles and user.profile.verified and user.profile.driver == driver
 
     other = User.objects.create_user('o', 'other@example.ru', 'pass-12345')
     c2 = DriverClaim.objects.create(user=other, requested_first_name='Пётр', requested_last_name='Иванов')
@@ -155,67 +191,128 @@ def test_pilot_claim_approval_and_rejection_emails(client, tg, commit):
     assert len(rej) == 1 and 'не подтвердили личность' in rej[0].body
 
 
-# ===================== КОМАНДА, регистрация по email =====================
+# ===================== Блокировка и «письмо не подтверждено» =====================
 
-def _verify_link():
-    letter = mails('Подтверждение регистрации команды', 'boss@example.ru')[0]
-    url = re.search(r'https?://[^\s"<]+/teams/verify-email/[^\s"<]+', letter.body).group(0)
-    return re.sub(r'^https?://[^/]+', '', url)  # путь без хоста (testserver)
+@pytest.fixture
+def banned(db):
+    user = User.objects.create_user('banned', 'banned@example.ru', 'Str0ng-pass-123',
+                                    first_name='Иван', last_name='Смирнов', is_active=False)
+    user.profile.email_verified = False
+    user.profile.save()
+    return user
 
 
-def test_team_email_register_verify_no_match(client, tg, commit):
+def test_blocked_account_is_not_reactivated_by_verification_link_or_resend(client, banned, tg, commit, monkeypatch):
+    from django.contrib.auth.tokens import default_token_generator
+    from django.utils.encoding import force_bytes
+    from django.utils.http import urlsafe_base64_encode
+    from django.http import HttpResponse
+    monkeypatch.setattr('accounts.views.render', lambda request, template, *a, **kw: HttpResponse(template))
+    uid, token = urlsafe_base64_encode(force_bytes(banned.pk)), default_token_generator.make_token(banned)
+    with commit():
+        r = client.get(f'/accounts/verify-email/{uid}/{token}/')
+    banned.refresh_from_db()
+    assert r.content == b'accounts/verification_failed.html'
+    assert not banned.is_active and banned.profile.email_verified is False
+    assert DriverClaim.objects.count() == 0
+    # повторная отправка: ответ как для любого адреса, но письма нет
+    r = client.post('/accounts/resend-verification/', {'email': 'banned@example.ru'})
+    assert r.status_code == 302 and mails('Подтверждение', 'banned@example.ru') == []
+    attempt = Client()
+    login(attempt, 'banned@example.ru')
+    assert '_auth_user_id' not in attempt.session
+
+
+def test_resend_gives_same_answer_for_any_address(client, db):
+    from django.contrib.messages import get_messages
+    pending = User.objects.create_user('p', 'p@example.ru', 'x')
+    pending.profile.email_verified = False
+    pending.profile.save()
+    User.objects.create_user('v', 'v@example.ru', 'x')          # подтверждённый
+    texts = set()
+    for email in ('p@example.ru', 'v@example.ru', 'nobody@example.ru'):
+        r = client.post('/accounts/resend-verification/', {'email': email})
+        texts.add([str(m) for m in get_messages(r.wsgi_request)][-1])
+    assert len(texts) == 1                                       # не различает «есть/нет/уже подтверждён»
+    assert len(mails('Подтверждение', 'p@example.ru')) == 1
+    assert mails('Подтверждение', 'v@example.ru') == [] and mails('Подтверждение', 'nobody@example.ru') == []
+
+
+@pytest.mark.parametrize('path', ['/accounts/login/', '/teams/login/', '/organizers/login/'])
+def test_unverified_user_cannot_log_in_anywhere(client, path):
+    user = User.objects.create_user('u', 'u@example.ru', 'Str0ng-pass-123')
+    user.profile.email_verified = False
+    user.profile.save()
+    r = login(client, 'u@example.ru', path=path)
+    assert r.status_code == 302 and 'resend' in r['Location']
+    assert '_auth_user_id' not in client.session
+    user.profile.email_verified = True
+    user.profile.save()
+    assert '_auth_user_id' in (login(client, 'u@example.ru', path=path) and client.session)
+
+
+# ===================== КОМАНДА: регистрация по email с подтверждением =====================
+
+def test_team_register_verify_no_match_creates_claim_in_another_browser(client, tg, commit):
     with commit():
         client.post('/teams/register/', TEAM_FORM)
-    assert User.objects.get(email='boss@example.ru').is_active is False
-    assert len(mails('Подтверждение регистрации команды', 'boss@example.ru')) == 1
-    assert TeamClaim.objects.count() == 0 and tg == []                          # до подтверждения заявки нет
+    user = User.objects.get(email='boss@example.ru')
+    assert user.is_active and not user.profile.email_verified and user.profile.pending_team_name == 'Kart Lab'
+    assert TeamClaim.objects.count() == 0 and tg == []
+    assert login(Client(), 'boss@example.ru', path='/teams/login/').status_code == 302
+    phone = Client()
     with commit():
-        client.get(_verify_link())
+        phone.get(team_link())
     claim = TeamClaim.objects.get()
-    assert claim.status == 'pending' and claim.team is None
-    assert User.objects.get(email='boss@example.ru').is_active
+    assert claim.status == 'pending' and claim.team is None and claim.requested_team_name == 'Kart Lab'
+    user.profile.refresh_from_db()
+    assert user.profile.email_verified and user.profile.pending_team_name == ''
     assert len(mails('принята на рассмотрение', 'boss@example.ru')) == 1
     assert subjects().count(SUBJ_ADMIN_TEAM) == 1 and len(tg) == 1
     assert_no_pii(tg, 'boss@example.ru')
+    with commit():
+        phone.get(team_link())                        # повторный клик
+    assert TeamClaim.objects.count() == 1 and subjects().count(SUBJ_ADMIN_TEAM) == 1
 
 
 @pytest.mark.parametrize('choice', ['existing', 'none'])
-def test_team_email_register_verify_match_then_select(client, tg, commit, choice):
+def test_team_register_verify_match_then_select(client, tg, commit, choice):
     team = Team.objects.create(name='Kart Lab Racing')
     with commit():
         client.post('/teams/register/', TEAM_FORM)
-        client.get(_verify_link())
-    assert TeamClaim.objects.count() == 0                                        # нашли похожие — выбираем
+    browser = Client()
     with commit():
-        client.post('/teams/select-team/', {'team_id': team.pk if choice == 'existing' else 'none'})
+        r = browser.get(team_link())
+    assert TeamClaim.objects.count() == 0
+    assert r['Location'].startswith('/accounts/login/?next=/teams/select-team/')
+    with commit():
+        browser.post('/accounts/login/?next=/teams/select-team/',
+                     {'email': 'boss@example.ru', 'password': 'Str0ng-pass-123'})
+        browser.post('/teams/select-team/', {'team_id': team.pk if choice == 'existing' else 'none'})
     claim = TeamClaim.objects.get()
     assert (claim.team == team) if choice == 'existing' else (claim.team is None)
     assert len(mails('принята на рассмотрение', 'boss@example.ru')) == 1
     assert subjects().count(SUBJ_ADMIN_TEAM) == 1 and len(tg) == 1
 
 
-# ===================== КОМАНДА, подтверждение заявки =====================
-
-def test_team_claim_approval_gives_manager_role_and_email(client, tg, commit):
+def test_team_claim_approval_gives_manager_role_and_email(tg, commit):
+    user = User.objects.create_user('boss', 'boss@example.ru', 'x')
     with commit():
-        client.post('/teams/register/', TEAM_FORM)
-        client.get(_verify_link())
-    claim = TeamClaim.objects.get()
+        claim = TeamClaim.objects.create(user=user, requested_team_name='Kart Lab')
     team = Team.objects.create(name='Kart Lab')
     mail.outbox.clear()
     claim.team, claim.status = team, 'approved'
     claim.save()
-    assert TeamManager.objects.filter(user=claim.user, team=team, is_active=True).exists()
-    claim.user.profile.refresh_from_db()
-    assert 'manager' in claim.user.profile.roles and claim.user.profile.team == team
+    assert TeamManager.objects.filter(user=user, team=team, is_active=True).exists()
+    user.profile.refresh_from_db()
+    assert 'manager' in user.profile.roles and user.profile.team == team
     assert len(mails('подтверждена', 'boss@example.ru')) == 1
 
 
-def test_team_claim_rejection_email(client, tg, commit):
+def test_team_claim_rejection_email(tg, commit):
+    user = User.objects.create_user('boss', 'boss@example.ru', 'x')
     with commit():
-        client.post('/teams/register/', TEAM_FORM)
-        client.get(_verify_link())
-    claim = TeamClaim.objects.get()
+        claim = TeamClaim.objects.create(user=user, requested_team_name='Kart Lab')
     mail.outbox.clear()
     claim.status, claim.admin_comment = 'rejected', 'такая команда уже есть'
     claim.save()
@@ -270,19 +367,42 @@ def test_yandex_team_select_existing(client, social_user, tg, commit):
     with commit():
         client.post('/accounts/yandex/onboarding/team/', {'action': 'select', 'team_id': team.pk})
     assert TeamClaim.objects.get().team == team
+    assert TeamManager.objects.count() == 0                        # менеджер — только после подтверждения
     assert len(mails('принята на рассмотрение', 'ya@example.ru')) == 1
     assert subjects().count(SUBJ_ADMIN_TEAM) == 1 and len(tg) == 1
     assert_no_pii(tg, 'ya@example.ru')
 
 
-def test_yandex_team_new_team_saves_city_and_notifies(client, social_user, tg, commit):
+def test_yandex_new_team_waits_for_approval_then_creates_team_and_manager(client, social_user, tg, commit):
     client.force_login(social_user)
     with commit():
         client.post('/accounts/yandex/onboarding/team/', {'action': 'new', 'team_name': 'Fresh', 'city': 'Казань'})
     claim = TeamClaim.objects.get()
-    assert claim.team.name == 'Fresh' and claim.team.city == 'Казань'
-    assert TeamManager.objects.filter(user=social_user, team=claim.team).exists()  # создатель — менеджер сразу
+    # до одобрения: ни команды на сайте, ни прав менеджера
+    assert claim.team is None and claim.requested_city == 'Казань'
+    assert not Team.objects.filter(name='Fresh').exists() and TeamManager.objects.count() == 0
+    social_user.profile.refresh_from_db()
+    assert 'manager' not in social_user.profile.roles
     assert subjects().count(SUBJ_ADMIN_TEAM) == 1 and len(tg) == 1
+    # одобрение админом
+    mail.outbox.clear()
+    claim.status = 'approved'
+    claim.save()
+    team = Team.objects.get(name='Fresh')
+    assert team.city == 'Казань' and TeamManager.objects.filter(user=social_user, team=team, is_active=True).exists()
+    social_user.profile.refresh_from_db()
+    assert 'manager' in social_user.profile.roles
+    assert len(mails('подтверждена', 'ya@example.ru')) == 1
+
+
+def test_yandex_new_team_rejected_leaves_no_trace(client, social_user, tg, commit):
+    client.force_login(social_user)
+    with commit():
+        client.post('/accounts/yandex/onboarding/team/', {'action': 'new', 'team_name': 'Spam Team'})
+    claim = TeamClaim.objects.get()
+    claim.status = 'rejected'
+    claim.save()
+    assert not Team.objects.filter(name='Spam Team').exists() and TeamManager.objects.count() == 0
 
 
 def test_yandex_team_preselected_name_and_id(client, social_user, tg, commit):
@@ -292,7 +412,9 @@ def test_yandex_team_preselected_name_and_id(client, social_user, tg, commit):
     session.save()
     with commit():
         client.get('/accounts/yandex/onboarding/team/')
-    assert TeamClaim.objects.get().team.name == 'Preselected'
+    claim = TeamClaim.objects.get()
+    assert claim.team is None and claim.requested_team_name == 'Preselected'
+    assert not Team.objects.filter(name='Preselected').exists()
     assert subjects().count(SUBJ_ADMIN_TEAM) == 1 and len(tg) == 1
 
     other = User.objects.create_user('ya_2', 'ya2@example.ru', 'x')
@@ -317,9 +439,13 @@ def test_social_user_without_email_gets_no_user_mail_but_admin_still_notified(cl
     assert subjects().count(SUBJ_ADMIN_DRIVER) == 1 and len(tg) == 1
 
 
-# ===================== Организатор: отдельный флоу =====================
+def test_social_user_is_verified_by_default(social_user):
+    assert social_user.profile.email_verified is True
 
-def test_organizer_register_sends_only_verification_mail(client, tg, commit, monkeypatch):
+
+# ===================== Организатор: подтверждение email =====================
+
+def test_organizer_register_requires_verification_and_makes_no_claims(client, tg, commit, monkeypatch):
     from django.http import HttpResponse
     monkeypatch.setattr('organizers.views.render', lambda request, template, *a, **kw: HttpResponse(template))
     with commit():
@@ -327,6 +453,11 @@ def test_organizer_register_sends_only_verification_mail(client, tg, commit, mon
             'email': 'org@example.ru', 'password1': 'Str0ng-pass-123', 'password2': 'Str0ng-pass-123',
             'first_name': 'Олег', 'last_name': 'Клубов', 'phone': '+79990000000', 'telegram': '@club',
         })
-    assert User.objects.get(email='org@example.ru').is_active is False
+    user = User.objects.get(email='org@example.ru')
+    assert user.is_active and user.profile.email_verified is False
     assert len(mails('Подтверждение', 'org@example.ru')) == 1
+    assert login(Client(), 'org@example.ru', path='/organizers/login/').status_code == 302
+    Client().get(link('Подтверждение', 'org@example.ru', '/organizers/verify-email/'))
+    user.profile.refresh_from_db()
+    assert user.profile.email_verified and hasattr(user, 'organizer_profile')
     assert DriverClaim.objects.count() == 0 and TeamClaim.objects.count() == 0 and tg == []

@@ -37,7 +37,15 @@ class UserProfile(models.Model):
         help_text="Администратор подтвердил привязку к пилоту",
     )
     city = models.CharField("Город", max_length=100, blank=True)
-    email_verified = models.BooleanField(default=False)
+    email_verified = models.BooleanField(
+        "Email подтверждён", default=True,
+        help_text="False — только у новых регистраций по email до перехода по ссылке из письма. "
+                  "Не связано с is_active: is_active=False значит «заблокирован», и ссылка из письма его не снимает.",
+    )
+    pending_team_name = models.CharField(
+        "Название команды из регистрации", max_length=255, blank=True,
+        help_text="Хранится до подтверждения email и выбора команды; нужно, чтобы ссылку можно было открыть в другом браузере.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

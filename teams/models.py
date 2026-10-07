@@ -57,6 +57,7 @@ class TeamClaim(models.Model):
         verbose_name="Выбранная команда"
     )
     requested_team_name = models.CharField("Запрошенное название команды", max_length=255)
+    requested_city = models.CharField("Запрошенный город", max_length=100, blank=True)
     status = models.CharField("Статус", max_length=20, choices=STATUS_CHOICES, default='pending')
     admin_comment = models.TextField("Комментарий администратора", blank=True)
     created_at = models.DateTimeField("Дата создания", auto_now_add=True)

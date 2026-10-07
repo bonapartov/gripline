@@ -1,4 +1,6 @@
 import logging
+from accounts.verification import (NEUTRAL_RESEND_MESSAGE, confirm_email, is_email_verified, mark_unverified,
+                                   resend_verification_emails, user_from_token)
 from django.shortcuts import render, redirect, get_object_or_404
 from datetime import datetime
 from django.contrib.auth.decorators import login_required
@@ -242,8 +244,9 @@ def organizer_register(request):
                 messages.error(request, 'Пользователь с таким email уже зарегистрирован.')
                 return render(request, 'organizers/register.html', {'form': form})
             user = form.save(commit=False)
-            user.is_active = False
+            user.is_active = True
             user.save()
+            mark_unverified(user)
             OrganizerProfile.objects.get_or_create(
                 user=user,
                 defaults={
@@ -276,6 +279,9 @@ def organizer_login(request):
                 if user is not None:
                     break
         if user is not None:
+            if not is_email_verified(user):
+                messages.error(request, 'Подтвердите email: мы отправляли письмо со ссылкой. Можно запросить новое.')
+                return redirect('organizers:organizer_resend_verification')
             if user.is_active:
                 login(request, user)
                 if hasattr(user, 'organizer_profile'):
@@ -306,30 +312,22 @@ def organizer_verification_sent(request):
     return render(request, 'organizers/verification_sent.html')
 
 def organizer_verify_email(request, uidb64, token):
-    try:
-        uid = force_str(urlsafe_base64_decode(uidb64))
-        user = User.objects.get(pk=uid)
-    except:
-        user = None
-    if user and default_token_generator.check_token(user, token):
-        user.is_active = True
-        user.save()
-        OrganizerProfile.objects.get_or_create(user=user)
-        messages.success(request, 'Email подтверждён! Теперь вы можете войти.')
-        return redirect('organizers:login')
-    else:
+    """Ссылка из письма: подтверждает email. Заблокированный аккаунт ссылкой не оживляется."""
+    user = user_from_token(uidb64, token)
+    if user is None:
         return render(request, 'organizers/verification_failed.html')
+    confirm_email(user)
+    OrganizerProfile.objects.get_or_create(user=user)
+    messages.success(request, 'Email подтверждён! Теперь вы можете войти.')
+    return redirect('organizers:login')
+
 
 def organizer_resend_verification(request):
+    """Повторная отправка письма (ответ одинаковый для любого адреса)."""
     if request.method == 'POST':
-        email = request.POST.get('email')
-        try:
-            user = User.objects.get(email=email, is_active=False)
-            send_organizer_verification_email(user, request)
-            messages.success(request, 'Письмо отправлено повторно.')
-            return redirect('organizers:organizer_verification_sent')
-        except User.DoesNotExist:
-            messages.error(request, 'Пользователь с таким email не найден или уже активирован.')
+        resend_verification_emails(request.POST.get('email'), request)
+        messages.success(request, NEUTRAL_RESEND_MESSAGE)
+        return redirect('organizers:organizer_verification_sent')
     return render(request, 'organizers/verification_resend.html')
 
 

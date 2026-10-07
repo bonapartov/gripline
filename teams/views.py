@@ -1,3 +1,4 @@
+from django.urls import reverse
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth import login
@@ -7,6 +8,8 @@ from website.models import Team, Driver, TeamSocialLink, TeamMembership
 import logging
 from website.mail import send_templated_mail
 from website.services.balance_limits import ratelimit_post
+from accounts.verification import (NEUTRAL_RESEND_MESSAGE, confirm_email, is_email_verified, mark_unverified,
+                                   resend_verification_emails, user_from_token)
 from .models import TeamClaim
 from django.contrib.auth import authenticate, login as auth_login
 
@@ -50,69 +53,49 @@ def team_verification_sent(request):
 
 
 def team_verify_email(request, uidb64, token):
-    """Подтверждение email для команды"""
-    try:
-        uid = force_str(urlsafe_base64_decode(uidb64))
-        user = User.objects.get(pk=uid)
-    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-        user = None
-    
-    if user and default_token_generator.check_token(user, token):
-        user.is_active = True
-        user.save()
-        
-        # Проверяем, есть ли данные в сессии
-        requested_team_name = request.session.get('team_requested_name')
-        if requested_team_name:
-            # Ищем похожие команды
-            teams = Team.objects.filter(name__icontains=requested_team_name)
-            if teams.exists():
-                request.session['found_teams'] = [
-                    {'id': t.id, 'name': t.name}
-                    for t in teams
-                ]
-                request.session['user_id'] = user.id
-                request.session['requested_team_name'] = requested_team_name
-                messages.success(request, 'Email подтверждён! Теперь выберите команду.')
-                return redirect('teams:select_team')
-            else:
-                # Создаём заявку на новую команду — один раз: ссылку можно открыть повторно
-                if not TeamClaim.objects.filter(user=user, requested_team_name=requested_team_name,
-                                                status='pending').exists():
-                    TeamClaim.objects.create(
-                        user=user,
-                        requested_team_name=requested_team_name,
-                        status='pending'
-                    )
-                for key in ('team_requested_name', 'team_user_id'):
-                    request.session.pop(key, None)
-                messages.success(request, 'Email подтверждён! Заявка отправлена администратору.')
-                return redirect('teams:login')
-        else:
-            messages.success(request, 'Email подтверждён! Теперь вы можете войти.')
-            return redirect('teams:login')
-    else:
+    """Ссылка из письма: подтверждает email и продолжает регистрацию команды. Название команды берётся
+    из БД (не из сессии), повторный клик заявку не дублирует, заблокированный аккаунт не оживляется."""
+    user = user_from_token(uidb64, token)
+    if user is None:
         return render(request, 'teams/verification_failed.html')
+
+    confirm_email(user)
+    profile = user.profile
+    requested_team_name = profile.pending_team_name
+    if not requested_team_name:
+        messages.success(request, 'Email подтверждён! Теперь вы можете войти.')
+        return redirect('teams:login')
+
+    if Team.objects.filter(name__icontains=requested_team_name).exists():
+        messages.success(request, 'Email подтверждён! Теперь выберите команду.')
+        target = reverse('teams:select_team')
+        if request.user.is_authenticated and request.user.pk == user.pk:
+            return redirect(target)
+        return redirect(f"{reverse('accounts:login')}?next={target}")
+
+    # Похожих команд нет — заявка на новую команду (один раз)
+    TeamClaim.objects.get_or_create(
+        user=user, requested_team_name=requested_team_name, status='pending')
+    profile.pending_team_name = ''
+    profile.save(update_fields=['pending_team_name', 'updated_at'])
+    messages.success(request, 'Email подтверждён! Заявка отправлена администратору.')
+    return redirect('teams:login')
 
 
 @ratelimit_post('resend_verification_team', limit=10, window_seconds=3600)
 def team_resend_verification(request):
-    """Повторная отправка письма для команды"""
+    """Повторная отправка письма для команды (ответ одинаковый для любого адреса)."""
     if request.method == 'POST':
-        email = request.POST.get('email')
-        try:
-            user = User.objects.get(email=email, is_active=False)
-            send_team_verification_email(user, request)
-            messages.success(request, 'Письмо отправлено повторно.')
-            return redirect('teams:team_verification_sent')
-        except User.DoesNotExist:
-            messages.error(request, 'Пользователь с таким email не найден или уже активирован.')
+        resend_verification_emails(request.POST.get('email'), request)
+        messages.success(request, NEUTRAL_RESEND_MESSAGE)
+        return redirect('teams:team_verification_sent')
     return render(request, 'teams/verification_resend.html')
 
 
 @ratelimit_post('register_team', limit=20, window_seconds=3600)
 def register(request):
-    """Регистрация представителя команды с email-подтверждением"""
+    """Регистрация представителя команды: аккаунт создаётся сразу, но войти и подать заявку
+    можно только после перехода по ссылке из письма (см. team_verify_email)."""
     if request.method == 'POST':
         form = TeamRegistrationForm(request.POST)
         if form.is_valid():
@@ -120,20 +103,18 @@ def register(request):
             if User.objects.filter(email=email).exists():
                 messages.error(request, 'Пользователь с таким email уже зарегистрирован.')
                 return render(request, 'teams/register.html', {'form': form})
-            
+
             user = form.save(commit=False)
-            user.is_active = False
+            user.is_active = True
             user.save()
-            
-            team_name = form.cleaned_data['team_name']
-            request.session['team_requested_name'] = team_name
-            request.session['team_user_id'] = user.id
-            
+            # название команды — в БД, а не в сессии: ссылку из письма можно открыть в другом браузере
+            mark_unverified(user, pending_team_name=form.cleaned_data['team_name'])
+
             try:
                 send_team_verification_email(user, request)
                 messages.success(request, 'Письмо отправлено. Подтвердите email.')
                 return redirect('teams:team_verification_sent')
-            except Exception as e:
+            except Exception:
                 user.delete()
                 logger.exception('team register: письмо подтверждения не отправлено')
                 messages.error(request, 'Не удалось отправить письмо. Попробуйте позже.')
@@ -141,55 +122,45 @@ def register(request):
             messages.error(request, 'Пожалуйста, исправьте ошибки в форме.')
     else:
         form = TeamRegistrationForm()
-    
+
     return render(request, 'teams/register.html', {'form': form})
 
 
+@login_required
 def select_team(request):
-    """Страница выбора команды из найденных"""
-    found_teams = request.session.get('found_teams', [])
-    user_id = request.session.get('user_id')
-    requested_team_name = request.session.get('requested_team_name')
+    """Выбор команды среди похожих по названию. Список считается по БД для request.user;
+    выбрать можно только команду из него."""
+    user = request.user
+    if not is_email_verified(user):
+        messages.error(request, 'Сначала подтвердите email — письмо со ссылкой отправлено при регистрации.')
+        return redirect('teams:team_resend_verification')
+    requested_team_name = user.profile.pending_team_name
+    if not requested_team_name:
+        return redirect('teams:dashboard')
 
-    if not found_teams or not user_id:
-        return redirect('teams:register')
+    found = Team.objects.filter(name__icontains=requested_team_name)
 
     if request.method == 'POST':
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        user = User.objects.get(id=user_id)
-
+        allowed = {str(t.id): t for t in found}
         selected_id = request.POST.get('team_id')
-
-        if selected_id != 'none' and selected_id not in {str(t['id']) for t in found_teams}:
+        if selected_id != 'none' and selected_id not in allowed:
             messages.error(request, 'Выберите команду из списка.')
             return redirect('teams:select_team')
 
-        if selected_id == 'none':
-            TeamClaim.objects.create(
-                user=user,
-                requested_team_name=requested_team_name,
-                status='pending'
-            )
-            messages.success(request, 'Заявка на создание команды отправлена администратору')
-        else:
-            team = Team.objects.get(id=selected_id)
-            TeamClaim.objects.create(
-                user=user,
-                team=team,
-                requested_team_name=requested_team_name,
-                status='pending'
-            )
+        team = None if selected_id == 'none' else allowed[selected_id]
+        TeamClaim.objects.create(
+            user=user, team=team, requested_team_name=requested_team_name, status='pending')
+        profile = user.profile
+        profile.pending_team_name = ''
+        profile.save(update_fields=['pending_team_name', 'updated_at'])
+        if team:
             messages.success(request, f'Заявка на управление командой {team.name} отправлена администратору')
-
-        for key in ['found_teams', 'user_id', 'requested_team_name', 'team_requested_name', 'team_user_id']:
-            if key in request.session:
-                del request.session[key]
-
-        return redirect('teams:login')
+        else:
+            messages.success(request, 'Заявка на создание команды отправлена администратору')
+        return redirect('teams:dashboard')
 
     return render(request, 'teams/select_team.html', {
-        'teams': found_teams,
+        'teams': [{'id': t.id, 'name': t.name} for t in found],
         'requested_team_name': requested_team_name,
     })
 
@@ -208,6 +179,9 @@ def login_view(request):
             user = None
 
         if user is not None:
+            if not is_email_verified(user):
+                messages.error(request, 'Подтвердите email: мы отправляли письмо со ссылкой. Можно запросить новое.')
+                return redirect('teams:team_resend_verification')
             if user.is_active:
                 auth_login(request, user)
                 if hasattr(user, 'organizer_profile'):
