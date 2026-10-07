@@ -160,15 +160,6 @@ def test_pilot_verify_with_name_match_then_select(client, tg, commit, choose):
     assert_no_pii(tg, 'pilot@example.ru', 'Смирнов')
 
 
-def test_pilot_duplicate_email_rejected(client, tg, commit, monkeypatch):
-    from django.http import HttpResponse
-    monkeypatch.setattr('accounts.views.render', lambda request, template, *a, **kw: HttpResponse(template))
-    User.objects.create_user('x', 'pilot@example.ru', 'pass-12345')
-    with commit():
-        client.post('/accounts/register/', PILOT_FORM)
-    assert DriverClaim.objects.count() == 0 and mail.outbox == [] and tg == []
-
-
 def test_pilot_claim_approval_and_rejection_emails(tg, commit):
     user = User.objects.create_user('pilot', 'pilot@example.ru', 'x', first_name='Иван', last_name='Смирнов')
     driver = Driver.objects.create(first_name='Иван', last_name='Смирнов', slug='ivan-smirnov')
@@ -461,3 +452,96 @@ def test_organizer_register_requires_verification_and_makes_no_claims(client, tg
     user.profile.refresh_from_db()
     assert user.profile.email_verified and hasattr(user, 'organizer_profile')
     assert DriverClaim.objects.count() == 0 and TeamClaim.objects.count() == 0 and tg == []
+
+
+# ===================== Занятый email: тот же ответ, что и для нового адреса =====================
+
+REGISTRATIONS = {
+    'pilot': ('/accounts/register/', PILOT_FORM),
+    'team': ('/teams/register/', TEAM_FORM),
+    'organizer': ('/organizers/register/', {
+        'email': 'pilot@example.ru', 'password1': 'Str0ng-pass-123', 'password2': 'Str0ng-pass-123',
+        'first_name': 'Олег', 'last_name': 'Клубов', 'phone': '', 'telegram': ''}),
+}
+
+
+def last_message(response):
+    from django.contrib.messages import get_messages
+    texts = [str(m) for m in get_messages(response.wsgi_request)]
+    return texts[-1] if texts else None
+
+
+def answer(client, kind, email):
+    path, form = REGISTRATIONS[kind]
+    form = {**form, 'email': email}
+    r = client.post(path, form)
+    return r.status_code, r['Location'], last_message(r)
+
+
+@pytest.mark.parametrize('kind', ['pilot', 'team', 'organizer'])
+def test_registration_answer_is_identical_for_new_and_taken_email(kind, tg, commit, monkeypatch):
+    from django.http import HttpResponse
+    for mod in ('accounts', 'teams', 'organizers'):
+        monkeypatch.setattr(f'{mod}.views.render', lambda request, template, *a, **kw: HttpResponse(template))
+    User.objects.create_user('taken', 'taken@example.ru', 'x')                     # подтверждённый
+    with commit():
+        fresh = answer(Client(), kind, 'fresh@example.ru')
+        taken = answer(Client(), kind, 'taken@example.ru')
+    assert fresh == taken, f'ответ выдаёт, занят ли адрес: {fresh} != {taken}'
+    assert 'уже зарегистрирован' not in (taken[2] or '')
+    assert User.objects.filter(email__iexact='taken@example.ru').count() == 1      # дубль не создан
+
+
+@pytest.mark.parametrize('kind', ['pilot', 'team', 'organizer'])
+def test_taken_email_owner_gets_account_exists_letter(kind, tg, commit):
+    User.objects.create_user('taken', 'taken@example.ru', 'x')
+    with commit():
+        answer(Client(), kind, 'Taken@Example.ru')                                 # регистр не важен
+    letters = mails('уже зарегистрирован', 'taken@example.ru')
+    assert len(letters) == 1 and mails('Подтверждение', 'taken@example.ru') == []
+    from django.urls import resolve
+    for path in ('/accounts/login/', '/accounts/password-reset/'):
+        assert f'https://gripline.ru{path}' in letters[0].body
+        resolve(path)
+    assert tg == [] and DriverClaim.objects.count() == 0 and TeamClaim.objects.count() == 0
+
+
+@pytest.mark.parametrize('kind', ['pilot', 'team', 'organizer'])
+def test_taken_unverified_email_gets_fresh_verification_link(kind, tg, commit):
+    user = User.objects.create_user('half', 'half@example.ru', 'x')
+    user.profile.email_verified = False
+    if kind == 'team':
+        user.profile.pending_team_name = 'Kart Lab'
+    user.profile.save()
+    if kind == 'organizer':
+        from organizers.models import OrganizerProfile
+        OrganizerProfile.objects.create(user=user)
+    with commit():
+        answer(Client(), kind, 'half@example.ru')
+    assert len(mails('Подтверждение', 'half@example.ru')) == 1
+    assert mails('уже зарегистрирован', 'half@example.ru') == []
+
+
+@pytest.mark.parametrize('kind', ['pilot', 'team', 'organizer'])
+def test_taken_blocked_email_gets_no_mail_but_same_answer(kind, tg, commit, monkeypatch):
+    from django.http import HttpResponse
+    for mod in ('accounts', 'teams', 'organizers'):
+        monkeypatch.setattr(f'{mod}.views.render', lambda request, template, *a, **kw: HttpResponse(template))
+    User.objects.create_user('ban', 'ban@example.ru', 'x', is_active=False)
+    with commit():
+        banned = answer(Client(), kind, 'ban@example.ru')
+        fresh = answer(Client(), kind, 'fresh@example.ru')
+    assert banned == fresh and mails('', 'ban@example.ru') == []
+
+
+def test_invalid_form_does_not_reveal_taken_email(client, monkeypatch):
+    from django.http import HttpResponse
+    monkeypatch.setattr('accounts.views.render', lambda request, template, *a, **kw: HttpResponse(template))
+    User.objects.create_user('taken', 'taken@example.ru', 'x')
+    bad = {**PILOT_FORM, 'password2': 'другой-пароль'}
+    answers = []
+    for email in ('taken@example.ru', 'fresh@example.ru'):
+        r = Client().post('/accounts/register/', {**bad, 'email': email})
+        answers.append((r.status_code, last_message(r)))
+    assert answers[0] == answers[1] and 'зарегистрирован' not in (answers[0][1] or '')
+    assert mail.outbox == []

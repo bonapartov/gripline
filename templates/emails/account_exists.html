@@ -1,0 +1,11 @@
+{% extends "emails/base.html" %}{% load email_tags %}
+{% block title %}Этот адрес уже зарегистрирован на Gripline{% endblock %}
+{% block preheader %}Кто-то пытался зарегистрироваться с вашим адресом. Войдите или восстановите пароль.{% endblock %}
+{% block content %}
+{% include "emails/_status.html" with kind="info" label="Аккаунт уже есть" gap=16 %}
+{% include "emails/_h1.html" with text="Вы уже зарегистрированы" gap=16 %}
+{% row 16 %}<p style="{% s 'p' %}">Здравствуйте! Кто-то (возможно, вы) попытался зарегистрироваться на Gripline с этим адресом, но аккаунт с ним уже существует. Новый аккаунт не создавался.</p>{% endrow %}
+{% row 16 %}<p style="{% s 'p' %}">Если это были вы — войдите в свой аккаунт или, если забыли пароль, восстановите его. Если это были не вы, просто проигнорируйте письмо.</p>{% endrow %}
+{% include "emails/_button.html" with url=login_url label="Войти" gap=12 %}
+{% include "emails/_button.html" with url=reset_url label="Восстановить пароль" kind="secondary" gap=0 %}
+{% endblock %}

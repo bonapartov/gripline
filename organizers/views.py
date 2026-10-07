@@ -1,6 +1,6 @@
 import logging
 from accounts.verification import (NEUTRAL_RESEND_MESSAGE, confirm_email, is_email_verified, mark_unverified,
-                                   resend_verification_emails, user_from_token)
+                                   handle_existing_email, resend_verification_emails, user_from_token)
 from django.shortcuts import render, redirect, get_object_or_404
 from datetime import datetime
 from django.contrib.auth.decorators import login_required
@@ -239,10 +239,9 @@ def organizer_register(request):
     if request.method == 'POST':
         form = OrganizerRegistrationForm(request.POST)
         if form.is_valid():
-            email = request.POST.get('email')
-            if User.objects.filter(email=email).exists():
-                messages.error(request, 'Пользователь с таким email уже зарегистрирован.')
-                return render(request, 'organizers/register.html', {'form': form})
+            if handle_existing_email(form.cleaned_data['email'], request):
+                messages.success(request, 'Регистрация почти завершена! Проверьте почту.')   # как для нового адреса
+                return redirect('organizers:organizer_verification_sent')
             user = form.save(commit=False)
             user.is_active = True
             user.save()

@@ -57,21 +57,55 @@ def confirm_email(user):
     return first_time
 
 
-def resend_verification_emails(email, request):
-    """Шлёт письмо каждому активному неподтверждённому пользователю с этим адресом.
-    Ничего не сообщает вызывающему о том, нашёлся ли аккаунт (против перебора адресов)."""
+def _send_verification_for(user, request):
+    """Письмо подтверждения того вида, который соответствует регистрации пользователя."""
     from accounts.views import send_verification_email
     from organizers.views import send_organizer_verification_email
     from teams.views import send_team_verification_email
 
+    if user.profile.pending_team_name:
+        send_team_verification_email(user, request)
+    elif hasattr(user, 'organizer_profile'):
+        send_organizer_verification_email(user, request)
+    else:
+        send_verification_email(user, request)
+
+
+def resend_verification_emails(email, request):
+    """Шлёт письмо каждому активному неподтверждённому пользователю с этим адресом.
+    Ничего не сообщает вызывающему о том, нашёлся ли аккаунт (против перебора адресов)."""
     for user in User.objects.filter(email__iexact=(email or '').strip(), is_active=True,
                                     profile__email_verified=False):
         try:
-            if user.profile.pending_team_name:
-                send_team_verification_email(user, request)
-            elif hasattr(user, 'organizer_profile'):
-                send_organizer_verification_email(user, request)
-            else:
-                send_verification_email(user, request)
+            _send_verification_for(user, request)
         except Exception:
             logger.exception('resend verification: письмо не отправлено (user #%s)', user.pk)
+
+
+def handle_existing_email(email, request):
+    """Регистрация на уже занятый адрес. На форме отвечаем так же, как при успехе (иначе по тексту
+    ответа можно перебирать адреса), а владельцу адреса сообщаем письмом: неподтверждённому — новая
+    ссылка, подтверждённому — «вы уже зарегистрированы» со ссылками на вход и восстановление пароля.
+    Заблокированному — ничего. Возвращает True, если адрес занят."""
+    from django.conf import settings
+    from django.urls import reverse
+    from website.mail import send_templated_mail
+
+    users = list(User.objects.filter(email__iexact=(email or '').strip()))
+    if not users:
+        return False
+    base = settings.BASE_URL.rstrip('/')
+    for user in users:
+        if not user.is_active:
+            continue
+        try:
+            if not is_email_verified(user):
+                _send_verification_for(user, request)
+            else:
+                send_templated_mail('account_exists', 'Этот адрес уже зарегистрирован на Gripline', [user.email], {
+                    'login_url': f"{base}{reverse('accounts:login')}",
+                    'reset_url': f"{base}/accounts/password-reset/",
+                })
+        except Exception:
+            logger.exception('existing email: письмо не отправлено (user #%s)', user.pk)
+    return True
