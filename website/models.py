@@ -11,6 +11,7 @@ from coderedcms.models import (
 from modelcluster.fields import ParentalKey, ParentalManyToManyField
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from modelcluster.models import ClusterableModel
 from wagtail.api import APIField
@@ -4492,6 +4493,36 @@ class AppParameter(AppValueSpec):
         return self.get_key_display()
 
 
+class AppSyncSettings(models.Model):
+    """Связь приложения GripLine SetupKart с сайтом (singleton, AppSyncSettings.get()).
+
+    Приложение спрашивает интервал при каждой связи (GET /api/setupkart/config/) и, пока открыто,
+    раз в этот интервал загружает справочник и трассы и отправляет очереди (предложения, обратная
+    связь). Фоновой работы при закрытом приложении нет."""
+    sync_interval_minutes = models.PositiveIntegerField(
+        "Интервал связи приложения с сайтом, мин.", default=60,
+        validators=[MinValueValidator(1), MaxValueValidator(1440)],
+        help_text="Как часто открытое приложение проверяет справочник и трассы и отправляет предложения "
+                  "и обратную связь. Для проверки — 1–5 минут, в работе — 60 и больше. Новое значение "
+                  "приложение узнает при следующей связи.",
+    )
+    updated_at = models.DateTimeField("Изменено", auto_now=True)
+
+    panels = [FieldPanel('sync_interval_minutes')]
+
+    class Meta:
+        verbose_name = "Связь приложения с сайтом"
+        verbose_name_plural = "Связь приложения с сайтом"
+
+    def __str__(self):
+        return f"Связь приложения: раз в {self.sync_interval_minutes} мин."
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
 class AppCatalogVersion(models.Model):
     """Опубликованная версия справочников. Приложение получает только опубликованное."""
     version = models.PositiveIntegerField("Версия", unique=True)
@@ -4524,6 +4555,9 @@ class AppSuggestion(models.Model):
     first_seen = models.DateTimeField("Впервые", auto_now_add=True)
     last_seen = models.DateTimeField("Последний раз", auto_now=True)
     status = models.CharField("Статус", max_length=10, choices=STATUS_CHOICES, default=STATUS_NEW, db_index=True)
+    # Только для предложений трасс (field_key='track'): координаты из своей трассы пользователя.
+    latitude = models.FloatField("Широта", null=True, blank=True)
+    longitude = models.FloatField("Долгота", null=True, blank=True)
 
     class Meta:
         verbose_name = "Предложение пользователей"

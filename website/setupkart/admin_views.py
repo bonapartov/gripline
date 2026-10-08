@@ -82,6 +82,16 @@ def add_to_catalog(s):
         brand, _ = TyreBrand.objects.get_or_create(name=s.value)
         TyreBrand.objects.filter(pk=brand.pk).update(show_in_app=True)
         return True, f'Производитель шин «{s.value}» добавлен (проверьте карточку: он появится и на сайте).'
+    if s.field_key == 'track':
+        existing = Track.objects.filter(name__iexact=s.value).first()
+        if existing:
+            return False, (f'Трасса «{existing.name}» уже есть на сайте. Если это она — проверьте у неё координаты '
+                           f'и галочку «Показывать в приложении»; если другая — создайте вручную с уточнённым названием.')
+        track = Track(name=s.value, latitude=s.latitude, longitude=s.longitude, show_in_app=True, live=False)
+        track.save()
+        track.save_revision()
+        return True, (f'Трасса «{s.value}» создана черновиком. Проверьте название, город и координаты и опубликуйте — '
+                      f'после этого она появится на сайте и в приложении (публиковать справочник не нужно).')
     if s.field_key == 'chassis':
         ch, _ = Chassis.objects.get_or_create(name=s.value)
         Chassis.objects.filter(pk=ch.pk).update(show_in_app=True)

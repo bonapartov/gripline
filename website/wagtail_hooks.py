@@ -309,7 +309,7 @@ modeladmin_register(DataRequestAdmin)
 
 
 # ---------- Приложение GripLine SetupKart (ТЗ приложения §13.3) ----------
-from .models import AppParameter  # noqa: E402
+from .models import AppParameter, AppSyncSettings  # noqa: E402
 from .setupkart import admin_views as setupkart_admin_views  # noqa: E402
 
 
@@ -318,6 +318,14 @@ class AppParameterAdmin(ModelAdmin):
     menu_label = 'Параметры'
     menu_icon = 'list-ul'
     list_display = ('__str__', 'mode', 'min_value', 'max_value', 'step', 'default_value')
+
+
+class AppSyncSettingsAdmin(ModelAdmin):
+    model = AppSyncSettings
+    menu_label = 'Связь с сайтом'
+    menu_icon = 'repeat'
+    menu_order = 350
+    list_display = ('__str__', 'updated_at')
 
 
 class SetupKartMenuItem(MenuItem):
@@ -329,7 +337,7 @@ class SetupKartGroup(ModelAdminGroup):
     menu_label = 'Приложение'
     menu_icon = 'mobile-alt'
     menu_order = 360
-    items = (AppParameterAdmin,)
+    items = (AppParameterAdmin, AppSyncSettingsAdmin)
 
     def get_submenu_items(self):
         items = super().get_submenu_items()

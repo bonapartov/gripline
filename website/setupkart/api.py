@@ -19,14 +19,16 @@ from django.views.decorators.http import require_GET, require_POST
 from wagtailcache.cache import nocache_page
 
 from mysite.security import get_client_ip
-from website.models import APP_ENGINE_FIELD_CHOICES, APP_PARAMETER_CHOICES, AppSuggestion, Engine, Track
+from website.models import (
+    APP_ENGINE_FIELD_CHOICES, APP_PARAMETER_CHOICES, AppSuggestion, AppSyncSettings, Engine, Track,
+)
 from .catalog import latest_version
 
 logger = logging.getLogger(__name__)
 
 SUGGESTION_FIELDS = (
     {k for k, _ in APP_ENGINE_FIELD_CHOICES} | {k for k, _ in APP_PARAMETER_CHOICES}
-    | {'spark_plug', 'tyre_make', 'chassis', 'engine', 'race_class'}
+    | {'spark_plug', 'tyre_make', 'chassis', 'engine', 'race_class', 'track'}
 )
 MAX_VALUE_LEN = 60
 
@@ -92,6 +94,15 @@ def suggestions(request):
     value = ' '.join(str(body.get('value') or '').split())
     if field_key not in SUGGESTION_FIELDS or not value or len(value) > MAX_VALUE_LEN:
         return JsonResponse({'error': 'invalid'}, status=400)
+    lat = lon = None
+    if field_key == 'track':
+        # Своя трасса пользователя: название + координаты обязательны.
+        try:
+            lat, lon = float(body.get('latitude')), float(body.get('longitude'))
+        except (TypeError, ValueError):
+            return JsonResponse({'error': 'invalid'}, status=400)
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            return JsonResponse({'error': 'invalid'}, status=400)
     engine = None
     engine_id = body.get('engine_id')
     if engine_id not in (None, ''):
@@ -99,10 +110,17 @@ def suggestions(request):
         if engine is None:
             return JsonResponse({'error': 'unknown_engine'}, status=400)
 
-    obj, created = AppSuggestion.objects.get_or_create(field_key=field_key, engine=engine, value=value)
+    obj, created = AppSuggestion.objects.get_or_create(
+        field_key=field_key, engine=engine, value=value, defaults={'latitude': lat, 'longitude': lon})
     if not created:
         AppSuggestion.objects.filter(pk=obj.pk).update(count=F('count') + 1, last_seen=timezone.now())
     return JsonResponse({'ok': True}, status=201 if created else 200)
+
+
+@nocache_page
+def config(request):
+    """Настройки связи для приложения: интервал задаётся в админке («Приложение» → «Связь с сайтом»)."""
+    return JsonResponse({'sync_interval_minutes': AppSyncSettings.get().sync_interval_minutes})
 
 
 @nocache_page

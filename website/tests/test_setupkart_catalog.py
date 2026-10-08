@@ -275,3 +275,56 @@ def test_spec_models_have_no_field_named_prefix():
     from website.models import AppEngineField, AppParameter, AppEngineSparkPlug
     for model in (AppEngineField, AppParameter, AppEngineSparkPlug):
         assert 'prefix' not in {f.name for f in model._meta.get_fields()}, model.__name__
+
+
+# ---------- связь с сайтом и предложения трасс ----------
+
+@pytest.mark.django_db
+def test_config_returns_sync_interval_from_admin(client):
+    assert client.get('/api/setupkart/config/').json() == {'sync_interval_minutes': 60}
+    from website.models import AppSyncSettings
+    s = AppSyncSettings.get()
+    s.sync_interval_minutes = 2
+    s.save()
+    assert client.get('/api/setupkart/config/').json() == {'sync_interval_minutes': 2}
+
+
+@pytest.mark.django_db
+def test_track_suggestion_needs_coordinates_and_groups_by_name(client):
+    post = lambda body: client.post('/api/setupkart/suggestions/', body, content_type='application/json')
+    assert post({'field_key': 'track', 'value': 'Картодром Х', 'client_id': 'c1'}).status_code == 400
+    assert post({'field_key': 'track', 'value': 'Картодром Х', 'latitude': 95, 'longitude': 37, 'client_id': 'c1'}).status_code == 400
+    assert post({'field_key': 'track', 'value': 'Картодром Х', 'latitude': 55.1, 'longitude': 37.2,
+                 'client_id': 'c1'}).status_code == 201
+    assert post({'field_key': 'track', 'value': 'Картодром Х', 'latitude': 55.3, 'longitude': 37.4,
+                 'client_id': 'c2'}).status_code == 200
+    s = AppSuggestion.objects.get(field_key='track')
+    assert (s.count, s.latitude, s.longitude) == (2, 55.1, 37.2)
+
+
+@pytest.mark.django_db
+def test_admin_track_suggestion_creates_draft_track(admin_client):
+    s = AppSuggestion.objects.create(field_key='track', value='Картодром Х', latitude=55.1, longitude=37.2)
+    admin_client.post(f'/admin/setupkart/suggestions/{s.pk}/add/')
+    t = Track.objects.get(name='Картодром Х')
+    assert (t.latitude, t.longitude, t.show_in_app, t.live) == (55.1, 37.2, True, False)
+    assert t.latest_revision is not None
+    s.refresh_from_db()
+    assert s.status == AppSuggestion.STATUS_ADDED
+    page = admin_client.get('/admin/setupkart/suggestions/?status=all').content.decode()
+    assert 'на карте' in page
+
+    # такая трасса уже есть — не создаётся вторая
+    dup = AppSuggestion.objects.create(field_key='track', value='картодром х', latitude=55.0, longitude=37.0)
+    admin_client.post(f'/admin/setupkart/suggestions/{dup.pk}/add/')
+    assert Track.objects.filter(name__iexact='картодром х').count() == 1
+    dup.refresh_from_db()
+    assert dup.status == AppSuggestion.STATUS_NEW
+
+
+@pytest.mark.django_db
+def test_sync_settings_admin_page(admin_client):
+    from website.models import AppSyncSettings
+    s = AppSyncSettings.get()
+    assert admin_client.get('/admin/website/appsyncsettings/').status_code == 200
+    assert admin_client.get(f'/admin/website/appsyncsettings/edit/{s.pk}/').status_code == 200
