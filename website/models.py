@@ -1297,10 +1297,16 @@ class Chassis(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel
         help_text="Запись попадёт в мобильное приложение GripLine SetupKart после публикации справочников "
                   "(меню «Приложение» → «Публикация»). Без галочки — только на сайте.",
     )
+    aliases = models.CharField(
+        "Синонимы", max_length=255, blank=True, default='',
+        help_text="Другие написания через запятую, например «Cosmik». Импорт протоколов находит шасси и по ним, "
+                  "приложение подставляет основное название, если пользователь ввёл синоним через «Другое…».",
+    )
 
     panels = [
         FieldPanel('show_in_app'),
         FieldPanel('name'),
+        FieldPanel('aliases'),
         FieldPanel('slug'),
         FieldPanel('country'),
         FieldPanel('logo'),
@@ -1319,6 +1325,24 @@ class Chassis(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel
 
     def get_absolute_url(self):
         return f"/chassis/{self.slug}/"
+
+    def alias_list(self):
+        return [a.strip() for a in (self.aliases or '').split(',') if a.strip()]
+
+    @classmethod
+    def find_by_name(cls, name):
+        """Шасси по названию или синониму, без учёта регистра; None — не найдено."""
+        name = (name or '').strip()
+        if not name:
+            return None
+        found = cls.objects.filter(name__iexact=name).first()
+        if found:
+            return found
+        folded = name.casefold()
+        for c in cls.objects.exclude(aliases=''):
+            if folded in {a.casefold() for a in c.alias_list()}:
+                return c
+        return None
 
     class Meta:
         verbose_name = "Шасси"

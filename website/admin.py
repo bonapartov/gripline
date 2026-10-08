@@ -129,11 +129,10 @@ class SmartChassisWidget(ForeignKeyWidget):
         if not name:
             return None
 
-        try:
-            chassis = Chassis.objects.get(name=name)
-            return chassis
-        except Chassis.DoesNotExist:
+        chassis = Chassis.find_by_name(name)
+        if chassis is None:
             raise Exception(f"Шасси '{name}' не найдено в базе. Создание новых шасси запрещено.")
+        return chassis
 
 # ============= РЕСУРС ДЛЯ ИМПОРТА =============
 class RaceResultResource(resources.ModelResource):

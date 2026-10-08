@@ -452,7 +452,7 @@ def import_preview(request):
         chassis_obj = None
         chassis_exists = False
         if row_cfg['has_team_chassis'] and chassis_name:
-            chassis_obj = Chassis.objects.filter(name__iexact=chassis_name).first()
+            chassis_obj = Chassis.find_by_name(chassis_name)
             chassis_exists = chassis_obj is not None
 
         found_drivers, selected_id = find_drivers(first_name, last_name, city or None)
@@ -678,11 +678,11 @@ def import_confirm(request):
                         chassis_obj = Chassis.objects.get(id=chassis_id)
                     except Chassis.DoesNotExist:
                         if row.get('chassis'):
-                            chassis_obj = Chassis.objects.filter(name__iexact=row['chassis'].strip()).first()
+                            chassis_obj = Chassis.find_by_name(row['chassis'])
                             if not chassis_obj:
                                 raise Exception(f"Шасси '{row['chassis']}' не найдено в базе.")
                 elif row.get('chassis'):
-                    chassis_obj = Chassis.objects.filter(name__iexact=row['chassis'].strip()).first()
+                    chassis_obj = Chassis.find_by_name(row['chassis'])
                     if not chassis_obj:
                         raise Exception(f"Шасси '{row['chassis']}' не найдено в базе.")
 

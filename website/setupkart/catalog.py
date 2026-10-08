@@ -1,6 +1,6 @@
 """Сборка справочников приложения из админки, проверка и публикация версией (ТЗ приложения §13.3)."""
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Count, Max
 
 from website.models import (
     APP_ENGINE_FIELD_CHOICES, APP_PARAMETER_CHOICES, AppCatalogVersion, AppParameter, Chassis, Engine,
@@ -50,7 +50,9 @@ def build_payload():
         'engines': [_engine_payload(e) for e in engines],
         'race_classes': [{'id': rc.pk, 'name': rc.name, 'sort_order': rc.sort_order}
                          for rc in RaceClass.objects.filter(pk__in=class_ids)],
-        'chassis': [{'id': c.pk, 'name': c.name} for c in _live(Chassis.objects).order_by('name')],
+        # Популярные марки (больше результатов на сайте) — первыми; синонимы — для «Другое…».
+        'chassis': [{'id': c.pk, 'name': c.name, 'aliases': c.alias_list()}
+                    for c in _live(Chassis.objects).annotate(n=Count('race_results')).order_by('-n', 'name')],
         'tyre_brands': [{'id': t.pk, 'name': t.name} for t in _live(TyreBrand.objects).order_by('name')],
         'params': {p.key: to_profile_field(p, p.key, PARAM_LABELS.get(p.key, p.key))
                    for p in AppParameter.objects.all()},
