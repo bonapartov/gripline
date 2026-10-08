@@ -5,6 +5,7 @@
     /legal/privacy/        Политика в отношении обработки персональных данных
     /legal/terms/          Пользовательское соглашение
     /legal/cookies/        Политика использования cookie-файлов
+    /legal/setupkart-privacy/  Политика конфиденциальности приложения GripLine SetupKart
 
 Тексты лежат в website/legal_pages/*.html с плейсхолдерами {{OPERATOR}}, {{TG}},
 {{DATE}} — ФИО оператора и Telegram подставляются при запуске, в репозитории их нет
@@ -40,6 +41,8 @@ PAGES = [
     ("Политика в отношении обработки персональных данных", "privacy", "privacy.html"),
     ("Пользовательское соглашение", "terms", "terms.html"),
     ("Политика использования cookie-файлов", "cookies", "cookies.html"),
+    # Ссылка зашита в мобильное приложение (feedback_screen.dart, kPrivacyPolicyUrl) — slug не менять.
+    ("Политика конфиденциальности приложения GripLine SetupKart", "setupkart-privacy", "setupkart_privacy.html"),
 ]
 
 # Только токены --gl-*, без hex (DESIGN_SYSTEM.md).

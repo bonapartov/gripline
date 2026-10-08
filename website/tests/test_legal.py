@@ -217,3 +217,17 @@ class TestAdminEditableFooter:
         assert 'правка админа' in str(Footer.objects.get(name='футер').content[0].value)
         call_command('seed_footer', force=True)
         assert 'gl-footer__grid' in str(Footer.objects.get(name='футер').content[0].value)
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures('site')
+class TestSetupKartPrivacy:
+    def test_app_policy_published_at_url_used_by_app(self, client):
+        # Адрес зашит в приложение GripLine SetupKart (kPrivacyPolicyUrl) — не менять.
+        call_command('create_legal_pages', operator='Иванов Иван', tg='@oper', publish=True)
+        page = WebPage.objects.get(slug='setupkart-privacy')
+        html = str(page.body[0].value)
+        assert page.live and page.url_path.endswith('/legal/setupkart-privacy/')
+        assert 'Иванов Иван' in html and '@oper' in html and '{{' not in html
+        assert 'MET Norway' in html and 'Telegram' in html and 'href="/legal/privacy/"' in html
+        assert 'href="/legal/setupkart-privacy/"' in str(page.get_parent().specific.body[0].value)
