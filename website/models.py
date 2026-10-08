@@ -1565,7 +1565,13 @@ class RaceClass(models.Model):
             "(вместо сортировки по алфавиту). Меньше значение — выше в списке."
         ),
     )
-    panels = [FieldPanel('name'), FieldPanel('sort_order')]
+    app_chassis_image = models.ForeignKey(
+        'website.AppChassisImage', null=True, blank=True, on_delete=models.SET_NULL, related_name='race_classes',
+        verbose_name="Картинка шасси в приложении",
+        help_text="Тип шасси, картинка которого показывается в приложении GripLine SetupKart для этого класса. "
+                  "Пусто — встроенная схема. Картинки: «Техника» → «Картинки шасси».",
+    )
+    panels = [FieldPanel('name'), FieldPanel('sort_order'), FieldPanel('app_chassis_image')]
 
     def __str__(self):
         return self.name
@@ -4491,6 +4497,38 @@ class AppParameter(AppValueSpec):
 
     def __str__(self):
         return self.get_key_display()
+
+
+class AppChassisImage(models.Model):
+    """Картинка шасси для приложения на тип шасси (детское, мини, взрослое, KZ…): подложка под схемой
+    давления, колеи и развала. Классы гонок ссылаются на тип (RaceClass.app_chassis_image); классу со своей
+    картинкой — свой тип. Положение левых колёс — доли ширины/высоты картинки (0…1), правые — зеркально."""
+    name = models.CharField("Тип шасси", max_length=60, unique=True, help_text="Например: «Взрослое», «Детское малое».")
+    image = models.ForeignKey('wagtailimages.Image', null=True, blank=True, on_delete=models.SET_NULL,
+                              related_name='+', verbose_name="Картинка")
+    front_x = models.FloatField("Левое переднее колесо, x", null=True, blank=True)
+    front_y = models.FloatField("Левое переднее колесо, y", null=True, blank=True)
+    rear_x = models.FloatField("Левое заднее колесо, x", null=True, blank=True)
+    rear_y = models.FloatField("Левое заднее колесо, y", null=True, blank=True)
+    sort_order = models.PositiveIntegerField("Порядок", default=0)
+    updated_at = models.DateTimeField("Изменено", auto_now=True)
+
+    class Meta:
+        verbose_name = "Картинка шасси (приложение)"
+        verbose_name_plural = "Картинки шасси (приложение)"
+        ordering = ['sort_order', 'name']
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def calibrated(self):
+        return None not in (self.front_x, self.front_y, self.rear_x, self.rear_y)
+
+    @property
+    def ready(self):
+        """Можно отдавать в приложение: есть картинка и отмечены колёса."""
+        return self.image_id is not None and self.calibrated
 
 
 class AppSyncSettings(models.Model):

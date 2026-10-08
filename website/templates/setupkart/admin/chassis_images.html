@@ -1,0 +1,22 @@
+{% extends "wagtailadmin/base.html" %}
+{% load wagtailimages_tags %}
+{% block titletag %}Картинки шасси (приложение){% endblock %}
+{% block content %}
+{% include "wagtailadmin/shared/header.html" with title="Картинки шасси (приложение)" icon="image" %}
+{% include "setupkart/admin/_style.html" %}
+<div class="skp">
+  <p class="muted">Картинка — подложка под схемой давления, колеи и развала в приложении GripLine SetupKart. Загружается на тип шасси, классы гонок выбирают тип. Класс без типа получает встроенную схему. В приложение попадает после публикации справочников («Приложение» → «Публикация»).</p>
+  <p><a class="button" href="{% url 'setupkart_chassis_image_new' %}">Добавить тип шасси</a></p>
+  <table><thead><tr><th></th><th>Тип шасси</th><th>Классы</th><th>Состояние</th></tr></thead><tbody>
+  {% for c in items %}
+    <tr>
+      <td style="width:90px">{% if c.image %}{% image c.image max-80x120 %}{% else %}<span class="muted">нет</span>{% endif %}</td>
+      <td><a href="{% url 'setupkart_chassis_image_edit' c.pk %}"><b>{{ c.name }}</b></a></td>
+      <td>{% for rc in c.race_classes.all %}{{ rc.name }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="muted">не назначен</span>{% endfor %}</td>
+      <td>{% if c.ready %}<span class="ok">готова</span>{% elif not c.image %}<span class="warn">нет картинки</span>{% else %}<span class="warn">не отмечены колёса</span>{% endif %}</td>
+    </tr>
+  {% empty %}<tr><td colspan="4" class="muted">Пока нет — везде встроенная схема.</td></tr>{% endfor %}
+  </tbody></table>
+  {% if unassigned %}<p class="muted" style="margin-top:1rem">Классы со встроенной схемой: {% for rc in unassigned %}{{ rc.name }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+</div>
+{% endblock %}

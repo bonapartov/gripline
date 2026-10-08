@@ -6,6 +6,7 @@ from website.models import (
     APP_ENGINE_FIELD_CHOICES, APP_PARAMETER_CHOICES, AppCatalogVersion, AppParameter, Chassis, Engine,
     TyreBrand,
 )
+from . import chassis_images
 from .spec import spec_errors, to_profile_field
 
 SCHEMA = 1
@@ -54,6 +55,7 @@ def build_payload():
         'chassis': [{'id': c.pk, 'name': c.name, 'aliases': c.alias_list()}
                     for c in _live(Chassis.objects).annotate(n=Count('race_results')).order_by('-n', 'name')],
         'tyre_brands': [{'id': t.pk, 'name': t.name} for t in _live(TyreBrand.objects).order_by('name')],
+        'chassis_images': chassis_images.payload(),
         'params': {p.key: to_profile_field(p, p.key, PARAM_LABELS.get(p.key, p.key))
                    for p in AppParameter.objects.all()},
     }
@@ -78,6 +80,7 @@ def validation_errors():
     for p in AppParameter.objects.all():
         for msg in spec_errors(p).values():
             errors.append(f'Параметр «{p.get_key_display()}»: {msg}')
+    errors.extend(chassis_images.validation_errors())
     return errors
 
 

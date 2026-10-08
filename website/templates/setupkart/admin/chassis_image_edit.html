@@ -1,0 +1,223 @@
+{% extends "wagtailadmin/base.html" %}
+{% block titletag %}{% if obj %}{{ obj.name }}{% else %}Новый тип шасси{% endif %} — картинка шасси{% endblock %}
+{% block content %}
+{% if obj %}{% include "wagtailadmin/shared/header.html" with title=obj.name subtitle="Картинка шасси в приложении" icon="image" %}
+{% else %}{% include "wagtailadmin/shared/header.html" with title="Новый тип шасси" subtitle="Картинка шасси в приложении" icon="image" %}{% endif %}
+{% include "setupkart/admin/_style.html" %}
+<style>
+  .ckp { display: flex; gap: 2rem; flex-wrap: wrap; align-items: flex-start; }
+  .ckp-form { flex: 1 1 360px; min-width: 320px; }
+  .ckp-form label.f { display: block; font-weight: 600; margin: 1rem 0 .3rem; }
+  .ckp-form .help { font-size: .85rem; color: var(--w-color-text-meta); }
+  .ckp-form ul.cls { list-style: none; padding: 0; columns: 2; }
+  .ckp-form ul.cls li { margin: .15rem 0; }
+  .ckp-form .taken { color: var(--w-color-text-meta); font-size: .8rem; }
+  .ckp-form .errorlist { color: var(--w-color-critical-200); }
+  .ckp-side { flex: 0 0 auto; }
+  .ckp-tools { margin-bottom: .6rem; display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+  .ckp-tools button.is-active { outline: 3px solid var(--w-color-primary); }
+  /* «телефон»: фон и цвета приложения (AppColors) — тёмная тема */
+  .phone { position: relative; background: #101010; border-radius: 18px; padding: 0; overflow: hidden;
+           box-shadow: 0 0 0 8px #2a2a2a; user-select: none; font-family: Roboto, sans-serif; }
+  .phone img.kart { position: absolute; cursor: crosshair; }
+  .phone .empty { position: absolute; display: flex; align-items: center; justify-content: center; text-align: center;
+                  color: #9A9AA2; border: 1px dashed #282830; font-size: 13px; padding: 1rem; }
+  .ov { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        border-radius: 10px; font-size: 12px; line-height: 1.15; pointer-events: none; }
+  .ov.chip { background: #181818; border: 2px solid #3080F0; color: #EDEDED; }
+  .ov.chip b { font-size: 15px; }
+  .ov.pill { background: rgba(240,160,48,.92); color: #000; font-weight: 600; border-radius: 22px; }
+  .ov.camber { border: 2px solid #9A9AA2; border-radius: 50%; color: #9A9AA2; background: rgba(24,24,24,.85); }
+  .ov.caption { color: #3080F0; font-size: 12px; }
+  .mk { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
+        border: 3px solid #50D0A0; box-shadow: 0 0 0 2px #000; cursor: grab; }
+  .mk::after { content: ''; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; background: #50D0A0; border-radius: 50%; }
+  .mk.mirror { border-style: dashed; opacity: .7; pointer-events: none; }
+  .mk span { position: absolute; left: 28px; top: -2px; color: #50D0A0; font: 600 12px sans-serif; white-space: nowrap; text-shadow: 0 0 3px #000; }
+  .ckp-legend { font-size: .8rem; color: var(--w-color-text-meta); max-width: 420px; margin-top: .8rem; }
+</style>
+
+<div class="skp">
+  <p><a href="{% url 'setupkart_chassis_images' %}">← Все картинки шасси</a></p>
+  <div class="ckp">
+    <form class="ckp-form" method="post" enctype="multipart/form-data" id="ckpForm">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+      <label class="f" for="id_name">Тип шасси</label>{{ form.name }}{{ form.name.errors }}
+      <div class="help">Например: «Взрослое», «Детское малое», «Мини», «KZ».</div>
+
+      <label class="f" for="id_image_file">Картинка</label>{{ form.image_file }}{{ form.image_file.errors }}
+      <div class="help">PNG или WebP с прозрачным фоном, вид сверху, нос вверху, карт почти до краёв; ширина 1000 px, высота — по карту.
+        {% if obj.image %}Сейчас: {{ obj.image.width }} × {{ obj.image.height }} px. Новый файл заменит картинку.{% endif %}</div>
+
+      <label class="f">Колёса</label>
+      <div class="help">Справа на «телефоне» нажмите на центр <b>левого переднего</b>, затем <b>левого заднего</b> колеса.
+        Правые колёса отражаются автоматически. Маркеры можно перетаскивать.</div>
+      <p id="ckpState" class="help"></p>
+      {{ form.front_x }}{{ form.front_y }}{{ form.rear_x }}{{ form.rear_y }}
+
+      <label class="f">Классы</label>
+      <ul class="cls">{% for cb, taken_by in class_rows %}<li>{{ cb.tag }} <label for="{{ cb.id_for_label }}">{{ cb.choice_label }}</label>{% if taken_by %} <span class="taken">(сейчас: {{ taken_by }})</span>{% endif %}</li>{% endfor %}</ul>
+      <div class="help">{{ form.classes.help_text }}</div>
+
+      <label class="f" for="id_sort_order">Порядок</label>{{ form.sort_order }}
+
+      <p style="margin-top:1.5rem">
+        <button class="button" type="submit">Сохранить</button>
+      </p>
+    </form>
+    {% if obj %}
+    <form method="post" action="{% url 'setupkart_chassis_image_delete' obj.pk %}" onsubmit="return confirm('Удалить тип «{{ obj.name|escapejs }}»? Его классы получат встроенную схему.')" style="align-self:flex-end">
+      {% csrf_token %}<button class="button button-secondary no" type="submit">Удалить тип</button>
+    </form>
+    {% endif %}
+
+    <div class="ckp-side">
+      <div class="ckp-tools">
+        Ставлю:
+        <button type="button" class="button button-small" data-mark="front">левое переднее</button>
+        <button type="button" class="button button-small button-secondary" data-mark="rear">левое заднее</button>
+        &nbsp;Экран:
+        <select id="ckpWidth"><option value="360">360 dp</option><option value="380" selected>380 dp</option><option value="411">411 dp</option></select>
+      </div>
+      <div class="phone" id="phone"></div>
+      <div class="ckp-legend">Так схема выглядит в приложении (тёмная тема). Синие плашки — давление над колёсами,
+        оранжевые — колея по осям, круги — кнопки развала. Значения условные.</div>
+    </div>
+  </div>
+</div>
+
+{{ layout|json_script:"ckpLayout" }}
+<script>
+(function () {
+  const L = JSON.parse(document.getElementById('ckpLayout').textContent);
+  const phone = document.getElementById('phone');
+  const fileInput = document.getElementById('id_image_file');
+  const inputs = {fx: 'id_front_x', fy: 'id_front_y', rx: 'id_rear_x', ry: 'id_rear_y'};
+  const val = (k) => { const v = document.getElementById(inputs[k]).value; return v === '' ? null : parseFloat(v); };
+  const set = (k, v) => { document.getElementById(inputs[k]).value = v === null ? '' : v.toFixed(4); };
+  let src = '{{ image_url|escapejs }}';
+  let natural = null;  // {w, h}
+  let active = 'front';
+  const clamp = (t, lo, hi) => Math.min(hi, Math.max(lo, t));
+  const size = (spec, W) => clamp(W * spec[0], spec[1], spec[2]);
+
+  document.querySelectorAll('[data-mark]').forEach((b) => b.addEventListener('click', () => { active = b.dataset.mark; draw(); }));
+  document.getElementById('ckpWidth').addEventListener('change', draw);
+  fileInput.addEventListener('change', () => {
+    const f = fileInput.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => { src = r.result; load(); };
+    r.readAsDataURL(f);
+  });
+
+  function load() {
+    if (!src) { natural = null; draw(); return; }
+    const im = new Image();
+    im.onload = () => { natural = {w: im.naturalWidth, h: im.naturalHeight}; draw(); };
+    im.src = src;
+  }
+
+  function box(cls, x, y, w, h, html) {
+    const d = document.createElement('div');
+    d.className = 'ov ' + cls;
+    Object.assign(d.style, {left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px'});
+    d.innerHTML = html;
+    phone.appendChild(d);
+    return d;
+  }
+
+  function draw() {
+    const W = parseInt(document.getElementById('ckpWidth').value, 10);
+    phone.innerHTML = '';
+    const gutter = Math.round(W * L.gutter);
+    const iw = W - 2 * gutter;
+    const ratio = natural ? natural.h / natural.w : 1.45;
+    const ih = iw * ratio;
+    const top = L.edge + L.chip_h + L.gap;
+    const H = top + ih + L.gap + L.chip_h + L.edge;
+    Object.assign(phone.style, {width: W + 'px', height: H + 'px'});
+    document.querySelectorAll('[data-mark]').forEach((b) => b.classList.toggle('is-active', b.dataset.mark === active));
+
+    if (natural) {
+      const img = document.createElement('img');
+      img.className = 'kart'; img.src = src; img.draggable = false;
+      Object.assign(img.style, {left: gutter + 'px', top: top + 'px', width: iw + 'px', height: ih + 'px'});
+      img.addEventListener('click', (e) => {
+        const r = img.getBoundingClientRect();
+        setPoint(active, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+        if (active === 'front' && val('rx') === null) active = 'rear';
+        draw();
+      });
+      phone.appendChild(img);
+    } else {
+      box('empty', gutter, top, iw, ih, 'Выберите файл картинки слева');
+    }
+
+    const fx = val('fx'), fy = val('fy'), rx = val('rx'), ry = val('ry');
+    const P = (x, y) => ({x: gutter + x * iw, y: top + y * ih});
+    const chipW = size(L.chip_w, W), pillW = size(L.pill_w, W), camW = size(L.camber_w, W);
+    const chipAt = (cx, y, label, value) => {
+      let l = cx - chipW / 2; l = clamp(l, 2, W - 2 - chipW);
+      box('chip', l, y, chipW, L.chip_h, label + '<b>' + value + '</b>');
+    };
+    if (fx !== null && fy !== null) {
+      const fl = P(fx, fy), fr = P(1 - fx, fy);
+      chipAt(fl.x, L.edge, 'ЛП', '0.50'); chipAt(fr.x, L.edge, 'ПП', '0.50');
+      box('pill', W / 2 - pillW / 2, fl.y - L.pill_h / 2, pillW, L.pill_h, 'колея<br>110.0');
+      const half = L.tyre_half * iw;
+      const lr = fl.x - half - 6, ll = Math.max(2, lr - camW);
+      box('camber', ll, fl.y - L.camber_h / 2, camW, L.camber_h, '◎');
+      const rl = Math.min(fr.x + half + 6, W - 2 - camW);
+      box('camber', rl, fl.y - L.camber_h / 2, camW, L.camber_h, '◎');
+    }
+    if (rx !== null && ry !== null) {
+      const rl = P(rx, ry), rr = P(1 - rx, ry);
+      const y = top + ih + L.gap;
+      chipAt(rl.x, y, 'ЛЗ', '0.55'); chipAt(rr.x, y, 'ПЗ', '0.55');
+      box('pill', W / 2 - pillW / 2, rl.y - L.pill_h / 2, pillW, L.pill_h, 'колея<br>120.0');
+      box('caption', W / 2 - 40, y, 80, L.chip_h, 'холодные');
+    }
+    if (natural) {
+      marker('front', fx, fy, 'ЛП'); marker('rear', rx, ry, 'ЛЗ');
+      if (fx !== null) mirror(1 - fx, fy); if (rx !== null) mirror(1 - rx, ry);
+    }
+    const state = document.getElementById('ckpState');
+    state.textContent = !natural ? '' : (fx === null ? 'Отметьте левое переднее колесо.' : rx === null ? 'Отметьте левое заднее колесо.' : 'Колёса отмечены — проверьте, что плашки встали над колёсами.');
+
+    function marker(which, x, y, label) {
+      if (x === null || y === null) return;
+      const p = P(x, y);
+      const m = document.createElement('div');
+      m.className = 'mk'; m.style.left = p.x + 'px'; m.style.top = p.y + 'px';
+      m.innerHTML = '<span>' + label + '</span>';
+      m.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const r = phone.getBoundingClientRect();
+        const move = (ev) => {
+          setPoint(which, clamp((ev.clientX - r.left - gutter) / iw, 0, 1), clamp((ev.clientY - r.top - top) / ih, 0, 1));
+          m.style.left = (ev.clientX - r.left) + 'px'; m.style.top = (ev.clientY - r.top) + 'px';
+        };
+        const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); draw(); };
+        document.addEventListener('mousemove', move); document.addEventListener('mouseup', up);
+      });
+      phone.appendChild(m);
+    }
+    function mirror(x, y) {
+      const p = P(x, y);
+      const m = document.createElement('div');
+      m.className = 'mk mirror'; m.style.left = p.x + 'px'; m.style.top = p.y + 'px';
+      phone.appendChild(m);
+    }
+  }
+
+  function setPoint(which, x, y) {
+    x = clamp(x, 0, 0.5); y = clamp(y, 0, 1);  // левое колесо — левая половина картинки
+    if (which === 'front') { set('fx', x); set('fy', y); } else { set('rx', x); set('ry', y); }
+  }
+
+  load();
+})();
+</script>
+{% endblock %}

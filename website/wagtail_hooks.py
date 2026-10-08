@@ -120,6 +120,19 @@ class EquipmentGroup(ModelAdminGroup):
     menu_icon = 'cog'
     items = (ChassisAdmin, EngineAdmin)
 
+    def get_submenu_items(self):
+        # «Картинки шасси» (для приложения) — рядом с «Шасси»; класс пункта меню и права — из раздела «Приложение».
+        from .setupkart.chassis_images import PERM
+        from wagtail.admin.menu import MenuItem as _MenuItem
+
+        class _Item(_MenuItem):
+            def is_shown(self, request):
+                return request.user.has_perm(PERM)
+
+        items = super().get_submenu_items()
+        items.append(_Item('Картинки шасси (приложение)', reverse('setupkart_chassis_images'), icon_name='image', order=150))
+        return items
+
 class TyresGroup(ModelAdminGroup):
     menu_label = 'Шины'
     menu_icon = 'fa-tyre'
@@ -311,6 +324,7 @@ modeladmin_register(DataRequestAdmin)
 # ---------- Приложение GripLine SetupKart (ТЗ приложения §13.3) ----------
 from .models import AppParameter, AppSyncSettings  # noqa: E402
 from .setupkart import admin_views as setupkart_admin_views  # noqa: E402
+from .setupkart import chassis_images as setupkart_chassis_images  # noqa: E402
 
 
 class AppParameterAdmin(ModelAdmin):
@@ -342,6 +356,7 @@ class SetupKartGroup(ModelAdminGroup):
     def get_submenu_items(self):
         items = super().get_submenu_items()
         items.insert(0, SetupKartMenuItem('Обзор', reverse('setupkart_overview'), icon_name='view', order=100))
+        items.append(SetupKartMenuItem('Картинки шасси', reverse('setupkart_chassis_images'), icon_name='image', order=250))
         items.append(SetupKartMenuItem('Предложения пользователей', reverse('setupkart_suggestions'), icon_name='comment', order=300))
         items.append(SetupKartMenuItem('Публикация', reverse('setupkart_publication'), icon_name='upload', order=400))
         return items
@@ -562,6 +577,12 @@ def register_setupkart_admin_urls():
         path('setupkart/suggestions/', setupkart_admin_views.suggestions, name='setupkart_suggestions'),
         path('setupkart/suggestions/<int:pk>/<str:action>/', setupkart_admin_views.suggestion_action,
              name='setupkart_suggestion_action'),
+        path('setupkart/chassis-images/', setupkart_chassis_images.image_list, name='setupkart_chassis_images'),
+        path('setupkart/chassis-images/new/', setupkart_chassis_images.image_edit, name='setupkart_chassis_image_new'),
+        path('setupkart/chassis-images/<int:pk>/', setupkart_chassis_images.image_edit,
+             name='setupkart_chassis_image_edit'),
+        path('setupkart/chassis-images/<int:pk>/delete/', setupkart_chassis_images.image_delete,
+             name='setupkart_chassis_image_delete'),
     ]
 
 
