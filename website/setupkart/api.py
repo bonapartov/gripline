@@ -61,8 +61,12 @@ def catalog(request):
 def tracks_payload():
     tracks = (Track.objects.filter(show_in_app=True, live=True, latitude__isnull=False, longitude__isnull=False)
               .order_by('name'))
+    from .records import records_by_track
+    tracks = list(tracks)
+    records = records_by_track(tracks)
     items = [{'id': t.pk, 'name': t.name, 'city': t.city or '', 'region': t.region or '',
-              'latitude': t.latitude, 'longitude': t.longitude} for t in tracks]
+              'latitude': t.latitude, 'longitude': t.longitude, 'records': records.get(t.pk, [])}
+             for t in tracks]
     version = hashlib.sha1(json.dumps(items, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:12]
     return {'version': version, 'tracks': items}
 

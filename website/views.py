@@ -1581,7 +1581,8 @@ def _compute_all_track_records():
     _get_driver_track_records() и команду update_track_records.
 
     Возвращает {track_id: {class_id_str: {'final_holder_id', 'record_year',
-    'lap_ms', 'ever_holder_ids'}}}.
+    'lap_ms', 'ever_holder_ids', 'result_id', 'record_date'}}}; result_id —
+    RaceResult действующего рекорда (подробности для приложения SetupKart).
     """
     from collections import defaultdict
 
@@ -1610,6 +1611,7 @@ def _compute_all_track_records():
             'date': event_date,
             'driver_id': r.driver_id,
             'lap_ms': lap,
+            'result_id': r.pk,
         })
 
     result = defaultdict(dict)
@@ -1619,6 +1621,7 @@ def _compute_all_track_records():
         running_min = None
         final_holder_id = None
         record_year = None
+        record_entry = None
         ever_holder_ids = []
 
         for e in entries:
@@ -1626,6 +1629,7 @@ def _compute_all_track_records():
                 running_min = e['lap_ms']
                 final_holder_id = e['driver_id']
                 record_year = e['date'].year
+                record_entry = e
                 if e['driver_id'] not in ever_holder_ids:
                     ever_holder_ids.append(e['driver_id'])
 
@@ -1634,6 +1638,9 @@ def _compute_all_track_records():
             'record_year': record_year,
             'lap_ms': running_min,
             'ever_holder_ids': ever_holder_ids,
+            'result_id': record_entry['result_id'],
+            'record_date': record_entry['date'].date().isoformat() if hasattr(record_entry['date'], 'date')
+            else record_entry['date'].isoformat(),
         }
 
     return result
