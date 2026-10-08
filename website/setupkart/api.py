@@ -67,7 +67,9 @@ def tracks_payload():
     items = [{'id': t.pk, 'name': t.name, 'city': t.city or '', 'region': t.region or '',
               'latitude': t.latitude, 'longitude': t.longitude, 'records': records.get(t.pk, [])}
              for t in tracks]
-    version = hashlib.sha1(json.dumps(items, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:12]
+    # Префикс формата: смена состава ответа (например, рекорды трасс 08.10.2026) меняет версию, и приложения,
+    # запомнившие прежнюю версию старой сборкой, загружают трассы заново.
+    version = hashlib.sha1(('r1' + json.dumps(items, ensure_ascii=False, sort_keys=True)).encode()).hexdigest()[:12]
     return {'version': version, 'tracks': items}
 
 
