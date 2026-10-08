@@ -118,3 +118,32 @@ def test_help_image_goes_to_catalog(admin_client):
     assert set(help_images) == {'steering_column_hole'}
     assert help_images['steering_column_hole']['url'].endswith('.webp')
     assert admin_client.get('/admin/website/apphelpimage/').status_code == 200
+
+
+@pytest.mark.django_db
+def test_tyre_compounds_go_to_catalog_in_order_with_photo(admin_client):
+    from wagtail.images import get_image_model
+    from wagtail.models import Collection
+    from website.models import AppTyreCompound, TyreBrand
+    img = get_image_model()(title='мягкая', file=png(800, 800), collection=Collection.get_first_root_node())
+    img.save()
+    vega = TyreBrand.objects.create(name='Vega', live=True, show_in_app=True)
+    AppTyreCompound.objects.create(brand=vega, name='Средняя', sort_order=1)
+    AppTyreCompound.objects.create(brand=vega, name='Мягкая', image=img, sort_order=0)
+    AppTyreCompound.objects.create(brand=vega, name='Дождь', kind='wet', sort_order=2)
+    TyreBrand.objects.create(name='MG', live=True, show_in_app=True)
+
+    brands = {b['name']: b for b in catalog.build_payload()['tyre_brands']}
+    assert brands['MG']['compounds'] == []
+    comp = brands['Vega']['compounds']
+    assert [(c['name'], c['kind']) for c in comp] == [('Мягкая', 'slick'), ('Средняя', 'slick'), ('Дождь', 'wet')]
+    assert comp[0]['image']['url'].startswith('https://gripline.example/') and comp[0]['image']['url'].endswith('.webp')
+    assert max(comp[0]['image']['width'], comp[0]['image']['height']) <= 320
+    assert comp[1]['image'] is None
+    assert catalog.validation_errors() == []
+
+    AppTyreCompound.objects.create(brand=vega, name='мягкая ', sort_order=3)
+    assert any('Vega' in e and 'дважды' in e for e in catalog.validation_errors())
+
+    html = admin_client.get(f'/admin/website/tyrebrand/edit/{vega.pk}/').content.decode()
+    assert 'Приложение' in html and 'Состав' in html

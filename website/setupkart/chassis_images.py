@@ -178,6 +178,17 @@ def payload():
     return out
 
 
+COMPOUND_RENDITION = 'max-320x320|format-webp|webpquality-85'
+
+
+def compound_image(compound):
+    """Фото состава шины для плитки в приложении: {url, width, height} или None."""
+    if not compound.image_id:
+        return None
+    r = compound.image.get_rendition(COMPOUND_RENDITION)
+    return {'url': f"{settings.BASE_URL.rstrip('/')}{r.url}", 'width': r.width, 'height': r.height}
+
+
 def help_images_payload():
     """Картинки-подсказки к полям: {ключ поля: {url, width, height}}."""
     from website.models import AppHelpImage

@@ -1385,6 +1385,17 @@ class TyreBrand(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableMod
         FieldPanel('description'),
         FieldPanel('website'),
     ]
+    app_panels = [
+        HelpPanel(content="Составы шин этой марки для приложения GripLine SetupKart: пользователь выбирает "
+                          "марку и видит составы плитками с фото. Порядок — перетаскиванием. Фото — "
+                          "шина крупно, лучше квадратное, на однотонном фоне. Без составов в приложении "
+                          "остаётся выбор типа (слик/дождь) и поле для своего текста."),
+        InlinePanel('app_compounds', label="Состав"),
+    ]
+    edit_handler = TabbedInterface([
+        ObjectList(panels, heading="Основное"),
+        ObjectList(app_panels, heading="Приложение"),
+    ])
 
     def __str__(self):
         return self.name
@@ -4483,6 +4494,32 @@ class AppEngineSparkPlug(Orderable):
 
     def __str__(self):
         return self.name
+
+
+APP_TYRE_KIND_CHOICES = [
+    ('slick', 'Слик'),
+    ('wet', 'Дождь'),
+    ('intermediate', 'Промежуточные'),
+]
+
+
+class AppTyreCompound(Orderable):
+    """Состав шины марки для приложения (мягкая, средняя, жёсткая, дождь…) — плитка с фото.
+    Тип (слик/дождь) задаётся у состава: выбор состава в приложении ставит и тип."""
+    brand = ParentalKey('website.TyreBrand', on_delete=models.CASCADE, related_name='app_compounds')
+    name = models.CharField("Название", max_length=40, help_text="Как подписать плитку: «Мягкая», «Средняя», «Дождь»…")
+    kind = models.CharField("Тип", max_length=20, choices=APP_TYRE_KIND_CHOICES, default='slick')
+    image = models.ForeignKey('wagtailimages.Image', on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='+', verbose_name="Фото")
+
+    panels = [FieldRowPanel([FieldPanel('name'), FieldPanel('kind')]), FieldPanel('image')]
+
+    class Meta(Orderable.Meta):
+        verbose_name = "Состав шины (приложение)"
+        verbose_name_plural = "Составы шин (приложение)"
+
+    def __str__(self):
+        return f"{self.brand} · {self.name}"
 
 
 class AppParameter(AppValueSpec):

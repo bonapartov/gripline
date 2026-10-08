@@ -41,6 +41,19 @@ def _engine_payload(engine):
     }
 
 
+def app_tyre_brands():
+    return _live(TyreBrand.objects).prefetch_related('app_compounds__image').order_by('name')
+
+
+def _tyre_brand_payload(brand):
+    return {
+        'id': brand.pk,
+        'name': brand.name,
+        'compounds': [{'name': c.name.strip(), 'kind': c.kind, 'image': chassis_images.compound_image(c)}
+                      for c in brand.app_compounds.all()],
+    }
+
+
 def build_payload():
     """Текущее состояние админки в формате, который получает приложение."""
     engines = list(app_engines())
@@ -54,7 +67,7 @@ def build_payload():
         # Популярные марки (больше результатов на сайте) — первыми; синонимы — для «Другое…».
         'chassis': [{'id': c.pk, 'name': c.name, 'aliases': c.alias_list()}
                     for c in _live(Chassis.objects).annotate(n=Count('race_results')).order_by('-n', 'name')],
-        'tyre_brands': [{'id': t.pk, 'name': t.name} for t in _live(TyreBrand.objects).order_by('name')],
+        'tyre_brands': [_tyre_brand_payload(t) for t in app_tyre_brands()],
         'chassis_images': chassis_images.payload(),
         'help_images': chassis_images.help_images_payload(),
         'params': {p.key: to_profile_field(p, p.key, PARAM_LABELS.get(p.key, p.key))
@@ -81,6 +94,15 @@ def validation_errors():
     for p in AppParameter.objects.all():
         for msg in spec_errors(p).values():
             errors.append(f'Параметр «{p.get_key_display()}»: {msg}')
+    for t in app_tyre_brands():
+        seen = set()
+        for c in t.app_compounds.all():
+            name = c.name.strip().lower()
+            if not name:
+                errors.append(f'Шины «{t.name}»: у состава нет названия.')
+            elif name in seen:
+                errors.append(f'Шины «{t.name}»: состав «{c.name.strip()}» добавлен дважды.')
+            seen.add(name)
     errors.extend(chassis_images.validation_errors())
     return errors
 
