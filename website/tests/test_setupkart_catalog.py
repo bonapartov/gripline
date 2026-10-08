@@ -281,12 +281,20 @@ def test_spec_models_have_no_field_named_prefix():
 
 @pytest.mark.django_db
 def test_config_returns_sync_interval_from_admin(client):
-    assert client.get('/api/setupkart/config/').json() == {'sync_interval_minutes': 60}
+    data = client.get('/api/setupkart/config/').json()
+    assert data['sync_interval_minutes'] == 60
+    assert data['about']['site_url'] == 'https://gripline.ru'
+    assert data['about']['telegram_url'] == 'https://t.me/gripline_support'
+    assert 'gripline.ru' in data['about']['text']
     from website.models import AppSyncSettings
     s = AppSyncSettings.get()
     s.sync_interval_minutes = 2
+    s.contact_email = 'team@example.ru'
+    s.contact_telegram = 't.me/other_bot'
     s.save()
-    assert client.get('/api/setupkart/config/').json() == {'sync_interval_minutes': 2}
+    data = client.get('/api/setupkart/config/').json()
+    assert data['sync_interval_minutes'] == 2
+    assert (data['about']['email'], data['about']['telegram_url']) == ('team@example.ru', 'https://t.me/other_bot')
 
 
 @pytest.mark.django_db

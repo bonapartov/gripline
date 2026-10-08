@@ -120,7 +120,8 @@ def suggestions(request):
 @nocache_page
 def config(request):
     """Настройки связи для приложения: интервал задаётся в админке («Приложение» → «Связь с сайтом»)."""
-    return JsonResponse({'sync_interval_minutes': AppSyncSettings.get().sync_interval_minutes})
+    s = AppSyncSettings.get()
+    return JsonResponse({'sync_interval_minutes': s.sync_interval_minutes, 'about': s.about_payload()})
 
 
 @nocache_page

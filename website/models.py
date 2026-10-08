@@ -4591,6 +4591,14 @@ class AppHelpImage(models.Model):
         return self.get_key_display()
 
 
+APP_ABOUT_TEXT_DEFAULT = (
+    "GripLine SetupKart сделали в Gripline — проекте о российском картинге. На gripline.ru собраны "
+    "результаты соревнований, рейтинги пилотов и шасси, календарь этапов и статьи о настройке карта.\n\n"
+    "Приложение — для механиков и пилотов: быстро записать настройку прямо на трассе, сравнить с прошлыми "
+    "сессиями и не потерять то, что сработало. Есть идея или нашли ошибку — напишите нам."
+)
+
+
 class AppSyncSettings(models.Model):
     """Связь приложения GripLine SetupKart с сайтом (singleton, AppSyncSettings.get()).
 
@@ -4604,9 +4612,41 @@ class AppSyncSettings(models.Model):
                   "и обратную связь. Для проверки — 1–5 минут, в работе — 60 и больше. Новое значение "
                   "приложение узнает при следующей связи.",
     )
+    site_url = models.URLField("Сайт", default="https://gripline.ru",
+                               help_text="Ссылка в «О приложении».")
+    contact_email = models.EmailField("E-mail для связи", blank=True, default="gripline.ru@yandex.ru")
+    contact_telegram = models.CharField(
+        "Telegram для связи", max_length=64, blank=True, default="@gripline_support",
+        help_text="@имя или ссылка t.me/…; пусто — строка в приложении не показывается.")
+    about_text = models.TextField(
+        "Текст «О нас»", blank=True, default=APP_ABOUT_TEXT_DEFAULT,
+        help_text="Показывается в приложении внизу экрана «О приложении», под логотипом Gripline.")
     updated_at = models.DateTimeField("Изменено", auto_now=True)
 
-    panels = [FieldPanel('sync_interval_minutes')]
+    panels = [
+        FieldPanel('sync_interval_minutes'),
+        MultiFieldPanel([FieldPanel('about_text'), FieldPanel('site_url'), FieldPanel('contact_email'),
+                         FieldPanel('contact_telegram')],
+                        heading="«О приложении» — сайт и контакты",
+                        help_text="Приложение получает изменения при следующей связи с сайтом, без новой версии."),
+    ]
+
+    def telegram_url(self):
+        t = (self.contact_telegram or '').strip()
+        if not t:
+            return ''
+        if t.startswith('http'):
+            return t
+        return 'https://t.me/' + t.lstrip('@').removeprefix('t.me/')
+
+    def about_payload(self):
+        return {
+            'text': self.about_text.strip(),
+            'site_url': self.site_url,
+            'email': self.contact_email,
+            'telegram': self.contact_telegram.strip(),
+            'telegram_url': self.telegram_url(),
+        }
 
     class Meta:
         verbose_name = "Связь приложения с сайтом"

@@ -336,7 +336,7 @@ class AppParameterAdmin(ModelAdmin):
 
 class AppSyncSettingsAdmin(ModelAdmin):
     model = AppSyncSettings
-    menu_label = 'Связь с сайтом'
+    menu_label = 'Связь и «О приложении»'
     menu_icon = 'repeat'
     menu_order = 350
     list_display = ('__str__', 'updated_at')
