@@ -104,3 +104,17 @@ def test_delete_releases_classes(admin_client):
 def test_menu_items_present(admin_client):
     html = admin_client.get('/admin/setupkart/chassis-images/').content.decode()
     assert 'Картинки шасси' in html
+
+
+@pytest.mark.django_db
+def test_help_image_goes_to_catalog(admin_client):
+    from wagtail.images import get_image_model
+    from wagtail.models import Collection
+    from website.models import AppHelpImage
+    img = get_image_model()(title='колонка', file=png(600, 900), collection=Collection.get_first_root_node())
+    img.save()
+    AppHelpImage.objects.create(key='steering_column_hole', image=img)
+    help_images = catalog.build_payload()['help_images']
+    assert set(help_images) == {'steering_column_hole'}
+    assert help_images['steering_column_hole']['url'].endswith('.webp')
+    assert admin_client.get('/admin/website/apphelpimage/').status_code == 200

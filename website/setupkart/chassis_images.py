@@ -178,6 +178,16 @@ def payload():
     return out
 
 
+def help_images_payload():
+    """Картинки-подсказки к полям: {ключ поля: {url, width, height}}."""
+    from website.models import AppHelpImage
+    out = {}
+    for h in AppHelpImage.objects.select_related('image'):
+        r = h.image.get_rendition(RENDITION)
+        out[h.key] = {'url': f"{settings.BASE_URL.rstrip('/')}{r.url}", 'width': r.width, 'height': r.height}
+    return out
+
+
 def validation_errors():
     return [f'Картинка шасси «{c.name}»: назначена классам, но ' + ('не загружена' if not c.image_id else 'не отмечены колёса')
             for c in AppChassisImage.objects.prefetch_related('race_classes')

@@ -4531,6 +4531,29 @@ class AppChassisImage(models.Model):
         return self.image_id is not None and self.calibrated
 
 
+APP_HELP_IMAGE_CHOICES = [
+    ('steering_column_hole', 'Рулевая колонка: отверстия'),
+]
+
+
+class AppHelpImage(models.Model):
+    """Картинка-подсказка к полю сетапа в приложении (например, номера отверстий рулевой колонки).
+    Приложение показывает её рядом с полем; нет картинки — поле без подсказки."""
+    key = models.CharField("Поле", max_length=40, choices=APP_HELP_IMAGE_CHOICES, unique=True)
+    image = models.ForeignKey('wagtailimages.Image', on_delete=models.CASCADE, related_name='+', verbose_name="Картинка")
+    updated_at = models.DateTimeField("Изменено", auto_now=True)
+
+    panels = [FieldPanel('key'), FieldPanel('image')]
+
+    class Meta:
+        verbose_name = "Картинка-подсказка (приложение)"
+        verbose_name_plural = "Картинки-подсказки (приложение)"
+        ordering = ['key']
+
+    def __str__(self):
+        return self.get_key_display()
+
+
 class AppSyncSettings(models.Model):
     """Связь приложения GripLine SetupKart с сайтом (singleton, AppSyncSettings.get()).
 

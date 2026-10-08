@@ -56,6 +56,7 @@ def build_payload():
                     for c in _live(Chassis.objects).annotate(n=Count('race_results')).order_by('-n', 'name')],
         'tyre_brands': [{'id': t.pk, 'name': t.name} for t in _live(TyreBrand.objects).order_by('name')],
         'chassis_images': chassis_images.payload(),
+        'help_images': chassis_images.help_images_payload(),
         'params': {p.key: to_profile_field(p, p.key, PARAM_LABELS.get(p.key, p.key))
                    for p in AppParameter.objects.all()},
     }
