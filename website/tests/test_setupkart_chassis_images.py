@@ -114,8 +114,9 @@ def test_help_image_goes_to_catalog(admin_client):
     img = get_image_model()(title='колонка', file=png(600, 900), collection=Collection.get_first_root_node())
     img.save()
     AppHelpImage.objects.create(key='steering_column_hole', image=img)
+    AppHelpImage.objects.create(key='needle_position', image=img)  # игла слева от «Положение иглы» (09.10.2026)
     help_images = catalog.build_payload()['help_images']
-    assert set(help_images) == {'steering_column_hole'}
+    assert set(help_images) == {'steering_column_hole', 'needle_position'}
     assert help_images['steering_column_hole']['url'].endswith('.webp')
     assert admin_client.get('/admin/website/apphelpimage/').status_code == 200
 

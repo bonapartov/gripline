@@ -4570,6 +4570,8 @@ class AppChassisImage(models.Model):
 
 APP_HELP_IMAGE_CHOICES = [
     ('steering_column_hole', 'Рулевая колонка: отверстия'),
+    # Слева от выбора 1–5 в разделе карбюратора (Rotax, Vortex, TM) — для всех двигателей с этим полем.
+    ('needle_position', 'Карбюратор: положение иглы'),
 ]
 
 
