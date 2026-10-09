@@ -13,7 +13,9 @@ DATABASE_URL = (
     f"@{os.getenv('POSTGRES_HOST', 'localhost')}:5432/{os.getenv('POSTGRES_DB')}"
 )
 
-engine = create_engine(DATABASE_URL)
+# pool_pre_ping: после перезапуска PostgreSQL (автообновления Ubuntu) соединения из пула мертвы —
+# проверяем перед выдачей, иначе первые запросы получат 500.
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

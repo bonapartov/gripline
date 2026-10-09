@@ -19,10 +19,10 @@ from aiogram.exceptions import (
     TelegramBadRequest, TelegramForbiddenError, TelegramRetryAfter,
 )
 from aiogram.types import ForceReply, FSInputFile, InlineKeyboardButton, InlineKeyboardMarkup
-from asgiref.sync import sync_to_async
 
 from website.feedback import service
 from website.feedback.channels.base import ChannelAdapter, DeliveryError
+from website.feedback.db import run_sync
 from website.models import FEEDBACK_CHANNEL_TELEGRAM, Feedback, FeedbackBotSettings
 
 logger = logging.getLogger('feedback')
@@ -158,12 +158,12 @@ class TelegramAdapter(ChannelAdapter):
             raise DeliveryError('Админ-чат недоступен: превышены повторы после 429')
 
     async def send_to_admin(self, feedback):
-        cfg = await sync_to_async(FeedbackBotSettings.get)()
+        cfg = await run_sync(FeedbackBotSettings.get)
         if not cfg.admin_chat_id:
             logger.warning('admin_chat_id не задан — карточка №%s не отправлена', feedback.pk)
             return None, None
-        body, rows = await sync_to_async(_card_sync)(feedback.pk)
-        thread_id = await sync_to_async(lambda: feedback.category.admin_topic_id if feedback.category else None)()
+        body, rows = await run_sync(_card_sync, feedback.pk)
+        thread_id = await run_sync(lambda: feedback.category.admin_topic_id if feedback.category else None)
 
         async def send(thread):
             return await self.bot.send_message(
@@ -184,9 +184,9 @@ class TelegramAdapter(ChannelAdapter):
         return msg.message_id, thread_id
 
     async def _send_attachments(self, feedback, chat_id, thread_id, reply_to):
-        atts = await sync_to_async(lambda: list(feedback.attachments.all()))()
+        atts = await run_sync(lambda: list(feedback.attachments.all()))
         for att in atts:
-            path = await sync_to_async(lambda a=att: a.file.path)()
+            path = await run_sync(lambda a=att: a.file.path)
             name = att.original_name or path.rsplit('/', 1)[-1]
 
             async def send(a=att, p=path, n=name):
@@ -201,7 +201,7 @@ class TelegramAdapter(ChannelAdapter):
 
     async def send_admin_text(self, feedback, text_html, reply_to=None, force_reply=False, buttons=None):
         """Сообщение в тему обращения (диалог, служебные заметки). Возвращает message_id."""
-        cfg = await sync_to_async(FeedbackBotSettings.get)()
+        cfg = await run_sync(FeedbackBotSettings.get)
         if not cfg.admin_chat_id:
             return None
 
@@ -227,10 +227,10 @@ class TelegramAdapter(ChannelAdapter):
     async def update_admin_card(self, feedback):
         if not feedback.admin_chat_message_id:
             return
-        cfg = await sync_to_async(FeedbackBotSettings.get)()
+        cfg = await run_sync(FeedbackBotSettings.get)
         if not cfg.admin_chat_id:
             return
-        body, rows = await sync_to_async(_card_sync)(feedback.pk)
+        body, rows = await run_sync(_card_sync, feedback.pk)
         try:
             await self._admin_call(lambda: self.bot.edit_message_text(
                 body, chat_id=cfg.admin_chat_id, message_id=feedback.admin_chat_message_id,

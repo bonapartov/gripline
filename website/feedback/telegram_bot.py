@@ -21,12 +21,11 @@ from typing import Optional
 from aiogram import Dispatcher, F, Router
 from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.types import CallbackQuery, Message, ReactionTypeEmoji
-from asgiref.sync import sync_to_async
-from django.db import close_old_connections
 from django.utils import timezone
 
 from website.feedback import service, sources
 from website.feedback.channels.base import DeliveryError
+from website.feedback.db import run_sync
 from website.feedback.channels.telegram import TelegramAdapter, build_bot
 from website.models import Feedback, FeedbackBotSettings, FeedbackStep
 
@@ -38,10 +37,6 @@ ANONYMOUS_ADMIN_ID = 1087968824
 # Сколько секунд после «Ответить» следующее сообщение в теме уходит пользователю
 PENDING_REPLY_TTL = 300
 HEARTBEAT_SEC = 30
-
-
-def run_sync(func, *args, **kwargs):
-    return sync_to_async(func, thread_sensitive=True)(*args, **kwargs)
 
 
 @dataclass(frozen=True)
@@ -168,12 +163,6 @@ class FeedbackTelegramBot:
     def _register(self):
         r = self.router
         private = F.chat.type == 'private'
-
-        @self.dp.update.outer_middleware()
-        async def db_connections(handler, event, data):
-            # долгоживущий процесс: не держим мёртвые соединения с PostgreSQL
-            await run_sync(close_old_connections)
-            return await handler(event, data)
 
         @r.message(private, CommandStart())
         async def on_start(message: Message, command: CommandObject):
