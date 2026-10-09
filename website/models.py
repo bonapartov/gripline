@@ -1525,6 +1525,12 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
         'website.RaceClass', blank=True, related_name='app_engines', verbose_name="Классы в приложении",
         help_text="Классы, которые пользователь сможет выбрать с этим двигателем.",
     )
+    app_carburetor_image = models.ForeignKey(
+        'wagtailimages.Image', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+        verbose_name="Картинка карбюратора",
+        help_text="Показывается в приложении по центру раздела «Карбюратор», над настройками. Своё фото или "
+                  "схема (не из других приложений). Пусто — раздел без картинки.",
+    )
 
     panels = [
         FieldPanel('name'),
@@ -1539,6 +1545,7 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
         FieldPanel('show_in_app'),
         FieldPanel('app_family'),
         FieldPanel('app_race_classes', widget=forms.CheckboxSelectMultiple),
+        FieldPanel('app_carburetor_image'),
         InlinePanel('app_fields', label="Поле карбюратора",
                     help_text="Числа — минимум, максимум и шаг; остальное — список (по одному значению в строке)."),
         InlinePanel('app_spark_plugs', label="Свеча"),

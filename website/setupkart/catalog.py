@@ -21,6 +21,7 @@ def _live(qs):
 
 def app_engines():
     return (_live(Engine.objects)
+            .select_related('app_carburetor_image')
             .prefetch_related('app_fields', 'app_spark_plugs', 'app_race_classes')
             .order_by('name'))
 
@@ -38,6 +39,7 @@ def _engine_payload(engine):
         'family': engine.app_family or 'other',
         'race_class_ids': [rc.pk for rc in engine.app_race_classes.all()],
         'carburetor_fields': fields,
+        'carburetor_image': chassis_images.carburetor_image(engine),
     }
 
 

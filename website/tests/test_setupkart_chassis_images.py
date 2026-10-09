@@ -148,3 +148,19 @@ def test_tyre_compounds_go_to_catalog_in_order_with_photo(admin_client):
 
     html = admin_client.get(f'/admin/website/tyrebrand/edit/{vega.pk}/').content.decode()
     assert 'Приложение' in html and 'Состав' in html
+
+
+@pytest.mark.django_db
+def test_carburetor_image_goes_to_engine_payload():
+    """Картинка карбюратора у двигателя (вкладка «Приложение») — в справочнике у этого двигателя (09.10.2026)."""
+    from wagtail.images import get_image_model
+    from wagtail.models import Collection
+    from website.models import Engine
+    from website.tests.test_setupkart_catalog import rotax_seeded
+    engine = rotax_seeded()
+    assert catalog.build_payload()['engines'][0]['carburetor_image'] is None
+    img = get_image_model()(title='карбюратор', file=png(1600, 1200), collection=Collection.get_first_root_node())
+    img.save()
+    Engine.objects.filter(pk=engine.pk).update(app_carburetor_image=img)
+    pic = catalog.build_payload()['engines'][0]['carburetor_image']
+    assert pic['url'].endswith('.webp') and (pic['width'], pic['height']) == (1000, 750)

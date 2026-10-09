@@ -189,6 +189,17 @@ def compound_image(compound):
     return {'url': f"{settings.BASE_URL.rstrip('/')}{r.url}", 'width': r.width, 'height': r.height}
 
 
+CARBURETOR_RENDITION = 'max-1000x1000|format-webp|webpquality-85'
+
+
+def carburetor_image(engine):
+    """Картинка карбюратора двигателя для раздела «Карбюратор» в приложении: {url, width, height} или None."""
+    if not engine.app_carburetor_image_id:
+        return None
+    r = engine.app_carburetor_image.get_rendition(CARBURETOR_RENDITION)
+    return {'url': f"{settings.BASE_URL.rstrip('/')}{r.url}", 'width': r.width, 'height': r.height}
+
+
 def help_images_payload():
     """Картинки-подсказки к полям: {ключ поля: {url, width, height}}."""
     from website.models import AppHelpImage
