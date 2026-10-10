@@ -128,7 +128,8 @@ def config(request):
     """Настройки связи для приложения: интервал задаётся в админке («Приложение» → «Связь с сайтом»)."""
     s = AppSyncSettings.get()
     return JsonResponse({'sync_interval_minutes': s.sync_interval_minutes, 'about': s.about_payload(),
-                         'share': {'text': s.share_message(), 'url': s.share_url}})
+                         'share': {'text': s.share_message(), 'url': s.share_url},
+                         'splash': s.splash_payload()})
 
 
 @nocache_page

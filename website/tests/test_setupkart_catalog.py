@@ -313,6 +313,22 @@ def test_config_share_message_link_from_admin(client):
 
 
 @pytest.mark.django_db
+def test_config_splash_image_from_admin(client):
+    from wagtail.images.tests.utils import get_test_image_file
+    from wagtail.images import get_image_model
+    from wagtail.models import Collection
+    from website.models import AppSyncSettings
+    if not Collection.get_first_root_node():
+        Collection.add_root(name='Root')
+    assert client.get('/api/setupkart/config/').json()['splash'] is None
+    s = AppSyncSettings.get()
+    s.splash_image = get_image_model().objects.create(title='Заставка', file=get_test_image_file(size=(60, 120)))
+    s.save()
+    splash = client.get('/api/setupkart/config/').json()['splash']
+    assert splash['url'].endswith('.webp') and (splash['width'], splash['height']) == (60, 120)
+
+
+@pytest.mark.django_db
 def test_track_suggestion_needs_coordinates_and_groups_by_name(client):
     post = lambda body: client.post('/api/setupkart/suggestions/', body, content_type='application/json')
     assert post({'field_key': 'track', 'value': 'Картодром Х', 'client_id': 'c1'}).status_code == 400

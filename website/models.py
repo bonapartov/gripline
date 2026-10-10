@@ -4639,6 +4639,12 @@ class AppSyncSettings(models.Model):
     share_url = models.URLField(
         "Ссылка «Рекомендовать приложение»", default="https://gripline.ru",
         help_text="Куда ведёт рекомендация: страница приложения, Google Play, RuStore и т. п.")
+    splash_image = models.ForeignKey(
+        'wagtailimages.Image', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+        verbose_name="Фото при запуске",
+        help_text="На весь экран, пока приложение загружается. Вертикальное (например 1080×1920), главное — "
+                  "по центру: края обрезаются под экран телефона. Новое фото появится со следующего запуска "
+                  "после связи с сайтом. Пусто — тёмный экран.")
     updated_at = models.DateTimeField("Изменено", auto_now=True)
 
     panels = [
@@ -4650,7 +4656,16 @@ class AppSyncSettings(models.Model):
         MultiFieldPanel([FieldPanel('share_text'), FieldPanel('share_url')],
                         heading="«Рекомендовать приложение»",
                         help_text="Пункт меню в приложении; изменения доходят при следующей связи с сайтом."),
+        FieldPanel('splash_image'),
     ]
+
+    def splash_payload(self):
+        """{url, width, height} или None. URL меняется вместе с файлом — по нему приложение видит новое фото."""
+        if not self.splash_image:
+            return None
+        from django.conf import settings
+        r = self.splash_image.get_rendition('max-1440x3200|format-webp|webpquality-85')
+        return {'url': f"{settings.BASE_URL.rstrip('/')}{r.url}", 'width': r.width, 'height': r.height}
 
     def share_message(self):
         text = (self.share_text or '').strip()
