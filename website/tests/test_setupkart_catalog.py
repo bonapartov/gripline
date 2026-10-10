@@ -367,3 +367,51 @@ def test_sync_settings_admin_page(admin_client):
     s = AppSyncSettings.get()
     assert admin_client.get('/admin/website/appsyncsettings/').status_code == 200
     assert admin_client.get(f'/admin/website/appsyncsettings/edit/{s.pk}/').status_code == 200
+
+
+@pytest.mark.django_db
+def test_config_pro_defaults_off_and_admin_changes(client):
+    pro = client.get('/api/setupkart/config/').json()['pro']
+    assert pro['enabled'] is False, 'пока выключено — в приложении всё бесплатно'
+    assert pro['trial_days'] == 30
+    assert pro['features']['saved_sessions'] == {'limit': 10}
+    assert pro['features']['karts'] == {'limit': 1}
+    assert pro['features']['compare'] == {'tier': 'pro'}
+    assert pro['features']['share_setup'] == {'tier': 'free'}
+    from website.models import AppProFeature, AppProSettings
+    s = AppProSettings.get()
+    s.enabled, s.price_text = True, '990 ₽'
+    s.save()
+    AppProFeature.objects.filter(key='saved_sessions').update(free_limit=None)
+    AppProFeature.objects.filter(key='compare').update(tier='free')
+    pro = client.get('/api/setupkart/config/').json()['pro']
+    assert (pro['enabled'], pro['price']) == (True, '990 ₽')
+    assert pro['features']['saved_sessions'] == {'limit': None}, 'пусто — без лимита'
+    assert pro['features']['compare'] == {'tier': 'free'}
+
+
+@pytest.mark.django_db
+def test_pro_feature_validation():
+    from django.core.exceptions import ValidationError
+    from website.models import AppProFeature, AppProSettings
+    s = AppProSettings.get()
+    with pytest.raises(ValidationError):
+        AppProFeature(settings=s, key='compare', tier='pro', free_limit=3).clean()
+    with pytest.raises(ValidationError):
+        AppProFeature(settings=s, key='karts', tier='pro', free_limit=1).clean()
+    AppProFeature(settings=s, key='karts', tier='free', free_limit=0).clean()
+
+
+@pytest.mark.django_db
+def test_pro_admin_page_opens_and_saves(client, django_user_model):
+    from wagtail.models import Locale, Page
+    if not Locale.objects.exists():
+        Locale.objects.create(language_code='ru')
+    if not Page.objects.filter(depth=1).exists():
+        Page.add_root(title='Root', slug='root')
+    admin = django_user_model.objects.create_superuser('boss', 'b@example.ru', 'x')
+    client.force_login(admin)
+    assert client.get('/admin/website/appprosettings/').status_code == 200
+    page = client.get('/admin/website/appprosettings/edit/1/')
+    assert page.status_code == 200
+    assert 'Сохранённые сессии' in page.content.decode()

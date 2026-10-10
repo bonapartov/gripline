@@ -20,7 +20,7 @@ from wagtailcache.cache import nocache_page
 
 from mysite.security import get_client_ip
 from website.models import (
-    APP_ENGINE_FIELD_CHOICES, APP_PARAMETER_CHOICES, AppSuggestion, AppSyncSettings, Engine, Track,
+    APP_ENGINE_FIELD_CHOICES, APP_PARAMETER_CHOICES, AppProSettings, AppSuggestion, AppSyncSettings, Engine, Track,
 )
 from .catalog import latest_version
 
@@ -129,7 +129,8 @@ def config(request):
     s = AppSyncSettings.get()
     return JsonResponse({'sync_interval_minutes': s.sync_interval_minutes, 'about': s.about_payload(),
                          'share': {'text': s.share_message(), 'url': s.share_url},
-                         'splash': s.splash_payload()})
+                         'splash': s.splash_payload(),
+                         'pro': AppProSettings.get().payload()})
 
 
 @nocache_page

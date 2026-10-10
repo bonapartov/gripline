@@ -4703,6 +4703,117 @@ class AppSyncSettings(models.Model):
         return obj
 
 
+# Функции приложения для разграничения бесплатной и Pro-версии (решение 10.10.2026). Список задаётся
+# здесь — новая функция появляется только с новой версией приложения; в админке выбирается «Бесплатно»/«Pro»
+# и лимиты. (ключ, название, вид: 'limit' — лимит для бесплатной версии, 'toggle' — Бесплатно/Pro, умолчание)
+APP_PRO_FEATURES = [
+    ('saved_sessions', 'Сохранённые сессии', 'limit', 10),
+    ('karts', 'Карты', 'limit', 1),
+    ('engines', 'Двигатели', 'limit', 1),
+    ('compare', 'Сравнение сетапов', 'toggle', 'pro'),
+    ('engine_service', 'Моточасы и интервалы ТО', 'toggle', 'pro'),
+    ('track_records', 'Рекорды трасс с сайта', 'toggle', 'pro'),
+    ('laps_analysis', 'Анализ кругов (статистика и график)', 'toggle', 'pro'),
+    ('dictation', 'Диктовка заметок', 'toggle', 'pro'),
+    ('stopwatch', 'Секундомер', 'toggle', 'free'),
+    ('quick_change', 'Быстрая правка', 'toggle', 'free'),
+    ('share_setup', 'Обмен сетапами (.gripsetup)', 'toggle', 'free'),
+    ('weather', 'Погода', 'toggle', 'free'),
+]
+APP_PRO_FEATURE_KINDS = {k: kind for k, _, kind, _ in APP_PRO_FEATURES}
+
+
+class AppProSettings(ClusterableModel):
+    """Pro-версия приложения GripLine SetupKart (singleton, AppProSettings.get()). Пока платная версия
+    выключена, в приложении всё доступно всем. Оплата (RuStore) — следующий этап."""
+    enabled = models.BooleanField(
+        "Платная версия включена", default=False,
+        help_text="Выключено — в приложении всё бесплатно у всех. Включено — действуют пробный период и "
+                  "разграничение ниже.")
+    trial_days = models.PositiveIntegerField(
+        "Пробный период, дней", default=30, validators=[MaxValueValidator(365)],
+        help_text="С первого запуска приложения всё доступно, как в Pro. 0 — без пробного периода.")
+    price_text = models.CharField("Цена (для показа)", max_length=40, blank=True, help_text="Например «990 ₽».")
+    purchase_url = models.URLField(
+        "Ссылка на покупку", blank=True,
+        help_text="Временная — пока нет оплаты в приложении (например, страница в RuStore). Пусто — кнопка "
+                  "«Купить» показывает «скоро».")
+    description = models.TextField(
+        "Текст на экране «Pro-версия»", blank=True,
+        default="Одна покупка — навсегда, без подписки. Все ваши сетапы остаются доступны в любой версии.")
+    updated_at = models.DateTimeField("Изменено", auto_now=True)
+
+    panels = [
+        FieldPanel('enabled'),
+        FieldRowPanel([FieldPanel('trial_days'), FieldPanel('price_text')]),
+        FieldPanel('purchase_url'),
+        FieldPanel('description'),
+        InlinePanel('features', label="Функция",
+                    heading="Функции: бесплатно или Pro",
+                    help_text="Для «Сохранённые сессии», «Карты», «Двигатели» — лимит бесплатной версии "
+                              "(пусто — без лимита). Для остальных — «Бесплатно» или «Pro». Сохранённое "
+                              "пользователем никогда не блокируется: лимит запрещает только создавать сверх него."),
+    ]
+
+    class Meta:
+        verbose_name = "Pro-версия"
+        verbose_name_plural = "Pro-версия"
+
+    def __str__(self):
+        return "Pro-версия: " + ("включена" if self.enabled else "выключена (всё бесплатно)")
+
+    @classmethod
+    def get(cls):
+        obj, created = cls.objects.get_or_create(pk=1)
+        if created or not obj.features.exists():
+            for key, _, kind, default in APP_PRO_FEATURES:
+                AppProFeature.objects.get_or_create(
+                    settings=obj, key=key,
+                    defaults={'tier': 'free' if kind == 'limit' else default,
+                              'free_limit': default if kind == 'limit' else None})
+        return obj
+
+    def payload(self):
+        rows = {f.key: f for f in self.features.all()}
+        features = {}
+        for key, _, kind, default in APP_PRO_FEATURES:
+            f = rows.get(key)
+            if kind == 'limit':
+                features[key] = {'limit': f.free_limit if f else default}
+            else:
+                features[key] = {'tier': f.tier if f else default}
+        return {'enabled': self.enabled, 'trial_days': self.trial_days, 'price': self.price_text.strip(),
+                'purchase_url': self.purchase_url, 'description': self.description.strip(), 'features': features}
+
+
+class AppProFeature(Orderable):
+    settings = ParentalKey(AppProSettings, on_delete=models.CASCADE, related_name='features')
+    key = models.CharField("Функция", max_length=30, choices=[(k, name) for k, name, _, _ in APP_PRO_FEATURES])
+    tier = models.CharField("Доступна", max_length=10, choices=[('free', 'Бесплатно'), ('pro', 'Только Pro')],
+                            default='free')
+    free_limit = models.PositiveIntegerField(
+        "Лимит бесплатной версии", null=True, blank=True,
+        help_text="Только для «Сохранённые сессии», «Карты», «Двигатели»; пусто — без лимита.")
+
+    panels = [FieldRowPanel([FieldPanel('key'), FieldPanel('tier'), FieldPanel('free_limit')])]
+
+    class Meta(Orderable.Meta):
+        verbose_name = "Функция"
+        verbose_name_plural = "Функции"
+        constraints = [models.UniqueConstraint(fields=['settings', 'key'], name='app_pro_feature_unique_key')]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        kind = APP_PRO_FEATURE_KINDS.get(self.key)
+        if kind == 'toggle' and self.free_limit is not None:
+            raise ValidationError({'free_limit': 'Лимит бывает только у сессий, картов и двигателей.'})
+        if kind == 'limit' and self.tier != 'free':
+            raise ValidationError({'tier': 'У лимитов выбирается число, а не «Только Pro». Лимит 0 — только в Pro.'})
+
+    def __str__(self):
+        return self.get_key_display()
+
+
 class AppCatalogVersion(models.Model):
     """Опубликованная версия справочников. Приложение получает только опубликованное."""
     version = models.PositiveIntegerField("Версия", unique=True)

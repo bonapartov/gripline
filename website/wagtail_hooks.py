@@ -322,7 +322,7 @@ modeladmin_register(DataRequestAdmin)
 
 
 # ---------- Приложение GripLine SetupKart (ТЗ приложения §13.3) ----------
-from .models import AppHelpImage, AppParameter, AppSyncSettings  # noqa: E402
+from .models import AppHelpImage, AppParameter, AppProSettings, AppSyncSettings  # noqa: E402
 from .setupkart import admin_views as setupkart_admin_views  # noqa: E402
 from .setupkart import chassis_images as setupkart_chassis_images  # noqa: E402
 
@@ -342,6 +342,18 @@ class AppSyncSettingsAdmin(ModelAdmin):
     list_display = ('__str__', 'updated_at')
 
 
+class AppProSettingsAdmin(ModelAdmin):
+    model = AppProSettings
+    menu_label = 'Pro-версия'
+    menu_icon = 'pick'
+    menu_order = 360
+    list_display = ('__str__', 'updated_at')
+
+    def get_queryset(self, request):
+        AppProSettings.get()  # первая запись с функциями по умолчанию
+        return super().get_queryset(request)
+
+
 class AppHelpImageAdmin(ModelAdmin):
     model = AppHelpImage
     menu_label = 'Картинки-подсказки'
@@ -359,7 +371,7 @@ class SetupKartGroup(ModelAdminGroup):
     menu_label = 'Приложение'
     menu_icon = 'mobile-alt'
     menu_order = 360
-    items = (AppParameterAdmin, AppHelpImageAdmin, AppSyncSettingsAdmin)
+    items = (AppParameterAdmin, AppHelpImageAdmin, AppSyncSettingsAdmin, AppProSettingsAdmin)
 
     def get_submenu_items(self):
         items = super().get_submenu_items()
