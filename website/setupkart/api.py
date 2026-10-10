@@ -130,6 +130,7 @@ def config(request):
     return JsonResponse({'sync_interval_minutes': s.sync_interval_minutes, 'about': s.about_payload(),
                          'share': {'text': s.share_message(), 'url': s.share_url},
                          'splash': s.splash_payload(),
+                         'splash_seconds': float(s.splash_seconds),
                          'pro': AppProSettings.get().payload()})
 
 

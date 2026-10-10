@@ -4645,6 +4645,11 @@ class AppSyncSettings(models.Model):
         help_text="На весь экран, пока приложение загружается. Вертикальное (например 1080×1920), главное — "
                   "по центру: края обрезаются под экран телефона. Новое фото появится со следующего запуска "
                   "после связи с сайтом. Пусто — тёмный экран.")
+    splash_seconds = models.DecimalField(
+        "Сколько показывать фото, секунд", max_digits=3, decimal_places=1, default=2,
+        validators=[MinValueValidator(0), MaxValueValidator(10)],
+        help_text="Не меньше этого времени (если приложение загрузилось раньше); нажатие на фото закрывает его "
+                  "сразу. 0 — только пока приложение загружается.")
     updated_at = models.DateTimeField("Изменено", auto_now=True)
 
     panels = [
@@ -4656,7 +4661,7 @@ class AppSyncSettings(models.Model):
         MultiFieldPanel([FieldPanel('share_text'), FieldPanel('share_url')],
                         heading="«Рекомендовать приложение»",
                         help_text="Пункт меню в приложении; изменения доходят при следующей связи с сайтом."),
-        FieldPanel('splash_image'),
+        FieldRowPanel([FieldPanel('splash_image'), FieldPanel('splash_seconds')]),
     ]
 
     def splash_payload(self):

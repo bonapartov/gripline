@@ -320,7 +320,8 @@ def test_config_splash_image_from_admin(client):
     from website.models import AppSyncSettings
     if not Collection.get_first_root_node():
         Collection.add_root(name='Root')
-    assert client.get('/api/setupkart/config/').json()['splash'] is None
+    data = client.get('/api/setupkart/config/').json()
+    assert (data['splash'], data['splash_seconds']) == (None, 2.0)
     s = AppSyncSettings.get()
     s.splash_image = get_image_model().objects.create(title='Заставка', file=get_test_image_file(size=(60, 120)))
     s.save()
