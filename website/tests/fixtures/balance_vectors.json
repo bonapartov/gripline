@@ -1,0 +1,272 @@
+{
+ "thresholds": {
+  "front_rear": {
+   "green_min": 42.5,
+   "green_max": 43.5,
+   "yellow_min": 42.0,
+   "yellow_max": 44.0
+  },
+  "left_right": {
+   "green_min": 49.5,
+   "green_max": 50.5,
+   "yellow_min": 49.0,
+   "yellow_max": 51.0
+  },
+  "cross_weight": {
+   "green_min": 49.5,
+   "green_max": 50.5,
+   "yellow_min": 48.0,
+   "yellow_max": 52.0
+  }
+ },
+ "cases": [
+  {
+   "name": "идеал 43/57, 50/50, cross 50",
+   "corners": {
+    "lf": 40,
+    "rf": 40,
+    "lr": 53,
+    "rr": 53
+   },
+   "min_weight_kg": null,
+   "weather": null,
+   "metrics": {
+    "total_kg": 186.0,
+    "front_pct": 43.0,
+    "rear_pct": 57.0,
+    "left_pct": 50.0,
+    "right_pct": 50.0,
+    "cross_pct": 50.0
+   },
+   "classification": {
+    "front_rear": "green",
+    "left_right": "green",
+    "cross_weight": "green"
+   },
+   "margin_kg": null,
+   "diagnosis": []
+  },
+  {
+   "name": "перегружен перед",
+   "corners": {
+    "lf": 45,
+    "rf": 45,
+    "lr": 50,
+    "rr": 50
+   },
+   "min_weight_kg": null,
+   "weather": null,
+   "metrics": {
+    "total_kg": 190.0,
+    "front_pct": 47.4,
+    "rear_pct": 52.6,
+    "left_pct": 50.0,
+    "right_pct": 50.0,
+    "cross_pct": 50.0
+   },
+   "classification": {
+    "front_rear": "red",
+    "left_right": "green",
+    "cross_weight": "green"
+   },
+   "margin_kg": null,
+   "diagnosis": [
+    "front_high"
+   ]
+  },
+  {
+   "name": "недогружен перед",
+   "corners": {
+    "lf": 36,
+    "rf": 36,
+    "lr": 54,
+    "rr": 54
+   },
+   "min_weight_kg": null,
+   "weather": null,
+   "metrics": {
+    "total_kg": 180.0,
+    "front_pct": 40.0,
+    "rear_pct": 60.0,
+    "left_pct": 50.0,
+    "right_pct": 50.0,
+    "cross_pct": 50.0
+   },
+   "classification": {
+    "front_rear": "red",
+    "left_right": "green",
+    "cross_weight": "green"
+   },
+   "margin_kg": null,
+   "diagnosis": [
+    "front_low"
+   ]
+  },
+  {
+   "name": "cross плохой при нормальном L/R",
+   "corners": {
+    "lf": 42,
+    "rf": 38,
+    "lr": 52,
+    "rr": 56
+   },
+   "min_weight_kg": null,
+   "weather": null,
+   "metrics": {
+    "total_kg": 188.0,
+    "front_pct": 42.6,
+    "rear_pct": 57.4,
+    "left_pct": 50.0,
+    "right_pct": 50.0,
+    "cross_pct": 47.9
+   },
+   "classification": {
+    "front_rear": "green",
+    "left_right": "green",
+    "cross_weight": "red"
+   },
+   "margin_kg": null,
+   "diagnosis": [
+    "cross_mechanical",
+    "cross_diagonal"
+   ]
+  },
+  {
+   "name": "асимметрия лево/право",
+   "corners": {
+    "lf": 45,
+    "rf": 35,
+    "lr": 58,
+    "rr": 48
+   },
+   "min_weight_kg": null,
+   "weather": null,
+   "metrics": {
+    "total_kg": 186.0,
+    "front_pct": 43.0,
+    "rear_pct": 57.0,
+    "left_pct": 55.4,
+    "right_pct": 44.6,
+    "cross_pct": 50.0
+   },
+   "classification": {
+    "front_rear": "green",
+    "left_right": "red",
+    "cross_weight": "green"
+   },
+   "margin_kg": null,
+   "diagnosis": [
+    "lr_asymmetry"
+   ]
+  },
+  {
+   "name": "недобор минималки и дождь",
+   "corners": {
+    "lf": 40,
+    "rf": 40,
+    "lr": 53,
+    "rr": 53
+   },
+   "min_weight_kg": 190,
+   "weather": "wet",
+   "metrics": {
+    "total_kg": 186.0,
+    "front_pct": 43.0,
+    "rear_pct": 57.0,
+    "left_pct": 50.0,
+    "right_pct": 50.0,
+    "cross_pct": 50.0
+   },
+   "classification": {
+    "front_rear": "green",
+    "left_right": "green",
+    "cross_weight": "green"
+   },
+   "margin_kg": -4.0,
+   "diagnosis": [
+    "wet_weather",
+    "under_min_weight|4.0"
+   ]
+  },
+  {
+   "name": "десятые доли и округление",
+   "corners": {
+    "lf": 40.3,
+    "rf": 39.8,
+    "lr": 53.1,
+    "rr": 52.7
+   },
+   "min_weight_kg": 180,
+   "weather": null,
+   "metrics": {
+    "total_kg": 185.9,
+    "front_pct": 43.1,
+    "rear_pct": 56.9,
+    "left_pct": 50.2,
+    "right_pct": 49.8,
+    "cross_pct": 50.0
+   },
+   "classification": {
+    "front_rear": "green",
+    "left_right": "green",
+    "cross_weight": "green"
+   },
+   "margin_kg": 5.9,
+   "diagnosis": []
+  },
+  {
+   "name": "жёлтая зона перед",
+   "corners": {
+    "lf": 40.5,
+    "rf": 40.5,
+    "lr": 55.5,
+    "rr": 55.5
+   },
+   "min_weight_kg": null,
+   "weather": null,
+   "metrics": {
+    "total_kg": 192.0,
+    "front_pct": 42.2,
+    "rear_pct": 57.8,
+    "left_pct": 50.0,
+    "right_pct": 50.0,
+    "cross_pct": 50.0
+   },
+   "classification": {
+    "front_rear": "yellow",
+    "left_right": "green",
+    "cross_weight": "green"
+   },
+   "margin_kg": null,
+   "diagnosis": []
+  },
+  {
+   "name": "cross в жёлтой зоне при нормальном L/R",
+   "corners": {
+    "lf": 41,
+    "rf": 39,
+    "lr": 52,
+    "rr": 54
+   },
+   "min_weight_kg": null,
+   "weather": null,
+   "metrics": {
+    "total_kg": 186.0,
+    "front_pct": 43.0,
+    "rear_pct": 57.0,
+    "left_pct": 50.0,
+    "right_pct": 50.0,
+    "cross_pct": 48.9
+   },
+   "classification": {
+    "front_rear": "green",
+    "left_right": "green",
+    "cross_weight": "yellow"
+   },
+   "margin_kg": null,
+   "diagnosis": [
+    "cross_diagonal"
+   ]
+  }
+ ]
+}

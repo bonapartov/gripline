@@ -109,7 +109,7 @@ def test_seed_explicit_engine_and_family():
 @pytest.mark.django_db
 def test_payload_contains_only_flagged_and_live_records():
     e = rotax_seeded()
-    rc = RaceClass.objects.create(name='Rotax Junior', sort_order=10)
+    rc = RaceClass.objects.create(name='Rotax Junior', sort_order=10, min_weight_kg=145)
     e.app_race_classes.add(rc)
     e.save()  # ParentalManyToMany пишется только при save()
     make_engine('Hidden', show=False)
@@ -130,7 +130,15 @@ def test_payload_contains_only_flagged_and_live_records():
                                     'options': ['GR8DI-8', 'GR9DI-8'], 'default': 'GR9DI-8', 'allow_custom': True}
     assert [c['name'] for c in p['chassis']] == ['Tony Kart']
     assert [t['name'] for t in p['tyre_brands']] == ['Vega']
-    assert p['race_classes'] == [{'id': rc.pk, 'name': 'Rotax Junior', 'sort_order': 10}]
+    assert p['race_classes'] == [{'id': rc.pk, 'name': 'Rotax Junior', 'sort_order': 10, 'min_weight_kg': 145.0}]
+    assert p['balance'] == {'thresholds': {}, 'rules': {}}, 'пустая «Развесовка» — пустые пороги и правила'
+    from website.models import BalanceDiagnosticRule, BalanceThreshold
+    BalanceThreshold.objects.create(metric='front_rear', green_min=42.5, green_max=43.5, yellow_min=42, yellow_max=44)
+    BalanceDiagnosticRule.objects.create(condition='front_high', text='Перегружен перед')
+    balance = catalog.build_payload()['balance']
+    assert balance['thresholds']['front_rear'] == {'green_min': 42.5, 'green_max': 43.5, 'yellow_min': 42.0,
+                                                   'yellow_max': 44.0}
+    assert balance['rules']['front_high'] == {'text': 'Перегружен перед', 'article_url': ''}
     assert set(p['params']) >= {'hub_width_mm', 'sprocket_teeth', 'spacer'}
 
 

@@ -1589,7 +1589,11 @@ class RaceClass(models.Model):
         help_text="Тип шасси, картинка которого показывается в приложении GripLine SetupKart для этого класса. "
                   "Пусто — встроенная схема. Картинки: «Техника» → «Картинки шасси».",
     )
-    panels = [FieldPanel('name'), FieldPanel('sort_order'), FieldPanel('app_chassis_image')]
+    min_weight_kg = models.DecimalField(
+        "Минимальный вес с пилотом, кг", max_digits=5, decimal_places=1, null=True, blank=True,
+        help_text="По регламенту класса. Приложение GripLine SetupKart сверяет с ним вес по углам (развесовка) "
+                  "и предупреждает о недоборе. Пусто — проверки нет. Доходит до приложения после «Публикации».")
+    panels = [FieldPanel('name'), FieldPanel('sort_order'), FieldPanel('app_chassis_image'), FieldPanel('min_weight_kg')]
 
     def __str__(self):
         return self.name
@@ -4720,6 +4724,7 @@ APP_PRO_FEATURES = [
     ('track_records', 'Рекорды трасс с сайта', 'toggle', 'pro'),
     ('laps_analysis', 'Анализ кругов (статистика и график)', 'toggle', 'pro'),
     ('dictation', 'Диктовка заметок', 'toggle', 'pro'),
+    ('balance_diagnosis', 'Диагностика развесовки', 'toggle', 'pro'),
     ('stopwatch', 'Секундомер', 'toggle', 'free'),
     ('quick_change', 'Быстрая правка', 'toggle', 'free'),
     ('share_setup', 'Обмен сетапами (.gripsetup)', 'toggle', 'free'),
@@ -4770,7 +4775,8 @@ class AppProSettings(ClusterableModel):
     @classmethod
     def get(cls):
         obj, created = cls.objects.get_or_create(pk=1)
-        if created or not obj.features.exists():
+        # Новые функции из кода (с новой версией приложения) дописываются со значением по умолчанию.
+        if created or obj.features.count() < len(APP_PRO_FEATURES):
             for key, _, kind, default in APP_PRO_FEATURES:
                 AppProFeature.objects.get_or_create(
                     settings=obj, key=key,

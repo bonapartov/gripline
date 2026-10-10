@@ -56,6 +56,22 @@ def _tyre_brand_payload(brand):
     }
 
 
+def _balance_payload():
+    """Развесовка в приложении: пороги цветовых зон и тексты диагностики из «Развесовки» (те же, что на
+    /balance/). Формулы — в приложении (третья копия: Python/JS/Dart, сверяются общими контрольными
+    примерами website/tests/fixtures/balance_vectors.json)."""
+    from django.conf import settings
+    from website.models import BalanceDiagnosticRule, BalanceThreshold
+    base = settings.BASE_URL.rstrip('/')
+    return {
+        'thresholds': {t.metric: {'green_min': float(t.green_min), 'green_max': float(t.green_max),
+                                  'yellow_min': float(t.yellow_min), 'yellow_max': float(t.yellow_max)}
+                       for t in BalanceThreshold.objects.all()},
+        'rules': {r.condition: {'text': r.text, 'article_url': f"{base}{r.article.url}" if r.article_id else ''}
+                  for r in BalanceDiagnosticRule.objects.select_related('article')},
+    }
+
+
 def build_payload():
     """Текущее состояние админки в формате, который получает приложение."""
     engines = list(app_engines())
@@ -64,8 +80,10 @@ def build_payload():
     return {
         'schema': SCHEMA,
         'engines': [_engine_payload(e) for e in engines],
-        'race_classes': [{'id': rc.pk, 'name': rc.name, 'sort_order': rc.sort_order}
+        'race_classes': [{'id': rc.pk, 'name': rc.name, 'sort_order': rc.sort_order,
+                          'min_weight_kg': float(rc.min_weight_kg) if rc.min_weight_kg else None}
                          for rc in RaceClass.objects.filter(pk__in=class_ids)],
+        'balance': _balance_payload(),
         # Популярные марки (больше результатов на сайте) — первыми; синонимы — для «Другое…».
         'chassis': [{'id': c.pk, 'name': c.name, 'aliases': c.alias_list()}
                     for c in _live(Chassis.objects).annotate(n=Count('race_results')).order_by('-n', 'name')],
