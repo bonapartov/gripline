@@ -4607,6 +4607,8 @@ APP_ABOUT_TEXT_DEFAULT = (
     "сессиями и не потерять то, что сработало. Есть идея или нашли ошибку — напишите нам."
 )
 
+APP_SHARE_TEXT_DEFAULT = "Веду настройки карта в приложении GripLine SetupKart — попробуй: {link}"
+
 
 class AppSyncSettings(models.Model):
     """Связь приложения GripLine SetupKart с сайтом (singleton, AppSyncSettings.get()).
@@ -4630,6 +4632,13 @@ class AppSyncSettings(models.Model):
     about_text = models.TextField(
         "Текст «О нас»", blank=True, default=APP_ABOUT_TEXT_DEFAULT,
         help_text="Показывается в приложении внизу экрана «О приложении», под логотипом Gripline.")
+    share_text = models.TextField(
+        "Текст «Рекомендовать приложение»", blank=True, default=APP_SHARE_TEXT_DEFAULT,
+        help_text="Уходит через стандартное меню «Поделиться». {link} — место для ссылки; "
+                  "без {link} ссылка добавляется в конце.")
+    share_url = models.URLField(
+        "Ссылка «Рекомендовать приложение»", default="https://gripline.ru",
+        help_text="Куда ведёт рекомендация: страница приложения, Google Play, RuStore и т. п.")
     updated_at = models.DateTimeField("Изменено", auto_now=True)
 
     panels = [
@@ -4638,7 +4647,16 @@ class AppSyncSettings(models.Model):
                          FieldPanel('contact_telegram')],
                         heading="«О приложении» — сайт и контакты",
                         help_text="Приложение получает изменения при следующей связи с сайтом, без новой версии."),
+        MultiFieldPanel([FieldPanel('share_text'), FieldPanel('share_url')],
+                        heading="«Рекомендовать приложение»",
+                        help_text="Пункт меню в приложении; изменения доходят при следующей связи с сайтом."),
     ]
+
+    def share_message(self):
+        text = (self.share_text or '').strip()
+        if '{link}' in text:
+            return text.replace('{link}', self.share_url)
+        return f"{text} {self.share_url}".strip()
 
     def telegram_url(self):
         t = (self.contact_telegram or '').strip()

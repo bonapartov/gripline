@@ -298,6 +298,21 @@ def test_config_returns_sync_interval_from_admin(client):
 
 
 @pytest.mark.django_db
+def test_config_share_message_link_from_admin(client):
+    data = client.get('/api/setupkart/config/').json()
+    assert data['share'] == {
+        'text': 'Веду настройки карта в приложении GripLine SetupKart — попробуй: https://gripline.ru',
+        'url': 'https://gripline.ru'}
+    from website.models import AppSyncSettings
+    s = AppSyncSettings.get()
+    s.share_text = 'Попробуй GripLine SetupKart'
+    s.share_url = 'https://example.ru/app'
+    s.save()
+    assert client.get('/api/setupkart/config/').json()['share']['text'] == \
+        'Попробуй GripLine SetupKart https://example.ru/app', 'без {link} — ссылка в конце'
+
+
+@pytest.mark.django_db
 def test_track_suggestion_needs_coordinates_and_groups_by_name(client):
     post = lambda body: client.post('/api/setupkart/suggestions/', body, content_type='application/json')
     assert post({'field_key': 'track', 'value': 'Картодром Х', 'client_id': 'c1'}).status_code == 400
