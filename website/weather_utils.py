@@ -165,6 +165,22 @@ def _dominant_code(codes):
     return max(order, key=lambda c: counts[c])
 
 
+# Open-Meteo вызывается прямо при рендере страниц (главная, этап). Если сервис недоступен с сервера,
+# последовательные запросы (оценка по 5 прошлым годам) по 10 с каждый превышали таймаут gunicorn (30 с) —
+# воркер убивался, посетитель получал 500 (11.10.2026). Поэтому: короткий таймаут соединения и «выключатель»:
+# после сетевой ошибки сервис не опрашивается OPEN_METEO_DOWN_SECONDS.
+OPEN_METEO_TIMEOUT = (3, 8)  # (соединение, чтение), с
+OPEN_METEO_DOWN_KEY = "weather:open-meteo:down"
+OPEN_METEO_DOWN_SECONDS = 300
+# Неудачный результат виджета кэшируется ненадолго, чтобы не повторять запросы на каждом показе страницы.
+WEATHER_FAILURE_CACHE_SECONDS = 900
+_FAILED = "failed"
+
+
+def _open_meteo_down():
+    return bool(cache.get(OPEN_METEO_DOWN_KEY))
+
+
 def _fetch_hourly_range(base_url, latitude, longitude, target_date,
                          start_hour=None, end_hour=None):
     """
@@ -196,8 +212,10 @@ def _fetch_hourly_range(base_url, latitude, longitude, target_date,
         "timezone": settings_obj.timezone,
     }
 
+    if _open_meteo_down():
+        return None
     try:
-        response = requests.get(base_url, params=params, timeout=10)
+        response = requests.get(base_url, params=params, timeout=OPEN_METEO_TIMEOUT)
         response.raise_for_status()
         data = response.json()
 
@@ -220,6 +238,10 @@ def _fetch_hourly_range(base_url, latitude, longitude, target_date,
             "precipitation": [hourly.get("precipitation", [])[i] for i in indices],
             "weathercode": [hourly.get("weathercode", [])[i] for i in indices],
         }
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+        cache.set(OPEN_METEO_DOWN_KEY, True, OPEN_METEO_DOWN_SECONDS)
+        logger.error(f"Open-Meteo недоступен ({base_url}), пауза {OPEN_METEO_DOWN_SECONDS} с: {e}")
+        return None
     except requests.exceptions.RequestException as e:
         logger.error(f"Ошибка при запросе к Open-Meteo ({base_url}): {e}")
         return None
@@ -335,6 +357,8 @@ def fetch_climatology_estimate(latitude, longitude, target_date, years=None):
         except ValueError:
             # 29 февраля в невисокосном прошлом году
             past_date = target_date.replace(year=target_date.year - i, day=28)
+        if _open_meteo_down():
+            break
         samples.append(_fetch_hourly_range(settings_obj.archive_api_url, latitude, longitude, past_date))
 
     merged = _merge_hourly_samples(samples)
@@ -368,10 +392,12 @@ def _get_weather_widget_for_date(cache_namespace, cache_id, latitude, longitude,
             cache_key = f"weather:{cache_namespace}:{cache_id}:archive:{target_date.isoformat()}"
             cached = cache.get(cache_key)
             if cached is not None:
-                return cached
+                return None if cached == _FAILED else cached
             data = fetch_archive_day_weather(latitude, longitude, target_date)
             if data:
                 cache.set(cache_key, data, timeout=None)
+            else:
+                cache.set(cache_key, _FAILED, WEATHER_FAILURE_CACHE_SECONDS)
             return data
 
         from .models import WeatherSettings
@@ -380,7 +406,7 @@ def _get_weather_widget_for_date(cache_namespace, cache_id, latitude, longitude,
         cache_key = f"weather:{cache_namespace}:{cache_id}:{category}:{target_date.isoformat()}:{today.isoformat()}"
         cached = cache.get(cache_key)
         if cached is not None:
-            return cached
+            return None if cached == _FAILED else cached
 
         if category == "forecast":
             data = fetch_forecast_weather(latitude, longitude, target_date)
@@ -389,6 +415,8 @@ def _get_weather_widget_for_date(cache_namespace, cache_id, latitude, longitude,
 
         if data:
             cache.set(cache_key, data)
+        else:
+            cache.set(cache_key, _FAILED, WEATHER_FAILURE_CACHE_SECONDS)
         return data
     except Exception as e:
         logger.error(f"Неожиданная ошибка в _get_weather_widget_for_date ({cache_namespace}={cache_id}): {e}")
