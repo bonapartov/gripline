@@ -165,16 +165,13 @@ def _dominant_code(codes):
     return max(order, key=lambda c: counts[c])
 
 
-# Open-Meteo вызывается прямо при рендере страниц (главная, этап). Если сервис недоступен с сервера,
+# Open-Meteo раньше вызывался прямо при рендере страниц (главная, этап). Если сервис недоступен с сервера,
 # последовательные запросы (оценка по 5 прошлым годам) по 10 с каждый превышали таймаут gunicorn (30 с) —
 # воркер убивался, посетитель получал 500 (11.10.2026). Поэтому: короткий таймаут соединения и «выключатель»:
 # после сетевой ошибки сервис не опрашивается OPEN_METEO_DOWN_SECONDS.
 OPEN_METEO_TIMEOUT = (3, 8)  # (соединение, чтение), с
 OPEN_METEO_DOWN_KEY = "weather:open-meteo:down"
 OPEN_METEO_DOWN_SECONDS = 300
-# Неудачный результат виджета кэшируется ненадолго, чтобы не повторять запросы на каждом показе страницы.
-WEATHER_FAILURE_CACHE_SECONDS = 900
-_FAILED = "failed"
 
 
 def _open_meteo_down():
@@ -369,102 +366,83 @@ def fetch_climatology_estimate(latitude, longitude, target_date, years=None):
     return _build_widget_data(merged, category="estimate", badge_label="ПРИБЛИЗИТЕЛЬНО", disclaimer=disclaimer)
 
 
-def _get_weather_widget_for_date(cache_namespace, cache_id, latitude, longitude, target_date):
-    """
-    Общая логика кэшированного погодного виджета на день — используется и
-    для StagePage (get_stage_weather), и для RaceClassResultGroup
-    (get_group_forecast_weather). Категория по target_date:
-        прошёл          → archive (кэш навсегда, дата не меняется)
-        ≤горизонт вперёд → forecast (кэш до конца дня — ключ содержит "сегодня")
-        дальше           → estimate (статистика прошлых лет, кэш до конца дня)
-    Возвращает None при отсутствии данных или любой сетевой/парсинг-ошибке —
-    виджет в шаблоне просто не рендерится.
-    """
+def weather_category(target_date, today=None):
+    """archive (дата прошла) | forecast (в пределах горизонта прогноза) | estimate (дальше)."""
+    from .models import WeatherSettings
+    today = today or timezone.localdate()
+    days_until = (target_date - today).days
+    if days_until < 0:
+        return "archive"
+    return "forecast" if days_until <= WeatherSettings.get().forecast_horizon_days else "estimate"
+
+
+def fetch_weather_widget(latitude, longitude, target_date):
+    """Сетевой запрос виджета на день — только из cron-команды refresh_weather_widgets, не из рендера."""
+    category = weather_category(target_date)
+    if category == "archive":
+        # ERA5-архив отстаёт на несколько дней: для вчерашней даты данных может ещё не быть → None.
+        return category, fetch_archive_day_weather(latitude, longitude, target_date)
+    if category == "forecast":
+        return category, fetch_forecast_weather(latitude, longitude, target_date)
+    return category, fetch_climatology_estimate(latitude, longitude, target_date)
+
+
+def _get_weather_widget_for_date(namespace, object_id, target_date):
+    """Готовый виджет из БД (WeatherWidgetSnapshot) — без сетевых запросов. None, если снимка нет
+    или он устарел по смыслу (дата прошла, а в снимке ещё прогноз/оценка)."""
+    from .models import WeatherWidgetSnapshot
     try:
-        today = timezone.localdate()
-        days_until = (target_date - today).days
-
-        if days_until < 0:
-            # Архив: данные не меняются, кэшируем навсегда. Учти, что архивный
-            # ERA5-эндпоинт Open-Meteo обычно отстаёт на несколько дней от
-            # реального времени — для даты, прошедшей 1-2 дня назад, запрос
-            # может вернуть пустые данные; тогда корректно возвращаем None.
-            cache_key = f"weather:{cache_namespace}:{cache_id}:archive:{target_date.isoformat()}"
-            cached = cache.get(cache_key)
-            if cached is not None:
-                return None if cached == _FAILED else cached
-            data = fetch_archive_day_weather(latitude, longitude, target_date)
-            if data:
-                cache.set(cache_key, data, timeout=None)
-            else:
-                cache.set(cache_key, _FAILED, WEATHER_FAILURE_CACHE_SECONDS)
-            return data
-
-        from .models import WeatherSettings
-        forecast_horizon_days = WeatherSettings.get().forecast_horizon_days
-        category = "forecast" if days_until <= forecast_horizon_days else "estimate"
-        cache_key = f"weather:{cache_namespace}:{cache_id}:{category}:{target_date.isoformat()}:{today.isoformat()}"
-        cached = cache.get(cache_key)
-        if cached is not None:
-            return None if cached == _FAILED else cached
-
-        if category == "forecast":
-            data = fetch_forecast_weather(latitude, longitude, target_date)
-        else:
-            data = fetch_climatology_estimate(latitude, longitude, target_date)
-
-        if data:
-            cache.set(cache_key, data)
-        else:
-            cache.set(cache_key, _FAILED, WEATHER_FAILURE_CACHE_SECONDS)
-        return data
+        snap = WeatherWidgetSnapshot.objects.filter(
+            namespace=namespace, object_id=object_id, target_date=target_date).first()
     except Exception as e:
-        logger.error(f"Неожиданная ошибка в _get_weather_widget_for_date ({cache_namespace}={cache_id}): {e}")
+        logger.error(f"Погодный снимок {namespace}={object_id} не прочитан: {e}")
         return None
-
-
-def get_stage_weather(stage):
-    """
-    Погода для этапа (StagePage) с кэшированием через Django cache framework.
-    Возвращает None, если у этапа нет трассы/координат/даты.
-    """
-    if stage is None:
+    if snap is None:
         return None
+    if target_date < timezone.localdate() and snap.category != "archive":
+        return None
+    return snap.data
 
-    track = getattr(stage, "track", None)
+
+def stage_weather_target(stage):
+    """(широта, долгота, дата) этапа или None, если нет трассы/координат/даты."""
+    track = getattr(stage, "track", None) if stage is not None else None
     if track is None or track.latitude is None or track.longitude is None:
         return None
-
     start_date = getattr(stage, "start_date", None)
     if start_date is None:
         return None
+    day = timezone.localtime(start_date).date() if timezone.is_aware(start_date) else start_date.date()
+    return track.latitude, track.longitude, day
 
-    stage_date = timezone.localtime(start_date).date() if timezone.is_aware(start_date) else start_date.date()
-    return _get_weather_widget_for_date("stage", stage.pk, track.latitude, track.longitude, stage_date)
 
-
-def get_group_forecast_weather(group):
-    """
-    Погода для группы результатов (RaceClassResultGroup) — только когда
-    архивных данных ещё нет (group.air_temperature is None, обычно потому что
-    этап ещё не состоялся): прогноз в пределах горизонта, статистическая
-    оценка дальше. В отличие от get_stage_weather не пишет ничего в БД —
-    архивные значения на RaceClassResultGroup остаются источником правды для
-    FastAPI/аналитики/SQL-фильтров (см. website/signals.py), это только
-    дисплейное дополнение на странице этапа для ещё не прошедших гонок.
-    Возвращает None, если архив уже заполнен, либо нет трассы/координат/даты.
-    """
+def group_weather_target(group):
+    """(широта, долгота, дата) группы результатов — только пока архив на группе не заполнен."""
     if group is None or group.air_temperature is not None:
         return None
-
     page = getattr(group, "page", None)
     track = getattr(page, "track", None) if page else None
     if track is None or track.latitude is None or track.longitude is None:
         return None
-
     occurrence = page.occurrences.first() if page else None
     if occurrence is None or occurrence.end is None:
         return None
+    end = occurrence.end
+    return track.latitude, track.longitude, (timezone.localtime(end).date() if timezone.is_aware(end) else end.date())
 
-    target_date = timezone.localtime(occurrence.end).date() if timezone.is_aware(occurrence.end) else occurrence.end.date()
-    return _get_weather_widget_for_date("group", group.pk, track.latitude, track.longitude, target_date)
+
+def get_stage_weather(stage):
+    """Погода для этапа (StagePage) — готовый снимок из БД; None, если его нет."""
+    target = stage_weather_target(stage)
+    return _get_weather_widget_for_date("stage", stage.pk, target[2]) if target else None
+
+
+def get_group_forecast_weather(group):
+    """
+    Погода для группы результатов (RaceClassResultGroup) — только когда архивных данных на группе
+    ещё нет (air_temperature is None, обычно этап ещё не состоялся). Не пишет в группу: архивные
+    значения на RaceClassResultGroup — источник правды для FastAPI/аналитики (см. website/signals.py),
+    это только дисплейное дополнение. Готовый снимок из БД; None, если его нет.
+    """
+    target = group_weather_target(group)
+    return _get_weather_widget_for_date("group", group.pk, target[2]) if target else None

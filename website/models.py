@@ -2281,6 +2281,27 @@ class VkSettings(models.Model):
         return obj
 
 
+class WeatherWidgetSnapshot(models.Model):
+    """Погодный виджет этапа/группы, посчитанный заранее (11.10.2026). Страницы только читают эту таблицу;
+    Open-Meteo опрашивает cron-команда refresh_weather_widgets — иначе недоступный сервис при рендере
+    главной вешал воркер gunicorn (Internal Server Error). Не кэш: clear_wagtail_cache его не стирает."""
+    namespace = models.CharField(max_length=16)  # 'stage' (StagePage) | 'group' (RaceClassResultGroup)
+    object_id = models.PositiveIntegerField()
+    target_date = models.DateField()
+    category = models.CharField(max_length=16)  # archive | forecast | estimate
+    data = models.JSONField()
+    fetched_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Погодный виджет (снимок)"
+        verbose_name_plural = "Погодные виджеты (снимки)"
+        constraints = [models.UniqueConstraint(fields=['namespace', 'object_id', 'target_date'],
+                                               name='weather_snapshot_unique')]
+
+    def __str__(self):
+        return f"{self.namespace}:{self.object_id} {self.target_date} ({self.category})"
+
+
 class WeatherSettings(models.Model):
     """
     Singleton-модель настроек погодного виджета Open-Meteo.
