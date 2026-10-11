@@ -268,5 +268,125 @@
     "cross_diagonal"
    ]
   }
+ ],
+ "ballast_cases": [
+  {
+   "name": "один груз по центру сиденья",
+   "corners": {
+    "lf": 40,
+    "rf": 40,
+    "lr": 53,
+    "rr": 53
+   },
+   "ballasts": [
+    {
+     "weight_kg": 2.5,
+     "pos_x_mm": 500,
+     "pos_y_mm": 620
+    }
+   ],
+   "geometry": {
+    "wheelbase_mm": 1000,
+    "track_front_mm": 1000,
+    "track_rear_mm": 1000
+   },
+   "applied": {
+    "lf": 40.5,
+    "rf": 40.5,
+    "lr": 53.8,
+    "rr": 53.8
+   }
+  },
+  {
+   "name": "груз слева на сиденье, колеи разные",
+   "corners": {
+    "lf": 41.2,
+    "rf": 39.8,
+    "lr": 52.4,
+    "rr": 54.1
+   },
+   "ballasts": [
+    {
+     "weight_kg": 3,
+     "pos_x_mm": 420,
+     "pos_y_mm": 600
+    }
+   ],
+   "geometry": {
+    "wheelbase_mm": 1050,
+    "track_front_mm": 1100,
+    "track_rear_mm": 1300
+   },
+   "applied": {
+    "lf": 42.0,
+    "rf": 40.3,
+    "lr": 53.6,
+    "rr": 54.7
+   }
+  },
+  {
+   "name": "два груза и снятый",
+   "corners": {
+    "lf": 38.5,
+    "rf": 40.1,
+    "lr": 51.7,
+    "rr": 53.3
+   },
+   "ballasts": [
+    {
+     "weight_kg": 2,
+     "pos_x_mm": 450,
+     "pos_y_mm": 560
+    },
+    {
+     "weight_kg": 1.5,
+     "pos_x_mm": 560,
+     "pos_y_mm": 700
+    },
+    {
+     "weight_kg": -1,
+     "pos_x_mm": 480,
+     "pos_y_mm": 640
+    }
+   ],
+   "geometry": {
+    "wheelbase_mm": 1040,
+    "track_front_mm": 1120,
+    "track_rear_mm": 1400
+   },
+   "applied": {
+    "lf": 39.1,
+    "rf": 40.6,
+    "lr": 52.6,
+    "rr": 53.8
+   }
+  },
+  {
+   "name": "груз над левым передним колесом",
+   "corners": {
+    "lf": 40,
+    "rf": 40,
+    "lr": 50,
+    "rr": 50
+   },
+   "ballasts": [
+    {
+     "weight_kg": 4,
+     "pos_x_mm": 0,
+     "pos_y_mm": 0
+    }
+   ],
+   "geometry": {
+    "wheelbase_mm": 1040,
+    "track_front_mm": 1100,
+    "track_rear_mm": 1400
+   },
+   "applied": {
+    "lf": 44.0,
+    "rf": 40.0,
+    "lr": 50.0,
+    "rr": 50.0
+   }
+  }
  ]
 }

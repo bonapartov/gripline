@@ -32,3 +32,15 @@ def test_balance_vector(case):
     diagnosis = bc.diagnose(metrics, classification, min_weight, thresholds=THRESHOLDS, weather=case['weather'],
                             rules=RULES)
     assert [d['text'] for d in diagnosis] == case['diagnosis']
+
+
+@pytest.mark.parametrize('case', VECTORS['ballast_cases'], ids=[c['name'] for c in VECTORS['ballast_cases']])
+def test_ballast_vector(case):
+    """Грузы (ТЗ 5.3): углы после грузов — те же числа проверяет приложение (applyBallastsMm)."""
+    g = {k: Decimal(str(v)) for k, v in case['geometry'].items()}
+    applied = bc.apply_ballasts(
+        {k: Decimal(str(v)) for k, v in case['corners'].items()},
+        [{k: Decimal(str(v)) for k, v in b.items()} for b in case['ballasts']],
+        g['wheelbase_mm'], g['track_front_mm'], g['track_rear_mm'],
+    )
+    assert {k: float(v) for k, v in applied.items()} == case['applied']
