@@ -1029,3 +1029,9 @@ Key routing rules:
 - Save progress → invoke /context-save
 - Resume context → invoke /context-restore
 - Author a backlog-ready spec/issue → invoke /spec
+
+## Погода этапов — заранее, по cron (11.10.2026)
+
+Страницы (главная, этап, группа результатов) **не ходят в Open-Meteo** — читают `WeatherWidgetSnapshot` (миграция `0078`). Заполняет `manage.py refresh_weather_widgets` (cron `0 */3 * * *`, реестр `JOBS`): прогноз — каждый запуск, оценка по прошлым годам — раз в сутки, архив прошедшего дня — один раз; неудачный запрос не стирает прежний снимок, снимки исчезнувших этапов удаляются. Это таблица, а не кэш: `clear_wagtail_cache` чистит весь default-кэш (файловый) и стирал бы погоду. Причина: недоступный Open-Meteo при рендере главной (до 5 запросов по 10 с) превышал таймаут gunicorn → Internal Server Error.
+
+С сервера прямые соединения с Open-Meteo (Hetzner) то проходят, то обрываются — запросы идут через Xray/VPN (галочка `WeatherSettings.use_vpn`, миграция `0079`, адрес — `VpnSettings`). Таймаут `(3, 8)`; после двух сетевых ошибок подряд адрес (архив и прогноз — отдельно) не опрашивается 5 минут. `backfill_weather` (архив в `RaceClassResultGroup`) тоже ходит через прокси.
