@@ -3,14 +3,14 @@
 
 {% block frontend_assets %}
 {% comment %}
-Асинхронная загрузка вместо блокирующего <link>: PageSpeed Insights отмечал
-Bootstrap CSS как самый тяжёлый render-blocking ресурс (~2500мс на
-мобильном). preload+swap убирает его из критического пути рендера —
-контент может отрисоваться до применения стилей (короткая вспышка
-неоформленного вида на медленных сетях), но LCP/FCP выигрывают ощутимо.
+Bootstrap, crx-front и Font Awesome — обычные (блокирующие) стили. В августе 2026 они грузились
+асинхронно (preload+onload): тогда CSS шёл без сжатия по HTTP/1.1. С 11.10.2026 nginx сжимает CSS,
+отдаёт по HTTP/2 и кэширует хэшированную статику на год, а асинхронная загрузка давала сдвиг макета
+CLS 0,4 (страница рисовалась без сетки и иконок, потом перестраивалась целиком).
 {% endcomment %}
-<link rel="preload" href="{% static 'coderedcms/vendor/bootstrap/dist/css/bootstrap.min.css' %}?v={% coderedcms_version %}" as="style" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel="stylesheet" href="{% static 'coderedcms/vendor/bootstrap/dist/css/bootstrap.min.css' %}?v={% coderedcms_version %}"></noscript>
+<link rel="stylesheet" href="{% static 'coderedcms/vendor/bootstrap/dist/css/bootstrap.min.css' %}?v={% coderedcms_version %}">
+<link rel="stylesheet" href="{% static 'website/vendor/fontawesome/css/all.min.css' %}">
+<link rel="preload" href="{% static 'website/vendor/fontawesome/webfonts/fa-solid-900.woff2' %}" as="font" type="font/woff2" crossorigin>
 {% endblock %}
 
 {% block coderedcms_assets %}
@@ -18,8 +18,7 @@ Bootstrap CSS как самый тяжёлый render-blocking ресурс (~25
 {% if debug %}
 <link rel="stylesheet" href="{% static 'coderedcms/css/crx-front.css' %}?v={% coderedcms_version %}">
 {% else %}
-<link rel="preload" href="{% static 'coderedcms/css/crx-front.min.css' %}?v={% coderedcms_version %}" as="style" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel="stylesheet" href="{% static 'coderedcms/css/crx-front.min.css' %}?v={% coderedcms_version %}"></noscript>
+<link rel="stylesheet" href="{% static 'coderedcms/css/crx-front.min.css' %}?v={% coderedcms_version %}">
 {% endif %}
 {% endblock %}
 
