@@ -172,10 +172,16 @@ def _dominant_code(codes):
 OPEN_METEO_TIMEOUT = (3, 8)  # (соединение, чтение), с
 OPEN_METEO_DOWN_KEY = "weather:open-meteo:down"
 OPEN_METEO_DOWN_SECONDS = 300
+OPEN_METEO_FAILS_TO_PAUSE = 2
 
 
-def _open_meteo_down():
-    return bool(cache.get(OPEN_METEO_DOWN_KEY))
+def _down_key(base_url):
+    """Пауза — отдельно для каждого адреса: архив Open-Meteo может лежать, пока прогноз работает."""
+    return f"{OPEN_METEO_DOWN_KEY}:{base_url}"
+
+
+def _open_meteo_down(base_url):
+    return bool(cache.get(_down_key(base_url)))
 
 
 def _fetch_hourly_range(base_url, latitude, longitude, target_date,
@@ -209,11 +215,12 @@ def _fetch_hourly_range(base_url, latitude, longitude, target_date,
         "timezone": settings_obj.timezone,
     }
 
-    if _open_meteo_down():
+    if _open_meteo_down(base_url):
         return None
     try:
         response = requests.get(base_url, params=params, timeout=OPEN_METEO_TIMEOUT)
         response.raise_for_status()
+        cache.delete(f"{_down_key(base_url)}:fails")
         data = response.json()
 
         hourly = data.get("hourly", {})
@@ -236,8 +243,15 @@ def _fetch_hourly_range(base_url, latitude, longitude, target_date,
             "weathercode": [hourly.get("weathercode", [])[i] for i in indices],
         }
     except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
-        cache.set(OPEN_METEO_DOWN_KEY, True, OPEN_METEO_DOWN_SECONDS)
-        logger.error(f"Open-Meteo недоступен ({base_url}), пауза {OPEN_METEO_DOWN_SECONDS} с: {e}")
+        # Архив Open-Meteo отвечает рывками (один запрос виснет, следующий — 0,3 с): пауза — после двух
+        # сетевых ошибок подряд.
+        fails_key = f"{_down_key(base_url)}:fails"
+        fails = (cache.get(fails_key) or 0) + 1
+        cache.set(fails_key, fails, OPEN_METEO_DOWN_SECONDS)
+        if fails >= OPEN_METEO_FAILS_TO_PAUSE:
+            cache.set(_down_key(base_url), True, OPEN_METEO_DOWN_SECONDS)
+            cache.delete(fails_key)
+        logger.error(f"Open-Meteo не ответил ({base_url}), ошибка подряд №{fails}: {e}")
         return None
     except requests.exceptions.RequestException as e:
         logger.error(f"Ошибка при запросе к Open-Meteo ({base_url}): {e}")
@@ -354,7 +368,7 @@ def fetch_climatology_estimate(latitude, longitude, target_date, years=None):
         except ValueError:
             # 29 февраля в невисокосном прошлом году
             past_date = target_date.replace(year=target_date.year - i, day=28)
-        if _open_meteo_down():
+        if _open_meteo_down(settings_obj.archive_api_url):
             break
         samples.append(_fetch_hourly_range(settings_obj.archive_api_url, latitude, longitude, past_date))
 

@@ -55,7 +55,7 @@ def test_command_stores_and_keeps_snapshot_when_open_meteo_down():
                            side_effect=requests.exceptions.ConnectTimeout('down')) as get:
         with pytest.raises(RuntimeError):
             run_with_targets([('stage', 1, (43.6, 39.7, day(60)))], force=True)
-        assert get.call_count == 1, 'после первой ошибки соединения остальные годы не запрашиваются'
+        assert get.call_count == 2, 'после двух ошибок соединения подряд остальные годы не запрашиваются'
     assert WeatherWidgetSnapshot.objects.get().data == {'temp': 15}, 'неудача не стирает прежний снимок'
     assert ScheduledJobRun.objects.get(name='refresh_weather_widgets').last_success_at is not None
 
@@ -69,3 +69,19 @@ def test_estimate_fetched_once_a_day_forecast_every_run_and_stale_removed():
         assert (est.call_count, fc.call_count) == (1, 2)
     run_with_targets([])
     assert not WeatherWidgetSnapshot.objects.exists(), 'снимки исчезнувших этапов удаляются'
+
+
+def test_archive_down_does_not_block_forecast():
+    def fake_get(url, **kw):
+        if 'archive' in url:
+            raise requests.exceptions.ConnectTimeout('down')
+        r = mock.Mock()
+        r.raise_for_status.return_value = None
+        d = day(3).isoformat()
+        r.json.return_value = {'hourly': {'time': [f'{d}T12:00'], 'temperature_2m': [10],
+                                          'relative_humidity_2m': [50], 'wind_speed_10m': [2],
+                                          'precipitation': [0], 'weathercode': [1]}}
+        return r
+    with mock.patch.object(weather_utils.requests, 'get', side_effect=fake_get):
+        run_with_targets([('stage', 1, (1, 1, day(-30))), ('stage', 2, (1, 1, day(3)))])
+    assert list(WeatherWidgetSnapshot.objects.values_list('object_id', 'category')) == [(2, 'forecast')]
