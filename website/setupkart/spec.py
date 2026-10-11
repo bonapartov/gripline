@@ -8,7 +8,7 @@ from decimal import Decimal
 MAX_OPTIONS = 500
 
 # Параметры, которые в приложении — числовое поле «−/+», а не список (проставки, шаг 0.5).
-STEPPER_KEYS = {'spacer'}
+STEPPER_KEYS = {'spacer', 'toe_mm', 'seat_strut', 'seat_shift_mm', 'seat_raise_mm'}
 
 
 def D(x):

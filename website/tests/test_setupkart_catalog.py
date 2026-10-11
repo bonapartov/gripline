@@ -506,3 +506,26 @@ def test_class_presets_in_payload_and_validated():
     assert any('«1.3» нет в списке' in m for m in errors), 'не по шагу'
     assert any('Провал поплавка' in m and 'нет среди полей' in m for m in errors)
     assert any('ОК' in m and 'класс не отмечен' in m for m in errors)
+
+
+@pytest.mark.django_db
+def test_chassis_params_and_pro_features(client):
+    """Поля по статье «Настройка шасси карта» (11.10.2026): диапазоны и списки — «Параметры» в админке,
+    бесплатно/Pro — «Pro-версия»."""
+    from website.models import AppProSettings
+    AppParameter.objects.create(key='toe_mm', mode='range', min_value=Decimal('-5'), max_value=Decimal('5'),
+                                step=Decimal('0.5'), default_value='0', unit='мм')
+    AppParameter.objects.create(key='torsion_bar', mode='list', options_text='Нет\nГоризонтально\nВертикально',
+                                default_value='Нет')
+    assert catalog.validation_errors() == []
+    params = catalog.build_payload()['params']
+    assert params['toe_mm'] == {'key': 'toe_mm', 'label': 'Схождение, мм (− развал)', 'type': 'number',
+                                'min': -5.0, 'max': 5.0, 'step': 0.5, 'decimals': 1, 'unit': 'мм', 'default': 0.0}
+    assert params['torsion_bar']['options'] == ['Нет', 'Горизонтально', 'Вертикально']
+    AppParameter.objects.filter(key='toe_mm').update(default_value='0.3')
+    assert any('Схождение' in m for m in catalog.validation_errors()), 'по умолчанию — не по шагу'
+
+    features = AppProSettings.get().payload()['features']
+    assert features['air_density'] == {'tier': 'pro'}
+    assert all(features[k] == {'tier': 'free'} for k in ('toe', 'seat_struts', 'torsion_bars', 'seat_position',
+                                                         'grip_level'))
