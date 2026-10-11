@@ -9,4 +9,5 @@ urlpatterns = [
     path('suggestions/', api.suggestions, name='setupkart_api_suggestions'),
     path('feedback/', api.feedback, name='setupkart_api_feedback'),
     path('diagnostics/', api.diagnostics, name='setupkart_api_diagnostics'),
+    path('trial/', api.trial, name='setupkart_api_trial'),
 ]

@@ -1,4 +1,5 @@
 from wagtail_modeladmin.options import (ModelAdmin, ModelAdminGroup, modeladmin_register)
+from wagtail_modeladmin.helpers import PermissionHelper
 from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, MaxSettings, VkSettings, WeatherSettings, MailSettings, VpnSettings, SocialTag, ArticlePage, ChassisTypePreset, KartClass, BalanceThreshold, BalanceDiagnosticRule, DataRequest
 from wagtail import hooks
 from django.utils.html import format_html
@@ -322,7 +323,7 @@ modeladmin_register(DataRequestAdmin)
 
 
 # ---------- Приложение GripLine SetupKart (ТЗ приложения §13.3) ----------
-from .models import AppHelpImage, AppParameter, AppProSettings, AppSyncSettings  # noqa: E402
+from .models import AppHelpImage, AppParameter, AppProSettings, AppSyncSettings, AppTrialDevice  # noqa: E402
 from .setupkart import admin_views as setupkart_admin_views  # noqa: E402
 from .setupkart import chassis_images as setupkart_chassis_images  # noqa: E402
 
@@ -354,6 +355,24 @@ class AppProSettingsAdmin(ModelAdmin):
         return super().get_queryset(request)
 
 
+class _TrialDevicePermissions(PermissionHelper):
+    """Устройства появляются только из приложения (`trial/`): создавать вручную нечего."""
+
+    def user_can_create(self, user):
+        return False
+
+
+class AppTrialDeviceAdmin(ModelAdmin):
+    model = AppTrialDevice
+    menu_label = 'Устройства пробного периода'
+    menu_icon = 'time'
+    menu_order = 370
+    permission_helper_class = _TrialDevicePermissions
+    list_display = ('__str__', 'first_seen_at', 'trial_ends_at', 'installs', 'last_seen_at', 'app_version', 'note')
+    list_filter = ('installs',)
+    search_fields = ('device_hash', 'client_id', 'note')
+
+
 class AppHelpImageAdmin(ModelAdmin):
     model = AppHelpImage
     menu_label = 'Картинки-подсказки'
@@ -371,7 +390,7 @@ class SetupKartGroup(ModelAdminGroup):
     menu_label = 'Приложение'
     menu_icon = 'mobile-alt'
     menu_order = 360
-    items = (AppParameterAdmin, AppHelpImageAdmin, AppSyncSettingsAdmin, AppProSettingsAdmin)
+    items = (AppParameterAdmin, AppHelpImageAdmin, AppSyncSettingsAdmin, AppProSettingsAdmin, AppTrialDeviceAdmin)
 
     def get_submenu_items(self):
         items = super().get_submenu_items()

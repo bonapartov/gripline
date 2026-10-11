@@ -4654,6 +4654,14 @@ class AppSyncSettings(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(10)],
         help_text="Не меньше этого времени (если приложение загрузилось раньше); нажатие на фото закрывает его "
                   "сразу. 0 — только пока приложение загружается.")
+    privacy_notice_date = models.DateField(
+        "Политика изменена", null=True, blank=True,
+        help_text="Дата новой редакции политики конфиденциальности приложения. Приложение один раз покажет "
+                  "уведомление с текстом ниже и ссылкой на политику (п. 9.1 политики: при новых случаях передачи "
+                  "данных по сети). Новая дата — уведомление покажется снова.")
+    privacy_notice = models.TextField(
+        "Текст уведомления", blank=True,
+        help_text="Коротко, что изменилось. Пусто — уведомление не показывается.")
     updated_at = models.DateTimeField("Изменено", auto_now=True)
 
     panels = [
@@ -4666,7 +4674,18 @@ class AppSyncSettings(models.Model):
                         heading="«Рекомендовать приложение»",
                         help_text="Пункт меню в приложении; изменения доходят при следующей связи с сайтом."),
         FieldRowPanel([FieldPanel('splash_image'), FieldPanel('splash_seconds')]),
+        MultiFieldPanel([FieldPanel('privacy_notice_date'), FieldPanel('privacy_notice')],
+                        heading="Уведомление об изменении политики конфиденциальности"),
     ]
+
+    def privacy_notice_payload(self):
+        """{date, text, url} или None — приложение показывает уведомление один раз на каждую дату."""
+        text = (self.privacy_notice or '').strip()
+        if not self.privacy_notice_date or not text:
+            return None
+        from django.conf import settings
+        return {'date': self.privacy_notice_date.isoformat(), 'text': text,
+                'url': f"{settings.BASE_URL.rstrip('/')}/legal/setupkart-privacy/"}
 
     def splash_payload(self):
         """{url, width, height} или None. URL меняется вместе с файлом — по нему приложение видит новое фото."""
@@ -4751,11 +4770,27 @@ class AppProSettings(ClusterableModel):
     description = models.TextField(
         "Текст на экране «Pro-версия»", blank=True,
         default="Одна покупка — навсегда, без подписки. Все ваши сетапы остаются доступны в любой версии.")
+    offline_grace_days = models.PositiveIntegerField(
+        "Пробный период без связи с сайтом, дней", default=7, validators=[MaxValueValidator(365)],
+        help_text="Пробный период считается по телефону, только пока его не подтвердил сайт: без связи он "
+                  "закончится через столько дней после первого запуска (иначе переустановка в режиме полёта "
+                  "давала бы новый пробный период). После связи с сайтом срок берётся с сайта. 0 — без "
+                  "ограничения.")
+    trial_retention_months = models.PositiveIntegerField(
+        "Хранить записи пробного периода, месяцев", default=24, validators=[MinValueValidator(1)],
+        help_text="Запись устройства («Устройства пробного периода») удаляется, если оно столько не выходило на "
+                  "связь (политика конфиденциальности приложения, п. 7.2 — при изменении срока поправьте и её). Очистка — ежедневно "
+                  "(команда setupkart_trial_cleanup).")
+    enabled_at = models.DateTimeField(
+        "Платная версия впервые включена", null=True, blank=True, editable=False,
+        help_text="Пробный период начинается не раньше этой даты — у тех, кто поставил приложение, пока всё "
+                  "было бесплатно, он не заканчивается в момент включения.")
     updated_at = models.DateTimeField("Изменено", auto_now=True)
 
     panels = [
         FieldPanel('enabled'),
-        FieldRowPanel([FieldPanel('trial_days'), FieldPanel('price_text')]),
+        FieldRowPanel([FieldPanel('trial_days'), FieldPanel('offline_grace_days'), FieldPanel('price_text')]),
+        FieldPanel('trial_retention_months'),
         FieldPanel('purchase_url'),
         FieldPanel('description'),
         InlinePanel('features', label="Функция",
@@ -4771,6 +4806,20 @@ class AppProSettings(ClusterableModel):
 
     def __str__(self):
         return "Pro-версия: " + ("включена" if self.enabled else "выключена (всё бесплатно)")
+
+    def save(self, *args, **kwargs):
+        # Только первое включение: повторное выключение/включение не перезапускает пробный период всем.
+        if self.enabled and self.enabled_at is None:
+            from django.utils import timezone
+            self.enabled_at = timezone.now()
+        super().save(*args, **kwargs)
+
+    def trial_window(self, first_seen_at, override_ends_at=None):
+        """(начало, конец) пробного периода устройства: не раньше первого включения платной версии;
+        продление из админки («Устройства пробного периода») — вместо расчёта."""
+        start = max(first_seen_at, self.enabled_at) if self.enabled_at else first_seen_at
+        end = override_ends_at or start + timedelta(days=self.trial_days)
+        return start, end
 
     @classmethod
     def get(cls):
@@ -4794,7 +4843,45 @@ class AppProSettings(ClusterableModel):
             else:
                 features[key] = {'tier': f.tier if f else default}
         return {'enabled': self.enabled, 'trial_days': self.trial_days, 'price': self.price_text.strip(),
-                'purchase_url': self.purchase_url, 'description': self.description.strip(), 'features': features}
+                'purchase_url': self.purchase_url, 'description': self.description.strip(), 'features': features,
+                'offline_grace_days': self.offline_grace_days,
+                'trial_not_before': self.enabled_at.isoformat() if self.enabled_at else None}
+
+
+class AppTrialDevice(models.Model):
+    """Устройство с пробным периодом Pro (11.10.2026). Начало пробного периода хранится здесь, а не только
+    на телефоне: переустановка и «Очистить данные» не дают новый пробный период.
+
+    Ключ — SHA-256 от ANDROID_ID с солью приложения: сам идентификатор на сайт не уходит. ANDROID_ID
+    переживает переустановку, меняется только при сбросе телефона к заводским настройкам.
+    """
+    device_hash = models.CharField("Устройство (хэш)", max_length=64, unique=True)
+    first_seen_at = models.DateTimeField("Первый запуск", db_index=True)
+    last_seen_at = models.DateTimeField("Последняя связь")
+    client_id = models.CharField("Установка", max_length=64, blank=True, db_index=True,
+                                 help_text="Идентификатор текущей установки (как в журналах приложения).")
+    installs = models.PositiveIntegerField("Установок", default=1,
+                                           help_text="Сколько раз приложение ставили заново на этом устройстве.")
+    app_version = models.CharField("Версия приложения", max_length=40, blank=True)
+    trial_ends_override = models.DateTimeField(
+        "Пробный период до (вручную)", null=True, blank=True,
+        help_text="Продлить или сократить пробный период этого устройства. Пусто — по общим настройкам "
+                  "«Pro-версии».")
+    note = models.CharField("Заметка", max_length=200, blank=True)
+
+    panels = [FieldPanel('trial_ends_override'), FieldPanel('note')]
+
+    class Meta:
+        verbose_name = "Устройство пробного периода"
+        verbose_name_plural = "Устройства пробного периода"
+        ordering = ['-last_seen_at']
+
+    def __str__(self):
+        return f"Устройство {self.device_hash[:10]}…"
+
+    def trial_ends_at(self):
+        return AppProSettings.get().trial_window(self.first_seen_at, self.trial_ends_override)[1]
+    trial_ends_at.short_description = "Пробный период до"
 
 
 class AppProFeature(Orderable):

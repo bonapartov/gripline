@@ -3,9 +3,11 @@
 Без авторизации: справочники и трассы — только чтение, предложения — анонимно и с ограничением частоты.
 `@nocache_page` обязателен: глобальный wagtailcache иначе отдавал бы старую версию справочника.
 """
+import datetime
 import hashlib
 import json
 import logging
+import re
 
 from django.conf import settings
 from django.core.cache import cache
@@ -15,13 +17,15 @@ from django.db import transaction
 from django.db.models import F
 from django.http import JsonResponse
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 from wagtailcache.cache import nocache_page
 
 from mysite.security import get_client_ip
 from website.models import (
-    APP_ENGINE_FIELD_CHOICES, APP_PARAMETER_CHOICES, AppProSettings, AppSuggestion, AppSyncSettings, Engine, Track,
+    APP_ENGINE_FIELD_CHOICES, APP_PARAMETER_CHOICES, AppProSettings, AppSuggestion, AppSyncSettings, AppTrialDevice,
+    Engine, Track,
 )
 from .catalog import latest_version
 
@@ -132,6 +136,7 @@ def config(request):
                          'share': {'text': s.share_message(), 'url': s.share_url},
                          'splash': s.splash_payload(),
                          'splash_seconds': float(s.splash_seconds),
+                         'privacy_notice': s.privacy_notice_payload(),
                          'pro': AppProSettings.get().payload()})
 
 
@@ -219,3 +224,65 @@ def diagnostics(request):
         text += f'\n<a href="{escape(url)}">Открыть в админке</a>'
     transaction.on_commit(lambda: notify_admin_chat(text, f'app diagnostics #{r.pk}'))
     return JsonResponse({'ok': True, 'number': r.pk}, status=201)
+
+
+# Раньше этой даты приложения не было: присланный «первый запуск» до неё — мусор, а не повод сдвигать начало.
+TRIAL_EARLIEST = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
+_HEX64 = re.compile(r'^[0-9a-f]{64}$')
+
+
+@nocache_page
+@csrf_exempt
+@require_POST
+def trial(request):
+    """Пробный период устройства (11.10.2026): начало запоминается на сайте по хэшу ANDROID_ID, поэтому
+    переустановка и «Очистить данные» не дают новый пробный период, а перевод часов на телефоне — не продлевает
+    (в ответе время сервера).
+
+    Присланный телефоном «первый запуск» принимается, только если он раньше известного сайту: так установки,
+    сделанные до появления проверки, не получают пробный период заново, а сдвинуть начало позже нельзя.
+    """
+    ip = get_client_ip(request)
+    if _limited(f'setupkart:trial:ip:{ip}', 60, 3600):
+        return JsonResponse({'error': 'rate_limited'}, status=429)
+    try:
+        body = json.loads(request.body or b'{}')
+    except ValueError:
+        return JsonResponse({'error': 'bad_json'}, status=400)
+    device = str(body.get('device') or '').strip().lower()
+    if not _HEX64.match(device):
+        return JsonResponse({'error': 'invalid'}, status=400)
+    if _limited(f'setupkart:trial:dev:{device}', 30, 3600):
+        return JsonResponse({'error': 'rate_limited'}, status=429)
+    client_id = str(body.get('client_id') or '').strip()[:64]
+    app_version = str(body.get('app_version') or '').strip()[:40]
+    now = timezone.now()
+    local_first = parse_datetime(str(body.get('local_first_launch') or ''))
+    if local_first is not None and timezone.is_naive(local_first):
+        local_first = timezone.make_aware(local_first, datetime.timezone.utc)
+    if local_first is not None and not (TRIAL_EARLIEST <= local_first <= now):
+        local_first = None
+
+    with transaction.atomic():
+        d, created = AppTrialDevice.objects.select_for_update().get_or_create(
+            device_hash=device,
+            defaults={'first_seen_at': min(local_first or now, now), 'last_seen_at': now,
+                      'client_id': client_id, 'app_version': app_version})
+        if not created:
+            if local_first is not None and local_first < d.first_seen_at:
+                d.first_seen_at = local_first
+            if client_id and d.client_id and client_id != d.client_id:
+                d.installs += 1
+            if client_id:
+                d.client_id = client_id
+            d.app_version = app_version or d.app_version
+            d.last_seen_at = now
+            d.save()
+
+    pro = AppProSettings.get()
+    start, end = pro.trial_window(d.first_seen_at, d.trial_ends_override)
+    return JsonResponse({
+        'trial_started_at': start.isoformat(),
+        'trial_ends_at': end.isoformat(),
+        'server_now': now.isoformat(),
+    })

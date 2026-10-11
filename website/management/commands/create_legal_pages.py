@@ -78,6 +78,9 @@ class Command(BaseCommand):
         p.add_argument("--operator", required=True, help="ФИО оператора персональных данных")
         p.add_argument("--tg", required=True, help="Telegram оператора, например @username")
         p.add_argument("--publish", action="store_true", help="опубликовать (по умолчанию — черновик)")
+        p.add_argument("--only", nargs="+", metavar="SLUG",
+                       help="обновить только эти документы (например setupkart-privacy) — у остальных "
+                            "не меняется дата редакции")
 
     def _upsert(self, parent, title, slug, html, publish):
         existing = parent.get_children().filter(slug=slug).first()
@@ -119,7 +122,13 @@ class Command(BaseCommand):
         parent = self._upsert(root, "Правовая информация", "legal", wrap("Правовая информация", index_html), publish)
         self.stdout.write(self.style.SUCCESS(f"legal: готово ({'опубликована' if publish else 'черновик'})"))
 
+        only = set(o.get("only") or [])
+        unknown = only - {slug for _, slug, _ in docs}
+        if unknown:
+            raise CommandError(f"Нет таких документов: {', '.join(sorted(unknown))}")
         for title, slug, html in docs:
+            if only and slug not in only:
+                continue
             self._upsert(parent, title, slug, wrap(title, html), publish)
             self.stdout.write(self.style.SUCCESS(f"legal/{slug}: готово ({'опубликована' if publish else 'черновик'})"))
 
