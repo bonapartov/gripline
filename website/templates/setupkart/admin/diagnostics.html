@@ -1,0 +1,16 @@
+{% extends "wagtailadmin/base.html" %}
+{% block titletag %}Приложение — журналы{% endblock %}
+{% block content %}
+{% include "wagtailadmin/shared/header.html" with title="Журналы приложения" icon="doc-full" %}
+{% include "setupkart/admin/_style.html" %}
+<div class="skp">
+  <p class="muted">Журналы, которые пользователи отправили из «Настроек» → «Отправить журнал». Только техническое: версии, связь с сайтом, ошибки, счётчики данных — без содержимого сессий и контактов.</p>
+  <table><thead><tr><th>№</th><th>Получен</th><th>Версия</th><th>Устройство</th><th>Комментарий</th><th>Установка</th></tr></thead><tbody>
+  {% for r in items %}
+    <tr><td><a href="{% url 'setupkart_diagnostics_detail' r.pk %}">{% if not r.is_read %}<b>№{{ r.pk }}</b>{% else %}№{{ r.pk }}{% endif %}</a></td>
+      <td>{{ r.created_at|date:"d.m.Y H:i" }}</td><td>{{ r.app_version|default:"—" }}</td><td>{{ r.device_info|default:"—" }}</td>
+      <td>{{ r.comment|truncatechars:80|default:"—" }}</td><td class="muted">{{ r.client_id|truncatechars:12 }}</td></tr>
+  {% empty %}<tr><td colspan="6" class="muted">Пусто.</td></tr>{% endfor %}
+  </tbody></table>
+</div>
+{% endblock %}

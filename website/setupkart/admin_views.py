@@ -7,7 +7,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from website.models import (
-    AppCatalogVersion, AppEngineSparkPlug, AppParameter, AppSuggestion, Chassis, Engine, Track, TyreBrand,
+    AppCatalogVersion, AppDiagnosticReport, AppEngineSparkPlug, AppParameter, AppSuggestion, Chassis, Engine, Track, TyreBrand,
 )
 from . import catalog
 from .api import tracks_payload
@@ -133,3 +133,26 @@ def suggestion_action(request, pk, action):
     if not nxt or not url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}):
         nxt = reverse('setupkart_suggestions')
     return redirect(nxt)
+
+
+def diagnostics(request):
+    if not _allowed(request):
+        return HttpResponseForbidden()
+    return render(request, 'setupkart/admin/diagnostics.html', {
+        'items': AppDiagnosticReport.objects.defer('log')[:200],
+    })
+
+
+def diagnostics_detail(request, pk):
+    if not _allowed(request):
+        return HttpResponseForbidden()
+    r = get_object_or_404(AppDiagnosticReport, pk=pk)
+    if request.method == 'POST' and request.POST.get('action') == 'delete':
+        r.delete()
+        messages.success(request, f'Журнал №{pk} удалён.')
+        return redirect('setupkart_diagnostics')
+    if not r.is_read:
+        AppDiagnosticReport.objects.filter(pk=pk).update(is_read=True)
+    same = AppDiagnosticReport.objects.filter(client_id=r.client_id).exclude(pk=pk).defer('log')[:20]
+    return render(request, 'setupkart/admin/diagnostics_detail.html',
+                  {'r': r, 'same': same, 'title': f'Журнал приложения №{r.pk}'})

@@ -7,6 +7,7 @@ import hashlib
 import json
 import logging
 
+from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
@@ -174,3 +175,47 @@ def feedback(request):
     )
     transaction.on_commit(lambda: notify_admins(fb, email))
     return JsonResponse({'ok': True, 'number': fb.pk}, status=201)
+
+
+DIAGNOSTICS_LOG_MAX = 200_000
+
+
+@nocache_page
+@csrf_exempt
+@require_POST
+def diagnostics(request):
+    """Журнал работы приложения из «Настроек» → список в админке + короткое уведомление в админ-чат."""
+    from django.urls import reverse
+    from django.utils.html import escape
+
+    from website.feedback.notify import notify_admin_chat
+    from website.models import AppDiagnosticReport
+
+    ip = get_client_ip(request)
+    if _limited(f'setupkart:diag:ip:{ip}', 10, 3600):
+        return JsonResponse({'error': 'rate_limited'}, status=429)
+    try:
+        body = json.loads(request.body or b'{}')
+    except ValueError:
+        return JsonResponse({'error': 'bad_json'}, status=400)
+    client_id = str(body.get('client_id') or '').strip()[:64]
+    log = str(body.get('log') or '')
+    if not client_id or not log.strip() or len(log) > DIAGNOSTICS_LOG_MAX:
+        return JsonResponse({'error': 'invalid'}, status=400)
+    if _limited(f'setupkart:diag:cid:{client_id}', 5, 3600):
+        return JsonResponse({'error': 'rate_limited'}, status=429)
+    r = AppDiagnosticReport.objects.create(
+        client_id=client_id, log=log,
+        comment=str(body.get('comment') or '').strip()[:2000],
+        app_version=str(body.get('app_version') or '')[:40],
+        device_info=str(body.get('device_info') or '')[:120],
+    )
+    try:
+        url = settings.BASE_URL.rstrip('/') + reverse('setupkart_diagnostics_detail', args=[r.pk])
+    except Exception:
+        url = ''
+    text = f'📱 Журнал приложения №{r.pk} (версия {escape(r.app_version) or "—"})'
+    if url:
+        text += f'\n<a href="{escape(url)}">Открыть в админке</a>'
+    transaction.on_commit(lambda: notify_admin_chat(text, f'app diagnostics #{r.pk}'))
+    return JsonResponse({'ok': True, 'number': r.pk}, status=201)

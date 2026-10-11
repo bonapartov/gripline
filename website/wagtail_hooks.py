@@ -379,6 +379,7 @@ class SetupKartGroup(ModelAdminGroup):
         items.append(SetupKartMenuItem('Картинки шасси', reverse('setupkart_chassis_images'), icon_name='image', order=250))
         items.append(SetupKartMenuItem('Предложения пользователей', reverse('setupkart_suggestions'), icon_name='comment', order=300))
         items.append(SetupKartMenuItem('Публикация', reverse('setupkart_publication'), icon_name='upload', order=400))
+        items.append(SetupKartMenuItem('Журналы приложения', reverse('setupkart_diagnostics'), icon_name='doc-full', order=450))
         return items
 
 
@@ -595,6 +596,9 @@ def register_setupkart_admin_urls():
         path('setupkart/', setupkart_admin_views.overview, name='setupkart_overview'),
         path('setupkart/publication/', setupkart_admin_views.publication, name='setupkart_publication'),
         path('setupkart/suggestions/', setupkart_admin_views.suggestions, name='setupkart_suggestions'),
+        path('setupkart/diagnostics/', setupkart_admin_views.diagnostics, name='setupkart_diagnostics'),
+        path('setupkart/diagnostics/<int:pk>/', setupkart_admin_views.diagnostics_detail,
+             name='setupkart_diagnostics_detail'),
         path('setupkart/suggestions/<int:pk>/<str:action>/', setupkart_admin_views.suggestion_action,
              name='setupkart_suggestion_action'),
         path('setupkart/chassis-images/', setupkart_chassis_images.image_list, name='setupkart_chassis_images'),

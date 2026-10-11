@@ -1,0 +1,20 @@
+{% extends "wagtailadmin/base.html" %}
+{% block titletag %}Журнал приложения №{{ r.pk }}{% endblock %}
+{% block content %}
+{% include "wagtailadmin/shared/header.html" with title=title icon="doc-full" %}
+{% include "setupkart/admin/_style.html" %}
+<div class="skp">
+  <p><a href="{% url 'setupkart_diagnostics' %}">← Все журналы</a></p>
+  <table><tbody>
+    <tr><th>Получен</th><td>{{ r.created_at|date:"d.m.Y H:i" }}</td></tr>
+    <tr><th>Версия</th><td>{{ r.app_version|default:"—" }}</td></tr>
+    <tr><th>Устройство</th><td>{{ r.device_info|default:"—" }}</td></tr>
+    <tr><th>Установка</th><td class="muted">{{ r.client_id }}</td></tr>
+    <tr><th>Комментарий</th><td>{{ r.comment|linebreaksbr|default:"—" }}</td></tr>
+  </tbody></table>
+  <h2>Журнал</h2>
+  <pre style="white-space:pre-wrap;max-height:70vh;overflow:auto;font-size:12px;padding:12px;border:1px solid var(--w-color-border-furniture);border-radius:4px">{{ r.log }}</pre>
+  {% if same %}<h2>Другие журналы с этой установки</h2><ul>{% for x in same %}<li><a href="{% url 'setupkart_diagnostics_detail' x.pk %}">№{{ x.pk }}</a> — {{ x.created_at|date:"d.m.Y H:i" }}, {{ x.app_version }}</li>{% endfor %}</ul>{% endif %}
+  <form method="post" style="margin-top:16px">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="button button-secondary no" type="submit">Удалить журнал</button></form>
+</div>
+{% endblock %}

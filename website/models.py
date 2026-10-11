@@ -4842,6 +4842,29 @@ class AppCatalogVersion(models.Model):
         return f"v{self.version} от {self.published_at:%d.%m.%Y %H:%M}"
 
 
+class AppDiagnosticReport(models.Model):
+    """Журнал работы приложения, отправленный пользователем из «Настроек» (11.10.2026).
+
+    Только техническое: версии, связь с сайтом, ошибки, счётчики данных — без содержимого сессий
+    и без контактов. Нужен, чтобы разбирать случаи вроде «на сайте трасс больше, чем в приложении».
+    """
+    client_id = models.CharField("Установка", max_length=64, db_index=True)
+    app_version = models.CharField("Версия приложения", max_length=40, blank=True)
+    device_info = models.CharField("Устройство", max_length=120, blank=True)
+    comment = models.TextField("Комментарий пользователя", blank=True)
+    log = models.TextField("Журнал")
+    created_at = models.DateTimeField("Получен", auto_now_add=True, db_index=True)
+    is_read = models.BooleanField("Просмотрен", default=False)
+
+    class Meta:
+        verbose_name = "Журнал приложения"
+        verbose_name_plural = "Журналы приложения"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Журнал №{self.pk} ({self.app_version})"
+
+
 class AppSuggestion(models.Model):
     """Значение из «Другое…», присланное пользователями с согласия (анонимно), сгруппированное."""
     STATUS_NEW = 'new'
