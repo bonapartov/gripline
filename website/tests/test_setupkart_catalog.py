@@ -478,3 +478,31 @@ def test_no_intermediate_tyres():
     from website.models import APP_TYRE_KIND_CHOICES, TyreType
     assert [k for k, _ in APP_TYRE_KIND_CHOICES] == ['slick', 'wet']
     assert [k for k, _ in TyreType.TYRE_TYPE_CHOICES] == ['slick', 'wet']
+
+
+@pytest.mark.django_db
+def test_class_presets_in_payload_and_validated():
+    """Рекомендации производителя по классу (таблица Rotax, 11.10.2026): в справочнике по id класса,
+    значение — как в списке поля; ошибки — до публикации."""
+    from website.models import AppEngineClassPreset
+    e = rotax_seeded()
+    mini = RaceClass.objects.create(name='RM Mini')
+    e.app_race_classes.add(mini)
+    e.save()
+    AppEngineClassPreset.objects.create(engine=e, race_class=mini, key='main_jet', value='115',
+                                        range_from='112', range_to='118')
+    AppEngineClassPreset.objects.create(engine=e, race_class=mini, key='air_screw_turns', value='1.75')
+    assert catalog.validation_errors() == []
+    eng = next(x for x in catalog.build_payload()['engines'] if x['id'] == e.pk)
+    assert eng['class_presets'] == {str(mini.pk): {
+        'main_jet': {'value': '115', 'from': '112', 'to': '118'},
+        'air_screw_turns': {'value': '1.75'}}}
+
+    AppEngineClassPreset.objects.create(engine=e, race_class=mini, key='idle_turns', value='1.3')
+    AppEngineClassPreset.objects.create(engine=e, race_class=mini, key='float_drop_mm', value='14')
+    other = RaceClass.objects.create(name='ОК')
+    AppEngineClassPreset.objects.create(engine=e, race_class=other, key='main_jet', value='120')
+    errors = catalog.validation_errors()
+    assert any('«1.3» нет в списке' in m for m in errors), 'не по шагу'
+    assert any('Провал поплавка' in m and 'нет среди полей' in m for m in errors)
+    assert any('ОК' in m and 'класс не отмечен' in m for m in errors)

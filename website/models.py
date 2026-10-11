@@ -1554,6 +1554,9 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
         InlinePanel('app_fields', label="Поле карбюратора",
                     help_text="Числа — минимум, максимум и шаг; остальное — список (по одному значению в строке)."),
         InlinePanel('app_spark_plugs', label="Свеча"),
+        InlinePanel('app_class_presets', label="Рекомендация по классу",
+                    help_text="Рекомендации производителя для класса: в приложении — значение по умолчанию "
+                              "и подсказка у поля. Поле должно быть среди полей карбюратора выше."),
     ]
     edit_handler = TabbedInterface([
         ObjectList(panels, heading="Основное"),
@@ -4482,6 +4485,9 @@ APP_ENGINE_FIELD_CHOICES = [
     ('needle_high', 'Винт High (Tillotson)'),
     ('needle_low', 'Винт Low (Tillotson)'),
     ('plug_gap_mm', 'Зазор свечи, мм'),
+    ('float_height_mm', 'Высота поплавка, мм'),
+    ('float_drop_mm', 'Провал поплавка, мм'),
+    ('water_temp_c', 'Температура воды, °C'),
 ]
 APP_PARAMETER_CHOICES = [
     ('hub_width_mm', 'Ширина ступицы, мм'),
@@ -4544,6 +4550,33 @@ class AppEngineField(Orderable, AppValueSpec):
 
     def __str__(self):
         return f"{self.engine} · {self.get_key_display()}"
+
+
+class AppEngineClassPreset(Orderable):
+    """Рекомендация производителя по классу (11.10.2026, таблица Rotax: жиклёр, поплавок, воздушный винт,
+    температура). В приложении — значение по умолчанию для сессии этого класса и подсказка у поля;
+    пользователь может выбрать любое другое значение."""
+    engine = ParentalKey('website.Engine', on_delete=models.CASCADE, related_name='app_class_presets')
+    race_class = models.ForeignKey('website.RaceClass', on_delete=models.CASCADE, related_name='+',
+                                   verbose_name="Класс")
+    key = models.CharField("Поле", max_length=30, choices=APP_ENGINE_FIELD_CHOICES)
+    value = models.CharField("Рекомендуемое значение", max_length=30, blank=True,
+                             help_text="Как в списке поля (например, 115 или 1.75). Пусто — только диапазон, "
+                                       "без подстановки.")
+    range_from = models.CharField("Диапазон от", max_length=30, blank=True)
+    range_to = models.CharField("Диапазон до", max_length=30, blank=True)
+
+    panels = [FieldRowPanel([FieldPanel('race_class'), FieldPanel('key')]),
+              FieldRowPanel([FieldPanel('value'), FieldPanel('range_from'), FieldPanel('range_to')])]
+
+    class Meta(Orderable.Meta):
+        verbose_name = "Рекомендация по классу"
+        verbose_name_plural = "Рекомендации по классам"
+        constraints = [models.UniqueConstraint(fields=['engine', 'race_class', 'key'],
+                                               name='app_engine_class_preset_unique')]
+
+    def __str__(self):
+        return f"{self.engine} · {self.race_class} · {self.get_key_display()}"
 
 
 class AppEngineSparkPlug(Orderable):

@@ -7,7 +7,7 @@ from website.models import (
     TyreBrand,
 )
 from . import chassis_images
-from .spec import spec_errors, to_profile_field
+from .spec import expand, spec_errors, to_profile_field
 
 SCHEMA = 1
 FIELD_LABELS = dict(APP_ENGINE_FIELD_CHOICES)
@@ -22,7 +22,7 @@ def _live(qs):
 def app_engines():
     return (_live(Engine.objects)
             .select_related('app_carburetor_image')
-            .prefetch_related('app_fields', 'app_spark_plugs', 'app_race_classes')
+            .prefetch_related('app_fields', 'app_spark_plugs', 'app_race_classes', 'app_class_presets')
             .order_by('name'))
 
 
@@ -41,7 +41,18 @@ def _engine_payload(engine):
         'electric': engine.app_electric,
         'carburetor_fields': fields,
         'carburetor_image': chassis_images.carburetor_image(engine),
+        # Рекомендации производителя по классу: {id класса: {поле: {value, from, to}}} (11.10.2026).
+        'class_presets': _class_presets_payload(engine),
     }
+
+
+def _class_presets_payload(engine):
+    out = {}
+    for p in engine.app_class_presets.all():
+        item = {k: v.strip() for k, v in (('value', p.value), ('from', p.range_from), ('to', p.range_to)) if v.strip()}
+        if item:
+            out.setdefault(str(p.race_class_id), {})[p.key] = item
+    return out
 
 
 def app_tyre_brands():
@@ -126,6 +137,20 @@ def validation_errors():
                 errors.append(f'«{e.name}» → «{f.get_key_display()}»: {msg}')
         if sum(1 for p in e.app_spark_plugs.all() if p.is_default) > 1:
             errors.append(f'«{e.name}»: свеч «по умолчанию» больше одной.')
+        by_key = {f.key: f for f in fields}
+        class_ids = {rc.pk for rc in e.app_race_classes.all()}
+        for p in e.app_class_presets.all():
+            where = f'«{e.name}» → рекомендация «{p.race_class}» · «{p.get_key_display()}»'
+            if p.race_class_id not in class_ids:
+                errors.append(f'{where}: класс не отмечен у двигателя.')
+            field = by_key.get(p.key)
+            if field is None:
+                errors.append(f'{where}: такого поля нет среди полей карбюратора.')
+            elif p.value.strip() and p.value.strip() not in expand(field):
+                errors.append(f'{where}: значения «{p.value.strip()}» нет в списке поля '
+                              f'(проверьте шаг и число знаков, например 1.75).')
+            if not (p.value.strip() or p.range_from.strip() or p.range_to.strip()):
+                errors.append(f'{where}: укажите значение или диапазон.')
     for p in AppParameter.objects.all():
         for msg in spec_errors(p).values():
             errors.append(f'Параметр «{p.get_key_display()}»: {msg}')
