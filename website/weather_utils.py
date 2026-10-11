@@ -52,7 +52,7 @@ def fetch_weather_data(latitude, longitude, target_date, target_time):
 
     try:
         # Выполняем запрос
-        response = requests.get(url, params=params, timeout=10)
+        response = requests.get(url, params=params, timeout=10, proxies=open_meteo_proxies())
         response.raise_for_status()  # Проверяем на ошибки HTTP
 
         data = response.json()
@@ -175,6 +175,15 @@ OPEN_METEO_DOWN_SECONDS = 300
 OPEN_METEO_FAILS_TO_PAUSE = 2
 
 
+def open_meteo_proxies():
+    """Прокси для Open-Meteo — галочка «Использовать Xray/VPN» в «Настройках погоды», адрес — VpnSettings."""
+    from .models import VpnSettings, WeatherSettings
+    if not WeatherSettings.get().use_vpn:
+        return None
+    url = VpnSettings.get().effective_url()
+    return {"http": url, "https": url} if url else None
+
+
 def _down_key(base_url):
     """Пауза — отдельно для каждого адреса: архив Open-Meteo может лежать, пока прогноз работает."""
     return f"{OPEN_METEO_DOWN_KEY}:{base_url}"
@@ -218,7 +227,8 @@ def _fetch_hourly_range(base_url, latitude, longitude, target_date,
     if _open_meteo_down(base_url):
         return None
     try:
-        response = requests.get(base_url, params=params, timeout=OPEN_METEO_TIMEOUT)
+        response = requests.get(base_url, params=params, timeout=OPEN_METEO_TIMEOUT,
+                                proxies=open_meteo_proxies())
         response.raise_for_status()
         cache.delete(f"{_down_key(base_url)}:fails")
         data = response.json()

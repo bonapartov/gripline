@@ -2348,6 +2348,14 @@ class WeatherSettings(models.Model):
         verbose_name="Конец дня, час",
         help_text="Верхняя граница часового диапазона для сводки погоды на день этапа.",
     )
+    use_vpn = models.BooleanField(
+        default=True,
+        verbose_name="Использовать Xray/VPN",
+        help_text=(
+            "С сервера соединения с Open-Meteo (Hetzner) то проходят, то обрываются — через прокси стабильно "
+            "(11.10.2026). Адрес прокси — в разделе «VPN»."
+        ),
+    )
 
     class Meta:
         verbose_name = "Настройки погоды"
