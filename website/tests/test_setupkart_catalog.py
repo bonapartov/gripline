@@ -471,3 +471,10 @@ def test_class_balance_thresholds_in_catalog_but_not_on_site_calculator():
                            yellow_max=D('52'))
     with pytest.raises(ValidationError):
         bad.clean()
+
+
+def test_no_intermediate_tyres():
+    """В картинге шины — слик или дождь; «промежуточных» нет (убраны 11.10.2026 по просьбе владельца)."""
+    from website.models import APP_TYRE_KIND_CHOICES, TyreType
+    assert [k for k, _ in APP_TYRE_KIND_CHOICES] == ['slick', 'wet']
+    assert [k for k, _ in TyreType.TYRE_TYPE_CHOICES] == ['slick', 'wet']

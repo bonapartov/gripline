@@ -1414,12 +1414,11 @@ class TyreBrand(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableMod
 
 class TyreType(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, models.Model):
     """
-    Тип шин (Слик, Дождь, Промежуточные)
+    Тип шин: слик или дождь. Промежуточных в картинге нет — убраны 11.10.2026.
     """
     TYRE_TYPE_CHOICES = [
         ('slick', 'Слик'),
         ('wet', 'Дождь'),
-        ('intermediate', 'Промежуточные'),
     ]
 
     name = models.CharField("Название типа", max_length=50, choices=TYRE_TYPE_CHOICES, unique=True)
@@ -4536,7 +4535,6 @@ class AppEngineSparkPlug(Orderable):
 APP_TYRE_KIND_CHOICES = [
     ('slick', 'Слик'),
     ('wet', 'Дождь'),
-    ('intermediate', 'Промежуточные'),
 ]
 
 
