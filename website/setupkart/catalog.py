@@ -38,6 +38,7 @@ def _engine_payload(engine):
         'name': engine.name,
         'family': engine.app_family or 'other',
         'race_class_ids': [rc.pk for rc in engine.app_race_classes.all()],
+        'electric': engine.app_electric,
         'carburetor_fields': fields,
         'carburetor_image': chassis_images.carburetor_image(engine),
     }
@@ -100,6 +101,12 @@ def validation_errors():
     errors = []
     for e in app_engines():
         fields = list(e.app_fields.all())
+        if e.app_electric:
+            # Электромотор: карбюратора и свечи нет — лишние поля в приложении всё равно не показались бы.
+            if fields or e.app_spark_plugs.exists():
+                errors.append(f'«{e.name}»: у электромотора не должно быть полей карбюратора и свечей '
+                              f'(вкладка «Приложение»).')
+            continue
         if not fields:
             errors.append(f'«{e.name}»: нет ни одного поля карбюратора (вкладка «Приложение» в карточке двигателя).')
         seen = set()

@@ -153,6 +153,24 @@ def test_cannot_publish_engine_without_fields():
 
 
 @pytest.mark.django_db
+def test_electric_engine_published_without_carburetor():
+    """Электромотор (Rotax E10): публикуется без полей карбюратора, в справочнике — признак electric."""
+    from website.models import AppEngineSparkPlug, RaceClass
+    e10 = make_engine('Rotax E10', app_electric=True)
+    rc = RaceClass.objects.create(name='E-10 МИНИ')
+    e10.app_race_classes.add(rc)
+    e10.save()
+    assert catalog.validation_errors() == []
+    payload = catalog.build_payload()
+    eng = next(x for x in payload['engines'] if x['name'] == 'Rotax E10')
+    assert (eng['electric'], eng['carburetor_fields']) == (True, [])
+    assert [c['name'] for c in payload['race_classes']] == ['E-10 МИНИ']
+    catalog.publish()
+    AppEngineSparkPlug.objects.create(engine=e10, name='NGK BR9EG')
+    assert any('Rotax E10' in x and 'электромотора' in x for x in catalog.validation_errors())
+
+
+@pytest.mark.django_db
 def test_cannot_publish_invalid_field():
     e = rotax_seeded()
     AppEngineField.objects.filter(engine=e, key='main_jet').update(default_value='999')

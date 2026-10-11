@@ -1521,6 +1521,11 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
                  ('honda', 'Honda'), ('briggs', 'Briggs'), ('other', 'Другое')],
         help_text="Нужно, чтобы сетапы из оригинального приложения (марка + категория) сопоставлялись с этим двигателем.",
     )
+    app_electric = models.BooleanField(
+        "Электромотор", default=False,
+        help_text="Без карбюратора, свечи и выхлопа (например Rotax E10): в приложении для него скрываются "
+                  "разделы «Карбюратор» и «Температура выхлопа», жиклёр в «Быстрой правке» и моточасы. "
+                  "Поля карбюратора и свечи ему не задаются. Шасси, развесовка и звёзды — как у всех.")
     app_race_classes = ParentalManyToManyField(
         'website.RaceClass', blank=True, related_name='app_engines', verbose_name="Классы в приложении",
         help_text="Классы, которые пользователь сможет выбрать с этим двигателем.",
@@ -1544,6 +1549,7 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
     app_panels = [
         FieldPanel('show_in_app'),
         FieldPanel('app_family'),
+        FieldPanel('app_electric'),
         FieldPanel('app_race_classes', widget=forms.CheckboxSelectMultiple),
         FieldPanel('app_carburetor_image'),
         InlinePanel('app_fields', label="Поле карбюратора",
