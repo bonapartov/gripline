@@ -64,10 +64,18 @@ def _balance_payload():
     from django.conf import settings
     from website.models import BalanceDiagnosticRule, BalanceThreshold
     base = settings.BASE_URL.rstrip('/')
+
+    def zone(t):
+        return {'green_min': float(t.green_min), 'green_max': float(t.green_max),
+                'yellow_min': float(t.yellow_min), 'yellow_max': float(t.yellow_max)}
+
+    by_class = {}
+    for t in BalanceThreshold.objects.filter(race_class__isnull=False).order_by('race_class_id', 'metric'):
+        by_class.setdefault(str(t.race_class_id), {})[t.metric] = zone(t)
     return {
-        'thresholds': {t.metric: {'green_min': float(t.green_min), 'green_max': float(t.green_max),
-                                  'yellow_min': float(t.yellow_min), 'yellow_max': float(t.yellow_max)}
-                       for t in BalanceThreshold.objects.all()},
+        'thresholds': {t.metric: zone(t) for t in BalanceThreshold.objects.filter(race_class__isnull=True)},
+        # Эталон класса: {id класса: {метрика: зоны}} — заменяет общий порог той же метрики (11.10.2026).
+        'class_thresholds': by_class,
         'rules': {r.condition: {'text': r.text, 'article_url': f"{base}{r.article.url}" if r.article_id else ''}
                   for r in BalanceDiagnosticRule.objects.select_related('article')},
     }

@@ -98,7 +98,8 @@ def compute_metrics(lf, rf, lr, rr):
 
 
 def load_thresholds():
-    return {t.metric: t for t in BalanceThreshold.objects.all()}
+    """Общие пороги (без класса гонок): по ним считает /balance/. Пороги классов — только для приложения."""
+    return {t.metric: t for t in BalanceThreshold.objects.filter(race_class__isnull=True)}
 
 
 def classify_metric(metric_key, value, thresholds=None):
@@ -107,7 +108,7 @@ def classify_metric(metric_key, value, thresholds=None):
     if thresholds is not None:
         threshold = thresholds.get(metric_key)
     else:
-        threshold = BalanceThreshold.objects.filter(metric=metric_key).first()
+        threshold = BalanceThreshold.objects.filter(metric=metric_key, race_class__isnull=True).first()
     return threshold.classify(value) if threshold else None
 
 

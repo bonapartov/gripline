@@ -180,7 +180,9 @@ class BalanceThresholdAdmin(ModelAdmin):
     model = BalanceThreshold
     menu_label = 'Пороги индикации'
     menu_icon = 'warning'
-    list_display = ('metric', 'green_min', 'green_max', 'yellow_min', 'yellow_max')
+    list_display = ('metric', 'race_class', 'green_min', 'green_max', 'yellow_min', 'yellow_max')
+    list_filter = ('metric', 'race_class')
+    ordering = ('race_class__sort_order', 'metric')
 
 class BalanceDiagnosticRuleAdmin(ModelAdmin):
     model = BalanceDiagnosticRule

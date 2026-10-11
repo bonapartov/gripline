@@ -2628,9 +2628,10 @@ class KartClass(models.Model):
 
 class BalanceThreshold(models.Model):
     """
-    Пороги цветовой индикации калькулятора развесовки — ровно три записи
-    (front_rear, left_right, cross_weight). Красная зона — всё вне жёлтой,
-    отдельно не хранится.
+    Пороги цветовой индикации калькулятора развесовки. Общие — по одной записи на метрику
+    (front_rear, left_right, cross_weight), без класса: по ним работают /balance/ и приложение.
+    С классом гонок (11.10.2026) — эталон этого класса в приложении: заменяет общий порог той же
+    метрики только для этого класса. Красная зона — всё вне жёлтой, отдельно не хранится.
     """
     METRIC_CHOICES = [
         ("front_rear", "Перед/зад, %"),
@@ -2639,15 +2640,21 @@ class BalanceThreshold(models.Model):
     ]
 
     metric = models.CharField(
-        max_length=20, choices=METRIC_CHOICES, unique=True, verbose_name="Метрика",
+        max_length=20, choices=METRIC_CHOICES, verbose_name="Метрика",
     )
+    race_class = models.ForeignKey(
+        'website.RaceClass', on_delete=models.CASCADE, null=True, blank=True, related_name='balance_thresholds',
+        verbose_name="Класс гонок",
+        help_text="Пусто — общий порог (сайт /balance/ и все классы в приложении). Класс — эталон этого класса "
+                  "в приложении: зоны, диагностика и цель центра тяжести считаются по нему; метрики, не заданные "
+                  "для класса, берутся из общих. Доходит до приложения после «Публикации».")
     green_min = models.DecimalField(max_digits=4, decimal_places=1, verbose_name="Зелёная зона, от")
     green_max = models.DecimalField(max_digits=4, decimal_places=1, verbose_name="Зелёная зона, до")
     yellow_min = models.DecimalField(max_digits=4, decimal_places=1, verbose_name="Жёлтая зона, от")
     yellow_max = models.DecimalField(max_digits=4, decimal_places=1, verbose_name="Жёлтая зона, до")
 
     panels = [
-        FieldPanel("metric"),
+        FieldRowPanel([FieldPanel("metric"), FieldPanel("race_class")]),
         FieldRowPanel([
             FieldPanel("green_min"),
             FieldPanel("green_max"),
@@ -2661,9 +2668,22 @@ class BalanceThreshold(models.Model):
     class Meta:
         verbose_name = "Порог цветовой индикации"
         verbose_name_plural = "Пороги цветовой индикации"
+        constraints = [
+            models.UniqueConstraint(fields=['metric', 'race_class'], name='balance_threshold_metric_class'),
+            models.UniqueConstraint(fields=['metric'], condition=models.Q(race_class__isnull=True),
+                                    name='balance_threshold_metric_common'),
+        ]
 
     def __str__(self):
-        return self.get_metric_display()
+        return self.get_metric_display() + (f" — {self.race_class.name}" if self.race_class_id else " — общий")
+
+    def clean(self):
+        super().clean()
+        for name in ('green_min', 'green_max', 'yellow_min', 'yellow_max'):
+            if getattr(self, name) is None:
+                return
+        if not (self.yellow_min <= self.green_min <= self.green_max <= self.yellow_max):
+            raise ValidationError("Нужно: жёлтая «от» ≤ зелёная «от» ≤ зелёная «до» ≤ жёлтая «до».")
 
     def classify(self, value):
         if self.green_min <= value <= self.green_max:

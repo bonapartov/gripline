@@ -131,7 +131,7 @@ def test_payload_contains_only_flagged_and_live_records():
     assert [c['name'] for c in p['chassis']] == ['Tony Kart']
     assert [t['name'] for t in p['tyre_brands']] == ['Vega']
     assert p['race_classes'] == [{'id': rc.pk, 'name': 'Rotax Junior', 'sort_order': 10, 'min_weight_kg': 145.0}]
-    assert p['balance'] == {'thresholds': {}, 'rules': {}}, 'пустая «Развесовка» — пустые пороги и правила'
+    assert p['balance'] == {'thresholds': {}, 'class_thresholds': {}, 'rules': {}}, 'пустая «Развесовка» — пустые пороги и правила'
     from website.models import BalanceDiagnosticRule, BalanceThreshold
     BalanceThreshold.objects.create(metric='front_rear', green_min=42.5, green_max=43.5, yellow_min=42, yellow_max=44)
     BalanceDiagnosticRule.objects.create(condition='front_high', text='Перегружен перед')
@@ -442,3 +442,32 @@ def test_pro_admin_page_opens_and_saves(client, django_user_model):
     page = client.get('/admin/website/appprosettings/edit/1/')
     assert page.status_code == 200
     assert 'Сохранённые сессии' in page.content.decode()
+
+
+@pytest.mark.django_db
+def test_class_balance_thresholds_in_catalog_but_not_on_site_calculator():
+    """Эталон класса (11.10.2026): в справочнике приложения — отдельно по классу; /balance/ — только общие."""
+    from decimal import Decimal as D
+    from django.core.exceptions import ValidationError
+    from django.db import IntegrityError, transaction
+    from website.models import BalanceThreshold, RaceClass
+    from website.services.balance_calc import load_thresholds
+    rc = RaceClass.objects.create(name='Микро')
+    BalanceThreshold.objects.create(metric='front_rear', green_min=D('42.5'), green_max=D('43.5'),
+                                    yellow_min=D('42'), yellow_max=D('44'))
+    BalanceThreshold.objects.create(metric='front_rear', race_class=rc, green_min=D('40.5'), green_max=D('41.5'),
+                                    yellow_min=D('40'), yellow_max=D('42'))
+    bal = catalog.build_payload()['balance']
+    assert bal['thresholds']['front_rear']['green_min'] == 42.5
+    assert bal['class_thresholds'] == {str(rc.pk): {'front_rear': {
+        'green_min': 40.5, 'green_max': 41.5, 'yellow_min': 40.0, 'yellow_max': 42.0}}}
+    assert load_thresholds()['front_rear'].green_min == D('42.5')
+    with pytest.raises(IntegrityError), transaction.atomic():
+        BalanceThreshold.objects.create(metric='front_rear', race_class=rc, green_min=1, green_max=2,
+                                        yellow_min=0, yellow_max=3)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        BalanceThreshold.objects.create(metric='front_rear', green_min=1, green_max=2, yellow_min=0, yellow_max=3)
+    bad = BalanceThreshold(metric='left_right', green_min=D('49'), green_max=D('51'), yellow_min=D('49.5'),
+                           yellow_max=D('52'))
+    with pytest.raises(ValidationError):
+        bad.clean()
