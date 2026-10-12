@@ -4859,8 +4859,128 @@ APP_PRO_FEATURES = [
     ('seat_position', 'Положение сиденья', 'toggle', 'free'),
     ('grip_level', 'Уровень зацепа трассы', 'toggle', 'free'),
     ('air_density', 'Плотность воздуха (RAD) по погоде', 'toggle', 'pro'),
+    ('chassis_advice', 'Советы по поведению карта', 'toggle', 'pro'),
 ]
 APP_PRO_FEATURE_KINDS = {k: kind for k, _, kind, _ in APP_PRO_FEATURES}
+
+
+# ───── Советы по поведению карта (приложение, 12.10.2026; логика — по разбору Kart Chassis Setup Pro) ─────
+# Что менять в приложении по кнопке «Применить»: код → (подпись, поля профиля приложения). Пары лево/право
+# и «перед и зад» меняются вместе. Ключи полей — из встроенного профиля приложения (assets/profiles/common.json).
+APP_ADVICE_TARGETS = {
+    'track_width_front_cm': ('Колея передняя', ['track_width_front_cm']),
+    'track_width_rear_cm': ('Колея задняя', ['track_width_rear_cm']),
+    'torsion_front': ('Передний стабилизатор', ['torsion_front']),
+    'torsion_rear': ('Задний стабилизатор', ['torsion_rear']),
+    'front_bumper': ('Передний бампер', ['front_bumper']),
+    'sidepods': ('Крепления понтонов', ['sidepods']),
+    'toe_mm': ('Схождение (− развал)', ['toe_mm']),
+    'camber': ('Камбер (оба)', ['camber_left', 'camber_right']),
+    'caster': ('Кастер (оба)', ['caster_left', 'caster_right']),
+    'ackermann': ('Аккерман', ['ackermann']),
+    'front_height': ('Высота передней оси', ['front_height']),
+    'rear_axle_height': ('Высота задней оси', ['rear_axle_height']),
+    'heights': ('Высота передней и задней оси', ['front_height', 'rear_axle_height']),
+    'seat_shift_mm': ('Сиденье: сдвиг назад', ['seat_shift_mm']),
+    'seat_raise_mm': ('Сиденье: подъём', ['seat_raise_mm']),
+    'hub_width_mm': ('Задние ступицы (ширина)', ['hub_width_mm']),
+    'front_hub_length_mm': ('Передние ступицы (длина)', ['front_hub_length_mm']),
+    'rear_axle_stiffness': ('Жёсткость задней оси', ['rear_axle_stiffness']),
+    'seat_struts': ('Распорки сиденья (обе)', ['seat_strut_left', 'seat_strut_right']),
+    'rain_meister': ('Rainmeister', ['rain_meister']),
+}
+APP_ADVICE_TARGET_CHOICES = [('', '— только совет —')] + [(k, v[0]) for k, v in APP_ADVICE_TARGETS.items()]
+APP_ADVICE_ACTION_CHOICES = [
+    ('', '— без кнопки —'),
+    ('inc', 'На шаг больше (следующий вариант списка)'),
+    ('dec', 'На шаг меньше (предыдущий вариант списка)'),
+    ('set', 'Установить значение'),
+]
+APP_HANDLING_SYMPTOMS = [
+    ('understeer', 'Недостаточная поворачиваемость'),
+    ('oversteer', 'Избыточная поворачиваемость'),
+    ('hopping', 'Прыжки / сильный отскок одного колеса'),
+    ('lifting', 'Отрыв обоих внутренних колёс'),
+    ('drift', 'Скольжение всеми колёсами'),
+]
+APP_HANDLING_PHASES = [('any', 'Любая фаза'), ('entry', 'Вход в поворот'), ('middle', 'Середина поворота'),
+                       ('exit', 'Выход из поворота')]
+APP_ADVICE_LEVELS = [('strong', 'Сильно'), ('medium', 'Средне'), ('weak', 'Слабо')]
+APP_ADVICE_GROUPS = [
+    ('jacking_up', 'Больше подъёма внутреннего заднего колеса'),
+    ('jacking_down', 'Меньше подъёма внутреннего заднего колеса'),
+    ('front_grip_up', 'Больше сцепления спереди'),
+    ('front_grip_down', 'Меньше сцепления спереди'),
+    ('rear_grip_up', 'Больше сцепления сзади'),
+    ('rear_grip_down', 'Меньше сцепления сзади'),
+    ('driving', 'Стиль пилотирования'),
+    ('other', 'Другое'),
+]
+APP_ADVICE_BALLAST = [
+    ('any', 'Любой'), ('none', 'Без балласта'), ('low', 'Мало (< 4 % веса пилота)'),
+    ('normal', 'Норма (4–12 %)'), ('high', 'Много (> 12 %)'), ('low_normal', 'Мало или норма'),
+]
+APP_ADVICE_WEATHER = [('any', 'Любая'), ('dry', 'Сухо'), ('wet', 'Дождь / мокро')]
+
+
+class AppChassisAdvice(ClusterableModel):
+    """Совет по шасси для раздела «Поведение карта» в приложении: что сделать, почему и (необязательно) какое
+    поле сессии поменять по кнопке «Применить». Когда показывать — правила ниже (симптом, фаза, сила)."""
+    code = models.SlugField("Код", max_length=40, unique=True,
+                            help_text="Латиницей, не меняется после публикации (по нему приложение узнаёт совет).")
+    title = models.CharField("Что сделать", max_length=120)
+    text = models.TextField("Почему", blank=True, help_text="Короткое объяснение для пилота.")
+    image = models.ForeignKey('wagtailimages.Image', null=True, blank=True, on_delete=models.SET_NULL,
+                              related_name='+', verbose_name="Картинка")
+    target = models.CharField("Поле в приложении", max_length=40, blank=True, choices=APP_ADVICE_TARGET_CHOICES)
+    action = models.CharField("Кнопка «Применить»", max_length=10, blank=True, choices=APP_ADVICE_ACTION_CHOICES,
+                              help_text="«На шаг» — следующий/предыдущий вариант списка или шаг числа. "
+                                        "Значение — для «Установить» (как в списке поля, например loose или Нет).")
+    value = models.CharField("Значение", max_length=30, blank=True)
+    sort_order = models.PositiveIntegerField("Порядок", default=0)
+
+    panels = [
+        FieldPanel('code'), FieldPanel('title'), FieldPanel('text'), FieldPanel('image'),
+        FieldRowPanel([FieldPanel('target'), FieldPanel('action'), FieldPanel('value')]),
+        FieldPanel('sort_order'),
+        InlinePanel('rules', label="Когда советовать",
+                    help_text="Симптом и фаза поворота, которые отметил пилот; сила — насколько регулировка "
+                              "меняет поведение (в приложении советы идут от сильных к слабым)."),
+    ]
+
+    class Meta:
+        verbose_name = "Совет по шасси"
+        verbose_name_plural = "Советы по шасси"
+        ordering = ['sort_order', 'title']
+
+    def __str__(self):
+        return self.title
+
+    def clean(self):
+        if self.action and not self.target:
+            raise ValidationError({'target': "Для кнопки «Применить» выберите поле."})
+        if self.action == 'set' and not self.value.strip():
+            raise ValidationError({'value': "Укажите значение для «Установить»."})
+
+    def payload_fields(self):
+        return APP_ADVICE_TARGETS.get(self.target, ('', []))[1]
+
+
+class AppChassisRule(Orderable):
+    advice = ParentalKey(AppChassisAdvice, on_delete=models.CASCADE, related_name='rules')
+    symptom = models.CharField("Симптом", max_length=20, choices=APP_HANDLING_SYMPTOMS)
+    phase = models.CharField("Фаза", max_length=10, choices=APP_HANDLING_PHASES, default='any')
+    level = models.CharField("Сила", max_length=10, choices=APP_ADVICE_LEVELS, default='medium')
+    group = models.CharField("Эффект", max_length=20, choices=APP_ADVICE_GROUPS, default='other')
+    ballast = models.CharField("Балласт", max_length=12, choices=APP_ADVICE_BALLAST, default='any')
+    weather = models.CharField("Погода", max_length=5, choices=APP_ADVICE_WEATHER, default='any')
+
+    panels = [FieldRowPanel([FieldPanel('symptom'), FieldPanel('phase'), FieldPanel('level')]),
+              FieldRowPanel([FieldPanel('group'), FieldPanel('ballast'), FieldPanel('weather')])]
+
+    class Meta(Orderable.Meta):
+        verbose_name = "Правило"
+        verbose_name_plural = "Правила"
 
 
 class AppProSettings(ClusterableModel):

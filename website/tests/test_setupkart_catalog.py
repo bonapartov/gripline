@@ -562,3 +562,24 @@ def test_chassis_params_and_pro_features(client):
     assert features['air_density'] == {'tier': 'pro'}
     assert all(features[k] == {'tier': 'free'} for k in ('toe', 'seat_struts', 'torsion_bars', 'seat_position',
                                                          'grip_level'))
+
+
+@pytest.mark.django_db
+def test_chassis_advice_in_payload_and_validated():
+    """Советы по поведению карта (12.10.2026): совет без правил не уходит; пары полей разворачиваются;
+    «Установить» без значения и кнопка без поля — ошибки публикации."""
+    from website.models import AppChassisAdvice, AppChassisRule
+    a = AppChassisAdvice.objects.create(code='camber_more', title='Камбер в «+»', target='camber', action='inc')
+    AppChassisAdvice.objects.create(code='no_rules', title='Без правил')
+    AppChassisRule.objects.create(advice=a, symptom='understeer', phase='middle', level='weak', group='front_grip_up')
+    advice = catalog.build_payload()['chassis_advice']
+    assert [x['code'] for x in advice] == ['camber_more']
+    assert advice[0]['fields'] == ['camber_left', 'camber_right']
+    assert advice[0]['rules'] == [{'symptom': 'understeer', 'phase': 'middle', 'level': 'weak',
+                                   'group': 'front_grip_up', 'ballast': 'any', 'weather': 'any'}]
+    assert catalog.validation_errors() == []
+    AppChassisAdvice.objects.create(code='bad_set', title='Плохой', target='sidepods', action='set')
+    AppChassisAdvice.objects.create(code='bad_target', title='Без поля', action='inc')
+    errors = catalog.validation_errors()
+    assert any('«Плохой»' in m and 'значение' in m for m in errors)
+    assert any('«Без поля»' in m and 'поле' in m for m in errors)

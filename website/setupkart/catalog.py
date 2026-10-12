@@ -103,6 +103,30 @@ def _balance_payload():
     }
 
 
+ADVICE_RENDITION = 'max-800x800|format-webp|webpquality-85'
+
+
+def _chassis_advice_payload():
+    """Советы по поведению карта (12.10.2026): советы с правилами «симптом × фаза → сила, эффект, условия»."""
+    from django.conf import settings
+    from website.models import AppChassisAdvice
+    base = settings.BASE_URL.rstrip('/')
+    out = []
+    for a in AppChassisAdvice.objects.select_related('image').prefetch_related('rules'):
+        rules = [{'symptom': r.symptom, 'phase': r.phase, 'level': r.level, 'group': r.group,
+                  'ballast': r.ballast, 'weather': r.weather} for r in a.rules.all()]
+        if not rules:
+            continue
+        image = None
+        if a.image_id:
+            r = a.image.get_rendition(ADVICE_RENDITION)
+            image = {'url': f"{base}{r.url}", 'width': r.width, 'height': r.height}
+        out.append({'code': a.code, 'title': a.title, 'text': a.text, 'image': image,
+                    'fields': a.payload_fields() if a.action else [], 'action': a.action, 'value': a.value.strip(),
+                    'rules': rules})
+    return out
+
+
 def build_payload():
     """Текущее состояние админки в формате, который получает приложение."""
     engines = list(app_engines())
@@ -115,6 +139,7 @@ def build_payload():
                           'min_weight_kg': float(rc.min_weight_kg) if rc.min_weight_kg else None}
                          for rc in RaceClass.objects.filter(pk__in=class_ids)],
         'balance': _balance_payload(),
+        'chassis_advice': _chassis_advice_payload(),
         # Популярные марки (больше результатов на сайте) — первыми; синонимы — для «Другое…».
         'chassis': [{'id': c.pk, 'name': c.name, 'aliases': c.alias_list()}
                     for c in _live(Chassis.objects).annotate(n=Count('race_results')).order_by('-n', 'name')],
@@ -129,6 +154,12 @@ def build_payload():
 def validation_errors():
     """Список понятных сообщений; публикация возможна только при пустом списке."""
     errors = []
+    from website.models import AppChassisAdvice
+    for a in AppChassisAdvice.objects.all():
+        if a.action and not a.target:
+            errors.append(f'Совет «{a.title}»: для кнопки «Применить» не выбрано поле.')
+        if a.action == 'set' and not a.value.strip():
+            errors.append(f'Совет «{a.title}»: для «Установить» не задано значение.')
     for e in app_engines():
         fields = list(e.app_fields.all())
         if e.app_electric:

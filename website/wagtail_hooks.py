@@ -317,7 +317,7 @@ modeladmin_register(DataRequestAdmin)
 
 
 # ---------- Приложение GripLine SetupKart (ТЗ приложения §13.3) ----------
-from .models import AppHelpImage, AppParameter, AppProSettings, AppSyncSettings, AppTrialDevice  # noqa: E402
+from .models import AppChassisAdvice, AppHelpImage, AppParameter, AppProSettings, AppSyncSettings, AppTrialDevice  # noqa: E402
 from .setupkart import admin_views as setupkart_admin_views  # noqa: E402
 from .setupkart import chassis_images as setupkart_chassis_images  # noqa: E402
 
@@ -367,6 +367,20 @@ class AppTrialDeviceAdmin(ModelAdmin):
     search_fields = ('device_hash', 'client_id', 'note')
 
 
+class AppChassisAdviceAdmin(ModelAdmin):
+    model = AppChassisAdvice
+    menu_label = 'Советы по шасси'
+    menu_icon = 'tick-inverse'
+    menu_order = 270
+    list_display = ('title', 'target', 'action', 'rules_count')
+    list_filter = ('rules__symptom', 'rules__phase', 'rules__level')
+    search_fields = ('title', 'text', 'code')
+
+    def rules_count(self, obj):
+        return obj.rules.count()
+    rules_count.short_description = 'Правил'
+
+
 class AppHelpImageAdmin(ModelAdmin):
     model = AppHelpImage
     menu_label = 'Картинки-подсказки'
@@ -384,7 +398,7 @@ class SetupKartGroup(ModelAdminGroup):
     menu_label = 'Приложение'
     menu_icon = 'mobile-alt'
     menu_order = 360
-    items = (AppParameterAdmin, AppHelpImageAdmin, AppSyncSettingsAdmin, AppProSettingsAdmin, AppTrialDeviceAdmin)
+    items = (AppParameterAdmin, AppHelpImageAdmin, AppChassisAdviceAdmin, AppSyncSettingsAdmin, AppProSettingsAdmin, AppTrialDeviceAdmin)
 
     def get_submenu_items(self):
         items = super().get_submenu_items()
