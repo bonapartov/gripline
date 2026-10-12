@@ -22,7 +22,7 @@ def _live(qs):
 def app_engines():
     return (_live(Engine.objects)
             .select_related('app_carburetor_image')
-            .prefetch_related('app_fields', 'app_spark_plugs', 'app_race_classes', 'app_class_presets', 'app_jet_bases', 'app_screw_models')
+            .prefetch_related('app_fields', 'app_spark_plugs', 'app_race_classes', 'app_class_presets', 'app_jet_bases', 'app_screw_models', 'app_float_models')
             .order_by('name'))
 
 
@@ -48,6 +48,7 @@ def _engine_payload(engine):
         'jet_by_rad': _jet_by_rad_payload(engine),
         'fuel_mix_ratio': float(engine.app_fuel_mix_ratio) if engine.app_fuel_mix_ratio else None,
         'screw_by_weather': _screw_payload(engine),
+        'float_carb': _float_carb_payload(engine),
     }
 
 
@@ -67,6 +68,19 @@ def _screw_payload(engine):
         return None
     return {'long_straight_pct': f(engine.app_screw_long_straight_pct),
             'short_straight_pct': f(engine.app_screw_short_straight_pct), 'models': models_}
+
+
+def _float_carb_payload(engine):
+    """Поплавковый карбюратор по погоде (Rotax EVO, 13.10.2026); null — без подсказки."""
+    f = lambda v: None if v is None else float(v)  # noqa: E731
+    rows = [{
+        'name': m.name.strip(), 'race_class_id': m.race_class_id, 'default': m.is_default,
+        'jet_base': f(m.jet_base), 'needle_slope': f(m.needle_slope), 'needle_offset': f(m.needle_offset),
+        'air_screw_bonus': f(m.air_screw_bonus), 'float_height_mm': f(m.float_height_mm), 'oil_pct': f(m.oil_pct),
+        'water_temp_c': f(m.water_temp_c), 'plug_gap_mm': f(m.plug_gap_mm), 'spark_plug': m.spark_plug.strip(),
+        'gear_oil': m.gear_oil.strip(),
+    } for m in engine.app_float_models.all()]
+    return {'models': rows} if rows else None
 
 
 def _jet_by_rad_payload(engine):
@@ -222,6 +236,12 @@ def validation_errors():
         screws = list(e.app_screw_models.all())
         if screws and not {'needle_high', 'needle_low'} & set(by_key):
             errors.append(f'«{e.name}»: заданы винты по погоде, но нет полей «Игла High»/«Игла Low» среди полей карбюратора.')
+        floats = list(e.app_float_models.all())
+        if floats and 'main_jet' not in by_key:
+            errors.append(f'«{e.name}»: задан карбюратор по погоде, но нет поля «Главный жиклёр».')
+        for m in floats:
+            if m.race_class_id and m.race_class_id not in class_ids:
+                errors.append(f'«{e.name}» → карбюратор «{m.name}»: класс «{m.race_class}» не отмечен в «Классах в приложении».')
         if sum(1 for m in screws if m.is_default) > 1:
             errors.append(f'«{e.name}»: модификаций «по умолчанию» для винтов больше одной.')
         for b in jet_bases:

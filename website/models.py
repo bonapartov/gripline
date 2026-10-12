@@ -1580,6 +1580,9 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
         FieldPanel('app_carburetor_image'),
         FieldPanel('app_fuel_mix_ratio'),
         MultiFieldPanel([FieldPanel('app_jet_base_rad'), FieldPanel('app_jet_step')], heading="Жиклёр по погоде"),
+        InlinePanel('app_float_models', label="Модификация (поплавковый карбюратор)",
+                    help_text="Жиклёр, игла и воздушный винт по плотности воздуха (модель JetLab для Rotax EVO). "
+                              "Пусто — без этой подсказки."),
         MultiFieldPanel([FieldPanel('app_screw_long_straight_pct'), FieldPanel('app_screw_short_straight_pct')],
                         heading="Винты High/Low по погоде (мембранный карбюратор)"),
         InlinePanel('app_screw_models', label="Модификация",
@@ -4673,6 +4676,46 @@ class AppEngineScrewModel(Orderable):
     class Meta(Orderable.Meta):
         verbose_name = "Винты по погоде: модификация"
         verbose_name_plural = "Винты по погоде: модификации"
+
+    def __str__(self):
+        return f"{self.engine} · {self.name}"
+
+
+class AppEngineFloatCarbModel(Orderable):
+    """Поплавковый карбюратор по погоде (13.10.2026, разбор «Jetting Rotax Max EVO» 1.3.0 — только формула
+    и коэффициенты): главный жиклёр, положение иглы и воздушный винт по плотности воздуха. Строка —
+    модификация двигателя (например, «Senior EVO, цилиндр 2018+»)."""
+    engine = ParentalKey('website.Engine', on_delete=models.CASCADE, related_name='app_float_models')
+    name = models.CharField("Модификация", max_length=80)
+    race_class = models.ForeignKey('website.RaceClass', null=True, blank=True, on_delete=models.SET_NULL,
+                                   related_name='+', verbose_name="Класс",
+                                   help_text="Подставляется для сессии этого класса. Пусто — только ручной выбор.")
+    is_default = models.BooleanField("По умолчанию", default=False)
+    jet_base = models.DecimalField("Жиклёр: база", max_digits=7, decimal_places=4, default=123.5,
+                                   help_text="Жиклёр = база × (0,3351 × плотность + 0,6117) × бензин × трасса.")
+    needle_slope = models.DecimalField("Игла: наклон", max_digits=8, decimal_places=5, default=21.10694)
+    needle_offset = models.DecimalField("Игла: смещение", max_digits=8, decimal_places=5, default=-21.64850)
+    air_screw_bonus = models.DecimalField("Воздушный винт: добавка, оборотов", max_digits=4, decimal_places=2,
+                                          default=0, help_text="Micro/Mini — +0,5 оборота.")
+    float_height_mm = models.DecimalField("Высота поплавка по умолчанию, мм", max_digits=3, decimal_places=1,
+                                          default=3.5)
+    oil_pct = models.DecimalField("Масло в смеси по умолчанию, %", max_digits=3, decimal_places=1, default=2)
+    water_temp_c = models.DecimalField("Температура воды, °C", max_digits=4, decimal_places=1, null=True, blank=True)
+    plug_gap_mm = models.DecimalField("Зазор свечи, мм", max_digits=4, decimal_places=2, null=True, blank=True)
+    spark_plug = models.CharField("Свеча", max_length=40, blank=True)
+    gear_oil = models.CharField("Масло в редукторе", max_length=40, blank=True)
+
+    panels = [
+        FieldRowPanel([FieldPanel('name'), FieldPanel('race_class'), FieldPanel('is_default')]),
+        FieldRowPanel([FieldPanel('jet_base'), FieldPanel('needle_slope'), FieldPanel('needle_offset'),
+                       FieldPanel('air_screw_bonus')]),
+        FieldRowPanel([FieldPanel('float_height_mm'), FieldPanel('oil_pct'), FieldPanel('water_temp_c')]),
+        FieldRowPanel([FieldPanel('spark_plug'), FieldPanel('plug_gap_mm'), FieldPanel('gear_oil')]),
+    ]
+
+    class Meta(Orderable.Meta):
+        verbose_name = "Карбюратор по погоде: модификация"
+        verbose_name_plural = "Карбюратор по погоде: модификации"
 
     def __str__(self):
         return f"{self.engine} · {self.name}"

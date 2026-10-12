@@ -643,3 +643,21 @@ def test_screw_by_weather_in_payload_and_validated():
     assert (row['high_slope'], row['high_offset'], row['exhaust_mm'], row['plug_gap_mm']) == (1.0881, 0.2412, 438.0, 0.75)
     errors = catalog.validation_errors()
     assert any('нет полей «Игла High»' in x for x in errors), 'у Rotax нет винтов High/Low'
+
+
+@pytest.mark.django_db
+def test_float_carb_in_payload_and_validated():
+    """13.10.2026: поплавковый карбюратор по погоде (Rotax EVO) — модификации двигателя в справочнике."""
+    from website.models import AppEngineFloatCarbModel
+    e = rotax_seeded()
+    assert next(x for x in catalog.build_payload()['engines'] if x['id'] == e.pk)['float_carb'] is None
+    other = RaceClass.objects.create(name='Чужой')
+    AppEngineFloatCarbModel.objects.create(engine=e, name='Senior MAX EVO, цилиндр 2018+', is_default=True,
+                                           spark_plug='NGK GR9DI-8', gear_oil='60 мл ATF')
+    fc = next(x for x in catalog.build_payload()['engines'] if x['id'] == e.pk)['float_carb']
+    row = fc['models'][0]
+    assert (row['jet_base'], row['needle_slope'], row['needle_offset'], row['spark_plug']) == (
+        123.5, 21.10694, -21.6485, 'NGK GR9DI-8')
+    assert catalog.validation_errors() == []
+    AppEngineFloatCarbModel.objects.create(engine=e, name='Чужая', race_class=other)
+    assert any('класс «Чужой» не отмечен' in x for x in catalog.validation_errors())
