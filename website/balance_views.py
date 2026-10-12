@@ -30,7 +30,7 @@ def _calculator_reference_context():
     ровно те же справочники, без повторного похода в БД за тем же самым.
     """
     kart_classes = []
-    for kc in RaceClass.objects.all():
+    for kc in RaceClass.objects.for_site():
         geometry = kc.effective_geometry()
         kart_classes.append({
             "id": kc.id,

@@ -21,6 +21,6 @@ CLASS_ORDER = [
 @router.get("")
 def list_classes(db: Session = Depends(get_db)):
     """Список классов картинга."""
-    classes = db.query(RaceClass).all()
+    classes = db.query(RaceClass).filter(RaceClass.app_only.is_(False)).all()
     classes.sort(key=lambda c: CLASS_ORDER.index(c.name) if c.name in CLASS_ORDER else 99)
     return [{"id": c.id, "name": c.name} for c in classes]

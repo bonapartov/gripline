@@ -992,7 +992,7 @@ def engine_detail_view(request, slug):
 
     # Получаем все классы для вкладок
     from .models import RaceClass
-    all_classes = RaceClass.objects.all()
+    all_classes = RaceClass.objects.for_site()
     classes = list(all_classes)
 
     # Получаем выбранный класс из GET-параметров
@@ -1058,7 +1058,7 @@ def compare_view(request):
 
     # Получаем все классы для вкладок
     from .models import RaceClass
-    all_classes = RaceClass.objects.all()
+    all_classes = RaceClass.objects.for_site()
     classes = list(all_classes)
 
     # Получаем выбранный класс из GET-параметров
@@ -1829,7 +1829,7 @@ def top_drivers_view(request):
     from .models import Driver, RaceClass, RaceResult, AnalyticsSettings
 
     all_classes = [
-        c for c in RaceClass.objects.all()
+        c for c in RaceClass.objects.for_site()
         if Driver.objects.filter(rating_by_class__has_key=str(c.id)).exists()
     ]
     classes = list(all_classes)
@@ -1965,7 +1965,7 @@ def compare_drivers_view(request):
 
     # Получаем все классы для кнопок
     from .models import RaceClass
-    classes = RaceClass.objects.all()
+    classes = RaceClass.objects.for_site()
 
     # Получаем всех пилотов
     from .services.demo import without_demo
@@ -2390,7 +2390,7 @@ def compare_models_view(request):
     result_drivers.sort(key=lambda x: abs(x.diff), reverse=True)
 
     # Получаем все классы для выпадающего списка
-    classes = RaceClass.objects.all()
+    classes = RaceClass.objects.for_site()
 
     return render(request, "coderedcms/snippets/compare_models_page.html", {
         "drivers": result_drivers,
@@ -2437,7 +2437,7 @@ def chassis_track_matrix_view(request):
     from django.db.models import Avg, Count, Q
 
     # Получаем все классы для вкладок
-    all_classes = RaceClass.objects.all()
+    all_classes = RaceClass.objects.for_site()
     classes = list(all_classes)
 
     # Получаем выбранный класс
@@ -2513,7 +2513,7 @@ def weather_impact_view(request):
     from django.utils import timezone
 
     # Получаем все классы для фильтра
-    classes = list(RaceClass.objects.all())
+    classes = list(RaceClass.objects.for_site())
 
     selected_class_id = request.GET.get('class')
     if selected_class_id and selected_class_id.isdigit():
@@ -2865,7 +2865,7 @@ def team_ratings_view(request):
         return round((smoothed - mn) / (mx - mn) * 100, 1)
 
     # Получаем класс_id → name
-    class_name_map = {str(c.id): c.name for c in RaceClass.objects.all()}
+    class_name_map = {str(c.id): c.name for c in RaceClass.objects.for_site()}
     class_sort = RaceClass.sort_key_map()
 
     teams = Team.objects.all()
@@ -3107,7 +3107,7 @@ def tyre_analysis_view(request):
     import json
 
     # Получаем все классы для фильтра
-    classes = list(RaceClass.objects.all())
+    classes = list(RaceClass.objects.for_site())
 
     selected_class_id = request.GET.get('class')
     if selected_class_id and selected_class_id.isdigit():

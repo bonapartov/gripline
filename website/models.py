@@ -1618,9 +1618,21 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
 
 # ---------- КЛАССЫ ГОНОК (RaceClass) ----------
 
+class RaceClassQuerySet(models.QuerySet):
+    def for_site(self):
+        """Классы для публичного сайта — без «только для приложения» (13.10.2026)."""
+        return self.filter(app_only=False)
+
+
 @register_snippet
 class RaceClass(models.Model):
     name = models.CharField("Название класса", max_length=255)
+    app_only = models.BooleanField(
+        "Только для приложения", default=False,
+        help_text="Класс есть в приложении GripLine SetupKart, но не показывается на сайте (фильтры, рейтинги, "
+                  "сравнения, /balance/). Например, X30 Junior/Senior — гонок с результатами в России нет.")
+
+    objects = RaceClassQuerySet.as_manager()
     sort_order = models.PositiveIntegerField(
         "Порядок сортировки", default=0,
         help_text=(
@@ -1657,7 +1669,7 @@ class RaceClass(models.Model):
         help_text="Развесовка: переопределение пресета типа шасси. Пусто — берётся пресет.")
 
     panels = [
-        FieldPanel('name'), FieldPanel('sort_order'), FieldPanel('app_chassis_image'), FieldPanel('min_weight_kg'),
+        FieldPanel('name'), FieldPanel('app_only'), FieldPanel('sort_order'), FieldPanel('app_chassis_image'), FieldPanel('min_weight_kg'),
         MultiFieldPanel([
             FieldPanel('chassis_type'),
             FieldRowPanel([FieldPanel('wheelbase_mm'), FieldPanel('track_front_mm'), FieldPanel('track_rear_mm')]),
@@ -3627,7 +3639,7 @@ class HomePage(TransliteratedSlugMixin, CoderedWebPage):
             context['latest_tech_articles'] = []
 
         # --- БЛОК 3: Топ пилотов ---
-        classes = list(RaceClass.objects.all())
+        classes = list(RaceClass.objects.for_site())
 
         selected_class_id = request.GET.get('class')
         if selected_class_id and selected_class_id.isdigit():

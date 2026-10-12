@@ -56,6 +56,7 @@ class RaceClass(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
+    app_only = Column(Boolean, default=False)  # только для приложения SetupKart — не показывать (13.10.2026)
 
 
 class Team(Base):
