@@ -623,3 +623,23 @@ def test_class_geometry_and_tyre_analysis_in_payload():
     s.hot_pct = Decimal('10')
     s.save()
     assert catalog.build_payload()['tyre_analysis']['hot_ratio'] == pytest.approx(1.1)
+
+
+@pytest.mark.django_db
+def test_screw_by_weather_in_payload_and_validated():
+    """13.10.2026: винты High/Low по погоде (мембранный карбюратор) — модификации у двигателя в справочнике."""
+    from website.models import AppEngineScrewModel
+    e = rotax_seeded()
+    eng = next(x for x in catalog.build_payload()['engines'] if x['id'] == e.pk)
+    assert eng['screw_by_weather'] is None
+    AppEngineScrewModel.objects.create(engine=e, name='X30 Senior · Tillotson HW-27', is_default=True,
+                                           high_offset=Decimal('0.2412'), low_offset=Decimal('-0.2442'),
+                                           exhaust_mm=Decimal('438'), exhaust_long_straight_mm=Decimal('-6'),
+                                           water_temp_c=Decimal('54.5'))
+    sw = next(x for x in catalog.build_payload()['engines'] if x['id'] == e.pk)['screw_by_weather']
+    assert sw['long_straight_pct'] == 5 and sw['short_straight_pct'] == -5
+    row = sw['models'][0]
+    assert (row['name'], row['default']) == ('X30 Senior · Tillotson HW-27', True)
+    assert (row['high_slope'], row['high_offset'], row['exhaust_mm'], row['plug_gap_mm']) == (1.0881, 0.2412, 438.0, 0.75)
+    errors = catalog.validation_errors()
+    assert any('нет полей «Игла High»' in x for x in errors), 'у Rotax нет винтов High/Low'

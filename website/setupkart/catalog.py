@@ -22,7 +22,7 @@ def _live(qs):
 def app_engines():
     return (_live(Engine.objects)
             .select_related('app_carburetor_image')
-            .prefetch_related('app_fields', 'app_spark_plugs', 'app_race_classes', 'app_class_presets', 'app_jet_bases')
+            .prefetch_related('app_fields', 'app_spark_plugs', 'app_race_classes', 'app_class_presets', 'app_jet_bases', 'app_screw_models')
             .order_by('name'))
 
 
@@ -47,7 +47,26 @@ def _engine_payload(engine):
         # {id класса: {base, legacy?}} при RAD base_rad; null — не пересчитывать.
         'jet_by_rad': _jet_by_rad_payload(engine),
         'fuel_mix_ratio': float(engine.app_fuel_mix_ratio) if engine.app_fuel_mix_ratio else None,
+        'screw_by_weather': _screw_payload(engine),
     }
+
+
+def _screw_payload(engine):
+    """Винты High/Low мембранного карбюратора по погоде (13.10.2026); null — без подсказки."""
+    f = lambda v: None if v is None else float(v)  # noqa: E731
+    models_ = [{
+        'name': m.name.strip(), 'default': m.is_default,
+        'model_factor': f(m.model_factor), 'high_slope': f(m.high_slope), 'high_offset': f(m.high_offset),
+        'low_slope': f(m.low_slope), 'low_offset': f(m.low_offset),
+        'popoff_open_psi': f(m.popoff_open_psi), 'popoff_close_psi': f(m.popoff_close_psi),
+        'exhaust_mm': f(m.exhaust_mm), 'exhaust_long_straight_mm': f(m.exhaust_long_straight_mm),
+        'water_temp_c': f(m.water_temp_c), 'egt_min_c': m.egt_min_c, 'egt_max_c': m.egt_max_c,
+        'plug_gap_mm': f(m.plug_gap_mm),
+    } for m in engine.app_screw_models.all()]
+    if not models_:
+        return None
+    return {'long_straight_pct': f(engine.app_screw_long_straight_pct),
+            'short_straight_pct': f(engine.app_screw_short_straight_pct), 'models': models_}
 
 
 def _jet_by_rad_payload(engine):
@@ -200,6 +219,11 @@ def validation_errors():
         if jet_bases and e.app_jet_base_rad is None:
             errors.append(f'«{e.name}»: базы жиклёра по классам заданы, но не задан «RAD базы жиклёра».')
         class_ids = {rc.pk for rc in e.app_race_classes.all()}
+        screws = list(e.app_screw_models.all())
+        if screws and not {'needle_high', 'needle_low'} & set(by_key):
+            errors.append(f'«{e.name}»: заданы винты по погоде, но нет полей «Игла High»/«Игла Low» среди полей карбюратора.')
+        if sum(1 for m in screws if m.is_default) > 1:
+            errors.append(f'«{e.name}»: модификаций «по умолчанию» для винтов больше одной.')
         for b in jet_bases:
             if b.race_class_id not in class_ids:
                 errors.append(f'«{e.name}» → база жиклёра «{b.race_class}»: класс не отмечен в «Классах в приложении».')

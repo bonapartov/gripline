@@ -1530,6 +1530,11 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
         help_text="Без карбюратора, свечи и выхлопа (например Rotax E10): в приложении для него скрываются "
                   "разделы «Карбюратор» и «Температура выхлопа», жиклёр в «Быстрой правке» и моточасы. "
                   "Поля карбюратора и свечи ему не задаются. Шасси, развесовка и звёзды — как у всех.")
+    app_screw_long_straight_pct = models.DecimalField(
+        "Длинная прямая: High, %", max_digits=4, decimal_places=1, default=5,
+        help_text="На трассе с длинной прямой винт High открывается больше на столько процентов.")
+    app_screw_short_straight_pct = models.DecimalField(
+        "Короткие прямые: High, %", max_digits=4, decimal_places=1, default=-5)
     app_fuel_mix_ratio = models.DecimalField(
         "Пропорция смеси, 1 : N", max_digits=4, decimal_places=1, null=True, blank=True,
         validators=[MinValueValidator(10), MaxValueValidator(200)],
@@ -1575,6 +1580,11 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
         FieldPanel('app_carburetor_image'),
         FieldPanel('app_fuel_mix_ratio'),
         MultiFieldPanel([FieldPanel('app_jet_base_rad'), FieldPanel('app_jet_step')], heading="Жиклёр по погоде"),
+        MultiFieldPanel([FieldPanel('app_screw_long_straight_pct'), FieldPanel('app_screw_short_straight_pct')],
+                        heading="Винты High/Low по погоде (мембранный карбюратор)"),
+        InlinePanel('app_screw_models', label="Модификация",
+                    help_text="Коэффициенты расчёта винтов High/Low, давления открытия и выхлопа по плотности "
+                              "воздуха. Пусто — без подсказки."),
         InlinePanel('app_jet_bases', label="База жиклёра по классу",
                     help_text="Жиклёр класса при «RAD базы». «Старая версия» — для двигателей прежнего выпуска "
                               "(в приложении галочка у двигателя); пусто — как у текущей версии."),
@@ -4607,6 +4617,53 @@ class AppEngineJetBase(Orderable):
 
     def __str__(self):
         return f"{self.engine} · {self.race_class} · {self.base}"
+
+
+class AppEngineScrewModel(Orderable):
+    """Винты High/Low мембранного карбюратора по погоде (13.10.2026, разбор «Jetting for IAME X30» 1.4.0 —
+    только формула и коэффициенты). Строка — модификация двигателя с конкретным карбюратором
+    (например, «X30 Senior · Tillotson HW-27»). Обороты винта = (плотность воздуха × поправка модели ×
+    наклон) + смещение; давление открытия и длина выхлопа — от плотности воздуха."""
+    engine = ParentalKey('website.Engine', on_delete=models.CASCADE, related_name='app_screw_models')
+    name = models.CharField("Модификация и карбюратор", max_length=80)
+    is_default = models.BooleanField("По умолчанию", default=False,
+                                     help_text="Подставляется в сессию, пока пилот не выбрал свою модификацию.")
+    model_factor = models.DecimalField("Поправка модели", max_digits=6, decimal_places=4, default=0.9581,
+                                       help_text="Множитель плотности (при доле масла 4 %).")
+    high_slope = models.DecimalField("High: наклон", max_digits=6, decimal_places=4, default=1.0881)
+    high_offset = models.DecimalField("High: смещение, оборотов", max_digits=6, decimal_places=4, default=0)
+    low_slope = models.DecimalField("Low: наклон", max_digits=6, decimal_places=4, default=1.0881)
+    low_offset = models.DecimalField("Low: смещение, оборотов", max_digits=6, decimal_places=4, default=0)
+    popoff_open_psi = models.DecimalField("Давление открытия, PSI", max_digits=5, decimal_places=2, default=10.8,
+                                          help_text="При плотности 1,2 кг/м³ (+0,2); меняется на 70 % от изменения плотности.")
+    popoff_close_psi = models.DecimalField("Давление закрытия, PSI", max_digits=5, decimal_places=2, default=8.5)
+    exhaust_mm = models.DecimalField("Длина выхлопа, мм", max_digits=6, decimal_places=1, null=True, blank=True,
+                                     help_text="Пусто — не показывать (выхлоп не регулируется).")
+    exhaust_long_straight_mm = models.DecimalField(
+        "Выхлоп на трассе с длинной прямой, мм", max_digits=5, decimal_places=1, default=-10,
+        help_text="Поправка к длине выхлопа (обычно короче: −10 мм).")
+    water_temp_c = models.DecimalField("Температура воды, °C", max_digits=4, decimal_places=1, null=True, blank=True)
+    egt_min_c = models.PositiveSmallIntegerField("EGT от, °C", null=True, blank=True, default=593)
+    egt_max_c = models.PositiveSmallIntegerField("EGT до, °C", null=True, blank=True, default=635)
+    plug_gap_mm = models.DecimalField("Зазор свечи, мм", max_digits=4, decimal_places=2, null=True, blank=True,
+                                      default=0.75)
+
+    panels = [
+        FieldRowPanel([FieldPanel('name'), FieldPanel('is_default')]),
+        FieldRowPanel([FieldPanel('model_factor'), FieldPanel('high_slope'), FieldPanel('high_offset'),
+                       FieldPanel('low_slope'), FieldPanel('low_offset')]),
+        FieldRowPanel([FieldPanel('popoff_open_psi'), FieldPanel('popoff_close_psi'), FieldPanel('exhaust_mm'),
+                       FieldPanel('exhaust_long_straight_mm')]),
+        FieldRowPanel([FieldPanel('water_temp_c'), FieldPanel('egt_min_c'), FieldPanel('egt_max_c'),
+                       FieldPanel('plug_gap_mm')]),
+    ]
+
+    class Meta(Orderable.Meta):
+        verbose_name = "Винты по погоде: модификация"
+        verbose_name_plural = "Винты по погоде: модификации"
+
+    def __str__(self):
+        return f"{self.engine} · {self.name}"
 
 
 class AppEngineSparkPlug(Orderable):
