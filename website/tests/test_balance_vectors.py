@@ -26,8 +26,8 @@ def test_balance_vector(case):
     assert {k: float(v) for k, v in metrics.items()} == case['metrics']
     classification = bc.classify_all(metrics, thresholds=THRESHOLDS)
     assert classification == case['classification']
-    kart_class = SimpleNamespace(min_weight_kg=Decimal(str(case['min_weight_kg']))) if case['min_weight_kg'] else None
-    min_weight = bc.min_weight_status(metrics['total_kg'], kart_class)
+    race_class = SimpleNamespace(min_weight_kg=Decimal(str(case['min_weight_kg']))) if case['min_weight_kg'] else None
+    min_weight = bc.min_weight_status(metrics['total_kg'], race_class)
     assert (float(min_weight['margin_kg']) if min_weight else None) == case['margin_kg']
     diagnosis = bc.diagnose(metrics, classification, min_weight, thresholds=THRESHOLDS, weather=case['weather'],
                             rules=RULES)

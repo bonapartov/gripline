@@ -14,7 +14,7 @@ from django.urls import reverse
 from wagtail.models import Site
 from wagtailcache.cache import nocache_page
 
-from website.models import Chassis, Kart, KartClass
+from website.models import Chassis, Kart, RaceClass
 from website.schema import balance_webapp_dict, render_json_ld
 from website.services.balance_calc import load_diagnostic_rules, load_thresholds
 from website.services.balance_permissions import get_balance_identity
@@ -30,7 +30,7 @@ def _calculator_reference_context():
     ровно те же справочники, без повторного похода в БД за тем же самым.
     """
     kart_classes = []
-    for kc in KartClass.objects.filter(is_active=True):
+    for kc in RaceClass.objects.all():
         geometry = kc.effective_geometry()
         kart_classes.append({
             "id": kc.id,
@@ -121,8 +121,8 @@ def balance_seo_context(request):
 def balance_home(request):
     """
     @nocache_page здесь не про авторизацию (страница анонимная, публичная) —
-    про свежесть данных. KartClass/BalanceThreshold правятся в админке
-    («Развесовка») без какого-либо хука инвалидации wagtailcache; без этого
+    про свежесть данных. классы (RaceClass) и BalanceThreshold правятся в админке
+    («Классы гонок», «Развесовка») без какого-либо хука инвалидации wagtailcache; без этого
     декоратора первый закэшированный ответ (например, ещё пустые справочники)
     отдавался бы всем следующим посетителям до истечения TTL/ручного
     clear_wagtail_cache — тот же класс бага, что уже ловили на медиа-ките

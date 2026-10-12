@@ -21,7 +21,7 @@ from website.models import (
     ChassisTypePreset,
     Driver,
     Kart,
-    KartClass,
+    RaceClass,
     Setup,
     Team,
     TeamMembership,
@@ -62,17 +62,17 @@ class BalanceTestData:
             chassis_type="junior", wheelbase_mm=1000, track_front_mm=800, track_rear_mm=850,
         )
         chassis = Chassis.objects.create(name="TestChassis")
-        kart_class = KartClass.objects.create(
-            name="Junior Test", slug="junior-test", chassis_type="junior", min_weight_kg=100,
+        race_class = RaceClass.objects.create(
+            name="Junior Test", chassis_type="junior", min_weight_kg=100,
         )
-        return chassis, kart_class
+        return chassis, race_class
 
 
 class VisibilityIsolationTests(TestCase):
     """website/services/balance_permissions.py — видит только своё/расшаренное."""
 
     def setUp(self):
-        self.chassis, self.kart_class = BalanceTestData.build()
+        self.chassis, self.race_class = BalanceTestData.build()
 
         self.team_a = Team.objects.create(name="Team A", slug="team-a")
         self.team_b = Team.objects.create(name="Team B", slug="team-b")
@@ -92,7 +92,7 @@ class VisibilityIsolationTests(TestCase):
 
     def _setup_for(self, kart, **overrides):
         defaults = dict(
-            kart=kart, name="Setup", kart_class=self.kart_class,
+            kart=kart, name="Setup", race_class=self.race_class,
             weight_lf=25, weight_rf=25, weight_lr=25, weight_rr=25,
         )
         defaults.update(overrides)
@@ -174,7 +174,7 @@ class KartCreateArchiveViewTests(TestCase):
     """website/balance_setup_views.py — эндпоинты Этапа 1."""
 
     def setUp(self):
-        self.chassis, self.kart_class = BalanceTestData.build()
+        self.chassis, self.race_class = BalanceTestData.build()
         self.driver_user, self.driver = _make_driver_user("pilot1")
         self.other_user, self.other_driver = _make_driver_user("pilot2")
         self.client = Client()
@@ -272,7 +272,7 @@ class SetupSaveViewTests(TestCase):
     """website/balance_setup_views.py::setup_save — Этап 2 (только создание)."""
 
     def setUp(self):
-        self.chassis, self.kart_class = BalanceTestData.build()
+        self.chassis, self.race_class = BalanceTestData.build()
         self.driver_user, self.driver = _make_driver_user("setuppilot")
         self.other_user, self.other_driver = _make_driver_user("otherpilot")
         self.kart = Kart.objects.create(
@@ -284,7 +284,7 @@ class SetupSaveViewTests(TestCase):
         payload = {
             "kart_id": self.kart.id,
             "name": "Мячково, сухо",
-            "class_id": self.kart_class.id,
+            "class_id": self.race_class.id,
             "corners": {"lf": "30.0", "rf": "31.0", "lr": "29.0", "rr": "30.0"},
         }
         payload.update(overrides)
@@ -324,8 +324,8 @@ class SetupSaveViewTests(TestCase):
         self.assertFalse(Setup.objects.filter(kart=self.kart).exists())
 
     def test_chassis_type_mismatch_rejected(self):
-        senior_class = KartClass.objects.create(
-            name="Senior Test", slug="senior-test", chassis_type="senior", min_weight_kg=150,
+        senior_class = RaceClass.objects.create(
+            name="Senior Test", chassis_type="senior", min_weight_kg=150,
         )
         self.client.force_login(self.driver_user)
         resp = self.client.post(
@@ -334,6 +334,18 @@ class SetupSaveViewTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 400)
+
+    def test_class_without_chassis_type_fits_any_kart(self):
+        # Тип шасси у класса гонок необязателен: пустой — класс доступен любому карту.
+        any_class = RaceClass.objects.create(name="Any Test", min_weight_kg=150)
+        self.client.force_login(self.driver_user)
+        resp = self.client.post(
+            "/balance/setup/save/",
+            data=json.dumps(self._payload(class_id=any_class.id)),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(Setup.objects.get(kart=self.kart).race_class_id, any_class.id)
 
     def test_success_creates_setup_with_default_name_and_ballasts(self):
         self.client.force_login(self.driver_user)
@@ -348,12 +360,12 @@ class SetupSaveViewTests(TestCase):
         self.assertEqual(resp.status_code, 200, resp.content)
         setup = Setup.objects.get(kart=self.kart)
         self.assertTrue(setup.name)  # дефолтное имя подставлено, не пусто
-        self.assertEqual(setup.kart_class_id, self.kart_class.id)
+        self.assertEqual(setup.race_class_id, self.race_class.id)
         self.assertEqual(Ballast.objects.filter(setup=setup).count(), 1)
 
     def test_driver_weight_defaults_from_last_setup_on_same_kart(self):
         Setup.objects.create(
-            kart=self.kart, name="Прошлый", kart_class=self.kart_class,
+            kart=self.kart, name="Прошлый", race_class=self.race_class,
             weight_lf=30, weight_rf=30, weight_lr=30, weight_rr=30, driver_weight_kg="55.5",
         )
         self.client.force_login(self.driver_user)
@@ -370,7 +382,7 @@ class SetupSaveViewTests(TestCase):
         balance_setup_views.MAX_SETUPS_PER_KART = 1
         try:
             Setup.objects.create(
-                kart=self.kart, name="Существующий", kart_class=self.kart_class,
+                kart=self.kart, name="Существующий", race_class=self.race_class,
                 weight_lf=30, weight_rf=30, weight_lr=30, weight_rr=30,
             )
             self.client.force_login(self.driver_user)
@@ -403,7 +415,7 @@ class SetupUpdateViewTests(TestCase):
     """website/balance_setup_views.py::setup_save — update-путь (Этап 4)."""
 
     def setUp(self):
-        self.chassis, self.kart_class = BalanceTestData.build()
+        self.chassis, self.race_class = BalanceTestData.build()
         self.driver_user, self.driver = _make_driver_user("editpilot")
         self.other_user, self.other_driver = _make_driver_user("editother")
         self.kart = Kart.objects.create(
@@ -413,7 +425,7 @@ class SetupUpdateViewTests(TestCase):
             name="Чужой карт", chassis=self.chassis, chassis_type="junior", owner_driver=self.other_driver,
         )
         self.setup = Setup.objects.create(
-            kart=self.kart, name="Исходный", kart_class=self.kart_class,
+            kart=self.kart, name="Исходный", race_class=self.race_class,
             weight_lf=30, weight_rf=30, weight_lr=30, weight_rr=30, driver_weight_kg="60.0",
             weather="dry",
         )
@@ -424,7 +436,7 @@ class SetupUpdateViewTests(TestCase):
         payload = {
             "setup_id": self.setup.id,
             "name": "Обновлено",
-            "class_id": self.kart_class.id,
+            "class_id": self.race_class.id,
             "corners": {"lf": "31.0", "rf": "31.0", "lr": "31.0", "rr": "31.0"},
         }
         payload.update(overrides)
@@ -523,7 +535,7 @@ class SetupUpdateViewTests(TestCase):
         team_kart.roster_entry = roster_entry
         team_kart.save()
         shared_setup = Setup.objects.create(
-            kart=team_kart, name="Расшарено", kart_class=self.kart_class,
+            kart=team_kart, name="Расшарено", race_class=self.race_class,
             weight_lf=30, weight_rf=30, weight_lr=30, weight_rr=30, shared_with_driver=True,
         )
         self.client.force_login(self.other_user)
@@ -541,14 +553,14 @@ class SetupEditViewTests(TestCase):
     """website/balance_setup_views.py::setup_edit — Этап 4 (GET, рендерит home.html)."""
 
     def setUp(self):
-        self.chassis, self.kart_class = BalanceTestData.build()
+        self.chassis, self.race_class = BalanceTestData.build()
         self.driver_user, self.driver = _make_driver_user("vieweditpilot")
         self.other_user, self.other_driver = _make_driver_user("vieweditother")
         self.kart = Kart.objects.create(
             name="Карт просмотра", chassis=self.chassis, chassis_type="junior", owner_driver=self.driver,
         )
         self.setup = Setup.objects.create(
-            kart=self.kart, name="Мой сетап", kart_class=self.kart_class,
+            kart=self.kart, name="Мой сетап", race_class=self.race_class,
             weight_lf=30, weight_rf=31, weight_lr=32, weight_rr=33,
         )
         self.client = Client()
@@ -578,7 +590,7 @@ class SetupEditViewTests(TestCase):
         team_kart.roster_entry = roster_entry
         team_kart.save()
         shared_setup = Setup.objects.create(
-            kart=team_kart, name="Только просмотр", kart_class=self.kart_class,
+            kart=team_kart, name="Только просмотр", race_class=self.race_class,
             weight_lf=30, weight_rf=30, weight_lr=30, weight_rr=30, shared_with_driver=True,
         )
         self.client.force_login(self.other_user)
@@ -603,14 +615,14 @@ class SetupCopyViewTests(TestCase):
     """website/balance_setup_views.py::setup_copy — Этап 5."""
 
     def setUp(self):
-        self.chassis, self.kart_class = BalanceTestData.build()
+        self.chassis, self.race_class = BalanceTestData.build()
         self.driver_user, self.driver = _make_driver_user("copypilot")
         self.other_user, self.other_driver = _make_driver_user("copyother")
         self.kart = Kart.objects.create(
             name="Карт для копий", chassis=self.chassis, chassis_type="junior", owner_driver=self.driver,
         )
         self.source = Setup.objects.create(
-            kart=self.kart, name="Источник", kart_class=self.kart_class,
+            kart=self.kart, name="Источник", race_class=self.race_class,
             weight_lf=30, weight_rf=31, weight_lr=32, weight_rr=33, driver_weight_kg="60.0",
             weather="wet", temp_air_c="20.0", temp_track_c="25.0", temp_source="auto",
             shared_with_team=True, wheelbase_mm=1000, track_front_mm=800, track_rear_mm=850,
@@ -637,7 +649,7 @@ class SetupCopyViewTests(TestCase):
         team_kart.roster_entry = roster_entry
         team_kart.save()
         shared_setup = Setup.objects.create(
-            kart=team_kart, name="Расшарено", kart_class=self.kart_class,
+            kart=team_kart, name="Расшарено", race_class=self.race_class,
             weight_lf=30, weight_rf=30, weight_lr=30, weight_rr=30, shared_with_driver=True,
         )
         self.client.force_login(self.other_user)
@@ -654,7 +666,7 @@ class SetupCopyViewTests(TestCase):
 
         # копируется
         self.assertEqual(copy.kart_id, self.kart.id)
-        self.assertEqual(copy.kart_class_id, self.kart_class.id)
+        self.assertEqual(copy.race_class_id, self.race_class.id)
         self.assertEqual(str(copy.weight_lf), "30.0")
         self.assertEqual(str(copy.driver_weight_kg), "60.0")
         self.assertEqual(copy.wheelbase_mm, 1000)
@@ -701,14 +713,14 @@ class SetupArchiveViewTests(TestCase):
     отдельно от kart_archive)."""
 
     def setUp(self):
-        self.chassis, self.kart_class = BalanceTestData.build()
+        self.chassis, self.race_class = BalanceTestData.build()
         self.driver_user, self.driver = _make_driver_user("archivepilot")
         self.other_user, self.other_driver = _make_driver_user("archiveother")
         self.kart = Kart.objects.create(
             name="Карт для архива", chassis=self.chassis, chassis_type="junior", owner_driver=self.driver,
         )
         self.setup = Setup.objects.create(
-            kart=self.kart, name="Сетап", kart_class=self.kart_class,
+            kart=self.kart, name="Сетап", race_class=self.race_class,
             weight_lf=30, weight_rf=30, weight_lr=30, weight_rr=30,
         )
         self.client = Client()
@@ -753,7 +765,7 @@ class SetupShareViewTests(TestCase):
     карта команды с закреплённым в ростере пилотом (см. visible_setups_for_user)."""
 
     def setUp(self):
-        self.chassis, self.kart_class = BalanceTestData.build()
+        self.chassis, self.race_class = BalanceTestData.build()
         self.driver_user, self.driver = _make_driver_user("sharepilot")
         self.other_user, self.other_driver = _make_driver_user("shareother")
         self.team = Team.objects.create(name="Share Team", slug="share-team")
@@ -762,7 +774,7 @@ class SetupShareViewTests(TestCase):
             name="Личный карт", chassis=self.chassis, chassis_type="junior", owner_driver=self.driver,
         )
         self.personal_setup = Setup.objects.create(
-            kart=self.personal_kart, name="Личный сетап", kart_class=self.kart_class,
+            kart=self.personal_kart, name="Личный сетап", race_class=self.race_class,
             weight_lf=30, weight_rf=30, weight_lr=30, weight_rr=30,
         )
 
@@ -775,7 +787,7 @@ class SetupShareViewTests(TestCase):
         self.team_kart_with_roster.roster_entry = roster_entry
         self.team_kart_with_roster.save()
         self.team_setup = Setup.objects.create(
-            kart=self.team_kart_with_roster, name="Командный сетап", kart_class=self.kart_class,
+            kart=self.team_kart_with_roster, name="Командный сетап", race_class=self.race_class,
             weight_lf=30, weight_rf=30, weight_lr=30, weight_rr=30,
         )
 
@@ -783,7 +795,7 @@ class SetupShareViewTests(TestCase):
             name="Командный (без ростера)", chassis=self.chassis, chassis_type="junior", owner_team=self.team,
         )
         self.team_setup_no_roster = Setup.objects.create(
-            kart=self.team_kart_no_roster, name="Без ростера", kart_class=self.kart_class,
+            kart=self.team_kart_no_roster, name="Без ростера", race_class=self.race_class,
             weight_lf=30, weight_rf=30, weight_lr=30, weight_rr=30,
         )
 
@@ -879,7 +891,7 @@ class SetupsListViewTests(TestCase):
     что видит сервер, а не JS-рендер)."""
 
     def setUp(self):
-        self.chassis, self.kart_class = BalanceTestData.build()
+        self.chassis, self.race_class = BalanceTestData.build()
         self.driver_user, self.driver = _make_driver_user("listpilot")
         self.other_user, self.other_driver = _make_driver_user("listother")
         self.team = Team.objects.create(name="List Team", slug="list-team")
@@ -907,11 +919,11 @@ class SetupsListViewTests(TestCase):
 
     def test_driver_sees_only_own_setups(self):
         Setup.objects.create(
-            kart=self.own_kart, name="Моё", kart_class=self.kart_class,
+            kart=self.own_kart, name="Моё", race_class=self.race_class,
             weight_lf=30, weight_rf=30, weight_lr=30, weight_rr=30,
         )
         Setup.objects.create(
-            kart=self.team_kart, name="Не моё", kart_class=self.kart_class,
+            kart=self.team_kart, name="Не моё", race_class=self.race_class,
             weight_lf=30, weight_rf=30, weight_lr=30, weight_rr=30,
         )
         self.client.force_login(self.driver_user)
@@ -921,7 +933,7 @@ class SetupsListViewTests(TestCase):
 
     def test_includes_archived_for_client_side_toggle(self):
         Setup.objects.create(
-            kart=self.own_kart, name="Архивный", kart_class=self.kart_class,
+            kart=self.own_kart, name="Архивный", race_class=self.race_class,
             weight_lf=30, weight_rf=30, weight_lr=30, weight_rr=30, is_archived=True,
         )
         self.client.force_login(self.driver_user)
@@ -935,7 +947,7 @@ class SetupsListViewTests(TestCase):
         self.team_kart.roster_entry = roster_entry
         self.team_kart.save()
         Setup.objects.create(
-            kart=self.team_kart, name="Расшарено пилоту", kart_class=self.kart_class,
+            kart=self.team_kart, name="Расшарено пилоту", race_class=self.race_class,
             weight_lf=30, weight_rf=30, weight_lr=30, weight_rr=30, shared_with_driver=True,
         )
         self.client.force_login(self.driver_user)
@@ -946,7 +958,7 @@ class SetupsListViewTests(TestCase):
 
     def test_manager_sees_team_kart_setups_as_editable(self):
         Setup.objects.create(
-            kart=self.team_kart, name="Командный сетап", kart_class=self.kart_class,
+            kart=self.team_kart, name="Командный сетап", race_class=self.race_class,
             weight_lf=30, weight_rf=30, weight_lr=30, weight_rr=30,
         )
         self.client.force_login(self.manager_user)
@@ -967,7 +979,7 @@ class TabbarAccessTests(TestCase):
     только при has_balance_access (иначе disabled span, как раньше)."""
 
     def setUp(self):
-        self.chassis, self.kart_class = BalanceTestData.build()
+        self.chassis, self.race_class = BalanceTestData.build()
         self.driver_user, self.driver = _make_driver_user("tabpilot")
         self.client = Client()
 
@@ -1022,7 +1034,7 @@ class SetupsCompareViewTests(TestCase):
     права доступа, пикер и деградация на "чужой"/отсутствующий id."""
 
     def setUp(self):
-        self.chassis, self.kart_class = BalanceTestData.build()
+        self.chassis, self.race_class = BalanceTestData.build()
         self.driver_user, self.driver = _make_driver_user("comparepilot")
         self.other_user, self.other_driver = _make_driver_user("compareother")
         self.team = Team.objects.create(name="Compare Team", slug="compare-team")
@@ -1039,15 +1051,15 @@ class SetupsCompareViewTests(TestCase):
         )
 
         self.setup_a = Setup.objects.create(
-            kart=self.own_kart, name="Сетап А", kart_class=self.kart_class,
+            kart=self.own_kart, name="Сетап А", race_class=self.race_class,
             weight_lf=25, weight_rf=25, weight_lr=25, weight_rr=25,
         )
         self.setup_b = Setup.objects.create(
-            kart=self.own_kart, name="Сетап Б", kart_class=self.kart_class,
+            kart=self.own_kart, name="Сетап Б", race_class=self.race_class,
             weight_lf=26, weight_rf=26, weight_lr=25, weight_rr=25,
         )
         self.foreign_setup = Setup.objects.create(
-            kart=self.other_kart, name="Чужой сетап", kart_class=self.kart_class,
+            kart=self.other_kart, name="Чужой сетап", race_class=self.race_class,
             weight_lf=25, weight_rf=25, weight_lr=25, weight_rr=25,
         )
         self.client = Client()
@@ -1095,7 +1107,7 @@ class SetupsCompareViewTests(TestCase):
         self.team_kart.roster_entry = roster_entry
         self.team_kart.save()
         shared_setup = Setup.objects.create(
-            kart=self.team_kart, name="Расшарено пилоту", kart_class=self.kart_class,
+            kart=self.team_kart, name="Расшарено пилоту", race_class=self.race_class,
             weight_lf=25, weight_rf=25, weight_lr=25, weight_rr=25, shared_with_driver=True,
         )
         self.client.force_login(self.driver_user)

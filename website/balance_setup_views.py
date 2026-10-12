@@ -44,7 +44,7 @@ from website.balance_views import (
     balance_seo_context,
     user_karts_context,
 )
-from website.models import Ballast, Chassis, Kart, KartClass, Setup
+from website.models import Ballast, Chassis, Kart, RaceClass, Setup
 from website.services.balance_calc import compare_setups, validate_corners
 from website.services.balance_limits import (
     MAX_BALLASTS_PER_SETUP,
@@ -178,8 +178,8 @@ def setup_save(request):
             return JsonResponse({"error": "Нет прав на этот сетап."}, status=404)
         kart = setup.kart
 
-    kart_class = KartClass.objects.filter(pk=data.get("class_id"), is_active=True).first()
-    if kart_class is None:
+    race_class = RaceClass.objects.filter(pk=data.get("class_id")).first() if str(data.get("class_id") or "").isdigit() else None
+    if race_class is None:
         return JsonResponse({"error": "Выберите класс, чтобы сохранить сетап."}, status=400)
 
     if is_create and Setup.objects.filter(kart=kart).count() >= MAX_SETUPS_PER_KART:
@@ -194,7 +194,7 @@ def setup_save(request):
     rf = _to_decimal(corners_raw.get("rf"))
     lr = _to_decimal(corners_raw.get("lr"))
     rr = _to_decimal(corners_raw.get("rr"))
-    validation = validate_corners(lf, rf, lr, rr, kart_class=kart_class)
+    validation = validate_corners(lf, rf, lr, rr, race_class=race_class)
     if validation["errors"]:
         return JsonResponse({"error": "; ".join(validation["errors"])}, status=400)
 
@@ -220,7 +220,7 @@ def setup_save(request):
         weather = setup.weather if not is_create else "dry"
 
     setup.name = name
-    setup.kart_class = kart_class
+    setup.race_class = race_class
     setup.weight_lf, setup.weight_rf, setup.weight_lr, setup.weight_rr = lf, rf, lr, rr
     setup.driver_weight_kg = driver_weight
     setup.weather = weather
@@ -264,7 +264,7 @@ def setup_edit(request, pk):
     """
     setup = get_object_or_404(
         visible_setups_for_user(request.user, include_archived=True)
-        .select_related("kart", "kart_class", "kart__roster_entry", "parent_setup")
+        .select_related("kart", "race_class", "kart__roster_entry", "parent_setup")
         .prefetch_related("ballasts"),
         pk=pk,
     )
@@ -280,7 +280,7 @@ def setup_edit(request, pk):
                 "lf": str(setup.weight_lf), "rf": str(setup.weight_rf),
                 "lr": str(setup.weight_lr), "rr": str(setup.weight_rr),
             },
-            "class_id": setup.kart_class_id,
+            "class_id": setup.race_class_id,
             "weather": setup.weather,
             "driver_weight": str(setup.driver_weight_kg) if setup.driver_weight_kg is not None else "",
             "wheelbase_mm": str(setup.wheelbase_mm) if setup.wheelbase_mm else "",
@@ -327,7 +327,7 @@ def setups_list(request):
 
     setups = list(
         visible_setups_for_user(request.user, include_archived=True)
-        .select_related("kart", "kart_class", "track")
+        .select_related("kart", "race_class", "track")
         .order_by("-created_at")
     )
 
@@ -336,7 +336,7 @@ def setups_list(request):
     available_tracks = {}
     setups_data = []
     for s in setups:
-        available_classes[s.kart_class_id] = s.kart_class.name
+        available_classes[s.race_class_id] = s.race_class.name
         if s.track_id:
             available_tracks[s.track_id] = s.track.name
         setups_data.append({
@@ -344,8 +344,8 @@ def setups_list(request):
             "name": s.name,
             "kart_id": s.kart_id,
             "kart_name": s.kart.name,
-            "class_id": s.kart_class_id,
-            "class_name": s.kart_class.name,
+            "class_id": s.race_class_id,
+            "class_name": s.race_class.name,
             "weather": s.weather,
             "weather_label": weather_labels.get(s.weather, ""),
             "track_id": s.track_id,
@@ -386,7 +386,7 @@ def setup_copy(request, pk):
     (копия архивного сетапа — не архивная копия), parent_setup = источник.
     """
     source = get_object_or_404(
-        visible_setups_for_user(request.user, include_archived=True).select_related("kart", "kart_class"),
+        visible_setups_for_user(request.user, include_archived=True).select_related("kart", "race_class"),
         pk=pk,
     )
     if not can_edit_setup(request.user, source):
@@ -397,7 +397,7 @@ def setup_copy(request, pk):
 
     copy = Setup(
         kart=source.kart,
-        kart_class=source.kart_class,
+        race_class=source.race_class,
         name=f"{source.name} — копия"[:150],
         weight_lf=source.weight_lf, weight_rf=source.weight_rf,
         weight_lr=source.weight_lr, weight_rr=source.weight_rr,
@@ -513,7 +513,7 @@ def setups_compare(request):
     """
     visible = list(
         visible_setups_for_user(request.user, include_archived=True)
-        .select_related("kart", "kart_class")
+        .select_related("kart", "race_class")
         .order_by("kart__name", "-created_at")
     )
     by_id = {s.id: s for s in visible}
@@ -535,7 +535,7 @@ def setups_compare(request):
             group = {"kart_name": s.kart.name, "options": []}
             groups_by_kart[s.kart_id] = group
             picker_groups.append(group)
-        group["options"].append({"id": s.id, "label": f"{s.name} · {s.kart_class.name}"})
+        group["options"].append({"id": s.id, "label": f"{s.name} · {s.race_class.name}"})
 
     comparison = None
     if setup_a is not None and setup_b is not None:

@@ -1601,7 +1601,31 @@ class RaceClass(models.Model):
         "Минимальный вес с пилотом, кг", max_digits=5, decimal_places=1, null=True, blank=True,
         help_text="По регламенту класса. Приложение GripLine SetupKart сверяет с ним вес по углам (развесовка) "
                   "и предупреждает о недоборе. Пусто — проверки нет. Доходит до приложения после «Публикации».")
-    panels = [FieldPanel('name'), FieldPanel('sort_order'), FieldPanel('app_chassis_image'), FieldPanel('min_weight_kg')]
+    # Развесовка /balance/ (12.10.2026 — вместо отдельного справочника KartClass):
+    # тип шасси ограничивает, к каким картам применим класс; геометрия — переопределение
+    # пресета типа шасси (ChassisTypePreset).
+    chassis_type = models.CharField(
+        "Тип шасси (развесовка)", max_length=10, blank=True,
+        choices=[("junior", "Детское"), ("senior", "Взрослое")],
+        help_text="Для калькулятора развесовки на сайте: класс доступен только картам этого типа. "
+                  "Пусто — любым картам.")
+    wheelbase_mm = models.PositiveIntegerField(
+        "Колёсная база, мм", null=True, blank=True,
+        help_text="Развесовка: переопределение пресета типа шасси. Пусто — берётся пресет.")
+    track_front_mm = models.PositiveIntegerField(
+        "Колея перед, мм", null=True, blank=True,
+        help_text="Развесовка: переопределение пресета типа шасси. Пусто — берётся пресет.")
+    track_rear_mm = models.PositiveIntegerField(
+        "Колея зад, мм", null=True, blank=True,
+        help_text="Развесовка: переопределение пресета типа шасси. Пусто — берётся пресет.")
+
+    panels = [
+        FieldPanel('name'), FieldPanel('sort_order'), FieldPanel('app_chassis_image'), FieldPanel('min_weight_kg'),
+        MultiFieldPanel([
+            FieldPanel('chassis_type'),
+            FieldRowPanel([FieldPanel('wheelbase_mm'), FieldPanel('track_front_mm'), FieldPanel('track_rear_mm')]),
+        ], heading="Развесовка"),
+    ]
 
     def __str__(self):
         return self.name
@@ -1619,6 +1643,18 @@ class RaceClass(models.Model):
         Значение по умолчанию для .get() на незнакомое имя (например,
         текстовая заглушка "Без класса") задаёт вызывающая сторона."""
         return dict(RaceClass.objects.values_list('name', 'sort_order'))
+
+    def effective_geometry(self):
+        """Геометрия для развесовки: переопределение класса → пресет типа шасси →
+        None (не заполнено). Без типа шасси пресет не подставляется."""
+        preset = None
+        if self.chassis_type:
+            preset = ChassisTypePreset.objects.filter(chassis_type=self.chassis_type).first()
+        return {
+            "wheelbase_mm": self.wheelbase_mm or (preset.wheelbase_mm if preset else None),
+            "track_front_mm": self.track_front_mm or (preset.track_front_mm if preset else None),
+            "track_rear_mm": self.track_rear_mm or (preset.track_rear_mm if preset else None),
+        }
 
 
 @register_snippet
@@ -2560,8 +2596,8 @@ class VpnSettings(models.Model):
 class ChassisTypePreset(models.Model):
     """
     Геометрия шасси по умолчанию — ровно две записи (детское/взрослое).
-    Подставляется в новый Setup, если у KartClass нет собственного
-    переопределения (см. KartClass.effective_geometry).
+    Подставляется в новый Setup, если у класса (RaceClass) нет собственного
+    переопределения (см. RaceClass.effective_geometry).
     """
     CHASSIS_TYPE_CHOICES = [
         ("junior", "Детское"),
@@ -2589,72 +2625,6 @@ class ChassisTypePreset(models.Model):
 
     def __str__(self):
         return self.get_chassis_type_display()
-
-
-class KartClass(models.Model):
-    """
-    Справочник классов картинга для развесовки (не путать с website.RaceClass —
-    тот привязан к результатам гонок, этот — к минимальным весам и геометрии
-    для калькулятора Balance; классы регламентированы РАФ независимо друг
-    от друга и могут называться/делиться иначе).
-    """
-    name = models.CharField(max_length=50, unique=True, verbose_name="Название")
-    slug = models.SlugField(max_length=50, unique=True, verbose_name="Slug")
-    chassis_type = models.CharField(
-        max_length=10, choices=ChassisTypePreset.CHASSIS_TYPE_CHOICES,
-        verbose_name="Тип шасси",
-        help_text="Определяет, для каких картов доступен этот класс.",
-    )
-    min_weight_kg = models.DecimalField(
-        max_digits=5, decimal_places=1, verbose_name="Минимальный вес, кг",
-        help_text="Карт + пилот + экипировка.",
-    )
-    wheelbase_mm = models.PositiveIntegerField(
-        null=True, blank=True, verbose_name="Колёсная база, мм",
-        help_text="Переопределение пресета типа шасси. Пусто — берётся пресет.",
-    )
-    track_front_mm = models.PositiveIntegerField(
-        null=True, blank=True, verbose_name="Колея перед, мм",
-        help_text="Переопределение пресета типа шасси. Пусто — берётся пресет.",
-    )
-    track_rear_mm = models.PositiveIntegerField(
-        null=True, blank=True, verbose_name="Колея зад, мм",
-        help_text="Переопределение пресета типа шасси. Пусто — берётся пресет.",
-    )
-    is_active = models.BooleanField(default=True, verbose_name="Активен")
-    sort_order = models.PositiveIntegerField(default=0, verbose_name="Порядок сортировки")
-
-    panels = [
-        FieldPanel("name"),
-        FieldPanel("slug"),
-        FieldPanel("chassis_type"),
-        FieldPanel("min_weight_kg"),
-        FieldRowPanel([
-            FieldPanel("wheelbase_mm"),
-            FieldPanel("track_front_mm"),
-            FieldPanel("track_rear_mm"),
-        ]),
-        FieldPanel("is_active"),
-        FieldPanel("sort_order"),
-    ]
-
-    class Meta:
-        verbose_name = "Класс (развесовка)"
-        verbose_name_plural = "Классы (развесовка)"
-        ordering = ["sort_order", "name"]
-
-    def __str__(self):
-        return self.name
-
-    def effective_geometry(self):
-        """wheelbase/track с учётом переопределения — переопределение класса,
-        иначе пресет по chassis_type, иначе None (пресет ещё не заполнен)."""
-        preset = ChassisTypePreset.objects.filter(chassis_type=self.chassis_type).first()
-        return {
-            "wheelbase_mm": self.wheelbase_mm or (preset.wheelbase_mm if preset else None),
-            "track_front_mm": self.track_front_mm or (preset.track_front_mm if preset else None),
-            "track_rear_mm": self.track_rear_mm or (preset.track_rear_mm if preset else None),
-        }
 
 
 class BalanceThreshold(models.Model):
@@ -2926,8 +2896,8 @@ class Setup(models.Model):
         max_length=150, verbose_name="Название",
         help_text="Например «Мячково, сухо, полбака».",
     )
-    kart_class = models.ForeignKey(
-        KartClass, on_delete=models.PROTECT, related_name="setups", verbose_name="Класс",
+    race_class = models.ForeignKey(
+        "website.RaceClass", on_delete=models.PROTECT, related_name="balance_setups", verbose_name="Класс",
     )
 
     weight_lf = models.DecimalField(max_digits=5, decimal_places=1, verbose_name="Левый перед, кг")
@@ -2984,9 +2954,10 @@ class Setup(models.Model):
         return f"{self.name} — {self.kart.name}"
 
     def clean(self):
-        if self.kart_id and self.kart_class_id and self.kart_class.chassis_type != self.kart.chassis_type:
+        if (self.kart_id and self.race_class_id and self.race_class.chassis_type
+                and self.race_class.chassis_type != self.kart.chassis_type):
             raise ValidationError({
-                "kart_class": "Класс не подходит типу шасси этого карта (детское/взрослое).",
+                "race_class": "Класс не подходит типу шасси этого карта (детское/взрослое).",
             })
 
     @property
@@ -2995,7 +2966,7 @@ class Setup(models.Model):
 
     def effective_geometry(self):
         """Своё переопределение → переопределение класса → пресет типа шасси."""
-        class_geometry = self.kart_class.effective_geometry()
+        class_geometry = self.race_class.effective_geometry()
         return {
             "wheelbase_mm": self.wheelbase_mm or class_geometry["wheelbase_mm"],
             "track_front_mm": self.track_front_mm or class_geometry["track_front_mm"],

@@ -25,7 +25,7 @@ def _round1(value):
     return value.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
 
 
-def validate_corners(lf, rf, lr, rr, kart_class=None):
+def validate_corners(lf, rf, lr, rr, race_class=None):
     """
     Список ошибок/предупреждений по угловым весам (ТЗ 3.5). Не бросает
     исключение — вызывающая сторона решает, что делать. 'errors' — расчёт
@@ -34,7 +34,7 @@ def validate_corners(lf, rf, lr, rr, kart_class=None):
     ввода.
 
     Верхняя граница правдоподобия и сверка с минималкой класса работают
-    только если передан kart_class с заполненным min_weight_kg — открытый
+    только если передан race_class с заполненным min_weight_kg — открытый
     вопрос ТЗ №13 закрыт по собственной эвристике документа: «предупреждать
     при угле выше половины минимального веса класса». Без выбранного класса
     (анонимный расчёт без класса) эти два предупреждения просто не
@@ -54,21 +54,21 @@ def validate_corners(lf, rf, lr, rr, kart_class=None):
     if errors:
         return {"errors": errors, "warnings": warnings}
 
-    if kart_class is not None and kart_class.min_weight_kg:
-        min_w = kart_class.min_weight_kg
+    if race_class is not None and race_class.min_weight_kg:
+        min_w = race_class.min_weight_kg
         plausible_max = min_w / 2
         for key, value in corners.items():
             if value > plausible_max:
                 warnings.append(
                     f"«{CORNER_LABELS[key]}» ({value} кг) выглядит подозрительно много "
-                    f"для класса «{kart_class.name}» — проверьте ввод."
+                    f"для класса «{race_class.name}» — проверьте ввод."
                 )
 
         total = lf + rf + lr + rr
         if total < min_w * Decimal("0.5") or total > min_w * Decimal("1.5"):
             warnings.append(
                 f"Суммарный вес {total} кг сильно расходится с минималкой класса "
-                f"«{kart_class.name}» ({min_w} кг) — возможна ошибка ввода."
+                f"«{race_class.name}» ({min_w} кг) — возможна ошибка ввода."
             )
 
     return {"errors": errors, "warnings": warnings}
@@ -129,15 +129,15 @@ def classify_all(metrics, thresholds=None):
     }
 
 
-def min_weight_status(total_kg, kart_class):
+def min_weight_status(total_kg, race_class):
     """None — если класс не выбран или у него ещё не заполнен min_weight_kg
     (справочник могут не успеть заполнить сразу). margin_kg отрицательный —
     недобор; ТЗ 3.3: предупреждение информационное, расчёт не блокирует."""
-    if kart_class is None or not kart_class.min_weight_kg:
+    if race_class is None or not race_class.min_weight_kg:
         return None
-    margin_kg = total_kg - kart_class.min_weight_kg
+    margin_kg = total_kg - race_class.min_weight_kg
     return {
-        "min_weight_kg": kart_class.min_weight_kg,
+        "min_weight_kg": race_class.min_weight_kg,
         "margin_kg": _round1(margin_kg),
         "is_under": margin_kg < 0,
     }
@@ -150,14 +150,14 @@ def kart_only_weight(total_kg, driver_weight_kg):
     return _round1(total_kg - driver_weight_kg)
 
 
-def evaluate_setup(lf, rf, lr, rr, kart_class=None, driver_weight_kg=None, thresholds=None):
+def evaluate_setup(lf, rf, lr, rr, race_class=None, driver_weight_kg=None, thresholds=None):
     """
     Единая точка входа для view: валидация → расчёт → классификация →
     проверка минималки → вес карта без пилота. Если есть блокирующие
     ошибки — метрики не считаются вовсе (ТЗ 3.5: «расчёт при трёх
     заполненных не выполняется», то же для нуля/отрицательного значения).
     """
-    validation = validate_corners(lf, rf, lr, rr, kart_class=kart_class)
+    validation = validate_corners(lf, rf, lr, rr, race_class=race_class)
     if validation["errors"]:
         return {
             "validation": validation,
@@ -172,7 +172,7 @@ def evaluate_setup(lf, rf, lr, rr, kart_class=None, driver_weight_kg=None, thres
         "validation": validation,
         "metrics": metrics,
         "classification": classify_all(metrics, thresholds=thresholds),
-        "min_weight": min_weight_status(metrics["total_kg"], kart_class),
+        "min_weight": min_weight_status(metrics["total_kg"], race_class),
         "kart_only_kg": kart_only_weight(metrics["total_kg"], driver_weight_kg),
     }
 
@@ -235,7 +235,7 @@ def apply_ballasts(base_corners, ballasts, wheelbase_mm, track_front_mm, track_r
     return {key: _round1(value) for key, value in totals.items()}
 
 
-def validate_ballast_weight(weight_kg, kart_class=None):
+def validate_ballast_weight(weight_kg, race_class=None):
     """
     ТЗ 3.5: «Вес груза может быть отрицательным, но по модулю ограничен
     разумным пределом». Число в ТЗ не задано — как и для верхней границы
@@ -243,11 +243,11 @@ def validate_ballast_weight(weight_kg, kart_class=None):
     а не к придуманной константе; без класса проверка не выполняется (см.
     validate_corners — та же логика, тот же повод).
     """
-    if kart_class is None or not kart_class.min_weight_kg:
+    if race_class is None or not race_class.min_weight_kg:
         return []
-    plausible_max = kart_class.min_weight_kg / 2
+    plausible_max = race_class.min_weight_kg / 2
     if abs(weight_kg) > plausible_max:
-        return [f"Груз {weight_kg} кг выглядит подозрительно тяжёлым для класса «{kart_class.name}» — проверьте ввод."]
+        return [f"Груз {weight_kg} кг выглядит подозрительно тяжёлым для класса «{race_class.name}» — проверьте ввод."]
     return []
 
 
@@ -397,7 +397,7 @@ def _setup_snapshot(setup, thresholds):
     return {
         "metrics": metrics,
         "classification": classify_all(metrics, thresholds=thresholds),
-        "min_weight": min_weight_status(metrics["total_kg"], setup.kart_class),
+        "min_weight": min_weight_status(metrics["total_kg"], setup.race_class),
         "kart_only_kg": kart_only_weight(metrics["total_kg"], setup.driver_weight_kg),
     }
 
@@ -455,7 +455,7 @@ def compare_setups(setup_a, setup_b, thresholds=None):
 
     return {
         "same_kart": setup_a.kart_id == setup_b.kart_id,
-        "class_changed": setup_a.kart_class_id != setup_b.kart_class_id,
+        "class_changed": setup_a.race_class_id != setup_b.race_class_id,
         "corners": corners,
         "metrics": metrics,
         "kart_only": kart_only,

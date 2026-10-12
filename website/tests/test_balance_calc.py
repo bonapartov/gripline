@@ -23,7 +23,7 @@ from website.models import (
     ChassisTypePreset,
     Driver,
     Kart,
-    KartClass,
+    RaceClass,
     Setup,
 )
 from website.services.balance_calc import (
@@ -101,8 +101,8 @@ class ValidateCornersTests(unittest.TestCase):
 
     def test_plausibility_warning_needs_kart_class(self):
         # Половина минималки (40) — 20; угол 30 больше порога -> предупреждение.
-        kc = KartClass(name="__t__", slug="__t__", chassis_type="junior", min_weight_kg=D("40"))
-        result = validate_corners(D("30"), D("5"), D("5"), D("5"), kart_class=kc)
+        kc = RaceClass(name="__t__", chassis_type="junior", min_weight_kg=D("40"))
+        result = validate_corners(D("30"), D("5"), D("5"), D("5"), race_class=kc)
         self.assertTrue(any("подозрительно" in w for w in result["warnings"]))
 
     def test_no_plausibility_warning_without_kart_class(self):
@@ -112,8 +112,8 @@ class ValidateCornersTests(unittest.TestCase):
         self.assertEqual(result["warnings"], [])
 
     def test_total_mismatch_with_min_weight_warns(self):
-        kc = KartClass(name="__t2__", slug="__t2__", chassis_type="senior", min_weight_kg=D("150"))
-        result = validate_corners(D("10"), D("10"), D("10"), D("10"), kart_class=kc)  # total=40 < 150*0.5
+        kc = RaceClass(name="__t2__", chassis_type="senior", min_weight_kg=D("150"))
+        result = validate_corners(D("10"), D("10"), D("10"), D("10"), race_class=kc)  # total=40 < 150*0.5
         self.assertTrue(any("расходится" in w for w in result["warnings"]))
 
 
@@ -123,13 +123,13 @@ class MinWeightAndDriverWeightTests(unittest.TestCase):
         self.assertIsNone(min_weight_status(D("100.0"), None))
 
     def test_min_weight_margin_positive(self):
-        kc = KartClass(min_weight_kg=D("95"))
+        kc = RaceClass(min_weight_kg=D("95"))
         status = min_weight_status(D("100.0"), kc)
         self.assertEqual(status["margin_kg"], D("5.0"))
         self.assertFalse(status["is_under"])
 
     def test_min_weight_shortfall(self):
-        kc = KartClass(min_weight_kg=D("110"))
+        kc = RaceClass(min_weight_kg=D("110"))
         status = min_weight_status(D("100.0"), kc)
         self.assertEqual(status["margin_kg"], D("-10.0"))
         self.assertTrue(status["is_under"])
@@ -200,10 +200,10 @@ class EvaluateSetupTests(TestCase):
         self.assertIsNone(result["classification"])
 
     def test_full_happy_path(self):
-        kc = KartClass(name="__t3__", slug="__t3__", chassis_type="junior", min_weight_kg=D("100"))
+        kc = RaceClass(name="__t3__", chassis_type="junior", min_weight_kg=D("100"))
         result = evaluate_setup(
             D("21.5"), D("21.5"), D("28.5"), D("28.5"),
-            kart_class=kc, driver_weight_kg=D("40"),
+            race_class=kc, driver_weight_kg=D("40"),
         )
         self.assertEqual(result["validation"]["errors"], [])
         self.assertEqual(result["metrics"]["total_kg"], D("100.0"))
@@ -318,16 +318,16 @@ class ValidateBallastWeightTests(unittest.TestCase):
         self.assertEqual(validate_ballast_weight(D("500")), [])
 
     def test_warns_on_implausible_weight(self):
-        kc = KartClass(name="__t4__", slug="__t4__", chassis_type="junior", min_weight_kg=D("100"))
-        self.assertTrue(validate_ballast_weight(D("60"), kart_class=kc))
+        kc = RaceClass(name="__t4__", chassis_type="junior", min_weight_kg=D("100"))
+        self.assertTrue(validate_ballast_weight(D("60"), race_class=kc))
 
     def test_no_warning_within_plausible_range(self):
-        kc = KartClass(name="__t5__", slug="__t5__", chassis_type="junior", min_weight_kg=D("100"))
-        self.assertEqual(validate_ballast_weight(D("3"), kart_class=kc), [])
+        kc = RaceClass(name="__t5__", chassis_type="junior", min_weight_kg=D("100"))
+        self.assertEqual(validate_ballast_weight(D("3"), race_class=kc), [])
 
     def test_negative_weight_checked_by_absolute_value(self):
-        kc = KartClass(name="__t6__", slug="__t6__", chassis_type="junior", min_weight_kg=D("100"))
-        self.assertTrue(validate_ballast_weight(D("-60"), kart_class=kc))
+        kc = RaceClass(name="__t6__", chassis_type="junior", min_weight_kg=D("100"))
+        self.assertTrue(validate_ballast_weight(D("-60"), race_class=kc))
 
 
 class CenterOfGravityTests(unittest.TestCase):
@@ -417,8 +417,8 @@ class DiagnoseTests(TestCase):
     def _diagnose(self, lf, rf, lr, rr, weather=None, min_weight_kg=None):
         metrics = compute_metrics(lf, rf, lr, rr)
         classification = classify_all(metrics, self.thresholds)
-        kart_class = KartClass(min_weight_kg=min_weight_kg) if min_weight_kg is not None else None
-        min_weight = min_weight_status(metrics["total_kg"], kart_class)
+        race_class = RaceClass(min_weight_kg=min_weight_kg) if min_weight_kg is not None else None
+        min_weight = min_weight_status(metrics["total_kg"], race_class)
         conditions = diagnose(
             metrics, classification, min_weight,
             thresholds=self.thresholds, weather=weather, rules=self.rules,
@@ -518,11 +518,11 @@ class CompareSetupsTests(TestCase):
             chassis_type="senior", wheelbase_mm=1040, track_front_mm=820, track_rear_mm=870,
         )
         self.chassis = Chassis.objects.create(name="__cmp_chassis__")
-        self.kart_class = KartClass.objects.create(
-            name="__cmp_junior__", slug="__cmp_junior__", chassis_type="junior", min_weight_kg=D("100"),
+        self.race_class = RaceClass.objects.create(
+            name="__cmp_junior__", chassis_type="junior", min_weight_kg=D("100"),
         )
-        self.kart_class_senior = KartClass.objects.create(
-            name="__cmp_senior__", slug="__cmp_senior__", chassis_type="senior", min_weight_kg=D("150"),
+        self.race_class_senior = RaceClass.objects.create(
+            name="__cmp_senior__", chassis_type="senior", min_weight_kg=D("150"),
         )
         driver = Driver.objects.create(first_name="Т", last_name="Т", slug="__cmp_driver__")
         self.kart = Kart.objects.create(
@@ -544,9 +544,9 @@ class CompareSetupsTests(TestCase):
             yellow_min=D("48.0"), yellow_max=D("52.0"),
         )
 
-    def _setup(self, kart=None, kart_class=None, **overrides):
+    def _setup(self, kart=None, race_class=None, **overrides):
         defaults = dict(
-            kart=kart or self.kart, name="Setup", kart_class=kart_class or self.kart_class,
+            kart=kart or self.kart, name="Setup", race_class=race_class or self.race_class,
             weight_lf=D("21.5"), weight_rf=D("21.5"), weight_lr=D("28.5"), weight_rr=D("28.5"),
         )
         defaults.update(overrides)
@@ -608,9 +608,9 @@ class CompareSetupsTests(TestCase):
     def test_class_changed_bonus_scenario(self):
         # ТЗ 8.1: "как менялась развесовка этого шасси при переходе из
         # Юниора в Макс" — тот же карт, разные классы.
-        a = self._setup(kart=self.kart, kart_class=self.kart_class)
+        a = self._setup(kart=self.kart, race_class=self.race_class)
         b = Setup.objects.create(
-            kart=self.kart, name="Senior setup", kart_class=self.kart_class_senior,
+            kart=self.kart, name="Senior setup", race_class=self.race_class_senior,
             weight_lf=D("30"), weight_rf=D("30"), weight_lr=D("40"), weight_rr=D("40"),
         )
         result = compare_setups(a, b)
@@ -618,8 +618,8 @@ class CompareSetupsTests(TestCase):
         self.assertTrue(result["class_changed"])
 
     def test_different_kart_class_changed_but_not_same_kart(self):
-        a = self._setup(kart=self.kart, kart_class=self.kart_class)
-        b = self._setup(kart=self.other_kart, kart_class=self.kart_class_senior)
+        a = self._setup(kart=self.kart, race_class=self.race_class)
+        b = self._setup(kart=self.other_kart, race_class=self.race_class_senior)
         result = compare_setups(a, b)
         self.assertFalse(result["same_kart"])
         self.assertTrue(result["class_changed"])

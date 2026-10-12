@@ -64,20 +64,20 @@
         <p class="gl-compare-banner">
           <i class="fa-solid fa-circle-info"></i>
           Тот же карт «{{ setup_a.kart.name }}»: класс изменился с
-          «{{ setup_a.kart_class.name }}» на «{{ setup_b.kart_class.name }}».
+          «{{ setup_a.race_class.name }}» на «{{ setup_b.race_class.name }}».
         </p>
       {% endif %}
 
       <div class="gl-compare-headers">
         <div class="gl-compare-headers__col">
           <span class="gl-compare-headers__name">{{ setup_a.name }}</span>
-          <span class="gl-compare-headers__meta">{{ setup_a.kart.name }} · {{ setup_a.kart_class.name }} · {{ setup_a.get_weather_display }}</span>
+          <span class="gl-compare-headers__meta">{{ setup_a.kart.name }} · {{ setup_a.race_class.name }} · {{ setup_a.get_weather_display }}</span>
           <span class="gl-compare-headers__date">{{ setup_a.created_at|date:"d.m.Y" }}</span>
         </div>
         <span class="gl-compare-headers__vs">vs</span>
         <div class="gl-compare-headers__col">
           <span class="gl-compare-headers__name">{{ setup_b.name }}</span>
-          <span class="gl-compare-headers__meta">{{ setup_b.kart.name }} · {{ setup_b.kart_class.name }} · {{ setup_b.get_weather_display }}</span>
+          <span class="gl-compare-headers__meta">{{ setup_b.kart.name }} · {{ setup_b.race_class.name }} · {{ setup_b.get_weather_display }}</span>
           <span class="gl-compare-headers__date">{{ setup_b.created_at|date:"d.m.Y" }}</span>
         </div>
       </div>

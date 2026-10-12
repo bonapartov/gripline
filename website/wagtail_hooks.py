@@ -1,6 +1,6 @@
 from wagtail_modeladmin.options import (ModelAdmin, ModelAdminGroup, modeladmin_register)
 from wagtail_modeladmin.helpers import PermissionHelper
-from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, MaxSettings, VkSettings, WeatherSettings, MailSettings, VpnSettings, SocialTag, ArticlePage, ChassisTypePreset, KartClass, BalanceThreshold, BalanceDiagnosticRule, DataRequest
+from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, MaxSettings, VkSettings, WeatherSettings, MailSettings, VpnSettings, SocialTag, ArticlePage, ChassisTypePreset, BalanceThreshold, BalanceDiagnosticRule, DataRequest
 from wagtail import hooks
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -168,14 +168,6 @@ class ChassisTypePresetAdmin(ModelAdmin):
     menu_icon = 'cog'
     list_display = ('chassis_type', 'wheelbase_mm', 'track_front_mm', 'track_rear_mm')
 
-class KartClassAdmin(ModelAdmin):
-    model = KartClass
-    menu_label = 'Классы'
-    menu_icon = 'list-ul'
-    list_display = ('name', 'chassis_type', 'min_weight_kg', 'is_active', 'sort_order')
-    list_filter = ('chassis_type', 'is_active')
-    search_fields = ('name',)
-
 class BalanceThresholdAdmin(ModelAdmin):
     model = BalanceThreshold
     menu_label = 'Пороги индикации'
@@ -212,7 +204,7 @@ class BalanceGroup(ModelAdminGroup):
     # ТЗ №10) Владимир проставляет здесь же, когда статьи определены.
     menu_label = 'Развесовка'
     menu_icon = 'table'
-    items = (ChassisTypePresetAdmin, KartClassAdmin, BalanceThresholdAdmin, BalanceDiagnosticRuleAdmin)
+    items = (ChassisTypePresetAdmin, BalanceThresholdAdmin, BalanceDiagnosticRuleAdmin)
 
 class TelegramSettingsAdmin(ModelAdmin):
     model = TelegramSettings

@@ -257,7 +257,7 @@ class TeamRosterEntryAdmin(admin.ModelAdmin):
 
 @admin.register(Setup)
 class SetupAdmin(admin.ModelAdmin):
-    list_display = ('name', 'kart', 'kart_class', 'weather', 'is_archived', 'created_at')
-    list_filter = ('weather', 'kart_class', 'is_archived')
+    list_display = ('name', 'kart', 'race_class', 'weather', 'is_archived', 'created_at')
+    list_filter = ('weather', 'race_class', 'is_archived')
     search_fields = ('name', 'kart__name')
     inlines = [BallastInline]
