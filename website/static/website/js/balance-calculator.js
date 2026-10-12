@@ -12,7 +12,7 @@
  * картинку" — результаты и цветовая индикация ниже пересчитываются из
  * ballast-adjusted весов, если на схеме есть хоть один груз.
  *
- * Пороги (BalanceThreshold) и классы (KartClass, вместе с геометрией через
+ * Пороги (BalanceThreshold) и классы (RaceClass, вместе с геометрией через
  * effective_geometry()) прилетают уже посчитанными на сервере через
  * json_script — калькулятор работает и анонимно, в БД сам не лезет.
  */
@@ -241,10 +241,19 @@
     if (weather === "wet") add("wet_weather");
 
     if (minWeight && minWeight.is_under) {
-      add("under_min_weight", { shortfall_kg: Math.abs(minWeight.margin_kg) });
+      add("under_min_weight", { shortfall_kg: Math.abs(minWeight.margin_kg).toFixed(1) }); // «4.0», как в Python и приложении
     }
 
     return triggered;
+  }
+
+  // Для теста паритета формул (website/tests/test_balance_vectors_js.py гоняет файл в Node на тех же
+  // контрольных примерах, что Python и приложение). В браузере module нет — ветка не срабатывает.
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = {
+      validateCorners: validateCorners, computeMetrics: computeMetrics, classify: classify,
+      minWeightStatus: minWeightStatus, applyBallasts: applyBallasts, diagnose: diagnose,
+    };
   }
 
   // ── DOM wiring — Блок 2 ─────────────────────────────────────────────
@@ -810,7 +819,7 @@
 
   // ── Deep-link из статей Матчасти (Блок 9, ТЗ §11.3) ─────────────────
   // ?lf=..&rf=..&lr=..&rr=.. — подставить в поля и сразу посчитать.
-  // Опционально &class=<id или slug>, &wb=&tf=&tr= (геометрия). Ничего
+  // Опционально &class=<id класса>, &wb=&tf=&tr= (геометрия). Ничего
   // не сохраняется, парсинг только на клиенте.
   function applyDeepLinkParams() {
     var q;
@@ -830,7 +839,7 @@
     if (cls && classSelect) {
       for (var i = 0; i < KART_CLASSES.length; i++) {
         var kc = KART_CLASSES[i];
-        if (String(kc.id) === cls || kc.slug === cls) {
+        if (String(kc.id) === cls) {
           classSelect.value = String(kc.id);
           fillGeometryFromClass(kc);
           touched = true;
