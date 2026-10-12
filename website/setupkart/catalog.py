@@ -43,6 +43,9 @@ def _engine_payload(engine):
         'carburetor_image': chassis_images.carburetor_image(engine),
         # Рекомендации производителя по классу: {id класса: {поле: {value, from, to}}} (11.10.2026).
         'class_presets': _class_presets_payload(engine),
+        # Пересчёт жиклёра класса под RAD сессии (формула Rotax, 12.10.2026); null — не пересчитывать.
+        'jet_by_rad': None if engine.app_jet_base_rad is None else {
+            'base_rad': float(engine.app_jet_base_rad), 'step': engine.app_jet_step or 1},
     }
 
 
@@ -138,6 +141,10 @@ def validation_errors():
         if sum(1 for p in e.app_spark_plugs.all() if p.is_default) > 1:
             errors.append(f'«{e.name}»: свеч «по умолчанию» больше одной.')
         by_key = {f.key: f for f in fields}
+        if e.app_jet_base_rad is not None and not (50 <= e.app_jet_base_rad <= 130):
+            errors.append(f'«{e.name}»: RAD рекомендаций жиклёра {e.app_jet_base_rad} — вне 50–130 %.')
+        if e.app_jet_base_rad is not None and 'main_jet' not in by_key:
+            errors.append(f'«{e.name}»: задан RAD для жиклёра, но поля «Главный жиклёр» нет среди полей карбюратора.')
         class_ids = {rc.pk for rc in e.app_race_classes.all()}
         for p in e.app_class_presets.all():
             where = f'«{e.name}» → рекомендация «{p.race_class}» · «{p.get_key_display()}»'

@@ -1525,6 +1525,16 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
         help_text="Без карбюратора, свечи и выхлопа (например Rotax E10): в приложении для него скрываются "
                   "разделы «Карбюратор» и «Температура выхлопа», жиклёр в «Быстрой правке» и моточасы. "
                   "Поля карбюратора и свечи ему не задаются. Шасси, развесовка и звёзды — как у всех.")
+    app_jet_base_rad = models.DecimalField(
+        "RAD рекомендаций жиклёра, %", max_digits=4, decimal_places=1, null=True, blank=True,
+        help_text="Плотность воздуха, при которой верны рекомендованные жиклёры по классам. Приложение "
+                  "пересчитывает жиклёр под погоду сессии по формуле Rotax: базовый × ⁴√(RAD сейчас / RAD базы). "
+                  "У Rotax заводская настройка — 25 °C, 400 м, сухой воздух: 92.1. Пусто — без пересчёта.",
+    )
+    app_jet_step = models.PositiveSmallIntegerField(
+        "Шаг номеров жиклёра", default=2,
+        help_text="Через сколько номеров выпускаются жиклёры (у Rotax — 2: 124, 126, 128…).",
+    )
     app_race_classes = ParentalManyToManyField(
         'website.RaceClass', blank=True, related_name='app_engines', verbose_name="Классы в приложении",
         help_text="Классы, которые пользователь сможет выбрать с этим двигателем.",
@@ -1551,6 +1561,7 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
         FieldPanel('app_electric'),
         FieldPanel('app_race_classes', widget=forms.CheckboxSelectMultiple),
         FieldPanel('app_carburetor_image'),
+        MultiFieldPanel([FieldPanel('app_jet_base_rad'), FieldPanel('app_jet_step')], heading="Жиклёр по погоде"),
         InlinePanel('app_fields', label="Поле карбюратора",
                     help_text="Числа — минимум, максимум и шаг; остальное — список (по одному значению в строке)."),
         InlinePanel('app_spark_plugs', label="Свеча"),
