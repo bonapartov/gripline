@@ -4860,6 +4860,7 @@ APP_PRO_FEATURES = [
     ('grip_level', 'Уровень зацепа трассы', 'toggle', 'free'),
     ('air_density', 'Плотность воздуха (RAD) по погоде', 'toggle', 'pro'),
     ('chassis_advice', 'Советы по поведению карта', 'toggle', 'pro'),
+    ('tyre_analysis', 'Анализ шин (температуры и давление)', 'toggle', 'pro'),
 ]
 APP_PRO_FEATURE_KINDS = {k: kind for k, _, kind, _ in APP_PRO_FEATURES}
 
