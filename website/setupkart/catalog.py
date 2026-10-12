@@ -70,6 +70,29 @@ def _screw_payload(engine):
             'short_straight_pct': f(engine.app_screw_short_straight_pct), 'models': models_}
 
 
+def _ladder(raw, text=False):
+    """«0.5:3; 1.75:2.75; 1.75» → {'steps': [[0.5, 3], [1.75, 2.75]], 'else': 1.75}; text — значения строками.
+    Битые части пропускаются; пусто — None."""
+    steps, rest = [], None
+    for part in (raw or '').split(';'):
+        part = part.strip()
+        if not part:
+            continue
+        if ':' in part:
+            k, v = part.split(':', 1)
+            try:
+                steps.append([float(k.strip().replace(',', '.')),
+                              v.strip() if text else float(v.strip().replace(',', '.'))])
+            except ValueError:
+                continue
+        else:
+            try:
+                rest = part if text else float(part.replace(',', '.'))
+            except ValueError:
+                continue
+    return {'steps': steps, 'else': rest} if steps or rest is not None else None
+
+
 def _float_carb_payload(engine):
     """Поплавковый карбюратор по погоде (Rotax EVO, 13.10.2026); null — без подсказки."""
     f = lambda v: None if v is None else float(v)  # noqa: E731
@@ -79,6 +102,11 @@ def _float_carb_payload(engine):
         'air_screw_bonus': f(m.air_screw_bonus), 'float_height_mm': f(m.float_height_mm), 'oil_pct': f(m.oil_pct),
         'water_temp_c': f(m.water_temp_c), 'plug_gap_mm': f(m.plug_gap_mm), 'spark_plug': m.spark_plug.strip(),
         'gear_oil': m.gear_oil.strip(),
+        'jet_slope': f(m.jet_slope), 'jet_intercept': f(m.jet_intercept), 'jet_rounding': m.jet_rounding,
+        'fuel95_factor': f(m.fuel95_factor), 'float_height_ref_mm': f(m.float_height_ref_mm),
+        'float_factor_fixed': f(m.float_factor_fixed), 'float_weight_g': f(m.float_weight_g),
+        'air_screw_ladder': _ladder(m.air_screw_ladder), 'spark_by_temp': _ladder(m.spark_by_temp, text=True),
+        'extra_info': m.extra_info.strip(),
     } for m in engine.app_float_models.all()]
     return {'models': rows} if rows else None
 
@@ -240,6 +268,8 @@ def validation_errors():
         if floats and 'main_jet' not in by_key:
             errors.append(f'«{e.name}»: задан карбюратор по погоде, но нет поля «Главный жиклёр».')
         for m in floats:
+            if m.air_screw_ladder.strip() and _ladder(m.air_screw_ladder) is None:
+                errors.append(f'«{e.name}» → карбюратор «{m.name}»: не разобрать «Воздушный винт по игле».')
             if m.race_class_id and m.race_class_id not in class_ids:
                 errors.append(f'«{e.name}» → карбюратор «{m.name}»: класс «{m.race_class}» не отмечен в «Классах в приложении».')
         if sum(1 for m in screws if m.is_default) > 1:

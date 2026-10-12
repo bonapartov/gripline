@@ -4692,7 +4692,30 @@ class AppEngineFloatCarbModel(Orderable):
                                    help_text="Подставляется для сессии этого класса. Пусто — только ручной выбор.")
     is_default = models.BooleanField("По умолчанию", default=False)
     jet_base = models.DecimalField("Жиклёр: база", max_digits=7, decimal_places=4, default=123.5,
-                                   help_text="Жиклёр = база × (0,3351 × плотность + 0,6117) × бензин × трасса.")
+                                   help_text="Жиклёр = база × (наклон × плотность + свободный член) × бензин × трасса.")
+    jet_slope = models.DecimalField("Жиклёр: наклон", max_digits=14, decimal_places=12, default=0.335088816668)
+    jet_intercept = models.DecimalField("Жиклёр: свободный член", max_digits=8, decimal_places=6, default=0.6117)
+    jet_rounding = models.CharField("Номера жиклёров", max_length=10, default='dellorto',
+                                    choices=[('dellorto', "Dell'Orto: 100, 102, 105, 108, 110…"),
+                                             ('step1', 'Через 1 номер (85, 86, 87…)')])
+    fuel95_factor = models.DecimalField("АИ-95: множитель жиклёра", max_digits=8, decimal_places=7, default=1.0015022)
+    float_height_ref_mm = models.DecimalField("Высота поплавка: опорная, мм", max_digits=3, decimal_places=1,
+                                              default=3.5, help_text="Поправка плотности +0,5875 % на мм выше опорной.")
+    float_factor_fixed = models.DecimalField("Поправка поплавка: постоянная", max_digits=8, decimal_places=7,
+                                             null=True, blank=True,
+                                             help_text="Если задано — вместо поправки по высоте поплавка (ROK Mini: 1,0440625).")
+    float_weight_g = models.DecimalField("Вес поплавка, г", max_digits=3, decimal_places=1, null=True, blank=True,
+                                         help_text="Поправка плотности × (1,0956 − 0,0238 × вес). Пусто — без поправки.")
+    air_screw_ladder = models.CharField(
+        "Воздушный винт по игле", max_length=120, default="0.5:3; 1.75:2.75; 2.75:2.5; 3.75:2.25; 4.75:2; 1.75",
+        help_text="«До позиции иглы : оборотов винта» через «;», последнее число — для остальных. "
+                  "Добавка выше прибавляется.")
+    spark_by_temp = models.CharField(
+        "Свеча по температуре воздуха", max_length=200, blank=True,
+        default="-2:NGK BR7EG; 10:NGK BR8EG; 25:NGK BR9EG; 30:NGK BR10EG; NGK BR11EG",
+        help_text="«Ниже °C : свеча» через «;», последняя — для остальных.")
+    extra_info = models.TextField("Справка", blank=True,
+                                  help_text="Постоянные жиклёры и детали — показываются под расчётом.")
     needle_slope = models.DecimalField("Игла: наклон", max_digits=8, decimal_places=5, default=21.10694)
     needle_offset = models.DecimalField("Игла: смещение", max_digits=8, decimal_places=5, default=-21.64850)
     air_screw_bonus = models.DecimalField("Воздушный винт: добавка, оборотов", max_digits=4, decimal_places=2,
@@ -4707,10 +4730,16 @@ class AppEngineFloatCarbModel(Orderable):
 
     panels = [
         FieldRowPanel([FieldPanel('name'), FieldPanel('race_class'), FieldPanel('is_default')]),
-        FieldRowPanel([FieldPanel('jet_base'), FieldPanel('needle_slope'), FieldPanel('needle_offset'),
-                       FieldPanel('air_screw_bonus')]),
-        FieldRowPanel([FieldPanel('float_height_mm'), FieldPanel('oil_pct'), FieldPanel('water_temp_c')]),
-        FieldRowPanel([FieldPanel('spark_plug'), FieldPanel('plug_gap_mm'), FieldPanel('gear_oil')]),
+        FieldRowPanel([FieldPanel('jet_base'), FieldPanel('jet_slope'), FieldPanel('jet_intercept'),
+                       FieldPanel('jet_rounding'), FieldPanel('fuel95_factor')]),
+        FieldRowPanel([FieldPanel('needle_slope'), FieldPanel('needle_offset'), FieldPanel('air_screw_bonus')]),
+        FieldPanel('air_screw_ladder'),
+        FieldRowPanel([FieldPanel('float_height_mm'), FieldPanel('float_height_ref_mm'), FieldPanel('float_factor_fixed'),
+                       FieldPanel('float_weight_g'), FieldPanel('oil_pct')]),
+        FieldRowPanel([FieldPanel('spark_plug'), FieldPanel('plug_gap_mm'), FieldPanel('water_temp_c'),
+                       FieldPanel('gear_oil')]),
+        FieldPanel('spark_by_temp'),
+        FieldPanel('extra_info'),
     ]
 
     class Meta(Orderable.Meta):
