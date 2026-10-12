@@ -136,6 +136,17 @@ body {
   }
 }
 
+/* ПК и планшет: приложение остаётся колонкой телефонной ширины по центру — шапка и нижние вкладки
+ * тянутся фоном на весь экран, а содержимое (бренд/кнопки, вкладки) собирается в ту же колонку,
+ * что калькулятор и списки (до 480px), а не разъезжается по краям монитора. */
+@media (min-width: 600px) {
+  .gl-balance-topbar,
+  .gl-balance-tabbar {
+    padding-left: calc((100% - 480px) / 2);
+    padding-right: calc((100% - 480px) / 2);
+  }
+}
+
 /* ── Контент ──────────────────────────────────────────────────────── */
 
 .gl-balance-content {
@@ -381,7 +392,9 @@ body {
   display: none;
 }
 
-@media (orientation: landscape) {
+/* Только телефон в ландшафте (сенсорный экран, низкая высота). Без этих условий заглушка закрывала
+ * калькулятор на любом ПК — монитор тоже landscape (исправлено 12.10.2026). */
+@media (orientation: landscape) and (pointer: coarse) and (max-height: 600px) {
   .gl-balance-orientation-sensitive .gl-balance-orientation-guard {
     position: fixed;
     inset: 0;
