@@ -576,10 +576,29 @@ def test_chassis_advice_in_payload_and_validated():
     assert [x['code'] for x in advice] == ['camber_more']
     assert advice[0]['fields'] == ['camber_left', 'camber_right']
     assert advice[0]['rules'] == [{'symptom': 'understeer', 'phase': 'middle', 'level': 'weak',
-                                   'group': 'front_grip_up', 'ballast': 'any', 'weather': 'any'}]
+                                   'group': 'front_grip_up', 'ballast': 'any', 'weather': 'any', 'grip': 'any'}]
     assert catalog.validation_errors() == []
     AppChassisAdvice.objects.create(code='bad_set', title='Плохой', target='sidepods', action='set')
     AppChassisAdvice.objects.create(code='bad_target', title='Без поля', action='inc')
     errors = catalog.validation_errors()
     assert any('«Плохой»' in m and 'значение' in m for m in errors)
     assert any('«Без поля»' in m and 'поле' in m for m in errors)
+
+
+@pytest.mark.django_db
+def test_track_direction_compound_temp_and_fuel_mix_in_payloads():
+    """12.10.2026: направление движения у трассы — в /tracks/; рабочая температура состава и пропорция смеси
+    двигателя — в справочнике."""
+    from website.models import AppTyreCompound, Track
+    from website.setupkart.api import tracks_payload
+    t = Track.objects.create(name='Трасса', show_in_app=True, live=True, latitude=55.0, longitude=37.0,
+                             app_direction='ccw')
+    assert next(x for x in tracks_payload()['tracks'] if x['id'] == t.pk)['direction'] == 'ccw'
+    e = rotax_seeded()
+    e.app_fuel_mix_ratio = Decimal('50')
+    e.save()
+    assert next(x for x in catalog.build_payload()['engines'] if x['id'] == e.pk)['fuel_mix_ratio'] == 50.0
+    brand = TyreBrand.objects.create(name='Vega', live=True, show_in_app=True)
+    AppTyreCompound.objects.create(brand=brand, name='Белая', target_temp_c=85)
+    tb = next(x for x in catalog.build_payload()['tyre_brands'] if x['id'] == brand.pk)
+    assert tb['compounds'][0]['target_temp_c'] == 85

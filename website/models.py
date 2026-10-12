@@ -1182,9 +1182,14 @@ class Track(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, 
         help_text="Запись попадёт в мобильное приложение GripLine SetupKart после публикации справочников "
                   "(меню «Приложение» → «Публикация»). Без галочки — только на сайте.",
     )
+    app_direction = models.CharField(
+        "Направление движения", max_length=3, blank=True, choices=[('cw', 'По часовой'), ('ccw', 'Против часовой')],
+        help_text="Для приложения: подставляется в сессию на этой трассе (анализ шин учитывает, какие колёса "
+                  "внешние). Пусто — пилот выбирает сам.")
 
     panels = [
         FieldPanel('show_in_app'),
+        FieldPanel('app_direction'),
         FieldPanel('name'),
         FieldPanel('slug'),
         FieldPanel('city'),
@@ -1525,6 +1530,11 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
         help_text="Без карбюратора, свечи и выхлопа (например Rotax E10): в приложении для него скрываются "
                   "разделы «Карбюратор» и «Температура выхлопа», жиклёр в «Быстрой правке» и моточасы. "
                   "Поля карбюратора и свечи ему не задаются. Шасси, развесовка и звёзды — как у всех.")
+    app_fuel_mix_ratio = models.DecimalField(
+        "Пропорция смеси, 1 : N", max_digits=4, decimal_places=1, null=True, blank=True,
+        validators=[MinValueValidator(10), MaxValueValidator(200)],
+        help_text="Рекомендация для калькулятора топливной смеси в приложении: N частей бензина на одну масла "
+                  "(1 : 50 — 2 %). Пусто — без рекомендации.")
     app_jet_base_rad = models.DecimalField(
         "RAD базы жиклёра, %", max_digits=4, decimal_places=1, null=True, blank=True,
         help_text="Плотность воздуха, при которой верны «Базы жиклёра по классу» ниже. Приложение пересчитывает "
@@ -1563,6 +1573,7 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
         FieldPanel('app_electric'),
         FieldPanel('app_race_classes', widget=forms.CheckboxSelectMultiple),
         FieldPanel('app_carburetor_image'),
+        FieldPanel('app_fuel_mix_ratio'),
         MultiFieldPanel([FieldPanel('app_jet_base_rad'), FieldPanel('app_jet_step')], heading="Жиклёр по погоде"),
         InlinePanel('app_jet_bases', label="База жиклёра по классу",
                     help_text="Жиклёр класса при «RAD базы». «Старая версия» — для двигателей прежнего выпуска "
@@ -4486,6 +4497,7 @@ APP_PARAMETER_CHOICES = [
     ('seat_strut', 'Распорки сиденья (на сторону)'),
     ('seat_shift_mm', 'Сиденье: сдвиг назад, мм'),
     ('seat_raise_mm', 'Сиденье: подъём, мм'),
+    ('seat_side_mm', 'Сиденье: сдвиг вправо, мм'),
     ('torsion_bar', 'Торсионный стабилизатор (варианты)'),
     ('grip_level', 'Уровень зацепа трассы (варианты)'),
     # 12.10.2026 — новые поля шасси (значения — по Kart Chassis Setup Pro)
@@ -4627,7 +4639,12 @@ class AppTyreCompound(Orderable):
     image = models.ForeignKey('wagtailimages.Image', on_delete=models.SET_NULL, null=True, blank=True,
                               related_name='+', verbose_name="Фото")
 
-    panels = [FieldRowPanel([FieldPanel('name'), FieldPanel('kind')]), FieldPanel('image')]
+    target_temp_c = models.PositiveSmallIntegerField(
+        "Рабочая температура, °C", null=True, blank=True, validators=[MinValueValidator(30), MaxValueValidator(120)],
+        help_text="Температура протектора, при которой состав работает лучше всего. В приложении — подсказка "
+                  "для анализа шин. Пусто — 80 °C.")
+
+    panels = [FieldRowPanel([FieldPanel('name'), FieldPanel('kind'), FieldPanel('target_temp_c')]), FieldPanel('image')]
 
     class Meta(Orderable.Meta):
         verbose_name = "Состав шины (приложение)"
@@ -4922,6 +4939,8 @@ APP_ADVICE_BALLAST = [
     ('normal', 'Норма (4–12 %)'), ('high', 'Много (> 12 %)'), ('low_normal', 'Мало или норма'),
 ]
 APP_ADVICE_WEATHER = [('any', 'Любая'), ('dry', 'Сухо'), ('wet', 'Дождь / мокро')]
+APP_ADVICE_GRIP = [('any', 'Любой'), ('low', 'Низкий (первый вариант списка)'), ('normal', 'Средний'),
+                   ('high', 'Высокий (последний вариант списка)')]
 
 
 class AppChassisAdvice(ClusterableModel):
@@ -4975,9 +4994,10 @@ class AppChassisRule(Orderable):
     group = models.CharField("Эффект", max_length=20, choices=APP_ADVICE_GROUPS, default='other')
     ballast = models.CharField("Балласт", max_length=12, choices=APP_ADVICE_BALLAST, default='any')
     weather = models.CharField("Погода", max_length=5, choices=APP_ADVICE_WEATHER, default='any')
+    grip = models.CharField("Зацеп трассы", max_length=6, choices=APP_ADVICE_GRIP, default='any')
 
     panels = [FieldRowPanel([FieldPanel('symptom'), FieldPanel('phase'), FieldPanel('level')]),
-              FieldRowPanel([FieldPanel('group'), FieldPanel('ballast'), FieldPanel('weather')])]
+              FieldRowPanel([FieldPanel('group'), FieldPanel('ballast'), FieldPanel('weather'), FieldPanel('grip')])]
 
     class Meta(Orderable.Meta):
         verbose_name = "Правило"

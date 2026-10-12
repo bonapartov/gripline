@@ -70,7 +70,8 @@ def tracks_payload():
     tracks = list(tracks)
     records = records_by_track(tracks)
     items = [{'id': t.pk, 'name': t.name, 'city': t.city or '', 'region': t.region or '',
-              'latitude': t.latitude, 'longitude': t.longitude, 'records': records.get(t.pk, [])}
+              'latitude': t.latitude, 'longitude': t.longitude, 'records': records.get(t.pk, []),
+              'direction': t.app_direction or None}
              for t in tracks]
     # Префикс формата: смена состава ответа (например, рекорды трасс 08.10.2026) меняет версию, и приложения,
     # запомнившие прежнюю версию старой сборкой, загружают трассы заново.

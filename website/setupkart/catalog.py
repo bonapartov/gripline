@@ -46,6 +46,7 @@ def _engine_payload(engine):
         # Пересчёт жиклёра под RAD сессии (формула Rotax MAX Jetting, 12.10.2026): базы по классам
         # {id класса: {base, legacy?}} при RAD base_rad; null — не пересчитывать.
         'jet_by_rad': _jet_by_rad_payload(engine),
+        'fuel_mix_ratio': float(engine.app_fuel_mix_ratio) if engine.app_fuel_mix_ratio else None,
     }
 
 
@@ -74,7 +75,8 @@ def _tyre_brand_payload(brand):
     return {
         'id': brand.pk,
         'name': brand.name,
-        'compounds': [{'name': c.name.strip(), 'kind': c.kind, 'image': chassis_images.compound_image(c)}
+        'compounds': [{'name': c.name.strip(), 'kind': c.kind, 'image': chassis_images.compound_image(c),
+                       'target_temp_c': c.target_temp_c}
                       for c in brand.app_compounds.all()],
     }
 
@@ -114,7 +116,7 @@ def _chassis_advice_payload():
     out = []
     for a in AppChassisAdvice.objects.select_related('image').prefetch_related('rules'):
         rules = [{'symptom': r.symptom, 'phase': r.phase, 'level': r.level, 'group': r.group,
-                  'ballast': r.ballast, 'weather': r.weather} for r in a.rules.all()]
+                  'ballast': r.ballast, 'weather': r.weather, 'grip': r.grip} for r in a.rules.all()]
         if not rules:
             continue
         image = None
