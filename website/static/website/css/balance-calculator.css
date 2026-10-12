@@ -188,8 +188,18 @@
   color: var(--gl-fg-4);
 }
 
-/* Итоговый вес угла после балласта (база + Δ, ТЗ §5.3) */
-.gl-calc-corner__result {
+/* Подписи угла (ЛП…, % и итог) лежат прямо на схеме (на телефоне — на шине): подложка цвета фона, иначе серое
+ * на светло-серой шине не читается. */
+.gl-calc-corner span {
+  padding: 0 6px;
+  border-radius: var(--gl-radius-pill);
+  background: var(--gl-surface-body);
+  line-height: 1.5;
+}
+
+/* Итоговый вес угла после балласта (база + Δ, ТЗ §5.3). Селектор с .gl-calc-corner — иначе
+ * общий `.gl-calc-corner span` перебивал цвет, и итог был серым, а не голубым. */
+.gl-calc-corner .gl-calc-corner__result {
   font-family: var(--gl-font-mono);
   font-size: var(--gl-text-tiny-size);
   font-weight: var(--gl-weight-semibold);

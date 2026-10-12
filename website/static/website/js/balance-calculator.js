@@ -801,6 +801,13 @@
     renderCornerResults(corners, geometry && ballasts.length ? appliedCorners : null);
 
     var metrics = computeMetrics(appliedCorners);
+    if (appliedCorners !== corners) {
+      // Итог — база + массы грузов: углы округлены по отдельности, и их сумма могла дать 189.1 вместо 189.0.
+      // Сами углы не подгоняем — груз по центру должен оставаться симметричным.
+      var exactTotal = corners.lf + corners.rf + corners.lr + corners.rr;
+      ballasts.forEach(function (b) { exactTotal += parseFloat(b.weight_kg); });
+      metrics.total_kg = round1(exactTotal);
+    }
     var classification = {
       front_rear: classify("front_rear", metrics.front_pct),
       left_right: classify("left_right", metrics.left_pct),
