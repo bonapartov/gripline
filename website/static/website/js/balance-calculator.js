@@ -390,8 +390,8 @@
         minWeightEl.hidden = false;
         minWeightEl.className = "gl-calc-min-weight" + (status.is_under ? " gl-calc-min-weight--under" : "");
         minWeightEl.textContent = status.is_under
-          ? "Недобор до минималки класса: " + Math.abs(status.margin_kg) + " кг (минималка проверяется после заезда — учтите выгорание топлива)"
-          : "Запас над минималкой класса: " + status.margin_kg + " кг";
+          ? "Недобор до минималки класса: " + Math.abs(status.margin_kg).toFixed(1) + " кг (минималка проверяется после заезда — учтите выгорание топлива)"
+          : "Запас над минималкой класса: " + status.margin_kg.toFixed(1) + " кг";
       }
     }
   }
@@ -571,9 +571,10 @@
 
   function renderCgMarkers(appliedCorners, geometry) {
     if (!cgActualEl || !cgTargetEl) return;
+    // SVG <g>: свойство .hidden у SVG-элементов не существует — меняем сам атрибут (CSS прячет [hidden]).
     if (!geometry) {
-      cgActualEl.hidden = true;
-      cgTargetEl.hidden = true;
+      cgActualEl.setAttribute("hidden", "");
+      cgTargetEl.setAttribute("hidden", "");
       return;
     }
     var actual = centerOfGravity(appliedCorners.lf, appliedCorners.rf, appliedCorners.lr, appliedCorners.rr, geometry);
@@ -582,14 +583,14 @@
     if (actual) {
       var actualPx = mmToPx(actual.across, actual.along, geometry);
       cgActualEl.setAttribute("transform", "translate(" + actualPx.x + "," + actualPx.y + ")");
-      cgActualEl.hidden = false;
+      cgActualEl.removeAttribute("hidden");
     } else {
-      cgActualEl.hidden = true;
+      cgActualEl.setAttribute("hidden", "");
     }
 
     var targetPx = mmToPx(target.across, target.along, geometry);
     cgTargetEl.setAttribute("transform", "translate(" + targetPx.x + "," + targetPx.y + ")");
-    cgTargetEl.hidden = false;
+    cgTargetEl.removeAttribute("hidden");
   }
 
   // Итоговые угловые веса (база + Δ от грузов, ТЗ §5.3) — маленькой строкой

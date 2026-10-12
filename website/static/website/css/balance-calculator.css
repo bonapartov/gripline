@@ -608,6 +608,12 @@
   pointer-events: none;
 }
 
+/* SVG-элементы не прячутся по [hidden] сами (UA-правило только для HTML) — без этого маркеры
+   центра тяжести висели в углу схемы, пока не задана геометрия. */
+.gl-calc-cg[hidden] {
+  display: none;
+}
+
 .gl-calc-cg circle {
   fill: none;
   stroke: var(--gl-brand-cyan);
