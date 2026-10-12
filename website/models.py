@@ -4735,6 +4735,94 @@ APP_ABOUT_TEXT_DEFAULT = (
 APP_SHARE_TEXT_DEFAULT = "Веду настройки карта в приложении GripLine SetupKart — попробуй: {link}"
 
 
+class AppTyreAnalysisSettings(models.Model):
+    """Пороги анализа шин в приложении (singleton, AppTyreAnalysisSettings.get(); 12.10.2026). Начальные
+    значения — из разбора Kart Chassis Setup Pro (docs/chassis_analysis_rules.md в репозитории приложения).
+    В приложение — после «Публикации»."""
+    D = models.DecimalField
+    hot_pct = D("Порог «горячее», %", max_digits=4, decimal_places=1, default=8,
+                help_text="Насколько одна зона протектора должна быть горячее другой, чтобы это считалось "
+                          "картиной (середина горячее краёв, внутренний край горячее и т. п.).")
+    camber_weak_pct = D("Камбер: слабо, %", max_digits=4, decimal_places=1, default=4,
+                        help_text="Разница внутреннего и наружного края обеих передних шин.")
+    camber_medium_pct = D("Камбер: средне, %", max_digits=4, decimal_places=1, default=8)
+    camber_strong_pct = D("Камбер: сильно, %", max_digits=4, decimal_places=1, default=16)
+    balance_pct = D("Баланс перед/зад, %", max_digits=4, decimal_places=1, default=10,
+                    help_text="Перед горячее зада (или давление выше) больше чем на столько — совет сдвинуть "
+                              "сиденье или балласт.")
+    temp_spread_limit = D("Разброс температур: порог", max_digits=4, decimal_places=2, default=1.4,
+                          help_text="Среднее (|отклонение от средней| / средняя + 1)⁴ по колёсам; больше — "
+                                    "«проверить развесовку на весах».")
+    pressure_tolerance_pct = D("Давление: допуск роста, п. п.", max_digits=4, decimal_places=1, default=5,
+                               help_text="Фактический рост давления отличается от ожидаемого меньше — правка "
+                                         "не нужна.")
+    pressure_correction = D("Давление: доля поправки", max_digits=4, decimal_places=3, default=0.375,
+                            help_text="Поправка холодного давления = (ожидаемый рост − фактический) × доля × "
+                                      "холодное.")
+    min_cold_bar = D("Минимальное холодное давление, бар", max_digits=4, decimal_places=2, default=0.48)
+    rise_aluminium_pct = D("Рост давления на °C: алюминиевые диски, %", max_digits=5, decimal_places=3, default=0.4)
+    rise_magnesium_pct = D("Рост давления на °C: магниевые диски, %", max_digits=5, decimal_places=3, default=0.333)
+    pressure_spread_limit = D("Разброс роста давления: порог", max_digits=4, decimal_places=2, default=1.3)
+    temp_dir_front = D("Направление: перед внешней стороны (температура)", max_digits=4, decimal_places=3,
+                       default=0.97, help_text="Множитель колёс внешней к повороту стороны: они греются сильнее.")
+    temp_dir_rear = D("Направление: зад внешней стороны (температура)", max_digits=4, decimal_places=3, default=0.94)
+    temp_dir_rear_inner = D("Направление: зад внутренней стороны (температура)", max_digits=4, decimal_places=3,
+                            default=0.97)
+    pressure_dir_front = D("Направление: перед внешней стороны (давление)", max_digits=4, decimal_places=3, default=0.9)
+    pressure_dir_rear = D("Направление: зад внешней стороны (давление)", max_digits=4, decimal_places=3,
+                          default=0.76)
+    pressure_dir_rear_inner = D("Направление: зад внутренней стороны (давление)", max_digits=4, decimal_places=3,
+                                default=0.95)
+    updated_at = models.DateTimeField("Изменено", auto_now=True)
+    del D
+
+    panels = [
+        MultiFieldPanel([FieldPanel('hot_pct'),
+                         FieldRowPanel([FieldPanel('camber_weak_pct'), FieldPanel('camber_medium_pct'),
+                                        FieldPanel('camber_strong_pct')]),
+                         FieldPanel('balance_pct'), FieldPanel('temp_spread_limit')], heading="Температура протектора"),
+        MultiFieldPanel([FieldRowPanel([FieldPanel('rise_aluminium_pct'), FieldPanel('rise_magnesium_pct')]),
+                         FieldPanel('pressure_tolerance_pct'), FieldPanel('pressure_correction'),
+                         FieldPanel('min_cold_bar'), FieldPanel('pressure_spread_limit')], heading="Давление"),
+        MultiFieldPanel([FieldRowPanel([FieldPanel('temp_dir_front'), FieldPanel('temp_dir_rear'),
+                                        FieldPanel('temp_dir_rear_inner')]),
+                         FieldRowPanel([FieldPanel('pressure_dir_front'), FieldPanel('pressure_dir_rear'),
+                                        FieldPanel('pressure_dir_rear_inner')])],
+                        heading="Поправка на направление трассы"),
+    ]
+
+    class Meta:
+        verbose_name = "Анализ шин (пороги)"
+        verbose_name_plural = "Анализ шин (пороги)"
+
+    def __str__(self):
+        return "Пороги анализа шин"
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def payload(self):
+        f = lambda v: float(v)  # noqa: E731
+        return {
+            'hot_ratio': 1 + f(self.hot_pct) / 100,
+            'camber_ratios': [1 + f(self.camber_weak_pct) / 100, 1 + f(self.camber_medium_pct) / 100,
+                              1 + f(self.camber_strong_pct) / 100],
+            'balance_ratio': 1 + f(self.balance_pct) / 100,
+            'temp_spread_limit': f(self.temp_spread_limit),
+            'pressure_tolerance': f(self.pressure_tolerance_pct) / 100,
+            'pressure_correction': f(self.pressure_correction),
+            'min_cold_bar': f(self.min_cold_bar),
+            'rise_aluminium': f(self.rise_aluminium_pct) / 100,
+            'rise_magnesium': f(self.rise_magnesium_pct) / 100,
+            'pressure_spread_limit': f(self.pressure_spread_limit),
+            'temp_direction': [f(self.temp_dir_front), f(self.temp_dir_rear), f(self.temp_dir_rear_inner)],
+            'pressure_direction': [f(self.pressure_dir_front), f(self.pressure_dir_rear),
+                                   f(self.pressure_dir_rear_inner)],
+        }
+
+
 class AppSyncSettings(models.Model):
     """Связь приложения GripLine SetupKart с сайтом (singleton, AppSyncSettings.get()).
 

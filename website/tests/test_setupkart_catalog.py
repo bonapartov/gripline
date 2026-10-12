@@ -130,7 +130,8 @@ def test_payload_contains_only_flagged_and_live_records():
                                     'options': ['GR8DI-8', 'GR9DI-8'], 'default': 'GR9DI-8', 'allow_custom': True}
     assert [c['name'] for c in p['chassis']] == ['Tony Kart']
     assert [t['name'] for t in p['tyre_brands']] == ['Vega']
-    assert p['race_classes'] == [{'id': rc.pk, 'name': 'Rotax Junior', 'sort_order': 10, 'min_weight_kg': 145.0}]
+    assert p['race_classes'] == [{'id': rc.pk, 'name': 'Rotax Junior', 'sort_order': 10, 'min_weight_kg': 145.0,
+                                  'geometry': {'wheelbase_mm': None, 'track_front_mm': None, 'track_rear_mm': None}}]
     assert p['balance'] == {'thresholds': {}, 'class_thresholds': {}, 'rules': {}}, 'пустая «Развесовка» — пустые пороги и правила'
     from website.models import BalanceDiagnosticRule, BalanceThreshold
     BalanceThreshold.objects.create(metric='front_rear', green_min=42.5, green_max=43.5, yellow_min=42, yellow_max=44)
@@ -602,3 +603,23 @@ def test_track_direction_compound_temp_and_fuel_mix_in_payloads():
     AppTyreCompound.objects.create(brand=brand, name='Белая', target_temp_c=85)
     tb = next(x for x in catalog.build_payload()['tyre_brands'] if x['id'] == brand.pk)
     assert tb['compounds'][0]['target_temp_c'] == 85
+
+
+@pytest.mark.django_db
+def test_class_geometry_and_tyre_analysis_in_payload():
+    """12.10.2026: база и колея класса (класс → пресет типа шасси) и пороги анализа шин — в справочнике."""
+    from website.models import AppTyreAnalysisSettings, ChassisTypePreset
+    e = rotax_seeded()
+    mini = RaceClass.objects.create(name='Мини', chassis_type='junior')
+    e.app_race_classes.add(mini)
+    e.save()
+    ChassisTypePreset.objects.create(chassis_type='junior', wheelbase_mm=950, track_front_mm=1000, track_rear_mm=1100)
+    payload = catalog.build_payload()
+    rc = next(x for x in payload['race_classes'] if x['id'] == mini.pk)
+    assert rc['geometry'] == {'wheelbase_mm': 950, 'track_front_mm': 1000, 'track_rear_mm': 1100}
+    ta = payload['tyre_analysis']
+    assert ta['hot_ratio'] == pytest.approx(1.08) and ta['camber_ratios'] == pytest.approx([1.04, 1.08, 1.16])
+    s = AppTyreAnalysisSettings.get()
+    s.hot_pct = Decimal('10')
+    s.save()
+    assert catalog.build_payload()['tyre_analysis']['hot_ratio'] == pytest.approx(1.1)

@@ -105,6 +105,11 @@ def _balance_payload():
     }
 
 
+def _tyre_analysis_payload():
+    from website.models import AppTyreAnalysisSettings
+    return AppTyreAnalysisSettings.get().payload()
+
+
 ADVICE_RENDITION = 'max-800x800|format-webp|webpquality-85'
 
 
@@ -138,10 +143,13 @@ def build_payload():
         'schema': SCHEMA,
         'engines': [_engine_payload(e) for e in engines],
         'race_classes': [{'id': rc.pk, 'name': rc.name, 'sort_order': rc.sort_order,
-                          'min_weight_kg': float(rc.min_weight_kg) if rc.min_weight_kg else None}
+                          'min_weight_kg': float(rc.min_weight_kg) if rc.min_weight_kg else None,
+                          # База и колея для развесовки (12.10.2026): класс → пресет типа шасси; null — не задано.
+                          'geometry': rc.effective_geometry()}
                          for rc in RaceClass.objects.filter(pk__in=class_ids)],
         'balance': _balance_payload(),
         'chassis_advice': _chassis_advice_payload(),
+        'tyre_analysis': _tyre_analysis_payload(),
         # Популярные марки (больше результатов на сайте) — первыми; синонимы — для «Другое…».
         'chassis': [{'id': c.pk, 'name': c.name, 'aliases': c.alias_list()}
                     for c in _live(Chassis.objects).annotate(n=Count('race_results')).order_by('-n', 'name')],
