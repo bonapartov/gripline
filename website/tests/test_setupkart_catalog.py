@@ -510,18 +510,35 @@ def test_class_presets_in_payload_and_validated():
 
 @pytest.mark.django_db
 def test_jet_by_rad_in_payload_and_validated():
-    """Жиклёр по погоде (формула Rotax, 12.10.2026): RAD базы и шаг — в справочнике; без RAD — null."""
+    """Жиклёр по погоде (Rotax MAX Jetting, 12.10.2026): RAD базы, шаг и базы по классам (текущая и старая
+    версия двигателя) — в справочнике; без RAD или без баз — null."""
+    from website.models import AppEngineJetBase
     e = rotax_seeded()
+    senior = RaceClass.objects.create(name='RM Senior')
+    dd2 = RaceClass.objects.create(name='RM DD2')
+    e.app_race_classes.add(senior, dd2)
+    e.save()
     eng = next(x for x in catalog.build_payload()['engines'] if x['id'] == e.pk)
     assert eng['jet_by_rad'] is None
-    e.app_jet_base_rad = Decimal('92.1')
+    e.app_jet_base_rad = Decimal('100')
     e.save()
+    assert any('нет ни одной «Базы жиклёра' in m for m in catalog.validation_errors())
+    AppEngineJetBase.objects.create(engine=e, race_class=senior, base=128)
+    AppEngineJetBase.objects.create(engine=e, race_class=dd2, base=132, base_legacy=136)
     eng = next(x for x in catalog.build_payload()['engines'] if x['id'] == e.pk)
-    assert eng['jet_by_rad'] == {'base_rad': 92.1, 'step': 2}
+    assert eng['jet_by_rad'] == {'base_rad': 100.0, 'step': 1, 'bases': {
+        str(senior.pk): {'base': 128}, str(dd2.pk): {'base': 132, 'legacy': 136}}}
     assert catalog.validation_errors() == []
+
+    AppEngineJetBase.objects.create(engine=e, race_class=RaceClass.objects.create(name='ОК'), base=120)
     e.app_jet_base_rad = Decimal('9.2')
     e.save()
-    assert any('вне 50–130' in m for m in catalog.validation_errors())
+    errors = catalog.validation_errors()
+    assert any('вне 50–130' in m for m in errors)
+    assert any('база жиклёра «ОК»' in m and 'класс не отмечен' in m for m in errors)
+    e.app_jet_base_rad = None
+    e.save()
+    assert any('не задан «RAD базы жиклёра»' in m for m in catalog.validation_errors())
 
 
 @pytest.mark.django_db

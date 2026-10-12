@@ -1526,14 +1526,16 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
                   "разделы «Карбюратор» и «Температура выхлопа», жиклёр в «Быстрой правке» и моточасы. "
                   "Поля карбюратора и свечи ему не задаются. Шасси, развесовка и звёзды — как у всех.")
     app_jet_base_rad = models.DecimalField(
-        "RAD рекомендаций жиклёра, %", max_digits=4, decimal_places=1, null=True, blank=True,
-        help_text="Плотность воздуха, при которой верны рекомендованные жиклёры по классам. Приложение "
-                  "пересчитывает жиклёр под погоду сессии по формуле Rotax: базовый × ⁴√(RAD сейчас / RAD базы). "
-                  "У Rotax заводская настройка — 25 °C, 400 м, сухой воздух: 92.1. Пусто — без пересчёта.",
+        "RAD базы жиклёра, %", max_digits=4, decimal_places=1, null=True, blank=True,
+        help_text="Плотность воздуха, при которой верны «Базы жиклёра по классу» ниже. Приложение пересчитывает "
+                  "жиклёр под погоду сессии по формуле Rotax MAX Jetting: база × (1 + √(RAD сейчас / RAD базы)) / 2. "
+                  "У Rotax базы заданы при стандартной атмосфере (15 °C, 1013 гПа, уровень моря): 100. "
+                  "Пусто — без пересчёта.",
     )
     app_jet_step = models.PositiveSmallIntegerField(
-        "Шаг номеров жиклёра", default=2,
-        help_text="Через сколько номеров выпускаются жиклёры (у Rotax — 2: 124, 126, 128…).",
+        "Шаг номеров жиклёра", default=1,
+        help_text="Округление пересчитанного жиклёра: 1 — до целого номера (как в Rotax MAX Jetting), "
+                  "2 — через номер от базового.",
     )
     app_race_classes = ParentalManyToManyField(
         'website.RaceClass', blank=True, related_name='app_engines', verbose_name="Классы в приложении",
@@ -1562,6 +1564,9 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
         FieldPanel('app_race_classes', widget=forms.CheckboxSelectMultiple),
         FieldPanel('app_carburetor_image'),
         MultiFieldPanel([FieldPanel('app_jet_base_rad'), FieldPanel('app_jet_step')], heading="Жиклёр по погоде"),
+        InlinePanel('app_jet_bases', label="База жиклёра по классу",
+                    help_text="Жиклёр класса при «RAD базы». «Старая версия» — для двигателей прежнего выпуска "
+                              "(в приложении галочка у двигателя); пусто — как у текущей версии."),
         InlinePanel('app_fields', label="Поле карбюратора",
                     help_text="Числа — минимум, максимум и шаг; остальное — список (по одному значению в строке)."),
         InlinePanel('app_spark_plugs', label="Свеча"),
@@ -4566,6 +4571,26 @@ class AppEngineClassPreset(Orderable):
 
     def __str__(self):
         return f"{self.engine} · {self.race_class} · {self.get_key_display()}"
+
+
+class AppEngineJetBase(Orderable):
+    """База для пересчёта жиклёра под погоду (12.10.2026, Rotax MAX Jetting): номер жиклёра класса при
+    «RAD базы» двигателя. У Rotax две таблицы — текущая версия двигателя и прежняя (legacy)."""
+    engine = ParentalKey('website.Engine', on_delete=models.CASCADE, related_name='app_jet_bases')
+    race_class = models.ForeignKey('website.RaceClass', on_delete=models.CASCADE, related_name='+',
+                                   verbose_name="Класс")
+    base = models.PositiveSmallIntegerField("Жиклёр")
+    base_legacy = models.PositiveSmallIntegerField("Жиклёр, старая версия", null=True, blank=True)
+
+    panels = [FieldRowPanel([FieldPanel('race_class'), FieldPanel('base'), FieldPanel('base_legacy')])]
+
+    class Meta(Orderable.Meta):
+        verbose_name = "База жиклёра по классу"
+        verbose_name_plural = "Базы жиклёра по классам"
+        constraints = [models.UniqueConstraint(fields=['engine', 'race_class'], name='app_engine_jet_base_unique')]
+
+    def __str__(self):
+        return f"{self.engine} · {self.race_class} · {self.base}"
 
 
 class AppEngineSparkPlug(Orderable):

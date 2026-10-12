@@ -22,7 +22,7 @@ def _live(qs):
 def app_engines():
     return (_live(Engine.objects)
             .select_related('app_carburetor_image')
-            .prefetch_related('app_fields', 'app_spark_plugs', 'app_race_classes', 'app_class_presets')
+            .prefetch_related('app_fields', 'app_spark_plugs', 'app_race_classes', 'app_class_presets', 'app_jet_bases')
             .order_by('name'))
 
 
@@ -43,10 +43,18 @@ def _engine_payload(engine):
         'carburetor_image': chassis_images.carburetor_image(engine),
         # Рекомендации производителя по классу: {id класса: {поле: {value, from, to}}} (11.10.2026).
         'class_presets': _class_presets_payload(engine),
-        # Пересчёт жиклёра класса под RAD сессии (формула Rotax, 12.10.2026); null — не пересчитывать.
-        'jet_by_rad': None if engine.app_jet_base_rad is None else {
-            'base_rad': float(engine.app_jet_base_rad), 'step': engine.app_jet_step or 1},
+        # Пересчёт жиклёра под RAD сессии (формула Rotax MAX Jetting, 12.10.2026): базы по классам
+        # {id класса: {base, legacy?}} при RAD base_rad; null — не пересчитывать.
+        'jet_by_rad': _jet_by_rad_payload(engine),
     }
+
+
+def _jet_by_rad_payload(engine):
+    bases = {str(b.race_class_id): {'base': b.base, **({'legacy': b.base_legacy} if b.base_legacy else {})}
+             for b in engine.app_jet_bases.all()}
+    if engine.app_jet_base_rad is None or not bases:
+        return None
+    return {'base_rad': float(engine.app_jet_base_rad), 'step': engine.app_jet_step or 1, 'bases': bases}
 
 
 def _class_presets_payload(engine):
@@ -143,9 +151,17 @@ def validation_errors():
         by_key = {f.key: f for f in fields}
         if e.app_jet_base_rad is not None and not (50 <= e.app_jet_base_rad <= 130):
             errors.append(f'«{e.name}»: RAD рекомендаций жиклёра {e.app_jet_base_rad} — вне 50–130 %.')
+        jet_bases = list(e.app_jet_bases.all())
         if e.app_jet_base_rad is not None and 'main_jet' not in by_key:
             errors.append(f'«{e.name}»: задан RAD для жиклёра, но поля «Главный жиклёр» нет среди полей карбюратора.')
+        if e.app_jet_base_rad is not None and not jet_bases:
+            errors.append(f'«{e.name}»: задан RAD базы жиклёра, но нет ни одной «Базы жиклёра по классу».')
+        if jet_bases and e.app_jet_base_rad is None:
+            errors.append(f'«{e.name}»: базы жиклёра по классам заданы, но не задан «RAD базы жиклёра».')
         class_ids = {rc.pk for rc in e.app_race_classes.all()}
+        for b in jet_bases:
+            if b.race_class_id not in class_ids:
+                errors.append(f'«{e.name}» → база жиклёра «{b.race_class}»: класс не отмечен в «Классах в приложении».')
         for p in e.app_class_presets.all():
             where = f'«{e.name}» → рекомендация «{p.race_class}» · «{p.get_key_display()}»'
             if p.race_class_id not in class_ids:
