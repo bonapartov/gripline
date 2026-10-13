@@ -22,7 +22,7 @@ def _live(qs):
 def app_engines():
     return (_live(Engine.objects)
             .select_related('app_carburetor_image')
-            .prefetch_related('app_fields', 'app_spark_plugs', 'app_race_classes', 'app_class_presets', 'app_jet_bases', 'app_screw_models', 'app_float_models')
+            .prefetch_related('app_fields', 'app_spark_plugs', 'app_race_classes', 'app_class_presets', 'app_jet_bases', 'app_screw_models', 'app_float_models', 'app_vhsh_variants', 'app_vhsh_setups')
             .order_by('name'))
 
 
@@ -49,6 +49,7 @@ def _engine_payload(engine):
         'fuel_mix_ratio': float(engine.app_fuel_mix_ratio) if engine.app_fuel_mix_ratio else None,
         'screw_by_weather': _screw_payload(engine),
         'float_carb': _float_carb_payload(engine),
+        'vhsh_carb': _vhsh_payload(engine),
     }
 
 
@@ -109,6 +110,26 @@ def _float_carb_payload(engine):
         'extra_info': m.extra_info.strip(),
     } for m in engine.app_float_models.all()]
     return {'models': rows} if rows else None
+
+
+def _vhsh_payload(engine):
+    """Dell'Orto VHSH по погоде (TM KZ, 13.10.2026); null — без подсказки (нужны и модели, и настройки)."""
+    f = lambda v: None if v is None else float(v)  # noqa: E731
+    variants = [{
+        'name': v.name.strip(), 'race_class_id': v.race_class_id, 'default': v.is_default,
+        'engine_factor': f(v.engine_factor), 'float_height_mm': f(v.float_height_mm),
+        'float_weight_g': f(v.float_weight_g), 'oil_pct': f(v.oil_pct), 'emulsion_type': v.emulsion_type,
+        'spark_by_temp': _ladder(v.spark_by_temp, text=True), 'extra_info': v.extra_info.strip(),
+    } for v in engine.app_vhsh_variants.all()]
+    setups = [{
+        'name': s.name.strip(), 'jet': [f(s.jet_a), f(s.jet_b)], 'needles': s.needle_list(),
+        'needle_index': s.needle_index, 'needle_clips': s.needle_clips, 'clip': [f(s.clip_a), f(s.clip_b)],
+        'emulsion': [f(s.emulsion_a), f(s.emulsion_b)], 'idle_emulsifier_type': s.idle_emulsifier_type,
+        'idle_emulsifier': [f(s.idle_emulsifier_a), f(s.idle_emulsifier_b)],
+        'idle_jet': [f(s.idle_jet_a), f(s.idle_jet_b)], 'idle_jet_min': f(s.idle_jet_min),
+        'air_screw_turns': f(s.air_screw_turns), 'throttle_valve': s.throttle_valve,
+    } for s in engine.app_vhsh_setups.all()]
+    return {'variants': variants, 'setups': setups} if variants and setups else None
 
 
 def _jet_by_rad_payload(engine):
@@ -272,6 +293,22 @@ def validation_errors():
                 errors.append(f'«{e.name}» → карбюратор «{m.name}»: не разобрать «Воздушный винт по игле».')
             if m.race_class_id and m.race_class_id not in class_ids:
                 errors.append(f'«{e.name}» → карбюратор «{m.name}»: класс «{m.race_class}» не отмечен в «Классах в приложении».')
+        vhsh_variants, vhsh_setups = list(e.app_vhsh_variants.all()), list(e.app_vhsh_setups.all())
+        if bool(vhsh_variants) != bool(vhsh_setups):
+            errors.append(f'«{e.name}»: для карбюратора VHSH нужны и «Модель», и «Настройка» — сейчас есть только одно.')
+        if vhsh_variants and 'main_jet' not in by_key:
+            errors.append(f'«{e.name}»: задан карбюратор VHSH, но нет поля «Главный жиклёр».')
+        for v in vhsh_variants:
+            if v.spark_by_temp.strip() and _ladder(v.spark_by_temp, text=True) is None:
+                errors.append(f'«{e.name}» → VHSH «{v.name}»: не разобрать «Свечу по температуре воздуха».')
+            if v.race_class_id and v.race_class_id not in class_ids:
+                errors.append(f'«{e.name}» → VHSH «{v.name}»: класс «{v.race_class}» не отмечен в «Классах в приложении».')
+        for st in vhsh_setups:
+            if not 1 <= st.needle_index <= len(st.needle_list()):
+                errors.append(f'«{e.name}» → настройка VHSH «{st.name}»: номер иглы {st.needle_index} — '
+                              f'в списке {len(st.needle_list())} игл.')
+            if not 1 <= st.needle_clips <= 6:
+                errors.append(f'«{e.name}» → настройка VHSH «{st.name}»: позиций клипсы должно быть 1–6.')
         if sum(1 for m in screws if m.is_default) > 1:
             errors.append(f'«{e.name}»: модификаций «по умолчанию» для винтов больше одной.')
         for b in jet_bases:

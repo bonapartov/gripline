@@ -661,3 +661,26 @@ def test_float_carb_in_payload_and_validated():
     assert catalog.validation_errors() == []
     AppEngineFloatCarbModel.objects.create(engine=e, name='Чужая', race_class=other)
     assert any('класс «Чужой» не отмечен' in x for x in catalog.validation_errors())
+
+
+@pytest.mark.django_db
+def test_vhsh_carb_in_payload_and_validated():
+    """13.10.2026: Dell'Orto VHSH по погоде (TM KZ) — модели двигателя и настройки в справочнике."""
+    from website.models import AppEngineVhshSetup, AppEngineVhshVariant
+    e = rotax_seeded()
+    assert next(x for x in catalog.build_payload()['engines'] if x['id'] == e.pk)['vhsh_carb'] is None
+    AppEngineVhshVariant.objects.create(engine=e, name='KZ R1', engine_factor='1.0125', is_default=True)
+    assert any('нужны и «Модель», и «Настройка»' in x for x in catalog.validation_errors())
+    AppEngineVhshSetup.objects.create(engine=e, name='Настройка 1', jet_a='78.343', jet_b='76.3',
+                                      needles='K21, K28, K27', needle_index=2, needle_clips=5, clip_a='9.328',
+                                      clip_b='-9.1103', emulsion_a='16.486', emulsion_b='249.72',
+                                      idle_emulsifier_a='35.616', idle_emulsifier_b='7')
+    vh = next(x for x in catalog.build_payload()['engines'] if x['id'] == e.pk)['vhsh_carb']
+    assert vh['variants'][0]['engine_factor'] == 1.0125 and vh['variants'][0]['emulsion_type'] == 'DP'
+    assert vh['variants'][0]['spark_by_temp']['else'] == 'NGK BR11EG'
+    st = vh['setups'][0]
+    assert (st['jet'], st['needles'], st['needle_index'], st['idle_jet'], st['throttle_valve']) == (
+        [78.343, 76.3], ['K21', 'K28', 'K27'], 2, [0.0, 60.0], 50)
+    assert catalog.validation_errors() == []
+    AppEngineVhshSetup.objects.filter(engine=e).update(needle_index=4)
+    assert any('номер иглы 4' in x for x in catalog.validation_errors())

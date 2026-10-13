@@ -1583,6 +1583,12 @@ class Engine(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel,
         InlinePanel('app_float_models', label="Модификация (поплавковый карбюратор)",
                     help_text="Жиклёр, игла и воздушный винт по плотности воздуха (модель JetLab для Rotax EVO). "
                               "Пусто — без этой подсказки."),
+        InlinePanel('app_vhsh_variants', label="Модель (карбюратор VHSH)",
+                    help_text="Dell'Orto VHSH по погоде (модель JetLab для TM KZ): модель двигателя — поправка и "
+                              "значения по умолчанию. Нужны и «Настройки VHSH». Пусто — без подсказки."),
+        InlinePanel('app_vhsh_setups', label="Настройка VHSH",
+                    help_text="Базовые настройки карбюратора: каждый канал — A × плотность + B. Пилот выбирает "
+                              "настройку в приложении."),
         MultiFieldPanel([FieldPanel('app_screw_long_straight_pct'), FieldPanel('app_screw_short_straight_pct')],
                         heading="Винты High/Low по погоде (мембранный карбюратор)"),
         InlinePanel('app_screw_models', label="Модификация",
@@ -4748,6 +4754,99 @@ class AppEngineFloatCarbModel(Orderable):
 
     def __str__(self):
         return f"{self.engine} · {self.name}"
+
+
+VHSH_EMULSION_CHOICES = [('DP', 'DP'), ('DQ', 'DQ (номер на 2 меньше)')]
+VHSH_IDLE_EMULSIFIER_CHOICES = [('B', 'B (B30…B100)'), ('CD', 'CD (CD1)')]
+
+
+class AppEngineVhshVariant(Orderable):
+    """Карбюратор Dell'Orto VHSH по погоде (13.10.2026, разбор «Jetting TM KZ» 1.4.0 — только формула и числа):
+    модель двигателя (K9, KZ10, KZ R1…) — поправка ко всем каналам и значения по умолчанию. Расчёт — по
+    «Настройкам VHSH» ниже, их показывает приложение для выбранной модели."""
+    engine = ParentalKey('website.Engine', on_delete=models.CASCADE, related_name='app_vhsh_variants')
+    name = models.CharField("Модель двигателя", max_length=60)
+    race_class = models.ForeignKey('website.RaceClass', null=True, blank=True, on_delete=models.SET_NULL,
+                                   related_name='+', verbose_name="Класс",
+                                   help_text="Подставляется для сессии этого класса. Пусто — только ручной выбор.")
+    is_default = models.BooleanField("По умолчанию", default=False)
+    engine_factor = models.DecimalField("Поправка двигателя", max_digits=7, decimal_places=5, default=1,
+                                        help_text="Множитель плотности для всех каналов (K9 0,9925 … KZ R1 1,0125).")
+    float_height_mm = models.DecimalField("Высота поплавка по умолчанию, мм", max_digits=4, decimal_places=1, default=11)
+    float_weight_g = models.DecimalField("Вес поплавка, г", max_digits=3, decimal_places=1, default=4.5,
+                                         help_text="1 × 9 г — 4,5; 2 × 4 г — 4,0; 2 × 5,2 г — 5,2.")
+    oil_pct = models.DecimalField("Масло в смеси по умолчанию, %", max_digits=3, decimal_places=1, default=4)
+    emulsion_type = models.CharField("Эмульсионная трубка", max_length=2, choices=VHSH_EMULSION_CHOICES, default='DP')
+    spark_by_temp = models.CharField(
+        "Свеча по температуре воздуха", max_length=200, blank=True,
+        default="-1:NGK BR9EG; 15:NGK BR10EG; NGK BR11EG",
+        help_text="«Ниже °C : свеча» через «;», последняя — для остальных.")
+    extra_info = models.TextField("Справка", blank=True, help_text="Показывается под расчётом.")
+
+    panels = [
+        FieldRowPanel([FieldPanel('name'), FieldPanel('race_class'), FieldPanel('is_default')]),
+        FieldRowPanel([FieldPanel('engine_factor'), FieldPanel('emulsion_type'), FieldPanel('float_height_mm'),
+                       FieldPanel('float_weight_g'), FieldPanel('oil_pct')]),
+        FieldPanel('spark_by_temp'),
+        FieldPanel('extra_info'),
+    ]
+
+    class Meta(Orderable.Meta):
+        verbose_name = "Карбюратор VHSH: модель двигателя"
+        verbose_name_plural = "Карбюратор VHSH: модели двигателя"
+
+    def __str__(self):
+        return f"{self.engine} · {self.name}"
+
+
+class AppEngineVhshSetup(Orderable):
+    """Базовая настройка карбюратора Dell'Orto VHSH (в исходнике их 12): каждый канал — A × плотность + B,
+    плотность с поправками на масло, поплавок, бензин, модель двигателя и трассу (docs/carb_vhsh_by_weather.md
+    в репозитории приложения)."""
+    engine = ParentalKey('website.Engine', on_delete=models.CASCADE, related_name='app_vhsh_setups')
+    name = models.CharField("Настройка", max_length=60)
+    jet_a = models.DecimalField("Жиклёр: A", max_digits=8, decimal_places=4)
+    jet_b = models.DecimalField("Жиклёр: B", max_digits=8, decimal_places=4)
+    needles = models.CharField("Иглы", max_length=60, help_text="Через запятую, например «K21, K28, K27».")
+    needle_index = models.PositiveSmallIntegerField("Игла: номер в списке", default=2,
+                                                    help_text="1 — первая. Положение клипсы сдвигается на ½: "
+                                                              "первая игла +½, третья и дальше −½.")
+    needle_clips = models.PositiveSmallIntegerField("Позиций клипсы", default=4)
+    clip_a = models.DecimalField("Клипса: A", max_digits=8, decimal_places=4)
+    clip_b = models.DecimalField("Клипса: B", max_digits=8, decimal_places=4)
+    emulsion_a = models.DecimalField("Эмульсионная трубка: A", max_digits=8, decimal_places=4)
+    emulsion_b = models.DecimalField("Эмульсионная трубка: B", max_digits=8, decimal_places=4)
+    idle_emulsifier_type = models.CharField("Холостой эмульсор", max_length=2, choices=VHSH_IDLE_EMULSIFIER_CHOICES,
+                                            default='B')
+    idle_emulsifier_a = models.DecimalField("Холостой эмульсор: A", max_digits=8, decimal_places=4, default=0)
+    idle_emulsifier_b = models.DecimalField("Холостой эмульсор: B", max_digits=8, decimal_places=4, default=1)
+    idle_jet_a = models.DecimalField("Холостой жиклёр: A", max_digits=8, decimal_places=4, default=0)
+    idle_jet_b = models.DecimalField("Холостой жиклёр: B", max_digits=8, decimal_places=4, default=60)
+    idle_jet_min = models.DecimalField("Холостой жиклёр: не меньше", max_digits=5, decimal_places=1,
+                                       null=True, blank=True)
+    air_screw_turns = models.DecimalField("Воздушный винт, оборотов", max_digits=4, decimal_places=2, default=1.5)
+    throttle_valve = models.PositiveSmallIntegerField("Золотник", default=50)
+
+    panels = [
+        FieldRowPanel([FieldPanel('name'), FieldPanel('jet_a'), FieldPanel('jet_b')]),
+        FieldRowPanel([FieldPanel('needles'), FieldPanel('needle_index'), FieldPanel('needle_clips'),
+                       FieldPanel('clip_a'), FieldPanel('clip_b')]),
+        FieldRowPanel([FieldPanel('emulsion_a'), FieldPanel('emulsion_b'), FieldPanel('air_screw_turns'),
+                       FieldPanel('throttle_valve')]),
+        FieldRowPanel([FieldPanel('idle_emulsifier_type'), FieldPanel('idle_emulsifier_a'),
+                       FieldPanel('idle_emulsifier_b'), FieldPanel('idle_jet_a'), FieldPanel('idle_jet_b'),
+                       FieldPanel('idle_jet_min')]),
+    ]
+
+    class Meta(Orderable.Meta):
+        verbose_name = "Карбюратор VHSH: настройка"
+        verbose_name_plural = "Карбюратор VHSH: настройки"
+
+    def __str__(self):
+        return f"{self.engine} · {self.name}"
+
+    def needle_list(self):
+        return [n.strip() for n in self.needles.split(',') if n.strip()]
 
 
 class AppEngineSparkPlug(Orderable):
