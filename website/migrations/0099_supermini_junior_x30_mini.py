@@ -16,7 +16,9 @@ def seed(apps, schema_editor):
     if swift is not None:
         swift.show_in_app = True
         swift.save(update_fields=['show_in_app'])
-        swift.app_race_classes.add(x30_mini)
+        # ParentalManyToManyField: add() копится в памяти — пишем через промежуточную таблицу.
+        through = Engine.app_race_classes.through
+        through.objects.get_or_create(engine_id=swift.pk, raceclass_id=x30_mini.pk)
 
 
 class Migration(migrations.Migration):
