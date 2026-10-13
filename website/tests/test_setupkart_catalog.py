@@ -125,7 +125,8 @@ def test_payload_contains_only_flagged_and_live_records():
     by_key = {f['key']: f for f in eng['carburetor_fields']}
     assert by_key['main_jet']['range'] == {'from': 105.0, 'to': 135.0, 'step': 1.0, 'decimals': 0, 'prefix': ''}
     assert by_key['needle_position']['type'] == 'radio'
-    assert by_key['needle_position']['options'][0] == {'value': '1', 'label': '1 — бедная'}
+    assert by_key['needle_position']['options'][0] == {'value': '1', 'label': '1 — бедная смесь'}
+    assert by_key['needle_position']['label'] == 'Положение иглы'
     assert by_key['spark_plug'] == {'key': 'spark_plug', 'label': 'Свеча', 'type': 'choice',
                                     'options': ['GR8DI-8', 'GR9DI-8'], 'default': 'GR9DI-8', 'allow_custom': True}
     assert [c['name'] for c in p['chassis']] == ['Tony Kart']

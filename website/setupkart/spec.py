@@ -104,7 +104,9 @@ def to_profile_field(spec, key, label, extra=None):
     else:
         field['options'] = expand(spec)
     if key == 'needle_position':
-        labels = {'1': '1 — бедная', '3': '3 — стандарт', '5': '5 — богатая'}
+        # Подпись без «(1 — бедная … 5 — богатая)»: это и так видно на вариантах (13.10.2026).
+        field['label'] = spec.label or 'Положение иглы'
+        labels = {'1': '1 — бедная смесь', '3': '3 — стандарт', '5': '5 — богатая смесь'}
         field['options'] = [{'value': v, 'label': labels.get(v, v)} for v in expand(spec)]
         field.pop('range', None)
     if spec.default_value:
