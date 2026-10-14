@@ -39,6 +39,18 @@
     .kv { display:flex; justify-content:space-between; gap:1rem; padding:0.35rem 0; border-bottom:1px solid #22222c; font-size:0.9rem; }
     .kv .k { color:#adb5bd; } .kv .v { color:#fff; text-align:right; }
     .wz-nav { display:flex; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; }
+    /* подсказка пилотов из базы под полем «Фамилия» */
+    .ac-wrap { position:relative; }
+    .ac-list { position:absolute; z-index:20; left:0; right:0; top:100%; margin-top:2px; background:#15151c;
+               border:1px solid #3a3a45; border-radius:6px; max-height:280px; overflow-y:auto; display:none; }
+    .ac-list.open { display:block; }
+    .ac-item { padding:0.5rem 0.75rem; cursor:pointer; color:#fff; font-size:0.9rem; }
+    .ac-item small { color:#6c757d; }
+    .ac-item.active, .ac-item:hover { background:#2a2a35; }
+    .ac-item.ac-new { color:#ffc107; border-top:1px solid #2a2a35; }
+    .pick-badge { margin-top:0.75rem; padding:0.6rem 0.9rem; border-radius:6px; background:#15151c;
+                  border:1px solid #2a2a35; font-size:0.85rem; display:none; }
+    .pick-badge.open { display:block; }
 </style>
 
 <div class="app-wrap text-white">
@@ -131,13 +143,23 @@
             <div class="row g-3">
                 {% for f in form %}{% if f.name in "last_name first_name middle_name birth_date citizenship sport_rank license_number email phone city country" %}
                 {% if f.name != 'email_account' and f.name != 'driver_choice' %}
-                <div class="col-md-4">
+                <div class="col-md-4{% if f.name == 'last_name' and not confirmed_driver %} ac-wrap{% endif %}">
                     <label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %}*{% endif %}</label>
                     {{ f }}
+                    {% if f.name == 'last_name' and not confirmed_driver %}
+                    <div class="ac-list" id="driverSuggest" role="listbox"></div>
+                    <div class="helptext">Начните вводить фамилию — найдём пилота в базе</div>
+                    {% endif %}
                     {% for e in f.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
                 </div>
                 {% endif %}{% endif %}{% endfor %}
             </div>
+            {% if not confirmed_driver %}
+            {{ form.driver_pick }}
+            {% for e in form.driver_pick.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+            <div class="pick-badge" id="pickBadge"><span id="pickText"></span>
+                <a href="#" id="pickReset" class="text-warning ms-2">изменить</a></div>
+            {% endif %}
             <div id="parentBlock" style="display:none; margin-top:1rem; padding-top:1rem; border-top:1px dashed #2a2a35;">
                 <div class="text-warning small mb-2">Пилот несовершеннолетний — укажите данные родителя или опекуна</div>
                 <div class="row g-3">
@@ -330,6 +352,76 @@
         bind();
         classSel && classSel.addEventListener('change', reload);
         document.querySelectorAll('input[name="participation"]').forEach(r => r.addEventListener('change', reload));
+    }
+
+    // Шаг 2: подсказка пилотов из базы при вводе фамилии; «нет в списке» — новый пилот
+    const lastName = document.getElementById('id_last_name');
+    const suggest = document.getElementById('driverSuggest');
+    const pick = document.getElementById('id_driver_pick');
+    if (lastName && suggest && pick) {
+        const firstName = document.getElementById('id_first_name');
+        const city = document.getElementById('id_city');
+        const badge = document.getElementById('pickBadge');
+        const badgeText = document.getElementById('pickText');
+        let timer = null, items = [], active = -1;
+        const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        function showBadge(text) { badgeText.innerHTML = text; badge.classList.add('open'); }
+        function close() { suggest.classList.remove('open'); active = -1; }
+        function choose(i) {
+            const d = items[i];
+            if (d) {
+                lastName.value = d.last_name; if (firstName) firstName.value = d.first_name;
+                if (city && d.city && !city.value) city.value = d.city;
+                pick.value = d.id;
+                showBadge('Пилот из базы: <b>' + esc(d.name) + '</b>' + (d.city ? ', ' + esc(d.city) : '')
+                          + '. После проверки администратором заявка привяжется к его профилю.');
+            } else {
+                pick.value = 'new';
+                showBadge('<b>Новый пилот.</b> Профиль появится на сайте после проверки администратором — регистрацию на этап это не задерживает.');
+            }
+            [lastName, firstName].forEach(el => el && el.classList.remove('is-invalid'));
+            close();
+        }
+        function render() {
+            suggest.innerHTML = items.map((d, i) =>
+                '<div class="ac-item" role="option" data-i="' + i + '">' + esc(d.name) + (d.city ? ' <small>' + esc(d.city) + '</small>' : '') + '</div>'
+            ).join('') + '<div class="ac-item ac-new" role="option" data-i="-1">+ Нет в списке — новый пилот</div>';
+            suggest.classList.add('open');
+        }
+        function search() {
+            const q = [lastName.value, firstName ? firstName.value : ''].join(' ').trim();
+            if (lastName.value.trim().length < 2) { close(); return; }
+            fetch('{% url "applications:driver_search" %}?q=' + encodeURIComponent(q))
+                .then(r => r.json()).then(d => { items = d.drivers || []; render(); }).catch(() => {});
+        }
+        lastName.setAttribute('autocomplete', 'off');
+        lastName.addEventListener('input', () => {
+            if (pick.value) { pick.value = ''; badge.classList.remove('open'); }   // фамилию меняют — выбор сбрасывается
+            clearTimeout(timer); timer = setTimeout(search, 250);
+        });
+        lastName.addEventListener('focus', () => { if (!pick.value && lastName.value.trim().length >= 2) search(); });
+        lastName.addEventListener('keydown', e => {
+            if (!suggest.classList.contains('open')) return;
+            const n = items.length + 1;
+            if (e.key === 'ArrowDown') { active = (active + 1) % n; e.preventDefault(); }
+            else if (e.key === 'ArrowUp') { active = (active - 1 + n) % n; e.preventDefault(); }
+            else if (e.key === 'Enter' && active >= 0) { e.preventDefault(); choose(active < items.length ? active : -1); return; }
+            else if (e.key === 'Escape') { close(); return; }
+            else return;
+            suggest.querySelectorAll('.ac-item').forEach((el, i) => el.classList.toggle('active', i === active));
+        });
+        suggest.addEventListener('mousedown', e => {
+            const el = e.target.closest('.ac-item'); if (!el) return;
+            e.preventDefault(); choose(parseInt(el.dataset.i, 10));
+        });
+        document.addEventListener('click', e => { if (!e.target.closest('.ac-wrap')) close(); });
+        document.getElementById('pickReset').addEventListener('click', e => {
+            e.preventDefault(); pick.value = ''; badge.classList.remove('open'); lastName.focus(); search();
+        });
+        {% if form.driver_pick.value %}
+        {% if form.driver_pick.value == 'new' %}showBadge('<b>Новый пилот.</b> Профиль появится на сайте после проверки администратором.');
+        {% else %}showBadge('Пилот из базы: <b>' + esc(lastName.value + ' ' + (firstName ? firstName.value : '')) + '</b>. После проверки администратором заявка привяжется к его профилю.');{% endif %}
+        {% endif %}
     }
 
     // Шаг 2: блок родителя для несовершеннолетних

@@ -486,6 +486,14 @@ def submit_application(request, application_id):
     return redirect('applications:detail', application_id=application.id)
 
 
+def driver_search_api(request):
+    """JSON для мастера заявки: пилоты из базы по фамилии/имени (подсказка при вводе)."""
+    from website.services.demo import search_drivers
+    drivers = search_drivers(request.GET.get('q', '').strip())
+    return JsonResponse({'drivers': [{'id': d.pk, 'name': f'{d.last_name} {d.first_name}', 'first_name': d.first_name,
+                                      'last_name': d.last_name, 'city': d.city or ''} for d in drivers]})
+
+
 def available_numbers_api(request, stage_id):
     """JSON: доступные стартовые номера для этапа и класса"""
     stage = get_object_or_404(Stage, pk=stage_id)

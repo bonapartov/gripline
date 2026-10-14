@@ -57,6 +57,8 @@ class StepPilotForm(HighlightErrorsMixin, PilotForm):
     email_account = forms.EmailField(label='Ваш email', required=False, widget=forms.EmailInput(attrs=_text),
                                      help_text='Сюда придёт решение по заявке. Пароль можно задать позже через «Забыли пароль?».')
     driver_choice = forms.ChoiceField(label='Вы есть в базе пилотов?', required=False, widget=forms.RadioSelect)
+    # Выбор из подсказки при вводе фамилии: id пилота из базы или 'new' («нет в списке»).
+    driver_pick = forms.CharField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, need_email=False, candidates=(), lock_names=False, **kwargs):
         super().__init__(*args, **kwargs)
@@ -85,7 +87,21 @@ class StepPilotForm(HighlightErrorsMixin, PilotForm):
                 'Этот email уже зарегистрирован. Войдите — заполненные данные сохранятся.', code='email_taken')
         return email
 
+    def clean_driver_pick(self):
+        pick = (self.cleaned_data.get('driver_pick') or '').strip()
+        if pick.isdigit():
+            from website.models import Driver
+            from website.services.demo import without_demo
+            driver = without_demo(Driver.objects.filter(pk=pick, live=True)).first()
+            if driver is None:
+                raise forms.ValidationError('Пилот не найден — выберите из списка ещё раз.')
+            self.picked_driver = driver
+            return pick
+        return 'new' if pick == 'new' else ''
+
     def chosen_driver(self):
+        if getattr(self, 'picked_driver', None):
+            return self.picked_driver
         choice = self.cleaned_data.get('driver_choice')
         return self.candidates.get(choice) if choice and choice != 'new' else None
 

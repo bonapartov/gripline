@@ -7,6 +7,7 @@ urlpatterns = [
     path('apply/<int:stage_id>/', wizard.wizard_start, name='apply'),
     path('apply/<int:stage_id>/step/<int:step>/', wizard.wizard_step, name='wizard_step'),
     path('apply/<int:stage_id>/numbers/', views.available_numbers_api, name='available_numbers'),
+    path('drivers/search/', views.driver_search_api, name='driver_search'),
     path('<int:application_id>/', views.detail, name='detail'),
     path('<int:application_id>/cancel/', views.cancel, name='cancel'),
     path('<int:application_id>/submit/', views.submit_application, name='submit'),

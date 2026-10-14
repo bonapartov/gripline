@@ -222,7 +222,11 @@ def _step_pilot(request, stage, application):
 
     data = request.POST if request.method == 'POST' else None
     names = (data.get('last_name', ''), data.get('first_name', '')) if data else (None, None)
-    candidates = _pilot_candidates(user, names[1], names[0]) if (data and not organizer) else []
+    # Пилот выбран в подсказке (или «нет в списке») — переспрашивать «это вы?» не нужно.
+    picked = bool(data and (data.get('driver_pick') or '').strip())
+    candidates = _pilot_candidates(user, names[1], names[0]) if (data and not organizer and not picked) else []
+    if pilot is not None and not data:
+        initial = {**initial, 'driver_pick': str(pilot.requested_driver_id or pilot.driver_id or '')}
     form = StepPilotForm(data, instance=pilot, initial=initial, need_email=is_guest,
                          candidates=candidates, lock_names=bool(confirmed))
     if pilot is not None and pilot.requested_driver_id and not data:
@@ -248,8 +252,11 @@ def _step_pilot(request, stage, application):
             pilot.application = application
             if confirmed:
                 pilot.driver = confirmed
-            elif not organizer:
-                pilot.requested_driver = form.chosen_driver() if 'driver_choice' in form.fields else pilot.requested_driver
+            elif organizer:
+                # Организатор подаёт за пилота из базы — привязываем сразу.
+                pilot.driver = form.chosen_driver() or pilot.driver
+            elif form.cleaned_data.get('driver_pick') or 'driver_choice' in form.fields:
+                pilot.requested_driver = form.chosen_driver()
             if not pilot.email:
                 pilot.email = user.email if not organizer else ''
             pilot.save()

@@ -130,6 +130,38 @@ class LoggedInWizardTests(WizardFixture):
         self.finish()
         self.assertEqual(DriverClaim.objects.get(user=self.user).driver, driver)
 
+    def test_driver_search_finds_by_surname_skips_demo_and_unpublished(self, deliver):
+        Driver.objects.create(first_name='Пётр', last_name='Новиков', city='Гатчина', slug='novikov-p')
+        Driver.objects.create(first_name='Иван', last_name='Новиков', slug='demo-pilot-novikov')    # демо
+        Driver.objects.create(first_name='Олег', last_name='Новиков', slug='novikov-o', live=False)  # не опубликован
+        found = self.client.get('/applications/drivers/search/', {'q': 'новик'}).json()['drivers']
+        self.assertEqual([(d['name'], d['city']) for d in found], [('Новиков Пётр', 'Гатчина')])
+        self.assertEqual(self.client.get('/applications/drivers/search/', {'q': 'н'}).json()['drivers'], [])
+
+    def test_picked_driver_from_suggestion_becomes_claim_target(self, deliver):
+        driver = Driver.objects.create(first_name='Пётр', last_name='Новиков', slug='novikov')
+        self.step1()
+        resp = self.client.post(self.url(2), {**PILOT, 'driver_pick': str(driver.id)})
+        self.assertRedirects(resp, self.url(3), fetch_redirect_response=False)   # без «это вы?»
+        self.step3()
+        self.finish()
+        self.assertEqual(DriverClaim.objects.get(user=self.user).driver, driver)
+
+    def test_not_in_list_means_new_pilot_without_asking(self, deliver):
+        Driver.objects.create(first_name='Пётр', last_name='Новиков', slug='novikov')
+        self.step1()
+        resp = self.client.post(self.url(2), {**PILOT, 'driver_pick': 'new'})
+        self.assertRedirects(resp, self.url(3), fetch_redirect_response=False)
+        self.step3()
+        self.finish()
+        self.assertIsNone(DriverClaim.objects.get(user=self.user).driver)
+
+    def test_team_driver_search_no_longer_crashes(self, deliver):
+        Driver.objects.create(first_name='Пётр', last_name='Новиков', slug='novikov')
+        resp = self.client.get('/teams/apply/driver-search/', {'q': 'Новиков'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['drivers'][0]['name'], 'Пётр Новиков')
+
     def test_new_team_creates_team_claim_for_contact_and_links_on_approval(self, deliver):
         self.step1()
         self.client.post(self.url(2), PILOT)

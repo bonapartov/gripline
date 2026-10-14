@@ -1124,10 +1124,6 @@ def team_driver_search(request):
     from django.http import JsonResponse
     from website.models import Driver
 
-    q = request.GET.get('q', '').strip()
-    results = []
-    if len(q) >= 2:
-        from website.services.demo import without_demo
-        drivers = without_demo(Driver.objects.filter(full_name__icontains=q))[:10]
-        results = [{'id': d.pk, 'name': d.full_name} for d in drivers]
+    from website.services.demo import search_drivers
+    results = [{'id': d.pk, 'name': d.full_name} for d in search_drivers(request.GET.get('q', '').strip())]
     return JsonResponse({'drivers': results})
