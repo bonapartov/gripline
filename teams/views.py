@@ -952,7 +952,7 @@ def team_apply(request, stage_id):
     """Регистрация пилота на этап от имени команды."""
     from organizers.models import Stage
     from applications.models import Application, ApplicationPilot, ApplicationApplicant, ApplicationPayment
-    from website.models import TeamMembership, Driver
+    from website.models import TeamMembership, Driver, RaceClass
 
     manager = TeamManager.objects.filter(
         user=request.user, is_active=True
@@ -962,8 +962,9 @@ def team_apply(request, stage_id):
         return redirect('teams:dashboard')
 
     stage = get_object_or_404(Stage, pk=stage_id)
-    if not stage.registration_enabled:
-        messages.error(request, 'Регистрация на этот этап закрыта.')
+    closed = stage.registration_closed_reason()
+    if closed:
+        messages.error(request, closed)
         return redirect('teams:dashboard')
 
     team = manager.team
@@ -1020,6 +1021,11 @@ def team_apply(request, stage_id):
                         chosen_number = int(start_number)
                     except ValueError:
                         pass
+                race_class = (RaceClass.objects.filter(pk=race_class_id).first()
+                              if str(race_class_id or '').isdigit() else None)
+                if chosen_number is not None and chosen_number not in stage.get_available_numbers(race_class=race_class):
+                    messages.error(request, f'Номер {chosen_number} уже занят или зарезервирован. Выберите другой.')
+                    return redirect('teams:team_apply', stage_id=stage.pk)
 
                 entry_fee = stage.entry_fee or 0
 

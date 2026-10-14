@@ -112,7 +112,7 @@ class TeamApplySecurityTests(TestCase):
         # напрямую, follow=True здесь не нужен и не нужен рендер дашборда.
         self.client.force_login(self.inactive_manager)
         resp = self.client.post(self._apply_url(), {
-            "driver_id": self.member_driver.id, "race_class": "", "start_number": "1",
+            "driver_id": self.member_driver.id, "race_class": "", "start_number": "10",  # 1 вне формата 10–99
         })
         self.assertEqual(resp.status_code, 302)
         self.assertFalse(Application.objects.filter(stage=self.stage).exists())
@@ -143,7 +143,7 @@ class TeamApplySecurityTests(TestCase):
     def test_active_manager_can_register_own_driver(self):
         self.client.force_login(self.active_manager)
         resp = self.client.post(self._apply_url(), {
-            "driver_id": self.member_driver.id, "race_class": "", "start_number": "1",
+            "driver_id": self.member_driver.id, "race_class": "", "start_number": "10",  # 1 вне формата 10–99
         })
         self.assertEqual(resp.status_code, 302)
         self.assertTrue(

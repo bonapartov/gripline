@@ -231,6 +231,13 @@ class StageDocument(models.Model):
     has_expiry_date = models.BooleanField(
         default=False, verbose_name='Есть срок действия'
     )
+    # Снятый с этапа документ, по которому уже есть загрузки, не удаляется
+    # (каскад унёс бы файлы участников), а выключается.
+    is_active = models.BooleanField(default=True, verbose_name='Запрашивается')
+    source = models.ForeignKey(
+        'ChampionshipDocument', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='stage_copies', verbose_name='Документ чемпионата',
+    )
     order = models.PositiveIntegerField(default=0)
 
     class Meta:
@@ -340,6 +347,10 @@ class StageOption(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Цена (₽)')
     is_mandatory = models.BooleanField(default=False, verbose_name='Обязательная')
     is_active = models.BooleanField(default=True, verbose_name='Доступна')
+    source = models.ForeignKey(
+        'ChampionshipOption', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='stage_copies', verbose_name='Опция чемпионата',
+    )
     order = models.PositiveIntegerField(default=0)
 
     class Meta:

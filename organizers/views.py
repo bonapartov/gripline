@@ -1,4 +1,6 @@
 import logging
+from functools import wraps
+from django.views.decorators.http import require_POST
 from accounts.verification import (NEUTRAL_RESEND_MESSAGE, confirm_email, is_email_verified, mark_unverified,
                                    handle_existing_email, resend_verification_emails, user_from_token)
 from django.shortcuts import render, redirect, get_object_or_404
@@ -24,6 +26,25 @@ from wagtail.documents.models import Document as WagtailDocument
 from django.utils.text import slugify
 import time
 
+def active_organizer_required(view):
+    """Кабинет и все действия организатора — только для одобренного профиля:
+    на модерации — на страницу ожидания, отклонённому и не-организатору — отказ."""
+    @login_required
+    @wraps(view)
+    def wrapper(request, *args, **kwargs):
+        profile = getattr(request.user, 'organizer_profile', None)
+        if profile is None:
+            messages.error(request, 'У вас нет прав организатора.')
+            return redirect('/')
+        if profile.status == 'pending':
+            return redirect('organizers:pending')
+        if profile.status != 'active':
+            messages.error(request, 'Ваша заявка организатора была отклонена.')
+            return redirect('/')
+        return view(request, *args, **kwargs)
+    return wrapper
+
+
 @login_required
 def organizer_pending(request):
     """Страница ожидания активации аккаунта организатора"""
@@ -33,20 +54,9 @@ def organizer_pending(request):
     return render(request, 'organizers/pending.html')
 
 
-@login_required
+@active_organizer_required
 def dashboard(request):
-    try:
-        profile = request.user.organizer_profile
-    except OrganizerProfile.DoesNotExist:
-        messages.error(request, 'У вас нет прав организатора.')
-        return redirect('/')
-
-    if profile.status == 'pending':
-        return redirect('organizers:pending')
-    if profile.status == 'rejected':
-        messages.error(request, 'Ваша заявка организатора была отклонена.')
-        return redirect('/')
-    
+    profile = request.user.organizer_profile
     championships = Championship.objects.filter(organizer=profile)
     
     # Собираем все этапы для чемпионатов организатора
@@ -118,17 +128,13 @@ def dashboard(request):
         'payments_enabled': payments_enabled,
     })
 
-@login_required
+@active_organizer_required
 def championship_create(request):
     import logging
     logger = logging.getLogger(__name__)
     
-    try:
-        profile = request.user.organizer_profile
-    except OrganizerProfile.DoesNotExist:
-        messages.error(request, "Доступ запрещён.")
-        return redirect("/")
-    
+    profile = request.user.organizer_profile
+
     if request.method == "POST":
         form = ChampionshipForm(request.POST, request.FILES)
         
@@ -212,7 +218,7 @@ def championship_create(request):
     
     return render(request, "organizers/championship_form.html", {"form": form})
 
-@login_required
+@active_organizer_required
 def stage_create(request, championship_id):
     championship = get_object_or_404(Championship, id=championship_id, organizer__user=request.user)
     
@@ -385,7 +391,7 @@ def _sync_event_pages_for_classes(championship, old_class_ids, new_class_ids):
             )
 
 
-@login_required
+@active_organizer_required
 def championship_edit(request, pk):
     championship = get_object_or_404(Championship, pk=pk, organizer__user=request.user)
     
@@ -462,7 +468,8 @@ def championship_edit(request, pk):
     
     return render(request, 'organizers/championship_form.html', {'form': form})
 
-@login_required
+@active_organizer_required
+@require_POST
 def championship_delete(request, pk):
     championship = get_object_or_404(Championship, pk=pk, organizer__user=request.user)
     title = championship.title
@@ -475,7 +482,7 @@ def championship_delete(request, pk):
     return redirect('organizers:dashboard')
 
 
-@login_required
+@active_organizer_required
 def championship_reg_settings(request, pk):
     """Общие настройки регистрации чемпионата (документы и опции для всех этапов)."""
     from applications.models import ChampionshipDocument, ChampionshipOption, StageDocument, StageOption
@@ -537,37 +544,76 @@ def championship_reg_settings(request, pk):
     })
 
 
+_DOC_FIELDS = ('name', 'description', 'required', 'minors_only', 'has_expiry_date', 'order')
+_OPT_FIELDS = ('name', 'description', 'price', 'is_mandatory', 'is_active', 'order')
+
+
+def retire_stage_document(doc):
+    """Убирает документ из этапа. Если участники уже что-то загрузили —
+    не удаляет (каскад унёс бы их файлы и статусы проверки), а выключает."""
+    if doc.submitted.exists():
+        if doc.is_active:
+            doc.is_active = False
+            doc.save(update_fields=['is_active'])
+    else:
+        doc.delete()
+
+
+def retire_stage_option(opt):
+    """Убирает опцию из этапа. Выбранную в заявках не удаляет (пропали бы
+    строки и суммы заявок), а делает недоступной."""
+    from applications.models import ApplicationOption
+    if ApplicationOption.objects.filter(option=opt).exists():
+        if opt.is_active:
+            opt.is_active = False
+            opt.save(update_fields=['is_active'])
+    else:
+        opt.delete()
+
+
+def _sync_to_stage(existing, sources, fields, make, retire, extra=None):
+    """Приводит строки этапа к шаблонам чемпионата без удаления того, на что
+    ссылаются заявки: совпавшие (по ссылке на шаблон, для старых строк — по
+    названию) обновляются на месте, недостающие создаются, лишние — retire()."""
+    by_source = {row.source_id: row for row in existing if row.source_id}
+    by_name = {row.name.lower(): row for row in existing if not row.source_id}
+    kept = set()
+    for src in sources:
+        row = by_source.get(src.id) or by_name.pop(src.name.lower(), None) or make()
+        for f in fields:
+            setattr(row, f, getattr(src, f))
+        row.source = src
+        for f, v in (extra or {}).items():
+            setattr(row, f, v)
+        row.save()
+        kept.add(row.pk)
+    for row in existing:
+        if row.pk not in kept:
+            retire(row)
+
+
 def _sync_championship_docs_to_stages(championship):
     """Синхронизирует документы чемпионата со всеми будущими этапами."""
     from django.utils import timezone
-    from applications.models import ChampionshipDocument, StageDocument
-    future_stages = championship.stages.filter(start_date__gt=timezone.now())
-    for stage in future_stages:
-        stage.required_documents.all().delete()
-        for doc in championship.championship_documents.all():
-            StageDocument.objects.create(
-                stage=stage, name=doc.name, description=doc.description,
-                required=doc.required, minors_only=doc.minors_only,
-                has_expiry_date=doc.has_expiry_date, order=doc.order,
-            )
+    from applications.models import StageDocument
+    sources = list(championship.championship_documents.all())
+    for stage in championship.stages.filter(start_date__gt=timezone.now()):
+        _sync_to_stage(list(stage.required_documents.all()), sources, _DOC_FIELDS,
+                       lambda: StageDocument(stage=stage), retire_stage_document,
+                       extra={'is_active': True})
 
 
 def _sync_championship_opts_to_stages(championship):
     """Синхронизирует опции чемпионата со всеми будущими этапами."""
     from django.utils import timezone
-    from applications.models import ChampionshipOption, StageOption
-    future_stages = championship.stages.filter(start_date__gt=timezone.now())
-    for stage in future_stages:
-        stage.options.all().delete()
-        for opt in championship.championship_options.all():
-            StageOption.objects.create(
-                stage=stage, name=opt.name, description=opt.description,
-                price=opt.price, is_mandatory=opt.is_mandatory,
-                is_active=opt.is_active, order=opt.order,
-            )
+    from applications.models import StageOption
+    sources = list(championship.championship_options.all())
+    for stage in championship.stages.filter(start_date__gt=timezone.now()):
+        _sync_to_stage(list(stage.options.all()), sources, _OPT_FIELDS,
+                       lambda: StageOption(stage=stage), retire_stage_option)
 
 
-@login_required
+@active_organizer_required
 def stage_edit(request, pk):
     from django.utils import timezone
     stage = get_object_or_404(Stage, pk=pk, championship__organizer__user=request.user)
@@ -612,7 +658,8 @@ def stage_edit(request, pk):
 
 
 
-@login_required
+@active_organizer_required
+@require_POST
 def stage_delete(request, pk):
     stage = get_object_or_404(Stage, pk=pk, championship__organizer__user=request.user)
     title = stage.title
@@ -621,7 +668,7 @@ def stage_delete(request, pk):
     return redirect('organizers:dashboard')
 
 
-@login_required
+@active_organizer_required
 def stage_settings(request, pk):
     """Настройка регистрации этапа: документы, доп. опции, зарезервированные номера"""
     from .forms import StageDocumentForm, StageOptionForm
@@ -648,7 +695,9 @@ def stage_settings(request, pk):
             if stage_started:
                 messages.error(request, 'Нельзя удалять документы после начала этапа.')
             else:
-                StageDocument.objects.filter(id=request.POST.get('doc_id'), stage=stage).delete()
+                doc = StageDocument.objects.filter(id=request.POST.get('doc_id'), stage=stage).first()
+                if doc:
+                    retire_stage_document(doc)
                 messages.success(request, 'Документ удалён.')
             return redirect('organizers:stage_settings', pk=stage.id)
 
@@ -663,7 +712,9 @@ def stage_settings(request, pk):
             return redirect('organizers:stage_settings', pk=stage.id)
 
         if action == 'delete_option':
-            StageOption.objects.filter(id=request.POST.get('option_id'), stage=stage).delete()
+            opt = StageOption.objects.filter(id=request.POST.get('option_id'), stage=stage).first()
+            if opt:
+                retire_stage_option(opt)
             messages.success(request, 'Опция удалена.')
             return redirect('organizers:stage_settings', pk=stage.id)
 
@@ -681,7 +732,7 @@ def stage_settings(request, pk):
 
     return render(request, 'organizers/stage_settings.html', {
         'stage': stage,
-        'documents': stage.required_documents.all(),
+        'documents': stage.required_documents.filter(is_active=True),
         'options': stage.options.all(),
         'document_form': StageDocumentForm(),
         'option_form': StageOptionForm(),
@@ -690,7 +741,7 @@ def stage_settings(request, pk):
     })
 
 
-@login_required
+@active_organizer_required
 def stage_registrations(request, stage_id):
     """Список заявок на этап (только для организатора)."""
     from .models import Stage
@@ -724,7 +775,7 @@ def stage_registrations(request, stage_id):
     })
 
 
-@login_required
+@active_organizer_required
 def stage_numbers(request, stage_id):
     from .models import Stage
     from applications.models import Application
@@ -771,7 +822,7 @@ def stage_numbers(request, stage_id):
     })
 
 
-@login_required
+@active_organizer_required
 def reassign_number(request, stage_id):
     from django.http import JsonResponse
     from .models import Stage
@@ -792,9 +843,10 @@ def reassign_number(request, stage_id):
 
     app = get_object_or_404(Application, pk=app_id, stage=stage)
 
+    # Те же правила, что при подаче заявки (Stage.get_available_numbers):
+    # номер занят только внутри своего класса и только активной заявкой.
     taken = set(
-        Application.objects.filter(stage=stage, start_number__isnull=False)
-        .exclude(status__in=['cancelled'])
+        stage.active_applications().filter(start_number__isnull=False, race_class=app.race_class)
         .exclude(pk=app.pk)
         .values_list('start_number', flat=True)
     )
@@ -813,7 +865,7 @@ def reassign_number(request, stage_id):
     return JsonResponse({'success': True, 'new_number': new_number})
 
 
-@login_required
+@active_organizer_required
 def stage_finance(request, stage_id):
     from .models import Stage
     from applications.models import Application, ApplicationPayment
@@ -890,7 +942,8 @@ def stage_finance(request, stage_id):
     })
 
 
-@login_required
+@active_organizer_required
+@require_POST
 def championship_toggle_publish(request, pk):
     championship = get_object_or_404(Championship, pk=pk, organizer__user=request.user)
     championship.is_published = not championship.is_published
@@ -898,7 +951,8 @@ def championship_toggle_publish(request, pk):
     return redirect('organizers:dashboard')
 
 
-@login_required
+@active_organizer_required
+@require_POST
 def stage_toggle_publish(request, pk):
     stage = get_object_or_404(Stage, pk=pk, championship__organizer__user=request.user)
     stage.is_published = not stage.is_published
@@ -926,7 +980,7 @@ def stage_toggle_publish(request, pk):
     return redirect('organizers:dashboard')
 
 
-@login_required
+@active_organizer_required
 def championship_set_color(request, pk):
     if request.method == 'POST':
         import re

@@ -102,6 +102,46 @@ def _app_link(application):
     return f"{base}/applications/{application.id}/"
 
 
+def _duplicate_application(stage, user, submitted_by_type, race_class_id):
+    """Активная заявка этого пилота на этап в том же классе. Организатор подаёт
+    за разных пилотов, поэтому для него проверки нет."""
+    if submitted_by_type == 'organizer' or not str(race_class_id or '').isdigit():
+        return None
+    from django.db.models import Q
+    who = Q(submitted_by=user)
+    driver = getattr(getattr(user, 'profile', None), 'driver', None)
+    if driver:
+        who |= Q(pilot__driver=driver)
+    return (Application.objects.filter(who, stage=stage, race_class_id=race_class_id)
+            .exclude(status__in=['rejected', 'cancelled']).first())
+
+
+def _notify_organizer_submitted(application):
+    """Письмо организатору этапа о новой поданной заявке; сбой почты не мешает подаче."""
+    try:
+        stage = application.stage
+        organizer = stage.championship.organizer.user
+        pilot = getattr(application, 'pilot', None)
+        pilot_name = pilot.full_name if pilot else application.submitted_by.email
+        rows = [('Заявка', f'№{application.id}'), ('Пилот', pilot_name), ('Этап', stage.title),
+                ('Чемпионат', stage.championship.title)]
+        if application.race_class:
+            rows.append(('Класс', application.race_class.name))
+        subject = f'Новая заявка #{application.id} — {stage.title}'
+        send_templated_mail('application_update', subject, [organizer.email], {
+            'subject': subject,
+            'preheader': f'{pilot_name} подал заявку на {stage.title}. Проверьте документы и оплату.',
+            'status': 'wait', 'status_label': 'Новая заявка', 'status_text': 'Новая заявка',
+            'title': 'Новая заявка на этап',
+            'lead': 'Участник отправил заявку. Проверьте документы и оплату и примите решение.',
+            'pilot_name': organizer.get_full_name() or organizer.email,
+            'rows': rows, 'comment': '', 'comment_label': '',
+            'button': 'Открыть заявку', 'link': _app_link(application),
+        }, fail_silently=True)
+    except Exception:
+        pass
+
+
 def _stage_classes(stage):
     return stage.championship.race_classes.all()
 
@@ -120,9 +160,10 @@ def apply(request, stage_id):
     """Подача заявки на этап — универсальная для пилота/команды/организатора"""
     stage = get_object_or_404(Stage, pk=stage_id)
 
-    if not stage.registration_enabled:
-        messages.error(request, 'Регистрация на этот этап закрыта.')
-        return redirect('/')
+    closed = stage.registration_closed_reason()
+    if closed:
+        messages.error(request, closed)
+        return redirect((stage.wagtail_page and stage.wagtail_page.url) or '/')
 
     # Определяем тип подающего
     submitted_by_type = 'pilot'
@@ -180,6 +221,11 @@ def apply(request, stage_id):
             messages.error(request, number_error)
             forms_valid = False
 
+        duplicate = _duplicate_application(stage, request.user, submitted_by_type, race_class_id)
+        if race_class_id and duplicate:
+            messages.warning(request, 'Вы уже подали заявку на этот этап в этом классе.')
+            return redirect('applications:detail', application_id=duplicate.id)
+
         if forms_valid:
             application = Application.objects.create(
                 stage=stage,
@@ -232,7 +278,7 @@ def apply(request, stage_id):
                     if not pd.is_expired:
                         vault_docs[pd.name.lower()] = pd
 
-            for doc in stage.required_documents.all():
+            for doc in stage.required_documents.filter(is_active=True):
                 if doc.minors_only and not is_minor:
                     continue
                 vault_match = vault_docs.get(doc.name.lower())
@@ -464,8 +510,9 @@ def cancel(request, application_id):
 
 def _check_organizer(request, application):
     """True если текущий пользователь — организатор этого чемпионата"""
-    return (hasattr(request.user, 'organizer_profile')
-            and application.stage.championship.organizer == request.user.organizer_profile)
+    profile = getattr(request.user, 'organizer_profile', None)
+    return (profile is not None and profile.status == 'active'
+            and application.stage.championship.organizer == profile)
 
 
 @login_required
@@ -576,7 +623,7 @@ def submit_application(request, application_id):
     # Проверяем обязательные документы
     missing = []
     for doc in application.documents.select_related('stage_document'):
-        if doc.stage_document.required and doc.status == 'pending':
+        if doc.stage_document.required and doc.stage_document.is_active and doc.status == 'pending':
             missing.append(doc.stage_document.name)
 
     if missing:
@@ -588,6 +635,7 @@ def submit_application(request, application_id):
     application.status = 'submitted'
     application.submitted_at = timezone.now()
     application.save()
+    _notify_organizer_submitted(application)
 
     if is_ajax:
         return JsonResponse({'success': True})

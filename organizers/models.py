@@ -148,6 +148,24 @@ class Stage(models.Model):
     def __str__(self):
         return f"{self.championship.title} - {self.title}"
 
+    def active_applications(self):
+        """Заявки, которые занимают место: всё, кроме отменённых и отклонённых."""
+        from applications.models import Application
+        return Application.objects.filter(stage=self).exclude(status__in=['rejected', 'cancelled'])
+
+    def registration_closed_reason(self):
+        """None, если заявку подать можно, иначе — причина для участника."""
+        from django.utils import timezone
+        if not self.registration_enabled:
+            return 'Регистрация на этот этап закрыта.'
+        if (self.registration_deadline and timezone.now() > self.registration_deadline
+                and not self.late_registration_allowed):
+            deadline = timezone.localtime(self.registration_deadline).strftime('%d.%m.%Y %H:%M')
+            return f'Срок регистрации истёк {deadline}.'
+        if self.max_participants and self.active_applications().count() >= self.max_participants:
+            return f'Мест нет: набрано {self.max_participants} участников.'
+        return None
+
     def get_available_numbers(self, race_class=None):
         """Возвращает список номеров доступных для выбора.
         Если передан race_class — исключает только номера занятые в этом классе."""
@@ -275,13 +293,13 @@ def sync_wagtail_stage(sender, instance, created, **kwargs):
                 from applications.models import ChampionshipDocument, ChampionshipOption, StageDocument, StageOption
                 for doc in instance.championship.championship_documents.all():
                     StageDocument.objects.create(
-                        stage=instance, name=doc.name, description=doc.description,
+                        stage=instance, source=doc, name=doc.name, description=doc.description,
                         required=doc.required, minors_only=doc.minors_only,
                         has_expiry_date=doc.has_expiry_date, order=doc.order,
                     )
                 for opt in instance.championship.championship_options.all():
                     StageOption.objects.create(
-                        stage=instance, name=opt.name, description=opt.description,
+                        stage=instance, source=opt, name=opt.name, description=opt.description,
                         price=opt.price, is_mandatory=opt.is_mandatory,
                         is_active=opt.is_active, order=opt.order,
                     )

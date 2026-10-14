@@ -3387,7 +3387,7 @@ class EventCalendarPage(TransliteratedSlugMixin, CoderedWebPage):
                 if org_s is not None:
                     if not org_s.is_published or not org_s.championship.is_published:
                         continue
-                ed['org_stage'] = org_s if (org_s and org_s.registration_enabled) else None
+                ed['org_stage'] = org_s if (org_s and org_s.registration_closed_reason() is None) else None
                 if org_s:
                     ed['color'] = org_s.championship.color or '#ffc107'
                 else:
@@ -3909,6 +3909,7 @@ class StagePage(TransliteratedSlugMixin, CoderedWebPage):
             org_stage = Stage.objects.filter(wagtail_page=self).first()
             if org_stage:
                 context['org_stage'] = org_stage
+                context['registration_closed_reason'] = org_stage.registration_closed_reason()
                 context['entry_fee'] = org_stage.entry_fee
                 context['available_classes'] = list(org_stage.championship.race_classes.all())
 
