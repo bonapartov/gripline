@@ -56,6 +56,7 @@ class StageForm(forms.ModelForm):
             'registration_enabled', 'registration_deadline',
             'late_registration_allowed', 'late_registration_fee_multiplier',
             'max_participants', 'start_number_digits', 'stage_tyres',
+            'has_training', 'training_start', 'training_fee',
         ]
         widgets = {
             'start_date': forms.DateTimeInput(format='%Y-%m-%dT%H:%M', attrs={'type': 'datetime-local', 'class': 'form-control'}),
@@ -70,6 +71,9 @@ class StageForm(forms.ModelForm):
             'late_registration_fee_multiplier': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1', 'min': '1'}),
             'max_participants': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
             'start_number_digits': forms.Select(attrs={'class': 'form-select'}),
+            'has_training': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'training_start': forms.DateTimeInput(format='%Y-%m-%dT%H:%M', attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'training_fee': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
         }
         labels = {
             'title': 'Название этапа',
@@ -84,10 +88,15 @@ class StageForm(forms.ModelForm):
             'late_registration_fee_multiplier': 'Множитель позднего взноса',
             'max_participants': 'Макс. участников (пусто = без лимита)',
             'start_number_digits': 'Формат стартовых номеров',
+            'has_training': 'Перед этапом проводится УТС',
+            'training_start': 'Дата и время УТС',
+            'training_fee': 'Взнос за УТС (₽)',
         }
         help_texts = {
             'title': 'Используйте формат: "1 этап", "2 этап" и т.д. Название будет отображаться в итоговой таблице',
             'late_registration_fee_multiplier': 'Во сколько раз увеличивается взнос после дедлайна (например, 2 = двойной)',
+            'has_training': 'Пилот выбирает: только УТС (номер 100–999), УТС + этап или только этап (номер 10–99). '
+                            '«УТС + этап» платит оба взноса.',
         }
 
     def __init__(self, *args, **kwargs):
@@ -95,6 +104,8 @@ class StageForm(forms.ModelForm):
         self.fields['registration_deadline'].required = False
         self.fields['max_participants'].required = False
         self.fields['track'].required = False
+        self.fields['training_start'].required = False
+        self.fields['training_fee'].required = False
 
     def clean_entry_fee(self):
         entry_fee = self.cleaned_data.get('entry_fee')

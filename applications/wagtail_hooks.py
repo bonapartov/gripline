@@ -1,9 +1,10 @@
 """Заявки на участие в этапах — в админке Wagtail (группа «Организаторы»).
 
 Заявки создают и заполняют пилоты, команды и организаторы в своих кабинетах, поэтому
-здесь они не создаются, а просматриваются целиком (все связанные данные — на странице
-просмотра) и меняются только статус, комментарий организатора, стартовый номер и класс.
-Полное редактирование со вложенными формами осталось в Django-админке (/django-admin/).
+здесь они не создаются. Карточка редактирования (ApplicationEditView) содержит все поля
+регистрации: саму заявку, заявителя, пилота, карт, механика, оплату, статусы документов,
+достижения и выбранные опции. Файлы документов и квитанций здесь не показываются и не
+меняются — их отдают только serve_document/serve_receipt (см. model_rows).
 Сама группа меню — organizers/wagtail_hooks.py (OrganizersGroup).
 """
 from django.db import models as dj_models
@@ -12,9 +13,16 @@ from django.utils.text import capfirst
 from wagtail.admin.panels import FieldPanel, ObjectList
 from wagtail_modeladmin.helpers import PermissionHelper
 from wagtail_modeladmin.options import ModelAdmin
-from wagtail_modeladmin.views import InspectView
+from django import forms
+from django.contrib import messages
+from django.db import transaction
+from django.forms import inlineformset_factory
+from wagtail_modeladmin.views import EditView, InspectView
 
-from .models import Application
+from .forms import ApplicantForm, KartForm, MechanicForm, PilotForm
+from .models import (
+    Application, ApplicationAchievement, ApplicationDocument, ApplicationOption, ApplicationPayment,
+)
 
 STATUS_COLORS = {
     'draft': ('#6c757d', '#fff'),
@@ -80,6 +88,117 @@ class ApplicationInspectView(InspectView):
         return context
 
 
+class PaymentForm(forms.ModelForm):
+    class Meta:
+        model = ApplicationPayment
+        fields = ['amount', 'method', 'status', 'organizer_comment']
+
+
+class DocumentStatusForm(forms.ModelForm):
+    class Meta:
+        model = ApplicationDocument
+        fields = ['status', 'expiry_date', 'organizer_comment']
+        widgets = {'expiry_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+                   'organizer_comment': forms.Textarea(attrs={'rows': 2})}
+
+
+DocumentFormSet = inlineformset_factory(Application, ApplicationDocument, form=DocumentStatusForm,
+                                        extra=0, can_delete=False)
+AchievementFormSet = inlineformset_factory(Application, ApplicationAchievement,
+                                           fields=['competition_name', 'year', 'achievement', 'order'],
+                                           extra=1, can_delete=True)
+
+
+class ApplicationEditView(EditView):
+    """Карточка заявки со всеми полями регистрации. Связанные записи (OneToOne) —
+    отдельные формы рядом с основной; сохраняется всё вместе или ничего."""
+
+    # (имя связи, заголовок, форма, обязательна ли запись). Необязательную пустую
+    # запись не создаём: у командных заявок, например, нет карта и заявителя-лица.
+    # Пилот обязателен — заявка без пилота не подаётся.
+    RELATED = (
+        ('applicant', 'Заявитель', ApplicantForm, False),
+        ('pilot', 'Пилот', PilotForm, True),
+        ('kart', 'Карт', KartForm, False),
+        ('mechanic', 'Механик (необязательно)', MechanicForm, False),
+        ('payment', 'Оплата', PaymentForm, True),
+    )
+
+    def _data(self):
+        return self.request.POST if self.request.method == 'POST' else None
+
+    def build_related(self):
+        if hasattr(self, '_related_forms'):
+            return self._related_forms
+        app, data = self.instance, self._data()
+        sections = []
+        for name, title, form_class, required in self.RELATED:
+            obj = _related(app, name)
+            initial = {'amount': app.get_total_amount()} if name == 'payment' and obj is None else None
+            form = form_class(data, prefix=name, instance=obj, initial=initial)
+            form.use_required_attribute = False
+            sections.append({'name': name, 'title': title, 'form': form, 'required': required, 'exists': obj is not None})
+        self._related_forms = {
+            'sections': sections,
+            'documents': DocumentFormSet(data, instance=app, prefix='docs',
+                                         queryset=app.documents.select_related('stage_document')),
+            'achievements': AchievementFormSet(data, instance=app, prefix='ach'),
+        }
+        return self._related_forms
+
+    def stage_options(self):
+        selected = set(self.instance.selected_options.values_list('option_id', flat=True))
+        return [(opt, opt.id in selected) for opt in self.instance.stage.options.all()]
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['related'] = self.build_related()
+        context['stage_options'] = self.stage_options()
+        return context
+
+    def _section_valid(self, section):
+        form = section['form']
+        # Пустую необязательную запись (механик) не создаём и не проверяем.
+        if not section['required'] and not section['exists'] and not any(
+                (form.data.get(f'{form.prefix}-{f}') or '').strip() for f in form.fields):
+            section['skip'] = True
+            return True
+        return form.is_valid()
+
+    def post(self, request, *args, **kwargs):
+        form = self.get_form()
+        related = self.build_related()
+        valid = form.is_valid()
+        valid = all([self._section_valid(s) for s in related['sections']]) and valid
+        valid = related['documents'].is_valid() and valid
+        valid = related['achievements'].is_valid() and valid
+        if not valid:
+            return self.form_invalid(form)
+        with transaction.atomic():
+            response = self.form_valid(form)
+            app = self.instance
+            for section in related['sections']:
+                if section.get('skip'):
+                    continue
+                obj = section['form'].save(commit=False)
+                obj.application = app
+                obj.save()
+            related['documents'].save()
+            related['achievements'].instance = app
+            related['achievements'].save()
+            self._save_options(app, request.POST.getlist('options'))
+        return response
+
+    def _save_options(self, app, chosen_ids):
+        chosen = {int(i) for i in chosen_ids if str(i).isdigit()}
+        current = {o.option_id: o for o in app.selected_options.all()}
+        for option_id, row in current.items():
+            if option_id not in chosen:
+                row.delete()
+        for opt in app.stage.options.filter(id__in=chosen - set(current)):
+            ApplicationOption.objects.create(application=app, option=opt, price_at_time=opt.price)
+
+
 class ReadOnlyCreatePermissionHelper(PermissionHelper):
     """Заявку создаёт пользователь в кабинете (со связанными записями) — «Добавить» не нужен."""
     def user_can_create(self, user):
@@ -94,14 +213,16 @@ class ApplicationAdmin(ModelAdmin):
     inspect_view_enabled = True
     inspect_view_class = ApplicationInspectView
     inspect_template_name = 'applications/admin/application_inspect.html'
+    edit_view_class = ApplicationEditView
+    edit_template_name = 'applications/admin/application_edit.html'
     list_display = ('id', 'pilot_name', 'stage', 'race_class', 'start_number', 'status_badge', 'submitted_by_type', 'created_at')
     list_filter = ('status', 'submitted_by_type', 'stage__championship')
     search_fields = ('pilot__last_name', 'pilot__first_name', 'submitted_by__email', 'stage__title')
     ordering = ('-created_at',)
     list_select_related = ('stage', 'race_class', 'submitted_by')
     edit_handler = ObjectList([
-        FieldPanel('status'), FieldPanel('organizer_comment'),
-        FieldPanel('start_number'), FieldPanel('race_class'),
+        FieldPanel('status'), FieldPanel('participation'), FieldPanel('race_class'), FieldPanel('start_number'),
+        FieldPanel('entry_fee_amount'), FieldPanel('submitted_by_type'), FieldPanel('organizer_comment'),
     ])
 
     def pilot_name(self, obj):

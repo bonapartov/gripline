@@ -104,6 +104,24 @@
     </div>
     {% endif %}
 
+    {% if stage.has_training %}
+    <!-- Участие: УТС и этап -->
+    <div class="mb-4">
+      <div class="section-label">Участие</div>
+      <div class="d-flex flex-wrap gap-2">
+        {% for code, label in participation_choices %}
+        <label class="d-flex align-items-center gap-2 px-3 py-2 rounded"
+               style="background:#1a1a25; border:1px solid #2a2a35; cursor:pointer;">
+          <input type="radio" name="participation" value="{{ code }}" class="participation-radio"
+                 style="accent-color:#f0c040;"{% if forloop.first %} checked{% endif %}>
+          <span>{{ label }}{% for c, fee in fees.items %}{% if c == code %} — {{ fee|floatformat:0 }} ₽{% endif %}{% endfor %}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <div class="text-muted mt-1" style="font-size:.75rem;">«Только УТС» — номер 100–999, «УТС + этап» и «Только этап» — 10–99.</div>
+    </div>
+    {% endif %}
+
     <!-- 3. Стартовый номер -->
     {% if available_numbers %}
     <div class="mb-4">
@@ -179,6 +197,33 @@ function selectNum(num, el) {
   document.getElementById('selectedNumber').value = num;
   document.getElementById('selectedNumBadge').textContent = 'Выбран номер: ' + num;
 }
+
+// Номера зависят от класса и участия (при УТС) — перезагружаем сетку
+function reloadNumbers() {
+  const grid = document.getElementById('numberGrid');
+  if (!grid) return;
+  const params = new URLSearchParams();
+  const cls = document.querySelector('input[name="race_class"]:checked');
+  const part = document.querySelector('.participation-radio:checked');
+  if (cls) params.set('class_id', cls.value);
+  if (part) params.set('participation', part.value);
+  fetch('{% url "applications:available_numbers" stage.id %}?' + params.toString())
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('selectedNumber').value = '';
+      document.getElementById('selectedNumBadge').textContent = '';
+      grid.innerHTML = '';
+      (data.numbers || []).forEach(n => {
+        const b = document.createElement('div');
+        b.className = 'num-btn num-free'; b.title = n; b.textContent = n;
+        b.addEventListener('click', () => selectNum(n, b));
+        grid.appendChild(b);
+      });
+    })
+    .catch(() => {});
+}
+document.querySelectorAll('input[name="race_class"], .participation-radio')
+  .forEach(el => el.addEventListener('change', reloadNumbers));
 
 let searchTimer;
 function searchDrivers(q) {

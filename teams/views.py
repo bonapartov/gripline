@@ -1023,16 +1023,21 @@ def team_apply(request, stage_id):
                         pass
                 race_class = (RaceClass.objects.filter(pk=race_class_id).first()
                               if str(race_class_id or '').isdigit() else None)
-                if chosen_number is not None and chosen_number not in stage.get_available_numbers(race_class=race_class):
+                participation = request.POST.get('participation')
+                if participation not in {c[0] for c in stage.participation_choices()}:
+                    participation = Application.PARTICIPATION_RACE
+                if chosen_number is not None and chosen_number not in stage.get_available_numbers(
+                        race_class=race_class, participation=participation):
                     messages.error(request, f'Номер {chosen_number} уже занят или зарезервирован. Выберите другой.')
                     return redirect('teams:team_apply', stage_id=stage.pk)
 
-                entry_fee = stage.entry_fee or 0
+                entry_fee = stage.fee_for(participation) or 0
 
                 app = Application.objects.create(
                     stage=stage,
                     submitted_by=request.user,
                     submitted_by_type='team',
+                    participation=participation,
                     race_class_id=race_class_id or None,
                     start_number=chosen_number,
                     status='draft',
@@ -1070,6 +1075,7 @@ def team_apply(request, stage_id):
                 return redirect('applications:detail', application_id=app.pk)
 
     available_numbers = stage.get_available_numbers()
+    participation_choices = stage.participation_choices()
 
     return render(request, 'teams/team_apply.html', {
         'stage': stage,
@@ -1077,6 +1083,8 @@ def team_apply(request, stage_id):
         'members': members,
         'classes': classes,
         'available_numbers': available_numbers,
+        'participation_choices': participation_choices,
+        'fees': {code: stage.fee_for(code) for code, _ in participation_choices},
         'rep_first_name': request.user.first_name,
         'rep_last_name': request.user.last_name,
         'rep_email': request.user.email,

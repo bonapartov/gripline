@@ -59,7 +59,7 @@
                     <tbody>
                         {% for app in apps %}
                         <tr>
-                            <td class="text-warning fw-bold">{{ app.start_number|default:"—" }}</td>
+                            <td class="text-warning fw-bold">{{ app.start_number|default:"—" }}{% if stage.has_training %}<div class="small text-info fw-normal">{{ app.get_participation_display }}</div>{% endif %}</td>
                             <td>
                                 {% if app.pilot.driver %}
                                 <a href="{{ app.pilot.driver.get_absolute_url }}" class="text-info text-decoration-none">{{ app.pilot.full_name }}</a>

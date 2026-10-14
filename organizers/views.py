@@ -794,20 +794,22 @@ def stage_numbers(request, stage_id):
         if n not in numbers_map or STATUS_PRIORITY.get(app.status, 9) < STATUS_PRIORITY.get(numbers_map[n].status, 9):
             numbers_map[n] = app
 
-    if stage.start_number_digits == 2:
-        all_numbers = list(range(10, 100))
+    # При УТС — две сетки: 2-значные (этап, УТС + этап) и 3-значные (только УТС).
+    from applications.models import Application as _A
+    if stage.has_training:
+        sections = [('Этап и «УТС + этап»', stage.number_range(_A.PARTICIPATION_RACE)),
+                    ('Только УТС', stage.number_range(_A.PARTICIPATION_TRAINING))]
     else:
-        all_numbers = list(range(100, 1000))
+        sections = [(None, stage.number_range())]
+    all_numbers = [n for _, rng in sections for n in rng]
 
     reserved = set(stage.reserved_start_numbers or [])
 
-    grid_data = []
-    for n in all_numbers:
-        grid_data.append({
-            'number': n,
-            'app': numbers_map.get(n),
-            'reserved': n in reserved and n not in numbers_map,
-        })
+    grids = [{
+        'title': title,
+        'cells': [{'number': n, 'app': numbers_map.get(n), 'reserved': n in reserved and n not in numbers_map}
+                  for n in rng],
+    } for title, rng in sections]
 
     total_taken = len(numbers_map)
     total_reserved = len([n for n in reserved if n not in numbers_map])
@@ -815,7 +817,7 @@ def stage_numbers(request, stage_id):
 
     return render(request, 'organizers/stage_numbers.html', {
         'stage': stage,
-        'grid_data': grid_data,
+        'grids': grids,
         'total_all': len(all_numbers),
         'total_taken': total_taken,
         'total_free': total_free,
@@ -855,10 +857,9 @@ def reassign_number(request, stage_id):
     if new_number in taken or new_number in reserved:
         return JsonResponse({'success': False, 'error': 'Номер занят или зарезервирован'})
 
-    if stage.start_number_digits == 2 and not (10 <= new_number <= 99):
-        return JsonResponse({'success': False, 'error': 'Номер вне диапазона'})
-    if stage.start_number_digits == 3 and not (100 <= new_number <= 999):
-        return JsonResponse({'success': False, 'error': 'Номер вне диапазона'})
+    rng = stage.number_range(app.participation)
+    if new_number not in rng:
+        return JsonResponse({'success': False, 'error': f'Номер вне диапазона {rng.start}–{rng.stop - 1}'})
 
     app.start_number = new_number
     app.save()

@@ -51,9 +51,11 @@
         <span><span class="legend-box" style="background:#2a2a35; border:1px solid #444"></span> Свободен</span>
     </div>
 
-    <!-- Сетка -->
+    <!-- Сетка (при УТС — две: 2-значные и 3-значные) -->
+    {% for grid in grids %}
+    {% if grid.title %}<h5 class="text-info mt-4 mb-2" style="font-size:.95rem;">{{ grid.title }}</h5>{% endif %}
     <div class="numbers-grid">
-        {% for cell in grid_data %}
+        {% for cell in grid.cells %}
             {% if cell.app %}
                 {% if cell.app.status == 'confirmed' %}
                     <div class="num-cell num-confirmed clickable"
@@ -68,6 +70,7 @@
                     data-class="{% if cell.app.race_class %}{{ cell.app.race_class.name }}{% else %}—{% endif %}"
                     data-status="{{ cell.app.get_status_display }}"
                     data-fee="{{ cell.app.entry_fee_amount }}"
+                    data-participation="{% if stage.has_training %}{{ cell.app.get_participation_display }}{% endif %}"
                     onclick="showNumberInfo(this)">
                     {{ cell.number }}
                 </div>
@@ -78,6 +81,7 @@
             {% endif %}
         {% endfor %}
     </div>
+    {% endfor %}
 </div>
 
 <!-- Модал: информация о номере -->
@@ -115,8 +119,8 @@
                 <label class="form-label">Новый номер</label>
                 <input type="number" id="rNewNumber" class="form-control"
                     style="background:#15151c; border:1px solid #2a2a35; color:white;"
-                    min="{% if stage.start_number_digits == 2 %}10{% else %}100{% endif %}"
-                    max="{% if stage.start_number_digits == 2 %}99{% else %}999{% endif %}">
+                    min="{% if stage.has_training or stage.start_number_digits == 2 %}10{% else %}100{% endif %}"
+                    max="{% if stage.has_training or stage.start_number_digits == 3 %}999{% else %}99{% endif %}">
                 <div id="rError" class="text-danger small mt-2"></div>
             </div>
             <div class="modal-footer border-secondary">
@@ -143,7 +147,7 @@ function showNumberInfo(el) {
     currentAppId = el.dataset.appId;
     document.getElementById('mNumber').textContent = el.dataset.number;
     document.getElementById('mPilot').textContent = el.dataset.pilot;
-    document.getElementById('mClass').textContent = el.dataset.class;
+    document.getElementById('mClass').textContent = el.dataset.class + (el.dataset.participation ? ' · ' + el.dataset.participation : '');
     document.getElementById('mFee').textContent = el.dataset.fee;
     const statusEl = document.getElementById('mStatus');
     statusEl.textContent = el.dataset.status;

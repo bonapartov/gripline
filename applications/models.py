@@ -19,8 +19,20 @@ class Application(models.Model):
         ('cancelled', 'Отменена'),
     ]
 
+    PARTICIPATION_RACE = 'race'
+    PARTICIPATION_TRAINING_RACE = 'training_race'
+    PARTICIPATION_TRAINING = 'training'
+    PARTICIPATION_CHOICES = [
+        (PARTICIPATION_RACE, 'Только этап'),
+        (PARTICIPATION_TRAINING_RACE, 'УТС + этап'),
+        (PARTICIPATION_TRAINING, 'Только УТС'),
+    ]
+
     stage = models.ForeignKey(
         'organizers.Stage', on_delete=models.CASCADE, related_name='applications'
+    )
+    participation = models.CharField(
+        'Участие', max_length=20, choices=PARTICIPATION_CHOICES, default=PARTICIPATION_RACE,
     )
     submitted_by = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='submitted_applications'

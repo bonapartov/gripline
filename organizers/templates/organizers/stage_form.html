@@ -120,10 +120,39 @@
                     <small class="text-muted d-block mt-1">{{ form.late_registration_fee_multiplier.help_text }}</small>
                 </div>
 
-                <div class="mb-3">
+                <div class="mb-3" id="digitsBlock">
                     <label class="form-label">{{ form.start_number_digits.label }}</label>
                     {{ form.start_number_digits }}
                 </div>
+
+                <hr style="border-color:#2a2a35;">
+                <h5 class="text-info text-uppercase mb-3" style="font-size:0.9rem;">УТС перед этапом</h5>
+                <div class="form-check mb-2">
+                    {{ form.has_training }}
+                    <label class="form-check-label text-white" for="{{ form.has_training.id_for_label }}">{{ form.has_training.label }}</label>
+                    <small class="text-muted d-block mt-1">{{ form.has_training.help_text }}</small>
+                </div>
+                <div class="row" id="trainingBlock">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.training_start.label }}</label>
+                        {{ form.training_start }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.training_fee.label }}</label>
+                        {{ form.training_fee }}
+                    </div>
+                </div>
+                <script>
+                (function () {
+                    const cb = document.getElementById('{{ form.has_training.id_for_label }}');
+                    function sync() {
+                        document.getElementById('trainingBlock').style.display = cb.checked ? '' : 'none';
+                        // При УТС формат номеров задан правилом (10–99 и 100–999)
+                        document.getElementById('digitsBlock').style.display = cb.checked ? 'none' : '';
+                    }
+                    cb.addEventListener('change', sync); sync();
+                })();
+                </script>
 
                 {% if championship.tyre_mode == 'per_stage' %}
                 <hr style="border-color:#2a2a35;">

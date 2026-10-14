@@ -262,6 +262,9 @@
         {% if entry_fee %}
         <p class="text-muted small mb-3">Стартовый взнос: <strong class="text-white">{{ entry_fee }} ₽</strong></p>
         {% endif %}
+        {% if org_stage.has_training %}
+        <p class="text-muted small mb-3">Перед этапом — УТС{% if org_stage.training_start %} {{ org_stage.training_start|date:"d.m.Y H:i" }}{% endif %}, взнос за УТС: <strong class="text-white">{{ org_stage.training_fee|floatformat:0 }} ₽</strong>. Можно заявиться только на УТС, на УТС + этап или только на этап.</p>
+        {% endif %}
 
         {% if my_applications %}
         <div class="mb-3">

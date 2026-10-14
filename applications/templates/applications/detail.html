@@ -110,6 +110,7 @@
         <div class="app-section-title">Пилот</div>
         <div class="kv"><span class="k">ФИО</span><span class="v">{{ application.pilot.full_name }}</span></div>
         <div class="kv"><span class="k">Класс</span><span class="v">{{ application.race_class.name }}</span></div>
+        {% if application.stage.has_training %}<div class="kv"><span class="k">Участие</span><span class="v">{{ application.get_participation_display }}</span></div>{% endif %}
         {% if application.pilot.birth_date %}<div class="kv"><span class="k">Дата рождения</span><span class="v">{{ application.pilot.birth_date|date:"d.m.Y" }}{% if application.pilot.is_minor %} <span class="badge bg-warning text-dark">несовершеннолетний</span>{% endif %}</span></div>{% endif %}
         {% if application.pilot.license_number %}<div class="kv"><span class="k">Лицензия</span><span class="v">{{ application.pilot.license_number }}</span></div>{% endif %}
         {% if application.pilot.phone %}<div class="kv"><span class="k">Телефон</span><span class="v">{{ application.pilot.phone }}</span></div>{% endif %}

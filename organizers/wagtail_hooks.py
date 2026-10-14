@@ -1,16 +1,91 @@
+from django import forms
+from django.contrib.auth.models import User
+from django.db import transaction
+from wagtail.admin.panels import FieldPanel, ObjectList
+from wagtail_modeladmin.helpers import PermissionHelper
 from wagtail_modeladmin.options import ModelAdmin, ModelAdminGroup, modeladmin_register
+from wagtail_modeladmin.views import EditView
 from applications.wagtail_hooks import ApplicationAdmin
 from .models import OrganizerProfile, Championship, Stage, OrganizerSettings
+
+
+class OrganizerUserForm(forms.ModelForm):
+    """Имя и email учётной записи организатора (вход — по email)."""
+    class Meta:
+        model = User
+        fields = ['last_name', 'first_name', 'email']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['email'].required = True
+        self.use_required_attribute = False
+
+    def clean_email(self):
+        email = self.cleaned_data['email'].strip()
+        if User.objects.filter(email__iexact=email).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError('Этот email уже занят другим пользователем.')
+        return email
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        # Логин организатора совпадает с email (OrganizerRegistrationForm) — меняем вместе.
+        if self.instance.username.lower() == (self.initial.get('email') or '').lower():
+            user.username = user.email
+        if commit:
+            user.save()
+        return user
+
+
+class OrganizerEditView(EditView):
+    """Профиль организатора и его учётная запись — одной формой."""
+
+    def user_form(self):
+        if not hasattr(self, '_user_form'):
+            data = self.request.POST if self.request.method == 'POST' else None
+            self._user_form = OrganizerUserForm(data, prefix='user', instance=self.instance.user)
+        return self._user_form
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['user_form'] = self.user_form()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        form = self.get_form()
+        user_form = self.user_form()
+        if not (form.is_valid() & user_form.is_valid()):
+            return self.form_invalid(form)
+        with transaction.atomic():
+            user_form.save()
+            return self.form_valid(form)
+
+
+class NoCreatePermissionHelper(PermissionHelper):
+    """Организатор регистрируется сам (/organizers/register/) — «Добавить» в админке не нужен."""
+    def user_can_create(self, user):
+        return False
 
 
 class OrganizerProfileAdmin(ModelAdmin):
     model = OrganizerProfile
     menu_label = "Организаторы"
     menu_icon = "user"
-    list_display = ('user_email', 'phone', 'telegram', 'status', 'created_at')
+    permission_helper_class = NoCreatePermissionHelper
+    edit_view_class = OrganizerEditView
+    edit_template_name = 'organizers/admin/organizer_edit.html'
+    list_display = ('user_name', 'user_email', 'phone', 'telegram', 'status', 'created_at')
     search_fields = ('user__email', 'user__first_name', 'user__last_name', 'phone')
     list_filter = ('status', 'created_at')
     ordering = ('-created_at',)
+    list_select_related = ('user',)
+    edit_handler = ObjectList([
+        FieldPanel('status'), FieldPanel('phone'), FieldPanel('telegram'), FieldPanel('website'),
+        FieldPanel('photo'), FieldPanel('commission_percent'), FieldPanel('commission_payer'),
+    ])
+
+    def user_name(self, obj):
+        return obj.user.get_full_name() or '—'
+    user_name.short_description = 'Имя'
 
     def user_email(self, obj):
         return obj.user.email

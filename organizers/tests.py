@@ -19,6 +19,13 @@ from .views import _sync_championship_docs_to_stages, _sync_championship_opts_to
 
 class OrganizerFixture(TestCase):
     def setUp(self):
+        # --no-migrations → дерева Wagtail нет, а шаблоны кабинета читают LayoutSettings сайта.
+        from django.conf import settings
+        from wagtail.coreutils import get_supported_content_language_variant
+        from wagtail.models import Locale, Page, Site
+        Locale.objects.get_or_create(language_code=get_supported_content_language_variant(settings.LANGUAGE_CODE))
+        Site.objects.create(hostname='testserver', root_page=Page.add_root(title='Root', slug='root'),
+                            is_default_site=True)
         self.org_user = User.objects.create_user(username='org', email='org@example.com', password='x')
         self.organizer = OrganizerProfile.objects.create(user=self.org_user, status='active')
         self.championship = Championship.objects.create(
@@ -204,3 +211,140 @@ class NotificationAndNumberTests(OrganizerFixture):
         self.assertTrue(self.client.post(url, {'app_id': mine.id, 'new_number': 22}).json()['success'])
         self.application(start_number=33, race_class=self.mini, status='submitted')
         self.assertFalse(self.client.post(url, {'app_id': mine.id, 'new_number': 33}).json()['success'])
+
+
+class TrainingSessionTests(OrganizerFixture):
+    """УТС перед этапом: «только УТС» — номера 100–999 и взнос УТС; «УТС + этап» и
+    «только этап» — 10–99; «УТС + этап» платит оба взноса."""
+
+    def setUp(self):
+        super().setUp()
+        self.stage.entry_fee = 8000
+        self.stage.has_training = True
+        self.stage.training_fee = 3000
+        self.stage.save()
+
+    def test_choices_and_fees(self):
+        self.assertEqual([c for c, _ in self.stage.participation_choices()], ['race', 'training_race', 'training'])
+        self.assertEqual(self.stage.fee_for('race'), 8000)
+        self.assertEqual(self.stage.fee_for('training_race'), 11000)
+        self.assertEqual(self.stage.fee_for('training'), 3000)
+
+    def test_number_ranges(self):
+        self.assertEqual(self.stage.number_range('training'), range(100, 1000))
+        self.assertEqual(self.stage.number_range('training_race'), range(10, 100))
+        self.assertEqual(self.stage.get_available_numbers(self.mini, 'training')[0], 100)
+        self.assertEqual(self.stage.get_available_numbers(self.mini, 'race')[-1], 99)
+
+    def test_without_training_only_race_and_stage_format(self):
+        self.stage.has_training = False
+        self.stage.start_number_digits = 3
+        self.stage.save()
+        self.assertEqual([c for c, _ in self.stage.participation_choices()], ['race'])
+        self.assertEqual(self.stage.fee_for('training'), 8000)
+        self.assertEqual(self.stage.number_range('training'), range(100, 1000))
+        self.assertEqual(self.stage.number_range('race'), range(100, 1000))
+
+    def test_numbers_api_respects_participation(self):
+        resp = self.client.get(f'/applications/apply/{self.stage.id}/numbers/',
+                               {'class_id': self.mini.id, 'participation': 'training'})
+        self.assertEqual(resp.json()['numbers'][0], 100)
+
+    def test_limit_counts_only_race_participants(self):
+        self.stage.max_participants = 1
+        self.stage.save()
+        self.application(participation='training', status='submitted')
+        self.assertIsNone(self.stage.registration_closed_reason())
+        self.application(participation='training_race', status='submitted')
+        self.assertIn('Мест нет', self.stage.registration_closed_reason())
+
+    def test_reassign_checks_participation_range(self):
+        app = self.application(participation='training', start_number=150, status='confirmed')
+        self.client.force_login(self.org_user)
+        url = f'/organizers/stage/{self.stage.id}/numbers/reassign/'
+        self.assertFalse(self.client.post(url, {'app_id': app.id, 'new_number': 15}).json()['success'])
+        self.assertTrue(self.client.post(url, {'app_id': app.id, 'new_number': 151}).json()['success'])
+
+    def test_numbers_page_shows_two_grids(self):
+        self.client.force_login(self.org_user)
+        resp = self.client.get(f'/organizers/stage/{self.stage.id}/numbers/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.context['grids']), 2)
+        self.assertEqual(resp.context['total_all'], 990)
+
+
+class AdminCardsTests(OrganizerFixture):
+    def setUp(self):
+        super().setUp()
+        self.admin = User.objects.create_superuser('admin', 'admin@example.com', 'x')
+        self.client.force_login(self.admin)
+
+    def test_application_card_edits_all_registration_sections(self):
+        from applications.models import ApplicationPayment, ApplicationPilot, StageOption
+        app = self.application(status='submitted', entry_fee_amount=1000)
+        ApplicationPilot.objects.create(application=app, first_name='Иван', last_name='Петров')
+        ApplicationPayment.objects.create(application=app, amount=1000)
+        opt = StageOption.objects.create(stage=self.stage, name='Транспондер', price=500)
+        url = f'/admin/applications/application/edit/{app.id}/'
+        self.assertEqual(self.client.get(url).status_code, 200)
+        data = {
+            'status': 'confirmed', 'participation': 'race', 'race_class': self.junior.id, 'start_number': 42,
+            'entry_fee_amount': 1000, 'submitted_by_type': 'pilot', 'organizer_comment': 'ок',
+            'pilot-last_name': 'Петров', 'pilot-first_name': 'Иван', 'pilot-citizenship': 'Россия',
+            'pilot-country': 'Россия', 'pilot-city': 'Гатчина',
+            'kart-chassis_brand': 'Tony Kart', 'kart-engine_1': 'Rotax',
+            'payment-amount': 1500, 'payment-method': 'manual', 'payment-status': 'verified',
+            'docs-TOTAL_FORMS': 0, 'docs-INITIAL_FORMS': 0,
+            'ach-TOTAL_FORMS': 1, 'ach-INITIAL_FORMS': 0,
+            'ach-0-competition_name': 'Кубок СПб', 'ach-0-year': 2025, 'ach-0-achievement': '1 место', 'ach-0-order': 0,
+            'options': [opt.id],
+        }
+        resp = self.client.post(url, data)
+        if resp.status_code != 302:
+            ctx = resp.context
+            self.fail([ctx['form'].errors] + [s['form'].errors for s in ctx['related']['sections']]
+                      + [ctx['related']['documents'].errors, ctx['related']['achievements'].errors])
+        app.refresh_from_db()
+        self.assertEqual((app.status, app.start_number, app.race_class_id), ('confirmed', 42, self.junior.id))
+        self.assertEqual(app.pilot.city, 'Гатчина')
+        self.assertEqual(app.kart.chassis_brand, 'Tony Kart')
+        self.assertFalse(hasattr(app, 'mechanic') and app.mechanic.pk)
+        self.assertEqual(app.payment.status, 'verified')
+        self.assertEqual(app.achievements.get().competition_name, 'Кубок СПб')
+        self.assertEqual(list(app.selected_options.values_list('option_id', flat=True)), [opt.id])
+
+    def test_organizer_card_edits_account_and_profile(self):
+        url = f'/admin/organizers/organizerprofile/edit/{self.organizer.id}/'
+        self.assertEqual(self.client.get(url).status_code, 200)
+        resp = self.client.post(url, {
+            'user-last_name': 'Сидоров', 'user-first_name': 'Пётр', 'user-email': 'new-org@example.com',
+            'status': 'active', 'phone': '+79990000000', 'telegram': '@org', 'website': '',
+            'commission_percent': '', 'commission_payer': '',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.org_user.refresh_from_db()
+        self.organizer.refresh_from_db()
+        self.assertEqual((self.org_user.last_name, self.org_user.email), ('Сидоров', 'new-org@example.com'))
+        self.assertEqual(self.organizer.phone, '+79990000000')
+
+    def test_organizer_email_must_be_unique(self):
+        url = f'/admin/organizers/organizerprofile/edit/{self.organizer.id}/'
+        resp = self.client.post(url, {
+            'user-last_name': 'X', 'user-first_name': 'Y', 'user-email': 'pilot@example.com', 'status': 'active',
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.org_user.refresh_from_db()
+        self.assertEqual(self.org_user.email, 'org@example.com')
+
+
+class TrainingApplyFormTests(OrganizerFixture):
+    def test_apply_form_offers_three_options_with_prices(self):
+        self.stage.entry_fee, self.stage.has_training, self.stage.training_fee = 8000, True, 3000
+        self.stage.save()
+        DriverClaim.objects.create(user=self.pilot, requested_first_name='И', requested_last_name='П', status='approved')
+        self.client.force_login(self.pilot)
+        resp = self.client.get(f'/applications/apply/{self.stage.id}/')
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        for label in ('Только этап — 8000 ₽', 'УТС + этап — 11000 ₽', 'Только УТС — 3000 ₽'):
+            self.assertIn(label, html)

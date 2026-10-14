@@ -139,6 +139,12 @@ class Stage(models.Model):
         choices=[(2, '2-значные (10–99)'), (3, '3-значные (100–999)')],
         verbose_name='Формат стартовых номеров'
     )
+    # УТС (учебно-тренировочная сессия) перед этапом — опция организатора. Если включена,
+    # пилот выбирает участие: только УТС (3-значный номер), УТС + этап или только этап
+    # (2-значный номер); start_number_digits в этом случае не используется.
+    has_training = models.BooleanField(default=False, verbose_name='Перед этапом проводится УТС')
+    training_start = models.DateTimeField(null=True, blank=True, verbose_name='Дата и время УТС')
+    training_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Взнос за УТС')
     reserved_start_numbers = models.JSONField(
         default=list, blank=True,
         verbose_name='Зарезервированные номера',
@@ -153,6 +159,44 @@ class Stage(models.Model):
         from applications.models import Application
         return Application.objects.filter(stage=self).exclude(status__in=['rejected', 'cancelled'])
 
+    def race_applications(self):
+        """Активные заявки тех, кто едет этап (без «только УТС») — для лимита участников."""
+        from applications.models import Application
+        return self.active_applications().exclude(participation=Application.PARTICIPATION_TRAINING)
+
+    def participation_choices(self):
+        """Варианты участия для формы заявки; без УТС — только этап."""
+        from applications.models import Application
+        if not self.has_training:
+            return [c for c in Application.PARTICIPATION_CHOICES if c[0] == Application.PARTICIPATION_RACE]
+        return list(Application.PARTICIPATION_CHOICES)
+
+    def number_range(self, participation=None):
+        """Диапазон стартовых номеров: при УТС «только УТС» — 100–999, остальные — 10–99;
+        без УТС — по формату этапа."""
+        from applications.models import Application
+        if self.has_training:
+            return range(100, 1000) if participation == Application.PARTICIPATION_TRAINING else range(10, 100)
+        return range(10, 100) if self.start_number_digits == 2 else range(100, 1000)
+
+    def entry_fee_now(self):
+        """Взнос за этап с учётом позднего множителя после дедлайна."""
+        from django.utils import timezone
+        fee = self.entry_fee
+        if (self.late_registration_allowed and self.registration_deadline
+                and timezone.now() > self.registration_deadline):
+            fee = fee * self.late_registration_fee_multiplier
+        return fee
+
+    def fee_for(self, participation=None):
+        """Взнос по варианту участия: этап, УТС + этап (оба взноса) или только УТС."""
+        from applications.models import Application
+        if not self.has_training or participation in (None, '', Application.PARTICIPATION_RACE):
+            return self.entry_fee_now()
+        if participation == Application.PARTICIPATION_TRAINING:
+            return self.training_fee
+        return self.entry_fee_now() + self.training_fee
+
     def registration_closed_reason(self):
         """None, если заявку подать можно, иначе — причина для участника."""
         from django.utils import timezone
@@ -162,18 +206,16 @@ class Stage(models.Model):
                 and not self.late_registration_allowed):
             deadline = timezone.localtime(self.registration_deadline).strftime('%d.%m.%Y %H:%M')
             return f'Срок регистрации истёк {deadline}.'
-        if self.max_participants and self.active_applications().count() >= self.max_participants:
+        if self.max_participants and self.race_applications().count() >= self.max_participants:
             return f'Мест нет: набрано {self.max_participants} участников.'
         return None
 
-    def get_available_numbers(self, race_class=None):
+    def get_available_numbers(self, race_class=None, participation=None):
         """Возвращает список номеров доступных для выбора.
-        Если передан race_class — исключает только номера занятые в этом классе."""
+        Если передан race_class — исключает только номера занятые в этом классе;
+        диапазон зависит от варианта участия (number_range)."""
         from applications.models import Application
-        if self.start_number_digits == 2:
-            all_numbers = set(range(10, 100))
-        else:
-            all_numbers = set(range(100, 1000))
+        all_numbers = set(self.number_range(participation))
         reserved = set(self.reserved_start_numbers or [])
         qs = Application.objects.filter(
             stage=self,

@@ -146,13 +146,10 @@ def _stage_classes(stage):
     return stage.championship.race_classes.all()
 
 
-def _effective_entry_fee(stage):
-    """Учитывает поздний взнос если дедлайн прошёл"""
-    fee = stage.entry_fee
-    if (stage.late_registration_allowed and stage.registration_deadline
-            and timezone.now() > stage.registration_deadline):
-        fee = fee * stage.late_registration_fee_multiplier
-    return fee
+def _participation(stage, value):
+    """Вариант участия из формы; недопустимый для этапа — «только этап»."""
+    allowed = {c[0] for c in stage.participation_choices()}
+    return value if value in allowed else Application.PARTICIPATION_RACE
 
 
 @login_required(login_url='/choose-role/')
@@ -182,10 +179,16 @@ def apply(request, stage_id):
     from website.models import Team, Chassis, RaceClass
     stage_options = stage.options.filter(is_active=True)
     classes = list(_stage_classes(stage))
-    entry_fee = _effective_entry_fee(stage)
+    participation_choices = stage.participation_choices()
+    participation = _participation(stage, request.POST.get('participation') if request.method == 'POST'
+                                   else participation_choices[0][0])
+    entry_fee = stage.fee_for(participation)
     # Начальные номера для первого класса (или все если класс не выбран)
     first_class = classes[0] if classes else None
-    available_numbers = stage.get_available_numbers(race_class=first_class)
+    if request.method == 'POST' and str(request.POST.get('race_class') or '').isdigit():
+        from website.models import RaceClass as _RC
+        first_class = _RC.objects.filter(pk=request.POST['race_class']).first() or first_class
+    available_numbers = stage.get_available_numbers(race_class=first_class, participation=participation)
     teams = list(Team.objects.values_list('name', flat=True).order_by('name'))
     chassis_list = list(Chassis.objects.values_list('name', flat=True).order_by('name'))
     default_tyres = stage.championship.default_tyres.all()
@@ -231,6 +234,7 @@ def apply(request, stage_id):
                 stage=stage,
                 submitted_by=request.user,
                 submitted_by_type=submitted_by_type,
+                participation=participation,
                 race_class_id=race_class_id,
                 start_number=chosen_number,
                 status='draft',
@@ -338,6 +342,9 @@ def apply(request, stage_id):
         'available_numbers': available_numbers,
         'stage_options': stage_options,
         'entry_fee': entry_fee,
+        'participation': participation,
+        'participation_choices': participation_choices,
+        'fees': {code: stage.fee_for(code) for code, _ in participation_choices},
         'pilot_form': pilot_form,
         'applicant_form': applicant_form,
         'kart_form': kart_form,
@@ -651,5 +658,6 @@ def available_numbers_api(request, stage_id):
     if race_class_id:
         from website.models import RaceClass
         race_class = RaceClass.objects.filter(pk=race_class_id).first()
-    numbers = stage.get_available_numbers(race_class=race_class)
+    participation = _participation(stage, request.GET.get('participation'))
+    numbers = stage.get_available_numbers(race_class=race_class, participation=participation)
     return JsonResponse({'numbers': numbers})

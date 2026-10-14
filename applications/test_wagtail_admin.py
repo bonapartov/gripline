@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from applications.models import (
     Application, ApplicationApplicant, ApplicationDocument, ApplicationOption,
-    ApplicationPayment, ApplicationPilot, StageDocument, StageOption,
+    ApplicationKart, ApplicationMechanic, ApplicationPayment, ApplicationPilot, StageDocument, StageOption,
 )
 from organizers.models import Championship, OrganizerProfile, Stage
 
@@ -80,14 +80,27 @@ def test_inspect_works_for_application_without_related_data(staff, db):
     assert 'p2@example.com' in staff.get('/admin/applications/application/').content.decode()   # без пилота — email заявителя
 
 
-def test_edit_changes_only_allowed_fields(staff, app):
+def test_edit_saves_card_without_filling_empty_sections(staff, app):
+    """Карточка редактирует все поля регистрации; пилот обязателен, пустой необязательный
+    раздел (механик) не создаётся. Этап из карточки не меняется."""
     url = f'/admin/applications/application/edit/{app.pk}/'
     assert staff.get(url).status_code == 200
-    resp = staff.post(url, {'status': 'confirmed', 'organizer_comment': 'Принято', 'start_number': 12, 'race_class': ''})
+    resp = staff.post(url, {
+        'status': 'confirmed', 'participation': 'race', 'organizer_comment': 'Принято', 'start_number': 12,
+        'race_class': '', 'entry_fee_amount': '3000', 'submitted_by_type': 'pilot',
+        'pilot-last_name': 'Петров', 'pilot-first_name': 'Иван', 'pilot-citizenship': 'Россия', 'pilot-country': 'Россия',
+        # пилот, заявитель и оплата у заявки есть (страница шлёт их поля заполненными), карт создаётся
+        'applicant-type': 'individual', 'kart-chassis_brand': 'Tony Kart', 'kart-engine_1': 'Rotax',
+        'payment-amount': '3000', 'payment-method': 'manual', 'payment-status': 'pending',
+        'docs-TOTAL_FORMS': 0, 'docs-INITIAL_FORMS': 0, 'ach-TOTAL_FORMS': 0, 'ach-INITIAL_FORMS': 0,
+    })
     assert resp.status_code == 302
     app.refresh_from_db()
     assert (app.status, app.organizer_comment, app.start_number) == ('confirmed', 'Принято', 12)
-    assert app.entry_fee_amount == Decimal('3000') and app.stage.title == '1 этап'   # остальное не тронуто
+    assert app.entry_fee_amount == Decimal('3000') and app.stage.title == '1 этап'
+    assert app.pilot.full_name == 'Петров Иван'
+    assert app.kart.chassis_brand == 'Tony Kart'
+    assert not ApplicationMechanic.objects.filter(application=app).exists()
 
 
 def test_create_not_available_in_admin(staff, app):
@@ -106,3 +119,15 @@ def test_dashboard_links_to_wagtail_admin(db):
     urls = {i['label']: i['url'] for i in data.attention_items()}
     assert urls['Заявки на участие в этапах'].startswith('/admin/applications/application/')
     assert urls['Заявки на управление командой'].startswith('/admin/teams/teamclaim/')
+
+
+def test_edit_requires_pilot(staff, app):
+    url = f'/admin/applications/application/edit/{app.pk}/'
+    resp = staff.post(url, {
+        'status': 'confirmed', 'participation': 'race', 'race_class': '', 'entry_fee_amount': '3000',
+        'submitted_by_type': 'pilot', 'docs-TOTAL_FORMS': 0, 'docs-INITIAL_FORMS': 0,
+        'ach-TOTAL_FORMS': 0, 'ach-INITIAL_FORMS': 0,
+    })
+    assert resp.status_code == 200   # форма с ошибкой, ничего не сохранено
+    app.refresh_from_db()
+    assert app.status != 'confirmed'

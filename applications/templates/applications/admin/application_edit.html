@@ -1,0 +1,46 @@
+{% extends "modeladmin/edit.html" %}
+{% load wagtailadmin_tags %}
+
+{% block form %}
+    <p class="help-block">Заявка №{{ view.instance.pk }} · {{ view.instance.stage }} · подана {{ view.instance.get_submitted_by_type_display|lower }} ({{ view.instance.submitted_by.email }}).
+        Файлы документов и квитанции здесь не показываются — их открывают заявитель и организатор этапа.</p>
+    {{ block.super }}
+
+    {% for section in related.sections %}
+        <h2 class="w-mt-8">{{ section.title }}</h2>
+        {% include "wagtailadmin/shared/non_field_errors.html" with form=section.form %}
+        {% for field in section.form %}{% include "wagtailadmin/shared/field.html" %}{% endfor %}
+    {% endfor %}
+
+    <h2 class="w-mt-8">Документы</h2>
+    {{ related.documents.management_form }}
+    {% for form in related.documents %}
+        <fieldset class="w-mb-6">
+            <legend><strong>{{ form.instance.stage_document.name }}</strong>{% if form.instance.file %} · файл загружен {{ form.instance.uploaded_at|date:"d.m.Y H:i" }}{% else %} · файла нет{% endif %}</legend>
+            {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+            {% for field in form.visible_fields %}{% include "wagtailadmin/shared/field.html" %}{% endfor %}
+        </fieldset>
+    {% empty %}
+        <p>Документы для этого этапа не запрашивались.</p>
+    {% endfor %}
+
+    <h2 class="w-mt-8">Достижения</h2>
+    {{ related.achievements.management_form }}
+    {% for form in related.achievements %}
+        <fieldset class="w-mb-6">
+            {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+            {% include "wagtailadmin/shared/non_field_errors.html" %}
+            {% for field in form.visible_fields %}{% include "wagtailadmin/shared/field.html" %}{% endfor %}
+        </fieldset>
+    {% endfor %}
+
+    <h2 class="w-mt-8">Доп. опции этапа</h2>
+    {% for opt, checked in stage_options %}
+        <label style="display:block;margin-bottom:.5rem">
+            <input type="checkbox" name="options" value="{{ opt.id }}"{% if checked %} checked{% endif %}>
+            {{ opt.name }} — {{ opt.price }} ₽{% if opt.is_mandatory %} (обязательная){% endif %}{% if not opt.is_active %} (недоступна для новых заявок){% endif %}
+        </label>
+    {% empty %}
+        <p>У этапа нет доп. опций.</p>
+    {% endfor %}
+{% endblock %}

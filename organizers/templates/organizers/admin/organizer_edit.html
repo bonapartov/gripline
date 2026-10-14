@@ -1,0 +1,11 @@
+{% extends "modeladmin/edit.html" %}
+
+{% block form %}
+    <h2>Учётная запись</h2>
+    {% include "wagtailadmin/shared/non_field_errors.html" with form=user_form %}
+    {% for field in user_form %}{% include "wagtailadmin/shared/field.html" %}{% endfor %}
+    <p class="help-block">Email — это логин организатора. Пароль организатор меняет сам через «Забыли пароль».</p>
+
+    <h2 class="w-mt-8">Профиль организатора</h2>
+    {{ block.super }}
+{% endblock %}
