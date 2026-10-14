@@ -140,11 +140,17 @@ class Stage(models.Model):
         verbose_name='Формат стартовых номеров'
     )
     # УТС (учебно-тренировочная сессия) перед этапом — опция организатора. Если включена,
-    # пилот выбирает участие: только УТС (3-значный номер), УТС + этап или только этап
-    # (2-значный номер); start_number_digits в этом случае не используется.
+    # пилот выбирает участие: только этап, УТС + этап или только УТС. Формат номеров для
+    # «только УТС» организатор выбирает сам: совпадает с форматом этапа — номерная база
+    # общая, отличается — у «только УТС» свой диапазон.
     has_training = models.BooleanField(default=False, verbose_name='Перед этапом проводится УТС')
     training_start = models.DateTimeField(null=True, blank=True, verbose_name='Дата и время УТС')
     training_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Взнос за УТС')
+    training_number_digits = models.PositiveIntegerField(
+        default=2,
+        choices=[(2, '2-значные (10–99)'), (3, '3-значные (100–999)')],
+        verbose_name='Номера для участников «только УТС»',
+    )
     reserved_start_numbers = models.JSONField(
         default=list, blank=True,
         verbose_name='Зарезервированные номера',
@@ -171,13 +177,22 @@ class Stage(models.Model):
             return [c for c in Application.PARTICIPATION_CHOICES if c[0] == Application.PARTICIPATION_RACE]
         return list(Application.PARTICIPATION_CHOICES)
 
+    @staticmethod
+    def _digits_range(digits):
+        return range(10, 100) if digits == 2 else range(100, 1000)
+
     def number_range(self, participation=None):
-        """Диапазон стартовых номеров: при УТС «только УТС» — 100–999, остальные — 10–99;
-        без УТС — по формату этапа."""
+        """Диапазон стартовых номеров: «только УТС» — по формату номеров УТС, все, кто едет
+        этап (в т.ч. «УТС + этап»), — по формату этапа. При одинаковом формате база общая:
+        номер в классе занимает любая активная заявка."""
         from applications.models import Application
-        if self.has_training:
-            return range(100, 1000) if participation == Application.PARTICIPATION_TRAINING else range(10, 100)
-        return range(10, 100) if self.start_number_digits == 2 else range(100, 1000)
+        if self.has_training and participation == Application.PARTICIPATION_TRAINING:
+            return self._digits_range(self.training_number_digits)
+        return self._digits_range(self.start_number_digits)
+
+    def separate_training_numbers(self):
+        """У «только УТС» свой диапазон номеров (формат отличается от этапа)."""
+        return self.has_training and self.training_number_digits != self.start_number_digits
 
     def entry_fee_now(self):
         """Взнос за этап с учётом позднего множителя после дедлайна."""

@@ -56,7 +56,7 @@ class StageForm(forms.ModelForm):
             'registration_enabled', 'registration_deadline',
             'late_registration_allowed', 'late_registration_fee_multiplier',
             'max_participants', 'start_number_digits', 'stage_tyres',
-            'has_training', 'training_start', 'training_fee',
+            'has_training', 'training_start', 'training_fee', 'training_number_digits',
         ]
         widgets = {
             'start_date': forms.DateTimeInput(format='%Y-%m-%dT%H:%M', attrs={'type': 'datetime-local', 'class': 'form-control'}),
@@ -74,6 +74,7 @@ class StageForm(forms.ModelForm):
             'has_training': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'training_start': forms.DateTimeInput(format='%Y-%m-%dT%H:%M', attrs={'type': 'datetime-local', 'class': 'form-control'}),
             'training_fee': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
+            'training_number_digits': forms.Select(attrs={'class': 'form-select'}),
         }
         labels = {
             'title': 'Название этапа',
@@ -87,16 +88,18 @@ class StageForm(forms.ModelForm):
             'late_registration_allowed': 'Допустить позднюю регистрацию',
             'late_registration_fee_multiplier': 'Множитель позднего взноса',
             'max_participants': 'Макс. участников (пусто = без лимита)',
-            'start_number_digits': 'Формат стартовых номеров',
+            'start_number_digits': 'Формат стартовых номеров этапа',
             'has_training': 'Перед этапом проводится УТС',
             'training_start': 'Дата и время УТС',
             'training_fee': 'Взнос за УТС (₽)',
+            'training_number_digits': 'Номера для участников «только УТС»',
         }
         help_texts = {
             'title': 'Используйте формат: "1 этап", "2 этап" и т.д. Название будет отображаться в итоговой таблице',
             'late_registration_fee_multiplier': 'Во сколько раз увеличивается взнос после дедлайна (например, 2 = двойной)',
-            'has_training': 'Пилот выбирает: только УТС (номер 100–999), УТС + этап или только этап (номер 10–99). '
-                            '«УТС + этап» платит оба взноса.',
+            'has_training': 'Пилот выбирает: только этап, УТС + этап или только УТС. «УТС + этап» платит оба взноса.',
+            'training_number_digits': 'Тот же формат, что у этапа, — номера общие для всех. Другой формат — '
+                                      'у «только УТС» свой диапазон. «УТС + этап» получает номер этапа.',
         }
 
     def __init__(self, *args, **kwargs):

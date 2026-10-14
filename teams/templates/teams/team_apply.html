@@ -118,7 +118,7 @@
         </label>
         {% endfor %}
       </div>
-      <div class="text-muted mt-1" style="font-size:.75rem;">«Только УТС» — номер 100–999, «УТС + этап» и «Только этап» — 10–99.</div>
+      {% if stage.separate_training_numbers %}<div class="text-muted mt-1" style="font-size:.75rem;">«Только УТС» — {{ stage.get_training_number_digits_display }}, «УТС + этап» и «Только этап» — {{ stage.get_start_number_digits_display }} номера.</div>{% endif %}
     </div>
     {% endif %}
 

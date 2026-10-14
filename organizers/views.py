@@ -794,9 +794,9 @@ def stage_numbers(request, stage_id):
         if n not in numbers_map or STATUS_PRIORITY.get(app.status, 9) < STATUS_PRIORITY.get(numbers_map[n].status, 9):
             numbers_map[n] = app
 
-    # При УТС — две сетки: 2-значные (этап, УТС + этап) и 3-значные (только УТС).
+    # Если у «только УТС» свой формат номеров — две сетки, иначе одна общая.
     from applications.models import Application as _A
-    if stage.has_training:
+    if stage.separate_training_numbers():
         sections = [('Этап и «УТС + этап»', stage.number_range(_A.PARTICIPATION_RACE)),
                     ('Только УТС', stage.number_range(_A.PARTICIPATION_TRAINING))]
     else:

@@ -120,7 +120,7 @@
                     <small class="text-muted d-block mt-1">{{ form.late_registration_fee_multiplier.help_text }}</small>
                 </div>
 
-                <div class="mb-3" id="digitsBlock">
+                <div class="mb-3">
                     <label class="form-label">{{ form.start_number_digits.label }}</label>
                     {{ form.start_number_digits }}
                 </div>
@@ -141,14 +141,17 @@
                         <label class="form-label">{{ form.training_fee.label }}</label>
                         {{ form.training_fee }}
                     </div>
+                    <div class="col-12 mb-3">
+                        <label class="form-label">{{ form.training_number_digits.label }}</label>
+                        {{ form.training_number_digits }}
+                        <small class="text-muted d-block mt-1">{{ form.training_number_digits.help_text }}</small>
+                    </div>
                 </div>
                 <script>
                 (function () {
                     const cb = document.getElementById('{{ form.has_training.id_for_label }}');
                     function sync() {
                         document.getElementById('trainingBlock').style.display = cb.checked ? '' : 'none';
-                        // При УТС формат номеров задан правилом (10–99 и 100–999)
-                        document.getElementById('digitsBlock').style.display = cb.checked ? 'none' : '';
                     }
                     cb.addEventListener('change', sync); sync();
                 })();

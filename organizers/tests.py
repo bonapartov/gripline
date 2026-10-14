@@ -214,14 +214,15 @@ class NotificationAndNumberTests(OrganizerFixture):
 
 
 class TrainingSessionTests(OrganizerFixture):
-    """УТС перед этапом: «только УТС» — номера 100–999 и взнос УТС; «УТС + этап» и
-    «только этап» — 10–99; «УТС + этап» платит оба взноса."""
+    """УТС перед этапом с отдельными 3-значными номерами для «только УТС»; «УТС + этап»
+    и «только этап» — номера этапа (10–99); «УТС + этап» платит оба взноса."""
 
     def setUp(self):
         super().setUp()
         self.stage.entry_fee = 8000
         self.stage.has_training = True
         self.stage.training_fee = 3000
+        self.stage.training_number_digits = 3
         self.stage.save()
 
     def test_choices_and_fees(self):
@@ -235,6 +236,31 @@ class TrainingSessionTests(OrganizerFixture):
         self.assertEqual(self.stage.number_range('training_race'), range(10, 100))
         self.assertEqual(self.stage.get_available_numbers(self.mini, 'training')[0], 100)
         self.assertEqual(self.stage.get_available_numbers(self.mini, 'race')[-1], 99)
+
+    def test_shared_number_pool_when_formats_match(self):
+        """Формат номеров УТС совпадает с этапом — номера общие: «только УТС» не может взять
+        номер, занятый участником этапа в том же классе, а в другом классе — может."""
+        self.stage.training_number_digits = 2
+        self.stage.save()
+        self.assertFalse(self.stage.separate_training_numbers())
+        self.assertEqual(self.stage.number_range('training'), range(10, 100))
+        self.application(participation='race', start_number=17, status='confirmed')
+        self.assertNotIn(17, self.stage.get_available_numbers(self.mini, 'training'))
+        self.assertIn(17, self.stage.get_available_numbers(self.junior, 'training'))
+
+    def test_shared_pool_numbers_page_has_one_grid(self):
+        self.stage.training_number_digits = 2
+        self.stage.save()
+        self.client.force_login(self.org_user)
+        resp = self.client.get(f'/organizers/stage/{self.stage.id}/numbers/')
+        self.assertEqual(len(resp.context['grids']), 1)
+        self.assertEqual(resp.context['total_all'], 90)
+
+    def test_three_digit_stage_with_two_digit_training(self):
+        self.stage.start_number_digits, self.stage.training_number_digits = 3, 2
+        self.stage.save()
+        self.assertEqual(self.stage.number_range('training_race'), range(100, 1000))
+        self.assertEqual(self.stage.number_range('training'), range(10, 100))
 
     def test_without_training_only_race_and_stage_format(self):
         self.stage.has_training = False
@@ -339,6 +365,7 @@ class AdminCardsTests(OrganizerFixture):
 
 class TrainingApplyFormTests(OrganizerFixture):
     def test_apply_form_offers_three_options_with_prices(self):
+        # формат номеров УТС по умолчанию совпадает с этапом — общая база номеров
         self.stage.entry_fee, self.stage.has_training, self.stage.training_fee = 8000, True, 3000
         self.stage.save()
         DriverClaim.objects.create(user=self.pilot, requested_first_name='И', requested_last_name='П', status='approved')
