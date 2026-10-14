@@ -83,6 +83,23 @@
         letter-spacing: 0.03em;
     }
     .head-box a { color: #ffc107; text-decoration: none; }
+    /* Карточка чемпионата/этапа: описание слева, одинаковая колонка действий справа */
+    .item-row { display: flex; gap: 1rem; align-items: flex-start; }
+    .item-info { flex: 1; min-width: 0; }
+    .item-actions { flex: 0 0 240px; display: flex; flex-direction: column; gap: 0.5rem; }
+    .item-actions form { margin: 0; }
+    .act-icons { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: flex-end; }
+    .act-btn {
+        width: 40px; height: 40px; padding: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 1rem; border-radius: 6px;
+    }
+    .act-wide { width: 100%; font-weight: 600; padding: 0.45rem 0.75rem; }
+    @media (max-width: 768px) {
+        .item-row { flex-direction: column; }
+        .item-actions { flex-basis: auto; width: 100%; }
+        .act-icons { justify-content: flex-start; }
+    }
     @media (max-width: 768px) {
         .two-columns {
             flex-direction: column;
@@ -173,8 +190,8 @@
                 {% if championships %}
                     {% for champ in championships|dictsortreversed:"created_at" %}
                     <div class="mb-3 pb-2 border-bottom border-secondary">
-                        <div class="d-flex justify-content-between align-items-start flex-wrap">
-                            <div class="d-flex">
+                        <div class="item-row">
+                            <div class="d-flex item-info">
                                 {% if champ.cover_image %}
                                     <img src="{{ champ.cover_image.file.url }}" alt="{{ champ.title }}" style="width: 150px; height: 150px; object-fit: cover; border-radius: 8px; margin-right: 15px;">
                                 {% else %}
@@ -210,46 +227,38 @@
                                     {% endif %}
                                 </div>
                             </div>
-                            <div class="mt-2 mt-sm-0">
-                                <a href="{% url 'organizers:stage_create' champ.id %}" class="btn btn-sm btn-outline-info">
-                                    <i class="fas fa-plus me-1"></i>Этап
-                                </a>
-                                <a href="{% url 'organizers:championship_edit' champ.id %}" class="btn btn-sm btn-outline-warning ms-1">
-                                    <i class="fas fa-edit me-1"></i>
-                                </a>
-                                {% if champ.registration_mode == 'all' %}
-                                <a href="{% url 'organizers:championship_reg_settings' champ.id %}" class="btn btn-sm btn-outline-info ms-1" title="Настройки регистрации">
-                                    <i class="fas fa-cog"></i>
-                                </a>
-                                {% endif %}
-                                <button type="button" class="btn btn-sm btn-outline-danger ms-1" data-bs-toggle="modal" data-bs-target="#deleteModal{{ champ.id }}">
-                                    <i class="fas fa-trash me-1"></i>
-                                </button>
-                                {% if champ.wagtail_page %}
-                                <a href="{{ champ.wagtail_page.url }}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1">
-                                    <i class="fas fa-external-link-alt me-1"></i>
-                                </a>
-                                {% endif %}
-                                <!-- Color picker -->
-                                <button type="button" class="btn btn-sm btn-outline-secondary ms-1"
-                                        style="width:28px; height:28px; padding:0; border-radius:4px; background:{{ champ.color|default:'#e63946' }}; border:2px solid #666;"
-                                        title="Цвет в календаре"
-                                        onclick="openColorPicker({{ champ.id }}, '{{ champ.color|default:'#e63946' }}')">
-                                </button>
-                            </div>
-                        </div>
-                        <!-- Статус публикации — нижний правый угол -->
-                        <div class="d-flex justify-content-end mt-2">
-                            <form method="post" action="{% url 'organizers:championship_toggle_publish' champ.id %}">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-sm {% if champ.is_published %}btn-success{% else %}btn-secondary{% endif %}" style="min-width:140px;">
-                                    {% if champ.is_published %}
-                                        <i class="fas fa-eye me-1"></i>Опубликован
-                                    {% else %}
-                                        <i class="fas fa-eye-slash me-1"></i>Черновик
+                            <div class="item-actions">
+                                <div class="act-icons">
+                                    {% if champ.wagtail_page %}
+                                    <a href="{{ champ.wagtail_page.url }}" target="_blank" class="btn btn-outline-secondary act-btn" title="Открыть на сайте">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </a>
                                     {% endif %}
-                                </button>
-                            </form>
+                                    <a href="{% url 'organizers:championship_edit' champ.id %}" class="btn btn-outline-warning act-btn" title="Редактировать">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% if champ.registration_mode == 'all' %}
+                                    <a href="{% url 'organizers:championship_reg_settings' champ.id %}" class="btn btn-outline-info act-btn" title="Настройки регистрации">
+                                        <i class="fas fa-cog"></i>
+                                    </a>
+                                    {% endif %}
+                                    <button type="button" class="btn act-btn" title="Цвет в календаре"
+                                            style="background:{{ champ.color|default:'#e63946' }}; border:2px solid #666;"
+                                            onclick="openColorPicker({{ champ.id }}, '{{ champ.color|default:'#e63946' }}')"></button>
+                                    <button type="button" class="btn btn-outline-danger act-btn" title="Удалить" data-bs-toggle="modal" data-bs-target="#deleteModal{{ champ.id }}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                                <a href="{% url 'organizers:stage_create' champ.id %}" class="btn btn-outline-info act-wide">
+                                    <i class="fas fa-plus me-1"></i>Добавить этап
+                                </a>
+                                <form method="post" action="{% url 'organizers:championship_toggle_publish' champ.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn act-wide {% if champ.is_published %}btn-success{% else %}btn-secondary{% endif %}">
+                                        {% if champ.is_published %}<i class="fas fa-eye me-1"></i>Опубликован{% else %}<i class="fas fa-eye-slash me-1"></i>Черновик{% endif %}
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </div>
 
@@ -259,8 +268,8 @@
                     <div class="text-white-50 mt-3 mb-2" style="margin-left: 2rem; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.03em;">Этапы</div>
                     {% for stage in champ_stages %}
                     <div class="mb-2 pb-2 border-bottom border-secondary" style="margin-left: 2rem; border-left: 2px solid #2a2a35; padding-left: 1rem;">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
+                        <div class="item-row">
+                            <div class="item-info">
                                 <h6 class="text-warning mb-1"><i class="fas fa-flag-checkered me-1 text-muted" style="font-size:0.75rem;"></i>{{ stage.title }}</h6>
                                 <p class="text-white-50 small mb-1">📅 {{ stage.start_date|date:"d.m.Y H:i" }} — {{ stage.end_date|date:"d.m.Y H:i" }}</p>
                                 <p class="text-white-50 small mb-1">🏁 {{ stage.track }} &nbsp;·&nbsp; 💰 {{ stage.entry_fee }} ₽</p>
@@ -291,43 +300,42 @@
                                     {% if stage.reg_pending %}<span class="badge bg-warning text-dark ms-1">{{ stage.reg_pending }} новых</span>{% endif %}
                                 </p>
                             </div>
-                            <div class="d-flex flex-wrap gap-1 ms-2">
-                                {% if stage.wagtail_page %}
-                                <a href="{{ stage.wagtail_page.url }}" target="_blank" class="btn btn-sm btn-outline-info" title="Открыть">
-                                    <i class="fas fa-eye"></i>
+                            <div class="item-actions">
+                                <div class="act-icons">
+                                    {% if stage.wagtail_page %}
+                                    <a href="{{ stage.wagtail_page.url }}" target="_blank" class="btn btn-outline-secondary act-btn" title="Открыть на сайте">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </a>
+                                    {% endif %}
+                                    <a href="{% url 'organizers:stage_edit' stage.id %}" class="btn btn-outline-warning act-btn" title="Редактировать">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% if champ.registration_mode != 'all' %}
+                                    <a href="{% url 'organizers:stage_settings' stage.id %}" class="btn btn-outline-info act-btn" title="Настройки регистрации">
+                                        <i class="fas fa-cog"></i>
+                                    </a>
+                                    {% endif %}
+                                    <a href="{% url 'organizers:stage_numbers' stage.id %}" class="btn btn-outline-info act-btn" title="Стартовые номера">
+                                        <i class="fas fa-hashtag"></i>
+                                    </a>
+                                    <form method="post" action="{% url 'organizers:stage_delete' stage.id %}"
+                                          onsubmit="return confirm('Удалить этап «{{ stage.title|escapejs }}»? Все данные будут потеряны.');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-outline-danger act-btn" title="Удалить">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                <a href="{% url 'organizers:stage_registrations' stage.id %}" class="btn btn-outline-primary act-wide">
+                                    <i class="fas fa-users me-1"></i>Заявки ({{ stage.reg_count }}){% if stage.reg_pending %} <span class="badge bg-warning text-dark ms-1">{{ stage.reg_pending }} новых</span>{% endif %}
                                 </a>
-                                {% endif %}
-                                <a href="{% url 'organizers:stage_registrations' stage.id %}" class="btn btn-sm btn-outline-primary" title="Регистрации">
-                                    <i class="fas fa-users"></i>
-                                </a>
-                                {% if champ.registration_mode != 'all' %}
-                                <a href="{% url 'organizers:stage_settings' stage.id %}" class="btn btn-sm btn-outline-info" title="Настройки">
-                                    <i class="fas fa-cog"></i>
-                                </a>
-                                {% endif %}
-                                <a href="{% url 'organizers:stage_edit' stage.id %}" class="btn btn-sm btn-outline-warning" title="Редактировать">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <form method="post" action="{% url 'organizers:stage_delete' stage.id %}" class="d-inline"
-                                      onsubmit="return confirm('Удалить этап «{{ stage.title|escapejs }}»? Все данные будут потеряны.');">
+                                <form method="post" action="{% url 'organizers:stage_toggle_publish' stage.id %}">
                                     {% csrf_token %}
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
-                                        <i class="fas fa-trash"></i>
+                                    <button type="submit" class="btn act-wide {% if stage.is_published %}btn-success{% else %}btn-secondary{% endif %}">
+                                        {% if stage.is_published %}<i class="fas fa-eye me-1"></i>Опубликован{% else %}<i class="fas fa-eye-slash me-1"></i>Черновик{% endif %}
                                     </button>
                                 </form>
                             </div>
-                        </div>
-                        <div class="d-flex justify-content-end mt-1">
-                            <form method="post" action="{% url 'organizers:stage_toggle_publish' stage.id %}">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-sm {% if stage.is_published %}btn-success{% else %}btn-secondary{% endif %}" style="min-width:120px;">
-                                    {% if stage.is_published %}
-                                        <i class="fas fa-eye me-1"></i>Опубликован
-                                    {% else %}
-                                        <i class="fas fa-eye-slash me-1"></i>Черновик
-                                    {% endif %}
-                                </button>
-                            </form>
                         </div>
                     </div>
                     {% endfor %}

@@ -389,3 +389,11 @@ class DashboardHeaderTests(OrganizerFixture):
         self.assertLess(head.index('help@example.com'), head.index('Иван Петров'))
         self.assertIn('tel:+7 900 000-00-00', head)
         self.assertNotIn('Условия оплаты', html)   # оплата выключена — левой колонки нет
+
+    def test_champ_and_stage_actions_share_one_layout(self):
+        self.client.force_login(self.org_user)
+        html = self.client.get('/organizers/dashboard/').content.decode()
+        self.assertEqual(html.count('class="item-actions"'), 2)   # чемпионат и его этап
+        self.assertIn('Добавить этап', html)
+        self.assertIn(f'/organizers/stage/{self.stage.id}/registrations/', html)
+        self.assertIn(f'/organizers/stage/{self.stage.id}/numbers/', html)
