@@ -324,7 +324,7 @@ def _step_kart_applicant(request, stage, application):
     from website.models import Chassis
     return _render(request, stage, application, 3, {
         'kart_form': kart_form, 'mech_form': mech_form, 'applicant_form': applicant_form,
-        'chassis_list': list(Chassis.objects.values_list('name', flat=True).order_by('name')),
+        'chassis_list': list(Chassis.objects.filter(live=True).values_list('name', flat=True).order_by('name')),
         'tyres_fixed': bool(tyres),
     })
 

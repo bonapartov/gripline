@@ -175,12 +175,14 @@
             <div class="app-section-title">Карт</div>
             <div class="row g-3">
                 {% for f in kart_form %}{% if f.name != 'ad_consent' %}
-                <div class="col-md-4">
+                <div class="col-md-4{% if f.name == 'chassis_brand' %} ac-wrap{% endif %}">
                     <label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %}*{% endif %}</label>
                     {% if f.name == 'chassis_brand' %}
                         <input type="text" name="{{ f.html_name }}" id="{{ f.id_for_label }}" value="{{ f.value|default:'' }}"
-                               class="form-control{% if f.errors %} is-invalid{% endif %}" list="chassisList" autocomplete="off" required>
-                        <datalist id="chassisList">{% for ch in chassis_list %}<option value="{{ ch }}">{% endfor %}</datalist>
+                               class="form-control{% if f.errors %} is-invalid{% endif %}" autocomplete="off" required
+                               placeholder="выберите из списка" role="combobox" aria-controls="chassisSuggest">
+                        <div class="ac-list" id="chassisSuggest" role="listbox"></div>
+                        {{ chassis_list|json_script:"chassisData" }}
                     {% elif f.name == 'tires' and tyres_fixed %}
                         <input type="text" name="{{ f.html_name }}" value="{{ f.value|default:'' }}" class="form-control" readonly>
                         <div class="helptext">Определено организатором</div>
@@ -422,6 +424,45 @@
         {% if form.driver_pick.value == 'new' %}showBadge('<b>Новый пилот.</b> Профиль появится на сайте после проверки администратором.');
         {% else %}showBadge('Пилот из базы: <b>' + esc(lastName.value + ' ' + (firstName ? firstName.value : '')) + '</b>. После проверки администратором заявка привяжется к его профилю.');{% endif %}
         {% endif %}
+    }
+
+    // Шаг 3: марка шасси — выпадающий список из базы (фильтр при вводе; своё значение можно оставить)
+    const chassis = document.getElementById('id_kart-chassis_brand');
+    const chassisBox = document.getElementById('chassisSuggest');
+    if (chassis && chassisBox) {
+        const all = JSON.parse(document.getElementById('chassisData').textContent);
+        const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        let shown = [], active = -1;
+        function close() { chassisBox.classList.remove('open'); active = -1; }
+        function render() {
+            const q = chassis.value.trim().toLowerCase();
+            shown = all.filter(n => !q || n.toLowerCase().includes(q)).slice(0, 60);
+            const exact = all.some(n => n.toLowerCase() === q);
+            let html = shown.map((n, i) => '<div class="ac-item" role="option" data-v="' + esc(n) + '">' + esc(n) + '</div>').join('');
+            if (q && !exact) html += '<div class="ac-item ac-new" role="option" data-v="' + esc(chassis.value.trim()) + '">Нет в списке — оставить «' + esc(chassis.value.trim()) + '»</div>';
+            chassisBox.innerHTML = html || '<div class="ac-item text-muted">Список пуст — впишите марку</div>';
+            chassisBox.classList.add('open');
+        }
+        function choose(v) { chassis.value = v; chassis.classList.remove('is-invalid'); close(); }
+        chassis.addEventListener('focus', render);
+        chassis.addEventListener('click', render);
+        chassis.addEventListener('input', render);
+        chassis.addEventListener('keydown', e => {
+            const els = chassisBox.querySelectorAll('.ac-item[data-v]');
+            if (!chassisBox.classList.contains('open') || !els.length) return;
+            if (e.key === 'ArrowDown') { active = (active + 1) % els.length; e.preventDefault(); }
+            else if (e.key === 'ArrowUp') { active = (active - 1 + els.length) % els.length; e.preventDefault(); }
+            else if (e.key === 'Enter' && active >= 0) { e.preventDefault(); choose(els[active].dataset.v); return; }
+            else if (e.key === 'Escape') { close(); return; }
+            else return;
+            els.forEach((el, i) => el.classList.toggle('active', i === active));
+            els[active].scrollIntoView({ block: 'nearest' });
+        });
+        chassisBox.addEventListener('mousedown', e => {
+            const el = e.target.closest('.ac-item[data-v]'); if (!el) return;
+            e.preventDefault(); choose(el.dataset.v);
+        });
+        document.addEventListener('click', e => { if (!e.target.closest('.ac-wrap')) close(); });
     }
 
     // Шаг 2: блок родителя для несовершеннолетних

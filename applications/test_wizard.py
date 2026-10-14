@@ -214,6 +214,17 @@ class LoggedInWizardTests(WizardFixture):
         self.assertContains(resp, str(tyre))
         self.assertContains(resp, 'Определено организатором')
 
+    def test_chassis_dropdown_lists_published_brands(self, deliver):
+        from website.models import Chassis
+        Chassis.objects.create(name='Tony Kart')
+        Chassis.objects.create(name='Скрытое шасси', live=False)
+        self.step1()
+        self.client.post(self.url(2), PILOT)
+        resp = self.client.get(self.url(3))
+        self.assertContains(resp, 'id="chassisData"')
+        self.assertContains(resp, '"Tony Kart"')
+        self.assertNotContains(resp, 'Скрытое шасси')
+
     def test_draft_resumes_from_next_step(self, deliver):
         self.step1()
         resp = self.client.get(f'/applications/apply/{self.stage.id}/')
