@@ -292,9 +292,13 @@ def _step_kart_applicant(request, stage, application):
     if applicant is None:
         pilot = _related(application, 'pilot')
         app_initial = {'type': 'individual', 'name': pilot.full_name if pilot else ''}
-    tyres = list(stage.championship.default_tyres.all())
-    if tyres and not kart_initial.get('tires'):
-        kart_initial['tires'] = ', '.join(t.name for t in tyres)
+    # Шины задаёт организатор: на весь чемпионат или на каждый этап отдельно.
+    from organizers.models import Championship
+    tyre_source = (stage.stage_tyres if stage.championship.tyre_mode == Championship.TYRE_MODE_PER_STAGE
+                   else stage.championship.default_tyres)
+    tyres = list(tyre_source.select_related('brand', 'type'))
+    if tyres:
+        kart_initial['tires'] = ', '.join(str(t) for t in tyres)
 
     data = request.POST if request.method == 'POST' else None
     kart_form = StepKartForm(data, instance=kart, initial=kart_initial, prefix='kart')

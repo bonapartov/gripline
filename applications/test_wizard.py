@@ -201,6 +201,19 @@ class LoggedInWizardTests(WizardFixture):
         resp = self.client.get(self.url(5))
         self.assertContains(resp, 'Медсправка')          # предупреждение о документах на шаге ⑤
 
+    def test_step3_with_organizer_tyres(self, deliver):
+        """Регресс прода 14.10: у Tyre нет поля name — шаг ③ падал 500, если организатор задал шины."""
+        from website.models import Tyre, TyreBrand, TyreType
+        brand = TyreBrand.objects.create(name='MG')
+        tyre = Tyre.objects.create(brand=brand, type=TyreType.objects.create(name=TyreType._meta.get_field('name').choices[0][0]))
+        self.stage.championship.default_tyres.set([tyre])
+        self.step1()
+        self.client.post(self.url(2), PILOT)
+        resp = self.client.get(self.url(3))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, str(tyre))
+        self.assertContains(resp, 'Определено организатором')
+
     def test_draft_resumes_from_next_step(self, deliver):
         self.step1()
         resp = self.client.get(f'/applications/apply/{self.stage.id}/')
