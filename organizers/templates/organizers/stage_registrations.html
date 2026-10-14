@@ -74,6 +74,7 @@
                                     <span class="{% if app.docs_verified == app.docs_total %}pay-ok{% else %}pay-wait{% endif %}">
                                         {{ app.docs_verified }}/{{ app.docs_total }}
                                     </span>
+                                    {% if app.docs_missing %}<div class="pay-no small">не полные: нет {{ app.docs_missing }}</div>{% endif %}
                                 {% else %}<span class="text-muted">—</span>{% endif %}
                             </td>
                             <td>
@@ -103,6 +104,22 @@
     <div class="text-center text-muted py-5">
         <i class="fas fa-clipboard-list fa-3x mb-3 d-block opacity-25"></i>
         Заявок пока нет
+    </div>
+    {% endif %}
+
+    {% if drafts_count %}
+    <p class="text-muted small">Черновиков в процессе заполнения: {{ drafts_count }}. Участники их ещё не отправили, но номера за ними уже закреплены.</p>
+    {% endif %}
+
+    {% if withdrawn %}
+    <div class="reg-card mt-4">
+        <div class="text-muted fw-bold text-uppercase small mb-3">Отозваны участниками ({{ withdrawn|length }})</div>
+        {% for app in withdrawn %}
+        <div class="d-flex flex-wrap justify-content-between gap-2 py-1 border-bottom border-secondary small">
+            <span>{{ app.pilot.full_name|default:app.submitted_by.email }} · {{ app.race_class.name|default:"—" }}{% if app.start_number %} · №{{ app.start_number }} освобождён{% endif %}</span>
+            <span class="text-muted">{{ app.withdrawn_at|date:"d.m.Y H:i" }}{% if app.withdraw_reason %} — {{ app.withdraw_reason }}{% endif %}</span>
+        </div>
+        {% endfor %}
     </div>
     {% endif %}
 

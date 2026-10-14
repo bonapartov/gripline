@@ -34,7 +34,7 @@
     {% endfor %}
   {% endif %}
 
-  <form method="post" id="applyForm">
+  <form method="post" id="applyForm" data-validate novalidate>
     {% csrf_token %}
     <input type="hidden" name="driver_id" id="selectedDriverId">
     <input type="hidden" name="start_number" id="selectedNumber">

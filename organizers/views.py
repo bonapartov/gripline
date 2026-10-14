@@ -77,7 +77,7 @@ def dashboard(request):
                 'track': stage.track.name if stage.track else 'не указана',
                 'wagtail_page': stage.wagtail_page,
                 'is_published': stage.is_published,
-                'reg_count': app_qs.exclude(status__in=['cancelled', 'rejected']).count(),
+                'reg_count': app_qs.exclude(status__in=['cancelled', 'rejected', 'draft']).count(),
                 'reg_pending': app_qs.filter(status='submitted').count(),
                 'registration_enabled': stage.registration_enabled,
                 'registration_deadline': stage.registration_deadline,
@@ -748,10 +748,15 @@ def stage_registrations(request, stage_id):
     from applications.models import Application
     stage = get_object_or_404(Stage, pk=stage_id, championship__organizer__user=request.user)
 
+    # Черновики (мастер не пройден) организатору не показываем — только их число: они
+    # держат стартовые номера. Отозванные — отдельным списком.
+    drafts_count = Application.objects.filter(stage=stage, status='draft').count()
+    withdrawn = (Application.objects.filter(stage=stage, status='cancelled', withdrawn_at__isnull=False)
+                 .select_related('race_class', 'pilot').order_by('-withdrawn_at'))
     applications = Application.objects.filter(stage=stage).exclude(
-        status='cancelled'
+        status__in=['cancelled', 'draft']
     ).select_related('race_class', 'pilot', 'pilot__driver', 'payment').prefetch_related(
-        'documents'
+        'documents__stage_document'
     ).order_by('race_class__sort_order', 'race_class__name', 'start_number', 'created_at')
 
     by_class = {}
@@ -760,6 +765,7 @@ def stage_registrations(request, stage_id):
         docs = list(app.documents.all())
         app.docs_total = len(docs)
         app.docs_verified = sum(1 for d in docs if d.status == 'verified')
+        app.docs_missing = sum(1 for d in docs if d.status in ('pending', 'rejected') and d.stage_document.required)
         cls_name = app.race_class.name if app.race_class else 'Без класса'
         by_class.setdefault(cls_name, []).append(app)
 
@@ -771,6 +777,8 @@ def stage_registrations(request, stage_id):
         'by_class': by_class,
         'total': applications.count(),
         'pending_count': applications.filter(status='submitted').count(),
+        'drafts_count': drafts_count,
+        'withdrawn': withdrawn,
         'payments_enabled': payments_enabled,
     })
 

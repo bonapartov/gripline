@@ -1,10 +1,11 @@
 from django.urls import path
-from . import views
+from . import views, wizard
 
 app_name = 'applications'
 
 urlpatterns = [
-    path('apply/<int:stage_id>/', views.apply, name='apply'),
+    path('apply/<int:stage_id>/', wizard.wizard_start, name='apply'),
+    path('apply/<int:stage_id>/step/<int:step>/', wizard.wizard_step, name='wizard_step'),
     path('apply/<int:stage_id>/numbers/', views.available_numbers_api, name='available_numbers'),
     path('<int:application_id>/', views.detail, name='detail'),
     path('<int:application_id>/cancel/', views.cancel, name='cancel'),

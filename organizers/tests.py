@@ -149,7 +149,8 @@ class DuplicateApplicationTests(OrganizerFixture):
         DriverClaim.objects.create(user=self.pilot, requested_first_name='И', requested_last_name='П', status='approved')
         first = self.application(status='submitted')
         self.client.force_login(self.pilot)
-        resp = self.client.post(f'/applications/apply/{self.stage.id}/', {'race_class': self.mini.id})
+        resp = self.client.post(f'/applications/apply/{self.stage.id}/step/1/',
+                                {'participation': 'race', 'race_class': self.mini.id})
         self.assertRedirects(resp, f'/applications/{first.id}/', fetch_redirect_response=False)
         self.assertEqual(Application.objects.filter(stage=self.stage).count(), 1)
 
@@ -370,7 +371,7 @@ class TrainingApplyFormTests(OrganizerFixture):
         self.stage.save()
         DriverClaim.objects.create(user=self.pilot, requested_first_name='И', requested_last_name='П', status='approved')
         self.client.force_login(self.pilot)
-        resp = self.client.get(f'/applications/apply/{self.stage.id}/')
+        resp = self.client.get(f'/applications/apply/{self.stage.id}/', follow=True)
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
         for label in ('Только этап — 8000 ₽', 'УТС + этап — 11000 ₽', 'Только УТС — 3000 ₽'):

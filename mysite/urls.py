@@ -4,6 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import views as auth_views
+from accounts.views import VerifyingPasswordResetConfirmView
 from wagtail.contrib.sitemaps import Sitemap as WagtailPagesSitemap
 from wagtail.contrib.sitemaps.views import sitemap as wagtail_sitemap_view
 from website.models import Driver, Chassis, RaceResult, Track
@@ -75,8 +76,11 @@ urlpatterns = [
         extra_email_context={'expiry_minutes': settings.PASSWORD_RESET_TIMEOUT // 60},
     ), name='password_reset'),
     path('accounts/password-reset/done/', auth_views.PasswordResetDoneView.as_view(), name='password_reset_done'),
-    path('accounts/password-reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(
+    path('accounts/password-reset/<uidb64>/<token>/', VerifyingPasswordResetConfirmView.as_view(
         post_reset_login=True,
+        # Бэкендов несколько (axes, Yandex, VK, пароль) — без явного бэкенда автовход после
+        # сброса падал 500 (пароль при этом уже сменён).
+        post_reset_login_backend='django.contrib.auth.backends.ModelBackend',
         success_url=reverse_lazy('accounts:profile'),
     ), name='password_reset_confirm'),
     path('accounts/password-reset/complete/', auth_views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),

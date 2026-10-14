@@ -51,7 +51,7 @@
                 Название, даты, трасса, взнос и шины заблокированы. Доступно редактирование настроек регистрации.
             </div>
             {% endif %}
-            <form method="post">
+            <form method="post" data-validate novalidate>
                 {% csrf_token %}
                 
                 <div class="mb-3">

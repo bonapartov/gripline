@@ -5,19 +5,10 @@ from django.http import JsonResponse, FileResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.conf import settings
-from decimal import Decimal
 
 from website.mail import send_templated_mail
 from organizers.models import Stage
-from .models import (
-    Application, ApplicationApplicant, ApplicationPilot, ApplicationKart,
-    ApplicationMechanic, ApplicationOption, ApplicationDocument, ApplicationPayment,
-    StageOption, StageDocument,
-)
-from .forms import (
-    PilotForm, ApplicantForm, KartForm, MechanicForm,
-    prefill_from_profile, save_to_profile,
-)
+from .models import Application, ApplicationDocument, ApplicationPayment
 
 
 _NOTICES = {
@@ -152,210 +143,6 @@ def _participation(stage, value):
     return value if value in allowed else Application.PARTICIPATION_RACE
 
 
-@login_required(login_url='/choose-role/')
-def apply(request, stage_id):
-    """Подача заявки на этап — универсальная для пилота/команды/организатора"""
-    stage = get_object_or_404(Stage, pk=stage_id)
-
-    closed = stage.registration_closed_reason()
-    if closed:
-        messages.error(request, closed)
-        return redirect((stage.wagtail_page and stage.wagtail_page.url) or '/')
-
-    # Определяем тип подающего
-    submitted_by_type = 'pilot'
-    if hasattr(request.user, 'organizer_profile'):
-        submitted_by_type = 'organizer'
-    else:
-        # Только подтверждённые пилоты могут подавать заявки
-        from accounts.models import DriverClaim
-        is_confirmed_pilot = DriverClaim.objects.filter(
-            user=request.user, status='approved'
-        ).exists()
-        if not is_confirmed_pilot:
-            messages.error(request, 'Для подачи заявки необходим подтверждённый аккаунт пилота.')
-            return redirect('accounts:profile')
-
-    from website.models import Team, Chassis, RaceClass
-    stage_options = stage.options.filter(is_active=True)
-    classes = list(_stage_classes(stage))
-    participation_choices = stage.participation_choices()
-    participation = _participation(stage, request.POST.get('participation') if request.method == 'POST'
-                                   else participation_choices[0][0])
-    entry_fee = stage.fee_for(participation)
-    # Начальные номера для первого класса (или все если класс не выбран)
-    first_class = classes[0] if classes else None
-    if request.method == 'POST' and str(request.POST.get('race_class') or '').isdigit():
-        from website.models import RaceClass as _RC
-        first_class = _RC.objects.filter(pk=request.POST['race_class']).first() or first_class
-    available_numbers = stage.get_available_numbers(race_class=first_class, participation=participation)
-    teams = list(Team.objects.values_list('name', flat=True).order_by('name'))
-    chassis_list = list(Chassis.objects.values_list('name', flat=True).order_by('name'))
-    default_tyres = stage.championship.default_tyres.all()
-
-    if request.method == 'POST':
-        pilot_form = PilotForm(request.POST, prefix='pilot')
-        applicant_form = ApplicantForm(request.POST, prefix='applicant')
-        kart_form = KartForm(request.POST, prefix='kart')
-        mechanic_form = MechanicForm(request.POST, prefix='mechanic')
-
-        race_class_id = request.POST.get('race_class')
-        start_number = request.POST.get('start_number')
-
-        forms_valid = (pilot_form.is_valid() and applicant_form.is_valid()
-                       and kart_form.is_valid() and mechanic_form.is_valid())
-
-        # Валидация стартового номера
-        number_error = None
-        chosen_number = None
-        if start_number:
-            try:
-                chosen_number = int(start_number)
-                if chosen_number not in available_numbers:
-                    number_error = 'Этот номер уже занят. Выберите другой.'
-            except ValueError:
-                number_error = 'Некорректный номер.'
-
-        if not race_class_id:
-            messages.error(request, 'Выберите класс.')
-            forms_valid = False
-
-        if number_error:
-            messages.error(request, number_error)
-            forms_valid = False
-
-        duplicate = _duplicate_application(stage, request.user, submitted_by_type, race_class_id)
-        if race_class_id and duplicate:
-            messages.warning(request, 'Вы уже подали заявку на этот этап в этом классе.')
-            return redirect('applications:detail', application_id=duplicate.id)
-
-        if forms_valid:
-            application = Application.objects.create(
-                stage=stage,
-                submitted_by=request.user,
-                submitted_by_type=submitted_by_type,
-                participation=participation,
-                race_class_id=race_class_id,
-                start_number=chosen_number,
-                status='draft',
-                entry_fee_amount=entry_fee,
-            )
-
-            pilot = pilot_form.save(commit=False)
-            pilot.application = application
-            profile = getattr(request.user, 'profile', None)
-            if profile and profile.driver:
-                pilot.driver = profile.driver
-            pilot.save()
-
-            applicant = applicant_form.save(commit=False)
-            applicant.application = application
-            applicant.save()
-
-            kart = kart_form.save(commit=False)
-            kart.application = application
-            kart.save()
-
-            # Механик — только если заполнена фамилия
-            if mechanic_form.cleaned_data.get('last_name'):
-                mechanic = mechanic_form.save(commit=False)
-                mechanic.application = application
-                mechanic.save()
-
-            # Доп. опции
-            for opt in stage_options:
-                selected = request.POST.get(f'option_{opt.id}')
-                if opt.is_mandatory or selected:
-                    ApplicationOption.objects.create(
-                        application=application,
-                        option=opt,
-                        price_at_time=opt.price,
-                    )
-
-            # Создаём строки документов; пробуем подтянуть из хранилища пилота
-            is_minor = pilot.is_minor
-            vault_docs = {}
-            if profile:
-                from accounts.models import PilotDocument
-                from datetime import date as _date
-                for pd in profile.documents.all():
-                    if not pd.is_expired:
-                        vault_docs[pd.name.lower()] = pd
-
-            for doc in stage.required_documents.filter(is_active=True):
-                if doc.minors_only and not is_minor:
-                    continue
-                vault_match = vault_docs.get(doc.name.lower())
-                if vault_match:
-                    import shutil, os
-                    from django.core.files.base import ContentFile
-                    vault_match.file.seek(0)
-                    app_doc = ApplicationDocument(
-                        application=application,
-                        stage_document=doc,
-                        status='uploaded',
-                        uploaded_at=timezone.now(),
-                    )
-                    app_doc.file.save(
-                        os.path.basename(vault_match.file.name),
-                        ContentFile(vault_match.file.read()),
-                        save=False,
-                    )
-                    if vault_match.expiry_date:
-                        app_doc.expiry_date = vault_match.expiry_date
-                    app_doc.save()
-                else:
-                    ApplicationDocument.objects.create(
-                        application=application,
-                        stage_document=doc,
-                        status='pending',
-                    )
-
-            # Создаём запись об оплате
-            ApplicationPayment.objects.create(
-                application=application,
-                amount=application.get_total_amount(),
-                method='manual',
-                status='pending',
-            )
-
-            # Сохраняем данные обратно в профиль
-            save_to_profile(request.user, pilot_form.cleaned_data)
-
-            messages.success(request, 'Заявка создана! Загрузите документы и квитанцию, затем нажмите «Отправить заявку».')
-            return redirect('applications:detail', application_id=application.id)
-    else:
-        initial = prefill_from_profile(request.user)
-        pilot_form = PilotForm(prefix='pilot', initial=initial['pilot'])
-        # ФИО заблокированы для подтверждённых пилотов
-        from accounts.models import DriverClaim as _DC
-        if _DC.objects.filter(user=request.user, status='approved').exists():
-            pilot_form.fields['first_name'].widget.attrs['readonly'] = True
-            pilot_form.fields['last_name'].widget.attrs['readonly'] = True
-        applicant_form = ApplicantForm(prefix='applicant')
-        kart_form = KartForm(prefix='kart', initial=initial['kart'])
-        mechanic_form = MechanicForm(prefix='mechanic')
-
-    return render(request, 'applications/apply.html', {
-        'stage': stage,
-        'classes': classes,
-        'available_numbers': available_numbers,
-        'stage_options': stage_options,
-        'entry_fee': entry_fee,
-        'participation': participation,
-        'participation_choices': participation_choices,
-        'fees': {code: stage.fee_for(code) for code, _ in participation_choices},
-        'pilot_form': pilot_form,
-        'applicant_form': applicant_form,
-        'kart_form': kart_form,
-        'mechanic_form': mechanic_form,
-        'teams': teams,
-        'chassis_list': chassis_list,
-        'default_tyres': default_tyres,
-        'first_class_id': first_class.id if first_class else '',
-    })
-
-
 @login_required
 def detail(request, application_id):
     """Просмотр своей заявки + загрузка документов и квитанции"""
@@ -368,10 +155,15 @@ def detail(request, application_id):
         messages.error(request, 'У вас нет доступа к этой заявке.')
         return redirect('/')
 
+    in_wizard = application.status == 'draft' and application.submitted_by_type != 'team'
     return render(request, 'applications/detail.html', {
         'application': application,
         'is_owner': is_owner,
         'is_organizer': is_organizer,
+        'can_withdraw': is_owner and can_withdraw(application),
+        'in_wizard': in_wizard,
+        'wizard_url': reverse('applications:apply', args=[application.stage_id])
+                      + (f'?app={application.id}' if application.submitted_by_type == 'organizer' else ''),
         'documents': application.documents.select_related('stage_document'),
         'payment': getattr(application, 'payment', None),
     })
@@ -495,19 +287,63 @@ def serve_receipt(request, application_id):
     )
 
 
+def _notify_organizer_withdrawn(application):
+    """Письмо организатору: участник отозвал заявку (номер освобождён)."""
+    try:
+        stage = application.stage
+        organizer = stage.championship.organizer.user
+        pilot = getattr(application, 'pilot', None)
+        pilot_name = pilot.full_name if pilot else application.submitted_by.email
+        rows = [('Заявка', f'№{application.id}'), ('Пилот', pilot_name), ('Этап', stage.title)]
+        if application.start_number:
+            rows.append(('Освобождён номер', str(application.start_number)))
+        paid = getattr(getattr(application, 'payment', None), 'status', '') == 'verified'
+        subject = f'Заявка #{application.id} отозвана — {stage.title}'
+        send_templated_mail('application_update', subject, [organizer.email], {
+            'subject': subject,
+            'preheader': f'{pilot_name} отозвал заявку на {stage.title}.',
+            'status': 'bad', 'status_label': 'Отозвана', 'status_text': 'Отозвана',
+            'title': 'Участник отозвал заявку',
+            'lead': 'Стартовый номер освобождён и доступен другим участникам.'
+                    + (' Взнос по заявке был подтверждён — участник может обратиться к вам за возвратом.' if paid else ''),
+            'pilot_name': organizer.get_full_name() or organizer.email,
+            'rows': rows, 'comment': application.withdraw_reason, 'comment_label': 'Причина',
+            'button': 'Открыть заявку', 'link': _app_link(application),
+        }, fail_silently=True)
+    except Exception:
+        pass
+
+
+def can_withdraw(application):
+    """Отозвать можно активную заявку до начала этапа (после старта снимает только организатор)."""
+    return (application.status in ('draft', 'submitted', 'confirmed')
+            and application.stage.start_date > timezone.now())
+
+
 @login_required
 def cancel(request, application_id):
-    """Отмена заявки участником — освобождает стартовый номер"""
+    """Отзыв заявки участником (или удаление черновика): номер сразу освобождается."""
     application = get_object_or_404(Application, pk=application_id)
     if application.submitted_by != request.user:
         messages.error(request, 'Нет доступа.')
         return redirect('/')
+    if request.method != 'POST':
+        return redirect('applications:detail', application_id=application.id)
+    if not can_withdraw(application):
+        messages.error(request, 'Эту заявку уже нельзя отозвать — этап начался. Свяжитесь с организатором.')
+        return redirect('applications:detail', application_id=application.id)
 
-    if application.status in ('submitted', 'draft', 'confirmed'):
-        application.status = 'cancelled'
-        application.save()
-        messages.success(request, 'Заявка отменена. Стартовый номер освобождён.')
-
+    was_draft = application.status == 'draft'
+    application.status = 'cancelled'
+    application.withdrawn_at = timezone.now()
+    application.withdraw_reason = request.POST.get('reason', '').strip()[:1000]
+    application.save()
+    if was_draft:
+        messages.success(request, 'Черновик заявки удалён.')
+    else:
+        _notify_organizer_withdrawn(application)
+        messages.success(request, 'Заявка отозвана, стартовый номер освобождён. '
+                                  'По возврату взноса свяжитесь с организатором.')
     return redirect('applications:detail', application_id=application.id)
 
 

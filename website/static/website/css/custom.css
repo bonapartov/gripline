@@ -231,3 +231,22 @@ a:hover {
   margin-top: 10px;
   text-align: center;
 }
+
+/* ── Поля дат: тёмный нативный календарь, открытие кликом по полю (js/custom.js) ── */
+input[type="date"], input[type="datetime-local"], input[type="time"], input[type="month"], input[type="week"] {
+    color-scheme: dark;
+    cursor: pointer;
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator,
+input[type="week"]::-webkit-calendar-picker-indicator {
+    display: none;
+}
+
+/* ── Незаполненные обязательные поля: красная обводка (снимается после исправления) ── */
+.form-control.is-invalid, .form-select.is-invalid, input.is-invalid, select.is-invalid, textarea.is-invalid {
+    border-color: var(--gl-signal-danger) !important;
+    box-shadow: 0 0 0 0.15rem rgba(220, 53, 69, 0.25) !important;
+}

@@ -16,7 +16,7 @@ class Application(models.Model):
         ('submitted', 'Подана'),
         ('confirmed', 'Подтверждена'),
         ('rejected', 'Отклонена'),
-        ('cancelled', 'Отменена'),
+        ('cancelled', 'Отозвана'),
     ]
 
     PARTICIPATION_RACE = 'race'
@@ -50,6 +50,10 @@ class Application(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
+    # Мастер подачи: последний пройденный шаг черновика (0 — ничего не пройдено).
+    wizard_step = models.PositiveSmallIntegerField('Пройдено шагов мастера', default=0)
+    withdrawn_at = models.DateTimeField('Отозвана', null=True, blank=True)
+    withdraw_reason = models.TextField('Причина отзыва', blank=True)
 
     class Meta:
         verbose_name = 'Заявка'
@@ -94,6 +98,14 @@ class ApplicationApplicant(models.Model):
     rep_last_name = models.CharField(max_length=100, blank=True, verbose_name='Фамилия представителя')
     rep_email = models.EmailField(blank=True, verbose_name='Email представителя')
     rep_phone = models.CharField(max_length=30, blank=True, verbose_name='Телефон представителя')
+    # Команды нет в списке: вписана вручную, при отправке заявки создаётся TeamClaim на
+    # контакт (после одобрения он — менеджер), а при одобрении заявитель привязывается к Team.
+    new_team_city = models.CharField(max_length=100, blank=True, verbose_name='Город новой команды')
+    new_team_email = models.EmailField(blank=True, verbose_name='Email контакта новой команды')
+    team_claim = models.ForeignKey(
+        'teams.TeamClaim', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='applicants', verbose_name='Заявка на новую команду',
+    )
 
     class Meta:
         verbose_name = 'Заявитель'
@@ -117,6 +129,16 @@ class ApplicationPilot(models.Model):
     driver = models.ForeignKey(
         'website.Driver', on_delete=models.SET_NULL, null=True, blank=True,
         related_name='applications'
+    )
+    # Пилот без подтверждённого профиля: при отправке заявки создаётся DriverClaim (на
+    # выбранного из базы «это я» или на нового пилота); при одобрении заполняется driver.
+    requested_driver = models.ForeignKey(
+        'website.Driver', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+', verbose_name='Пилот из базы (на подтверждении)',
+    )
+    driver_claim = models.ForeignKey(
+        'accounts.DriverClaim', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='application_pilots', verbose_name='Заявка на профиль пилота',
     )
 
     # Личные данные

@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth import login, authenticate, logout
+from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.models import User
@@ -894,3 +895,17 @@ def yandex_role_switch(request):
             return redirect('teams:dashboard')
         return redirect('accounts:profile')
     return render(request, 'accounts/yandex_role_switch.html')
+
+
+class VerifyingPasswordResetConfirmView(auth_views.PasswordResetConfirmView):
+    """Сброс пароля по ссылке из письма доказывает владение email — отмечаем его
+    подтверждённым. Нужно учёткам, созданным мастером заявки на этап (новичок оставил
+    email, пароль задаёт через «Забыли пароль?»): иначе вход отклонил бы их как
+    неподтверждённых."""
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        from .models import UserProfile
+        UserProfile.objects.get_or_create(user=form.user)
+        confirm_email(form.user)
+        return response

@@ -1,0 +1,386 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block content %}
+<style>
+    .app-wrap { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    .app-card { background:#1a1a25; border:1px solid #2a2a35; border-radius:8px; padding:1.5rem; margin-bottom:1.5rem; }
+    .app-section-title { color:#0dcaf0; text-transform:uppercase; font-weight:bold; font-size:0.95rem; margin-bottom:1rem; border-bottom:1px solid #2a2a35; padding-bottom:0.5rem; }
+    .app-wrap label { color:#adb5bd; font-size:0.8rem; margin-bottom:0.25rem; display:block; }
+    .app-wrap .form-check-label, .app-wrap .choice label { display:inline; color:#fff; font-size:0.95rem; }
+    .form-control, .form-select { background:#15151c !important; border:1px solid #2a2a35 !important; color:#fff !important; }
+    .form-control::placeholder { color:#555 !important; }
+    .form-control[readonly] { opacity:.7; }
+    .helptext, .app-wrap .form-text { color:#6c757d; font-size:0.78rem; }
+    .field-error { color: var(--gl-signal-danger, #dc3545); font-size:0.8rem; margin-top:0.2rem; }
+    /* прогресс */
+    .wz-steps { display:flex; gap:0.4rem; margin-bottom:1.5rem; flex-wrap:wrap; }
+    .wz-step { flex:1 1 0; min-width:110px; padding:0.55rem 0.6rem; border-radius:6px; background:#15151c;
+               border:1px solid #2a2a35; color:#6c757d; font-size:0.8rem; text-decoration:none; }
+    .wz-step b { display:block; font-size:0.95rem; }
+    .wz-step.done { color:#adb5bd; border-color:#3a3a45; }
+    .wz-step.done:hover { color:#ffc107; border-color:#ffc107; }
+    .wz-step.current { color:#000; background:#ffc107; border-color:#ffc107; font-weight:600; }
+    /* выбор вариантом */
+    .choice { display:flex; align-items:center; gap:0.6rem; padding:0.7rem 0.9rem; margin-bottom:0.5rem;
+              background:#15151c; border:1px solid #2a2a35; border-radius:6px; cursor:pointer; }
+    .choice:hover { border-color:#ffc107; }
+    .choice input { accent-color:#ffc107; width:1.1rem; height:1.1rem; }
+    .reveal { display:none; margin-top:0.75rem; padding:1rem; border:1px dashed #3a3a45; border-radius:6px; }
+    .reveal.open { display:block; }
+    /* номера */
+    .num-grid { display:flex; flex-wrap:wrap; gap:6px; max-height:240px; overflow-y:auto; padding:0.5rem;
+                background:#15151c; border-radius:6px; border:1px solid #2a2a35; }
+    .num-cell { width:48px; height:38px; display:flex; align-items:center; justify-content:center;
+                border:1px solid #2a2a35; border-radius:4px; cursor:pointer; font-size:0.9rem; color:#adb5bd; user-select:none; }
+    .num-cell:hover { border-color:#ffc107; color:#ffc107; }
+    .num-cell.selected { background:#ffc107; color:#000; font-weight:bold; border-color:#ffc107; }
+    .opt-row { display:flex; align-items:center; justify-content:space-between; padding:0.6rem 0; border-bottom:1px solid #2a2a35; }
+    .opt-row:last-child { border-bottom:none; }
+    .kv { display:flex; justify-content:space-between; gap:1rem; padding:0.35rem 0; border-bottom:1px solid #22222c; font-size:0.9rem; }
+    .kv .k { color:#adb5bd; } .kv .v { color:#fff; text-align:right; }
+    .wz-nav { display:flex; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; }
+</style>
+
+<div class="app-wrap text-white">
+    <h1 class="text-warning mb-1">Заявка на участие</h1>
+    <p class="text-muted">{{ stage.championship.title }} · {{ stage.title }}</p>
+
+    <nav class="wz-steps" aria-label="Шаги заявки">
+        {% for n, title in steps %}
+            {% if n == step %}<span class="wz-step current" aria-current="step"><b>{{ n }}</b>{{ title }}</span>
+            {% elif n <= done|add:1 and application %}<a class="wz-step done" href="{% url 'applications:wizard_step' stage.id n %}{{ app_query }}"><b>{{ n }}</b>{{ title }}</a>
+            {% else %}<span class="wz-step"><b>{{ n }}</b>{{ title }}</span>{% endif %}
+        {% endfor %}
+    </nav>
+
+    {% if messages %}{% for message in messages %}
+    <div class="alert {% if 'error' in message.tags %}alert-danger{% elif 'warning' in message.tags %}alert-warning{% else %}alert-success{% endif %}">{{ message }}</div>
+    {% endfor %}{% endif %}
+
+    <form method="post" id="wizardForm" data-validate novalidate>
+        {% csrf_token %}
+        {% if application and application.submitted_by_type == 'organizer' %}<input type="hidden" name="app" value="{{ application.id }}">{% endif %}
+
+    {% if step == 1 %}
+        {% if stage.has_training %}
+        <div class="app-card">
+            <div class="app-section-title">Участие</div>
+            {% if stage.training_start %}<p class="text-muted small">УТС: {{ stage.training_start|date:"d.m.Y H:i" }}</p>{% endif %}
+            {% for radio in form.participation %}
+            <label class="choice">{{ radio.tag }} <span>{{ radio.choice_label }}{% for c, fee in fees.items %}{% if c == radio.data.value %} — {{ fee|floatformat:0 }} ₽{% endif %}{% endfor %}</span></label>
+            {% endfor %}
+            {% if stage.separate_training_numbers %}<div class="helptext">«Только УТС» — {{ stage.get_training_number_digits_display }}, «УТС + этап» и «Только этап» — {{ stage.get_start_number_digits_display }} номера.</div>{% endif %}
+        </div>
+        {% else %}{{ form.participation }}{% endif %}
+
+        <div class="app-card">
+            <div class="app-section-title">Класс и стартовый номер</div>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="{{ form.race_class.id_for_label }}">Класс*</label>
+                    {{ form.race_class }}
+                    {% for e in form.race_class.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-6">
+                    <label>Выбранный номер</label>
+                    <input type="text" id="numberDisplay" class="form-control" readonly
+                           value="{{ form.start_number.value|default:'' }}" placeholder="выберите ниже (необязательно)">
+                    {{ form.start_number }}
+                    {% for e in form.start_number.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                </div>
+            </div>
+            <div class="mt-3">
+                <label>Свободные номера</label>
+                <div class="num-grid" id="numGrid">
+                    {% for n in numbers %}<div class="num-cell{% if n == form.start_number.value|add:0 %} selected{% endif %}" data-num="{{ n }}">{{ n }}</div>
+                    {% empty %}<span class="text-muted small p-2">Выберите класс</span>{% endfor %}
+                </div>
+            </div>
+        </div>
+
+    {% elif step == 2 %}
+        <div class="app-card">
+            <div class="app-section-title">Пилот</div>
+            {% if confirmed_driver %}<p class="text-success small">Профиль пилота подтверждён: {{ confirmed_driver.full_name }}.</p>{% endif %}
+
+            {% if is_guest %}
+            <label class="choice"><input type="radio" name="guest_mode" value="login" data-reveal="loginReveal"> <span>Я уже зарегистрирован на сайте</span></label>
+            <div class="reveal" id="loginReveal">
+                <a href="{{ login_url }}" class="btn btn-outline-warning">Войти</a>
+                <span class="text-muted small ms-2">Данные первого шага сохранятся.</span>
+            </div>
+            <label class="choice"><input type="radio" name="guest_mode" value="new" data-reveal="emailReveal" checked> <span>Я новый пилот</span></label>
+            <div class="reveal open" id="emailReveal">
+                <label for="{{ form.email_account.id_for_label }}">Ваш email*</label>
+                {{ form.email_account }}
+                <div class="helptext">{{ form.email_account.help_text }}</div>
+                {% for e in form.email_account.errors %}<div class="field-error">{{ e }}{% if taken_email %} <a href="{{ login_url }}" class="text-warning">Войти</a>{% endif %}</div>{% endfor %}
+            </div>
+            <hr class="border-secondary">
+            {% endif %}
+
+            {% if form.driver_choice %}
+            <div class="mb-3">
+                <label>В базе есть пилот с таким именем. Это вы?</label>
+                {% for radio in form.driver_choice %}<label class="choice">{{ radio.tag }} <span>{{ radio.choice_label }}</span></label>{% endfor %}
+                {% for e in form.driver_choice.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                <div class="helptext">Администратор проверит и привяжет заявку к профилю. Регистрацию на этап это не задерживает.</div>
+            </div>
+            {% endif %}
+
+            <div class="row g-3">
+                {% for f in form %}{% if f.name in "last_name first_name middle_name birth_date citizenship sport_rank license_number email phone city country" %}
+                {% if f.name != 'email_account' and f.name != 'driver_choice' %}
+                <div class="col-md-4">
+                    <label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %}*{% endif %}</label>
+                    {{ f }}
+                    {% for e in f.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                </div>
+                {% endif %}{% endif %}{% endfor %}
+            </div>
+            <div id="parentBlock" style="display:none; margin-top:1rem; padding-top:1rem; border-top:1px dashed #2a2a35;">
+                <div class="text-warning small mb-2">Пилот несовершеннолетний — укажите данные родителя или опекуна</div>
+                <div class="row g-3">
+                    {% for f in form %}{% if f.name|slice:":7" == "parent_" %}
+                    <div class="col-md-4"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% for e in f.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+                    {% endif %}{% endfor %}
+                </div>
+            </div>
+        </div>
+
+    {% elif step == 3 %}
+        <div class="app-card">
+            <div class="app-section-title">Карт</div>
+            <div class="row g-3">
+                {% for f in kart_form %}{% if f.name != 'ad_consent' %}
+                <div class="col-md-4">
+                    <label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %}*{% endif %}</label>
+                    {% if f.name == 'chassis_brand' %}
+                        <input type="text" name="{{ f.html_name }}" id="{{ f.id_for_label }}" value="{{ f.value|default:'' }}"
+                               class="form-control{% if f.errors %} is-invalid{% endif %}" list="chassisList" autocomplete="off" required>
+                        <datalist id="chassisList">{% for ch in chassis_list %}<option value="{{ ch }}">{% endfor %}</datalist>
+                    {% elif f.name == 'tires' and tyres_fixed %}
+                        <input type="text" name="{{ f.html_name }}" value="{{ f.value|default:'' }}" class="form-control" readonly>
+                        <div class="helptext">Определено организатором</div>
+                    {% else %}{{ f }}{% endif %}
+                    {% for e in f.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                </div>
+                {% endif %}{% endfor %}
+                <div class="col-12"><label class="choice">{{ kart_form.ad_consent }} <span>{{ kart_form.ad_consent.label }}</span></label></div>
+            </div>
+        </div>
+
+        <div class="app-card">
+            <div class="app-section-title">Механик <span class="text-muted text-lowercase fw-normal">(необязательно)</span></div>
+            <div class="row g-3">
+                {% for f in mech_form %}
+                <div class="col-md-4"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% for e in f.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="app-card">
+            <div class="app-section-title">Заявитель</div>
+            {% with a=applicant_form %}
+            <div class="row g-3">
+                <div class="col-md-4"><label for="{{ a.type.id_for_label }}">{{ a.type.label }}</label>{{ a.type }}</div>
+                <div class="col-md-8" data-show-for="individual">
+                    <label for="{{ a.name.id_for_label }}">{{ a.name.label }}*</label>{{ a.name }}
+                    {% for e in a.name.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-6"><label for="{{ a.license_number.id_for_label }}">{{ a.license_number.label }}</label>{{ a.license_number }}</div>
+            </div>
+            <div data-show-for="team" class="mt-3">
+                {% for radio in a.team_mode %}
+                <label class="choice">{{ radio.tag }} <span>{{ radio.choice_label }}</span></label>
+                {% endfor %}
+                <div class="reveal" id="teamExisting">
+                    <label for="{{ a.team.id_for_label }}">{{ a.team.label }}*</label>{{ a.team }}
+                    {% for e in a.team.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="reveal" id="teamNew">
+                    <div class="helptext mb-2">Команды нет в списке — впишите её. Администратор проверит команду; регистрацию на этап это не задерживает.</div>
+                    <div class="row g-3">
+                        {% for f in a %}{% if f.name in "new_team_name new_team_city new_team_email" %}
+                        <div class="col-md-4"><label for="{{ f.id_for_label }}">{{ f.label }}{% if f.name != 'new_team_city' %}*{% endif %}</label>{{ f }}
+                            {% if f.help_text %}<div class="helptext">{{ f.help_text }}</div>{% endif %}
+                            {% for e in f.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+                        {% endif %}{% endfor %}
+                    </div>
+                </div>
+                <div class="text-muted small mt-3 mb-2">Представитель команды</div>
+                <div class="row g-3">
+                    {% for f in a %}{% if f.name|slice:":4" == "rep_" %}
+                    <div class="col-md-3"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% for e in f.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+                    {% endif %}{% endfor %}
+                </div>
+            </div>
+            {% endwith %}
+        </div>
+
+    {% elif step == 4 %}
+        <div class="app-card">
+            <div class="app-section-title">Дополнительные опции</div>
+            {% for opt, checked in options %}
+            <div class="opt-row">
+                <label class="choice mb-0 flex-grow-1" style="background:none;border:none;padding:0;">
+                    <input type="checkbox" class="opt-check" name="option_{{ opt.id }}" value="1" data-price="{{ opt.price|stringformat:'s' }}"
+                           {% if checked %}checked{% endif %}{% if opt.is_mandatory %} disabled{% endif %}>
+                    <span>{{ opt.name }}{% if opt.is_mandatory %} <span class="badge bg-secondary">обязательно</span>{% endif %}
+                        {% if opt.description %}<br><span class="text-muted small">{{ opt.description }}</span>{% endif %}</span>
+                </label>
+                <div class="text-warning fw-bold ms-3">{{ opt.price|floatformat:0 }} ₽</div>
+            </div>
+            {% empty %}
+            <p class="text-muted mb-0">У этапа нет дополнительных опций — переходите к проверке.</p>
+            {% endfor %}
+        </div>
+        <div class="app-card">
+            <div class="d-flex justify-content-between">
+                <span class="text-muted">Стартовый взнос</span><span id="baseFee" data-fee="{{ application.entry_fee_amount|stringformat:'s' }}">{{ application.entry_fee_amount|floatformat:0 }} ₽</span>
+            </div>
+            <div class="d-flex justify-content-between fs-5 fw-bold text-warning mt-2">
+                <span>Итого</span><span><span id="totalSum">{{ application.get_total_amount|floatformat:0 }}</span> ₽</span>
+            </div>
+        </div>
+
+    {% elif step == 5 %}
+        <div class="app-card">
+            <div class="app-section-title">Участие и класс <a href="{% url 'applications:wizard_step' stage.id 1 %}{{ app_query }}" class="text-warning small ms-2 text-lowercase">изменить</a></div>
+            {% if stage.has_training %}<div class="kv"><span class="k">Участие</span><span class="v">{{ application.get_participation_display }}</span></div>{% endif %}
+            <div class="kv"><span class="k">Класс</span><span class="v">{{ application.race_class.name }}</span></div>
+            <div class="kv"><span class="k">Стартовый номер</span><span class="v">{{ application.start_number|default:"не выбран" }}</span></div>
+        </div>
+        <div class="app-card">
+            <div class="app-section-title">Пилот <a href="{% url 'applications:wizard_step' stage.id 2 %}{{ app_query }}" class="text-warning small ms-2 text-lowercase">изменить</a></div>
+            <div class="kv"><span class="k">ФИО</span><span class="v">{{ pilot.full_name }}</span></div>
+            <div class="kv"><span class="k">Дата рождения</span><span class="v">{{ pilot.birth_date|date:"d.m.Y"|default:"—" }}</span></div>
+            <div class="kv"><span class="k">Город</span><span class="v">{{ pilot.city|default:"—" }}</span></div>
+            <div class="kv"><span class="k">Телефон / email</span><span class="v">{{ pilot.phone|default:"—" }} · {{ pilot.email|default:"—" }}</span></div>
+            {% if not pilot.driver_id %}<div class="helptext mt-2">Профиль пилота появится на сайте после проверки администратором — регистрацию на этап это не задерживает.</div>{% endif %}
+        </div>
+        <div class="app-card">
+            <div class="app-section-title">Карт и заявитель <a href="{% url 'applications:wizard_step' stage.id 3 %}{{ app_query }}" class="text-warning small ms-2 text-lowercase">изменить</a></div>
+            <div class="kv"><span class="k">Шасси / двигатель</span><span class="v">{{ kart.chassis_brand }} · {{ kart.engine_1 }}{% if kart.engine_2 %}, {{ kart.engine_2 }}{% endif %}</span></div>
+            {% if mechanic %}<div class="kv"><span class="k">Механик</span><span class="v">{{ mechanic.full_name }}</span></div>{% endif %}
+            <div class="kv"><span class="k">Заявитель</span><span class="v">{{ applicant.name }}{% if applicant.type == 'team' and not applicant.team_id %} (новая команда, на проверке){% endif %}</span></div>
+        </div>
+        <div class="app-card">
+            <div class="app-section-title">Взнос <a href="{% url 'applications:wizard_step' stage.id 4 %}{{ app_query }}" class="text-warning small ms-2 text-lowercase">изменить опции</a></div>
+            <div class="kv"><span class="k">Стартовый взнос</span><span class="v">{{ application.entry_fee_amount|floatformat:0 }} ₽</span></div>
+            {% for o in selected_options %}<div class="kv"><span class="k">{{ o.option.name }}</span><span class="v">{{ o.price_at_time|floatformat:0 }} ₽</span></div>{% endfor %}
+            <div class="kv fw-bold"><span class="k text-warning">Итого</span><span class="v text-warning">{{ total|floatformat:0 }} ₽</span></div>
+        </div>
+        {% if documents_required %}
+        <div class="alert alert-info">
+            Организатор запрашивает документы: {% for d in documents_required %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+            Их и квитанцию об оплате можно загрузить после отправки — на странице заявки.
+        </div>
+        {% endif %}
+    {% endif %}
+
+        <div class="wz-nav">
+            {% if step > 1 %}<a href="{% url 'applications:wizard_step' stage.id step|add:'-1' %}{{ app_query }}" class="btn btn-outline-secondary">← Назад</a>{% else %}<span></span>{% endif %}
+            <button type="submit" class="btn btn-warning btn-lg fw-bold">{% if step == 5 %}🏁 Отправить заявку{% else %}Далее →{% endif %}</button>
+        </div>
+    </form>
+</div>
+
+<script>
+(function () {
+    // Раскрывающиеся блоки по радиокнопкам (новый пилот / вход; команда из списка / новая)
+    function syncReveal(name) {
+        document.querySelectorAll('input[name="' + name + '"][data-reveal]').forEach(r => {
+            const box = document.getElementById(r.dataset.reveal);
+            if (box) box.classList.toggle('open', r.checked);
+            box && box.querySelectorAll('input').forEach(i => i.disabled = !r.checked);
+        });
+    }
+    document.querySelectorAll('input[name="guest_mode"]').forEach(r => r.addEventListener('change', () => syncReveal('guest_mode')));
+    if (document.querySelector('input[name="guest_mode"]')) syncReveal('guest_mode');
+
+    // Шаг 1: номера по классу и участию
+    const grid = document.getElementById('numGrid');
+    if (grid) {
+        const hidden = document.getElementById('{{ form.start_number.id_for_label|default:"" }}');
+        const display = document.getElementById('numberDisplay');
+        const classSel = document.getElementById('{{ form.race_class.id_for_label|default:"" }}');
+        const url = '{% url "applications:available_numbers" stage.id %}';
+        function bind() {
+            grid.querySelectorAll('.num-cell').forEach(c => c.addEventListener('click', () => {
+                grid.querySelectorAll('.selected').forEach(x => x.classList.remove('selected'));
+                c.classList.add('selected'); hidden.value = c.dataset.num; display.value = c.dataset.num;
+            }));
+        }
+        function reload() {
+            const p = new URLSearchParams();
+            if (classSel && classSel.value) p.set('class_id', classSel.value);
+            const part = document.querySelector('input[name="participation"]:checked') || document.querySelector('input[name="participation"]');
+            if (part) p.set('participation', part.value);
+            hidden.value = ''; display.value = '';
+            fetch(url + '?' + p).then(r => r.json()).then(d => {
+                grid.innerHTML = '';
+                (d.numbers || []).forEach(n => {
+                    const c = document.createElement('div'); c.className = 'num-cell'; c.dataset.num = n; c.textContent = n; grid.appendChild(c);
+                });
+                if (!grid.children.length) grid.innerHTML = '<span class="text-muted small p-2">Свободных номеров нет</span>';
+                bind();
+            }).catch(() => {});
+        }
+        bind();
+        classSel && classSel.addEventListener('change', reload);
+        document.querySelectorAll('input[name="participation"]').forEach(r => r.addEventListener('change', reload));
+    }
+
+    // Шаг 2: блок родителя для несовершеннолетних
+    const birth = document.getElementById('id_birth_date');
+    const parentBlock = document.getElementById('parentBlock');
+    if (birth && parentBlock) {
+        const check = () => {
+            const age = birth.value ? (Date.now() - new Date(birth.value)) / (365.25 * 864e5) : 99;
+            parentBlock.style.display = age < 18 ? 'block' : 'none';
+        };
+        birth.addEventListener('change', check); check();
+    }
+
+    // Шаг 3: заявитель — физлицо или команда (из списка / новая)
+    const typeSel = document.getElementById('id_applicant-type');
+    if (typeSel) {
+        const sync = () => {
+            document.querySelectorAll('[data-show-for]').forEach(el => {
+                const on = el.dataset.showFor === typeSel.value;
+                el.style.display = on ? '' : 'none';
+                el.querySelectorAll('input, select').forEach(i => { if (!i.closest('.reveal')) i.disabled = !on; });
+            });
+            const mode = document.querySelector('input[name="applicant-team_mode"]:checked');
+            const isTeam = typeSel.value === 'team';
+            [['teamExisting', 'existing'], ['teamNew', 'new']].forEach(([id, val]) => {
+                const box = document.getElementById(id);
+                const on = isTeam && mode && mode.value === val;
+                box.classList.toggle('open', on);
+                box.querySelectorAll('input, select').forEach(i => { i.disabled = !on; i.required = on && !/city/.test(i.name); });
+            });
+        };
+        typeSel.addEventListener('change', sync);
+        document.querySelectorAll('input[name="applicant-team_mode"]').forEach(r => r.addEventListener('change', sync));
+        if (!document.querySelector('input[name="applicant-team_mode"]:checked')) {
+            const first = document.querySelector('input[name="applicant-team_mode"]'); if (first) first.checked = true;
+        }
+        const name = document.getElementById('id_applicant-name'); if (name) name.required = true;
+        sync();
+    }
+
+    // Шаг 4: итог с опциями
+    const base = document.getElementById('baseFee');
+    if (base) {
+        const recalc = () => {
+            let total = parseFloat(base.dataset.fee) || 0;
+            document.querySelectorAll('.opt-check').forEach(c => { if (c.checked) total += parseFloat(c.dataset.price) || 0; });
+            document.getElementById('totalSum').textContent = total.toFixed(0);
+        };
+        document.querySelectorAll('.opt-check').forEach(c => c.addEventListener('change', recalc));
+        recalc();
+    }
+})();
+</script>
+{% endblock %}
