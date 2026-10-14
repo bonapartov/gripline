@@ -80,6 +80,19 @@ class StepPilotForm(HighlightErrorsMixin, PilotForm):
         for name in ('first_name', 'last_name'):
             self.fields[name].required = True
 
+    PARENT_REQUIRED = ('parent_last_name', 'parent_first_name', 'parent_phone')
+
+    def clean(self):
+        data = super().clean()
+        birth = data.get('birth_date')
+        if birth:
+            from datetime import date
+            if (date.today() - birth).days / 365.25 < 18:
+                for name in self.PARENT_REQUIRED:
+                    if not (data.get(name) or '').strip():
+                        self.add_error(name, 'Обязательно для несовершеннолетнего пилота.')
+        return data
+
     def clean_email_account(self):
         email = (self.cleaned_data.get('email_account') or '').strip()
         if email and User.objects.filter(email__iexact=email).exists():
@@ -132,9 +145,6 @@ class StepApplicantForm(HighlightErrorsMixin, forms.Form):
                                     widget=forms.TextInput(attrs=_text))
     new_team_city = forms.CharField(label='Город команды', required=False, max_length=100,
                                     widget=forms.TextInput(attrs=_text))
-    new_team_email = forms.EmailField(label='Email контакта команды', required=False, widget=forms.EmailInput(attrs=_text),
-                                      help_text='После одобрения команды этот человек станет её менеджером. '
-                                                'Сюда придёт решение администратора.')
     rep_last_name = forms.CharField(label='Фамилия представителя', required=False, max_length=100,
                                     widget=forms.TextInput(attrs=_text))
     rep_first_name = forms.CharField(label='Имя представителя', required=False, max_length=100,
@@ -152,7 +162,9 @@ class StepApplicantForm(HighlightErrorsMixin, forms.Form):
         data = super().clean()
         if data.get('type') == 'team':
             if data.get('team_mode') == self.TEAM_NEW:
-                for name in ('new_team_name', 'new_team_email'):
+                # Представитель новой команды — её контакт: после одобрения он менеджер,
+                # на его email приходит решение администратора.
+                for name in ('new_team_name', 'rep_last_name', 'rep_first_name', 'rep_email'):
                     if not data.get(name):
                         self.add_error(name, 'Обязательное поле.')
             elif not data.get('team'):
@@ -166,7 +178,7 @@ class StepApplicantForm(HighlightErrorsMixin, forms.Form):
         if applicant is None:
             return {}
         initial = {f: getattr(applicant, f) for f in (
-            'type', 'name', 'license_number', 'new_team_city', 'new_team_email',
+            'type', 'name', 'license_number', 'new_team_city',
             'rep_last_name', 'rep_first_name', 'rep_phone', 'rep_email')}
         if applicant.type == 'team':
             if applicant.team_id:
@@ -186,7 +198,7 @@ class StepApplicantForm(HighlightErrorsMixin, forms.Form):
             if data.get('team_mode') == self.TEAM_NEW:
                 applicant.name = data['new_team_name'].strip()
                 applicant.new_team_city = data.get('new_team_city', '')
-                applicant.new_team_email = data['new_team_email']
+                applicant.new_team_email = data['rep_email']
             else:
                 applicant.team = data['team']
                 applicant.name = data['team'].name

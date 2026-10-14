@@ -141,8 +141,7 @@
             {% endif %}
 
             <div class="row g-3">
-                {% for f in form %}{% if f.name in "last_name first_name middle_name birth_date citizenship sport_rank license_number email phone city country" %}
-                {% if f.name != 'email_account' and f.name != 'driver_choice' %}
+                {% for f in form %}{% if f.name in pilot_fields %}
                 <div class="col-md-4{% if f.name == 'last_name' and not confirmed_driver %} ac-wrap{% endif %}">
                     <label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %}*{% endif %}</label>
                     {{ f }}
@@ -152,7 +151,7 @@
                     {% endif %}
                     {% for e in f.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
                 </div>
-                {% endif %}{% endif %}{% endfor %}
+                {% endif %}{% endfor %}
             </div>
             {% if not confirmed_driver %}
             {{ form.driver_pick }}
@@ -164,7 +163,7 @@
                 <div class="text-warning small mb-2">Пилот несовершеннолетний — укажите данные родителя или опекуна</div>
                 <div class="row g-3">
                     {% for f in form %}{% if f.name|slice:":7" == "parent_" %}
-                    <div class="col-md-4"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% for e in f.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+                    <div class="col-md-4"><label for="{{ f.id_for_label }}">{{ f.label }}<span data-parent-req="{{ f.name }}"></span></label>{{ f }}{% for e in f.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
                     {% endif %}{% endfor %}
                 </div>
             </div>
@@ -207,37 +206,45 @@
             <div class="app-section-title">Заявитель</div>
             {% with a=applicant_form %}
             <div class="row g-3">
-                <div class="col-md-4"><label for="{{ a.type.id_for_label }}">{{ a.type.label }}</label>{{ a.type }}</div>
+                <div class="col-md-4"><label for="{{ a.type.id_for_label }}">Кто подаёт заявку</label>{{ a.type }}</div>
                 <div class="col-md-8" data-show-for="individual">
                     <label for="{{ a.name.id_for_label }}">{{ a.name.label }}*</label>{{ a.name }}
                     {% for e in a.name.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
                 </div>
-                <div class="col-md-6"><label for="{{ a.license_number.id_for_label }}">{{ a.license_number.label }}</label>{{ a.license_number }}</div>
             </div>
+
             <div data-show-for="team" class="mt-3">
-                {% for radio in a.team_mode %}
-                <label class="choice">{{ radio.tag }} <span>{{ radio.choice_label }}</span></label>
-                {% endfor %}
+                <div class="d-flex flex-wrap gap-2">
+                    {% for radio in a.team_mode %}
+                    <label class="choice flex-grow-1">{{ radio.tag }} <span>{{ radio.choice_label }}</span></label>
+                    {% endfor %}
+                </div>
                 <div class="reveal" id="teamExisting">
                     <label for="{{ a.team.id_for_label }}">{{ a.team.label }}*</label>{{ a.team }}
                     {% for e in a.team.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    <div class="helptext mt-1">Нет в списке — выберите «Новая команда».</div>
                 </div>
                 <div class="reveal" id="teamNew">
-                    <div class="helptext mb-2">Команды нет в списке — впишите её. Администратор проверит команду; регистрацию на этап это не задерживает.</div>
                     <div class="row g-3">
-                        {% for f in a %}{% if f.name in "new_team_name new_team_city new_team_email" %}
-                        <div class="col-md-4"><label for="{{ f.id_for_label }}">{{ f.label }}{% if f.name != 'new_team_city' %}*{% endif %}</label>{{ f }}
-                            {% if f.help_text %}<div class="helptext">{{ f.help_text }}</div>{% endif %}
-                            {% for e in f.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
-                        {% endif %}{% endfor %}
+                        <div class="col-md-6"><label for="{{ a.new_team_name.id_for_label }}">{{ a.new_team_name.label }}*</label>{{ a.new_team_name }}
+                            {% for e in a.new_team_name.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+                        <div class="col-md-6"><label for="{{ a.new_team_city.id_for_label }}">{{ a.new_team_city.label }}</label>{{ a.new_team_city }}</div>
                     </div>
+                    <div class="helptext mt-2">Администратор проверит команду — регистрацию на этап это не задерживает.</div>
                 </div>
-                <div class="text-muted small mt-3 mb-2">Представитель команды</div>
+
+                <div class="text-muted small mt-3 mb-1">Представитель команды</div>
+                <div class="helptext mb-2" id="repNewHint">Представитель новой команды после её одобрения станет менеджером команды — на его email придёт решение администратора.</div>
                 <div class="row g-3">
-                    {% for f in a %}{% if f.name|slice:":4" == "rep_" %}
-                    <div class="col-md-3"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% for e in f.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+                    {% for f in a %}{% if f.name == 'rep_last_name' or f.name == 'rep_first_name' or f.name == 'rep_phone' or f.name == 'rep_email' %}
+                    <div class="col-md-3"><label for="{{ f.id_for_label }}">{{ f.label }}<span class="rep-req" data-rep="{{ f.name }}"></span></label>{{ f }}
+                        {% for e in f.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
                     {% endif %}{% endfor %}
                 </div>
+            </div>
+
+            <div class="row g-3 mt-1">
+                <div class="col-md-6"><label for="{{ a.license_number.id_for_label }}">{{ a.license_number.label }}</label>{{ a.license_number }}</div>
             </div>
             {% endwith %}
         </div>
@@ -469,9 +476,17 @@
     const birth = document.getElementById('id_birth_date');
     const parentBlock = document.getElementById('parentBlock');
     if (birth && parentBlock) {
+        const PARENT_REQUIRED = ['parent_last_name', 'parent_first_name', 'parent_phone'];
         const check = () => {
             const age = birth.value ? (Date.now() - new Date(birth.value)) / (365.25 * 864e5) : 99;
-            parentBlock.style.display = age < 18 ? 'block' : 'none';
+            const minor = age < 18;
+            parentBlock.style.display = minor ? 'block' : 'none';
+            PARENT_REQUIRED.forEach(n => {
+                const input = document.getElementById('id_' + n);
+                const mark = document.querySelector('[data-parent-req="' + n + '"]');
+                if (input) { input.required = minor; if (!minor) input.classList.remove('is-invalid'); }
+                if (mark) mark.textContent = minor ? '*' : '';
+            });
         };
         birth.addEventListener('change', check); check();
     }
@@ -479,27 +494,37 @@
     // Шаг 3: заявитель — физлицо или команда (из списка / новая)
     const typeSel = document.getElementById('id_applicant-type');
     if (typeSel) {
+        const REP_REQUIRED_FOR_NEW = ['rep_last_name', 'rep_first_name', 'rep_email'];
         const sync = () => {
+            const isTeam = typeSel.value === 'team';
             document.querySelectorAll('[data-show-for]').forEach(el => {
                 const on = el.dataset.showFor === typeSel.value;
                 el.style.display = on ? '' : 'none';
                 el.querySelectorAll('input, select').forEach(i => { if (!i.closest('.reveal')) i.disabled = !on; });
             });
+            const name = document.getElementById('id_applicant-name');
+            if (name) name.required = !isTeam;
+            if (!document.querySelector('input[name="applicant-team_mode"]:checked')) {
+                const first = document.querySelector('input[name="applicant-team_mode"]'); if (first) first.checked = true;
+            }
             const mode = document.querySelector('input[name="applicant-team_mode"]:checked');
-            const isTeam = typeSel.value === 'team';
+            const isNew = isTeam && mode && mode.value === 'new';
             [['teamExisting', 'existing'], ['teamNew', 'new']].forEach(([id, val]) => {
-                const box = document.getElementById(id);
                 const on = isTeam && mode && mode.value === val;
+                const box = document.getElementById(id);
                 box.classList.toggle('open', on);
                 box.querySelectorAll('input, select').forEach(i => { i.disabled = !on; i.required = on && !/city/.test(i.name); });
+            });
+            document.getElementById('repNewHint').style.display = isNew ? '' : 'none';
+            document.querySelectorAll('.rep-req').forEach(mark => {
+                const req = isNew && REP_REQUIRED_FOR_NEW.includes(mark.dataset.rep);
+                mark.textContent = req ? '*' : '';
+                const input = document.getElementById('id_applicant-' + mark.dataset.rep);
+                if (input) { input.required = req; if (!req) input.classList.remove('is-invalid'); }
             });
         };
         typeSel.addEventListener('change', sync);
         document.querySelectorAll('input[name="applicant-team_mode"]').forEach(r => r.addEventListener('change', sync));
-        if (!document.querySelector('input[name="applicant-team_mode"]:checked')) {
-            const first = document.querySelector('input[name="applicant-team_mode"]'); if (first) first.checked = true;
-        }
-        const name = document.getElementById('id_applicant-name'); if (name) name.required = true;
         sync();
     }
 

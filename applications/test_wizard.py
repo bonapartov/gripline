@@ -167,7 +167,8 @@ class LoggedInWizardTests(WizardFixture):
         self.client.post(self.url(2), PILOT)
         resp = self.step3(**{'applicant-type': 'team', 'applicant-team_mode': 'new',
                              'applicant-new_team_name': 'Kart Lab', 'applicant-new_team_city': 'Гатчина',
-                             'applicant-new_team_email': 'boss@example.com'})
+                             'applicant-rep_last_name': 'Босс', 'applicant-rep_first_name': 'Иван',
+                             'applicant-rep_email': 'boss@example.com'})
         self.assertRedirects(resp, self.url(4), fetch_redirect_response=False)
         self.finish()
         claim = TeamClaim.objects.get()
@@ -224,6 +225,29 @@ class LoggedInWizardTests(WizardFixture):
         self.assertContains(resp, 'id="chassisData"')
         self.assertContains(resp, '"Tony Kart"')
         self.assertNotContains(resp, 'Скрытое шасси')
+
+    def test_new_team_requires_representative(self, deliver):
+        self.step1()
+        self.client.post(self.url(2), PILOT)
+        resp = self.step3(**{'applicant-type': 'team', 'applicant-team_mode': 'new', 'applicant-new_team_name': 'Kart Lab'})
+        self.assertEqual(resp.status_code, 200)
+        for f in ('rep_last_name', 'rep_first_name', 'rep_email'):
+            self.assertIn(f'applicant-{f}', resp.context['applicant_form'].add_prefix(f))
+            self.assertIn(f, resp.context['applicant_form'].errors)
+        # в блоке новой команды нет полей «ФИО заявителя» и «Команда» (регресс 14.10)
+        html = resp.content.decode()
+        block = html[html.index('id="teamNew"'):html.index('Представитель команды')]
+        self.assertNotIn('name="applicant-name"', block)
+        self.assertNotIn('name="applicant-team"', block)
+
+    def test_minor_requires_parent(self, deliver):
+        self.step1()
+        resp = self.client.post(self.url(2), {**PILOT, 'birth_date': '2015-01-14'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(set(resp.context['form'].errors), {'parent_last_name', 'parent_first_name', 'parent_phone'})
+        resp = self.client.post(self.url(2), {**PILOT, 'birth_date': '2015-01-14', 'parent_last_name': 'Новиков',
+                                              'parent_first_name': 'Сергей', 'parent_phone': '+79990000000'})
+        self.assertRedirects(resp, self.url(3), fetch_redirect_response=False)
 
     def test_draft_resumes_from_next_step(self, deliver):
         self.step1()

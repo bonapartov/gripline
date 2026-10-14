@@ -268,6 +268,8 @@ def _step_pilot(request, stage, application):
         e.code == 'email_taken' for e in form.errors.as_data().get('email_account', []))
     return _render(request, stage, application, 2, {
         'form': form, 'is_guest': is_guest, 'confirmed_driver': confirmed, 'taken_email': taken_email,
+        'pilot_fields': ['last_name', 'first_name', 'middle_name', 'birth_date', 'citizenship', 'sport_rank',
+                         'license_number', 'email', 'phone', 'city', 'country'],
         'login_url': f"{reverse('accounts:login')}?next={_step_url(stage, 2)}",
     })
 
