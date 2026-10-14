@@ -54,40 +54,70 @@
         flex: 1;
         min-width: 0;
     }
+    .cabinet-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+    .cabinet-head-right {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+    .head-box {
+        background-color: #15151c;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        padding: 0.6rem 1rem;
+        font-size: 0.85rem;
+        line-height: 1.5;
+    }
+    .head-box-title {
+        color: #0dcaf0;
+        font-weight: bold;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+    .head-box a { color: #ffc107; text-decoration: none; }
     @media (max-width: 768px) {
         .two-columns {
             flex-direction: column;
+        }
+        .left-column {
+            max-width: 100%;
         }
     }
 </style>
 
 <div class="force-width-1500 pt-5 pb-5">
-    <!-- Верхняя карточка -->
+    <!-- Верхняя карточка: заголовок слева; справа поддержка и организатор -->
     <div class="info-card">
-        <h2 class="text-warning mb-4">Личный кабинет организатора</h2>
-        <p class="text-white">Добро пожаловать, <strong>{{ request.user.email }}</strong>!</p>
+        <div class="cabinet-head">
+            <h2 class="text-warning mb-0">Личный кабинет организатора</h2>
+            <div class="cabinet-head-right">
+                <div class="head-box">
+                    <div class="head-box-title"><i class="fas fa-headset me-1"></i>Поддержка</div>
+                    {% if support_phone %}<div><i class="fas fa-phone me-1 text-muted"></i><a href="tel:{{ support_phone }}">{{ support_phone }}</a></div>{% endif %}
+                    {% if support_email %}<div><i class="fas fa-envelope me-1 text-muted"></i><a href="mailto:{{ support_email }}">{{ support_email }}</a></div>{% endif %}
+                </div>
+                <div class="head-box">
+                    <div class="head-box-title"><i class="fas fa-trophy me-1"></i>Организатор</div>
+                    {% if request.user.get_full_name %}<div class="text-white fw-bold">{{ request.user.get_full_name }}</div>{% endif %}
+                    <div class="text-white-50">{{ request.user.email }}</div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Две колонки -->
+    <!-- Две колонки (левая — условия оплаты, только если оплата включена) -->
     <div class="two-columns">
-        <!-- Левая колонка: контакты поддержки + условия оплаты (если включена) -->
+        {% if payments_enabled %}
         <div class="left-column">
             <div class="info-card">
-                <h3 class="text-info mb-3 text-center">Поддержка</h3>
-
-                <div class="info-row">
-                    <span class="info-label">Телефон поддержки:</span>
-                    <span class="info-value">{{ support_phone|default:"не указан" }}</span>
-                </div>
-
-                <div class="info-row">
-                    <span class="info-label">Email поддержки:</span>
-                    <span class="info-value">{{ support_email }}</span>
-                </div>
-
-                {% if payments_enabled %}
-                <hr class="border-secondary my-3">
-
                 <h5 class="text-info mb-3 text-center">Условия оплаты</h5>
 
                 <div class="info-row">
@@ -126,9 +156,9 @@
                 <div class="commission-note">
                     <i class="fas fa-info-circle"></i> Комиссия применяется ко всем чемпионатам автоматически. <br>Для изменения условий обратитесь к администратору.
                 </div>
-                {% endif %}
             </div>
         </div>
+        {% endif %}
 
         <!-- Правая колонка: Мои чемпионаты -->
         <div class="right-column">

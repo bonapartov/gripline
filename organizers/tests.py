@@ -375,3 +375,17 @@ class TrainingApplyFormTests(OrganizerFixture):
         html = resp.content.decode()
         for label in ('Только этап — 8000 ₽', 'УТС + этап — 11000 ₽', 'Только УТС — 3000 ₽'):
             self.assertIn(label, html)
+
+
+class DashboardHeaderTests(OrganizerFixture):
+    def test_support_block_in_header_left_of_organizer(self):
+        from organizers.models import OrganizerSettings
+        OrganizerSettings.objects.create(support_phone='+7 900 000-00-00', support_email='help@example.com')
+        self.org_user.first_name, self.org_user.last_name = 'Иван', 'Петров'
+        self.org_user.save()
+        self.client.force_login(self.org_user)
+        html = self.client.get('/organizers/dashboard/').content.decode()
+        head = html[html.index('cabinet-head'):html.index('two-columns">')]
+        self.assertLess(head.index('help@example.com'), head.index('Иван Петров'))
+        self.assertIn('tel:+7 900 000-00-00', head)
+        self.assertNotIn('Условия оплаты', html)   # оплата выключена — левой колонки нет
