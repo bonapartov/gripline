@@ -4,6 +4,8 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import date, timedelta
 
+from . import document_kinds
+
 # Сколько черновик держит стартовый номер и место в лимите после последнего сохранения шага.
 # Брошенный черновик не удаляется: вернувшись, человек продолжит, если номер ещё свободен.
 DRAFT_HOLD = timedelta(hours=12)
@@ -271,6 +273,8 @@ class StageDocument(models.Model):
     stage = models.ForeignKey(
         'organizers.Stage', on_delete=models.CASCADE, related_name='required_documents'
     )
+    kind = models.CharField('Тип', max_length=30, choices=document_kinds.CHOICES,
+                            default=document_kinds.OTHER)
     name = models.CharField(max_length=255, verbose_name='Название документа')
     description = models.TextField(blank=True, verbose_name='Пояснение')
     required = models.BooleanField(default=True, verbose_name='Обязательный')
@@ -297,6 +301,14 @@ class StageDocument(models.Model):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        document_kinds.apply_fixed(self)
+        super().save(*args, **kwargs)
+
+    @property
+    def is_fixed_kind(self):
+        return document_kinds.is_fixed(self.kind)
+
 
 class ApplicationDocument(models.Model):
     """Загруженный документ по заявке"""
@@ -321,6 +333,12 @@ class ApplicationDocument(models.Model):
     expiry_date = models.DateField(null=True, blank=True, verbose_name='Срок действия')
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default='pending'
+    )
+    # Документ ЛК пилота, откуда подставлен файл или куда он сохранён при загрузке.
+    # Отклонение организатором помечает его, чтобы он больше не подставлялся сам.
+    vault_document = models.ForeignKey(
+        'accounts.PilotDocument', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='application_documents', verbose_name='Документ из ЛК',
     )
     organizer_comment = models.TextField(blank=True, verbose_name='Комментарий организатора')
     uploaded_at = models.DateTimeField(null=True, blank=True)
@@ -348,6 +366,8 @@ class ChampionshipDocument(models.Model):
     championship = models.ForeignKey(
         'organizers.Championship', on_delete=models.CASCADE, related_name='championship_documents'
     )
+    kind = models.CharField('Тип', max_length=30, choices=document_kinds.CHOICES,
+                            default=document_kinds.OTHER)
     name = models.CharField(max_length=255, verbose_name='Название документа')
     description = models.TextField(blank=True, verbose_name='Пояснение')
     required = models.BooleanField(default=True, verbose_name='Обязательный')
@@ -362,6 +382,10 @@ class ChampionshipDocument(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        document_kinds.apply_fixed(self)
+        super().save(*args, **kwargs)
 
 
 class ChampionshipOption(models.Model):
@@ -473,3 +497,58 @@ class ApplicationPayment(models.Model):
 
     def __str__(self):
         return f"{self.amount} ₽ — {self.get_status_display()}"
+
+
+# ---------------------------------------------------------------------------
+# Напоминания об истечении документов из ЛК пилота
+# ---------------------------------------------------------------------------
+
+class DocumentReminderSettings(models.Model):
+    """Singleton: когда и как напоминать пилоту, что документ в ЛК скоро истечёт.
+    Рассылает команда send_document_reminders (cron раз в сутки)."""
+
+    enabled = models.BooleanField('Напоминания включены', default=True)
+    days_before = models.CharField(
+        'За сколько дней напоминать', max_length=100, default='30, 10, 1',
+        help_text='Через запятую, например «30, 10, 1». Одно напоминание на каждый срок.',
+    )
+    send_email = models.BooleanField('Письмом', default=True)
+    send_telegram = models.BooleanField(
+        'В Telegram', default=True,
+        help_text='Тем, кто подключил уведомления в ЛК (через бота обратной связи).',
+    )
+
+    class Meta:
+        verbose_name = 'Напоминания о документах'
+        verbose_name_plural = 'Напоминания о документах'
+
+    def __str__(self):
+        return 'Напоминания о документах'
+
+    @classmethod
+    def get(cls):
+        obj = cls.objects.first()
+        return obj or cls.objects.create()
+
+    def days(self):
+        """Сроки по убыванию, без мусора: '30, 10,1, x' -> [30, 10, 1]."""
+        values = {int(p) for p in self.days_before.replace(';', ',').split(',') if p.strip().isdigit()}
+        return sorted(values, reverse=True)
+
+
+class DocumentReminder(models.Model):
+    """Отметка об отправленном напоминании: не повторять. Срок документа входит в ключ —
+    новый файл или новая дата начинают отсчёт заново."""
+
+    document = models.ForeignKey('accounts.PilotDocument', on_delete=models.CASCADE,
+                                 related_name='reminders')
+    days_before = models.PositiveIntegerField()
+    expiry_date = models.DateField()
+    sent_at = models.DateTimeField(auto_now_add=True)
+    channels = models.CharField(max_length=50, blank=True)
+
+    class Meta:
+        verbose_name = 'Отправленное напоминание'
+        verbose_name_plural = 'Отправленные напоминания'
+        constraints = [models.UniqueConstraint(fields=['document', 'days_before', 'expiry_date'],
+                                               name='uniq_document_reminder')]

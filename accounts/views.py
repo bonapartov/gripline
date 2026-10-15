@@ -19,7 +19,8 @@ from .models import DriverClaim, PilotDocument, SocialAuthSettings
 from wagtail.images.models import Image
 from django.db import transaction
 from django.utils import timezone
-from django.http import JsonResponse, FileResponse
+from django.http import JsonResponse, FileResponse, HttpResponse
+from wagtailcache.cache import nocache_page
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.admin.views.decorators import staff_member_required
@@ -206,6 +207,22 @@ def login_view(request):
     return render(request, 'accounts/login.html')
 
 
+def _documents_context(request):
+    """Контекст блока «Мои документы» (accounts/_documents_card.html)."""
+    from applications import document_kinds, reminders
+    from . import telegram_link
+    profile = getattr(request.user, 'profile', None)
+    return {
+        'pilot_docs': profile.documents.all() if profile else [],
+        'doc_alerts': reminders.alerts(profile),
+        'doc_kinds': document_kinds.VAULT_CHOICES,
+        'telegram_connected': bool(profile and profile.telegram_notifications and profile.telegram_id),
+        'telegram_available': bool(telegram_link.bot_username()),
+        'is_minor_profile': bool(profile and profile.is_minor),
+        'parent_email': profile.parent_email if profile else '',
+    }
+
+
 @login_required
 def profile(request):
     """Личный кабинет пилота"""
@@ -269,7 +286,6 @@ def profile(request):
                 form = DriverProfileForm(instance=driver, profile=profile)
                 formset = SocialLinkFormSet(instance=driver)
 
-            pilot_docs = profile.documents.all() if profile else []
             from teams.models import TeamInvitation
             from organizers.models import Stage as OrgStage
             from applications.models import Application
@@ -291,19 +307,19 @@ def profile(request):
                 'claim': claim,
                 'form': form,
                 'formset': formset,
-                'pilot_docs': pilot_docs,
+                **_documents_context(request),
                 'pending_invitations': pending_invitations,
                 'has_registrable_stages': has_registrable_stages,
                 'my_applications': my_applications,
             })
         else:
             messages.warning(request, 'Ваша заявка ещё не подтверждена администратором.')
-            return render(request, 'accounts/profile_pending.html', {'claim': claim})
+            return render(request, 'accounts/profile_pending.html', {'claim': claim, **_documents_context(request)})
 
     except DriverClaim.DoesNotExist:
         pending = DriverClaim.objects.filter(user=request.user, status='pending').first()
         if pending:
-            return render(request, 'accounts/profile_pending.html', {'claim': pending})
+            return render(request, 'accounts/profile_pending.html', {'claim': pending, **_documents_context(request)})
         # OAuth users (social_django) → onboarding
         has_social = request.user.social_auth.exists() if hasattr(request.user, 'social_auth') else False
         if has_social:
@@ -409,43 +425,46 @@ def upload_pilot_document(request):
     if not profile:
         return JsonResponse({'error': 'Профиль не найден'}, status=404)
 
-    name = request.POST.get('name', '').strip()
+    from applications import document_kinds, vault
+    kind = request.POST.get('kind') or document_kinds.OTHER
+    if kind not in dict(document_kinds.VAULT_CHOICES):
+        return JsonResponse({'error': 'Неизвестный тип документа'}, status=400)
+    fixed = document_kinds.is_fixed(kind)
+    name = document_kinds.label(kind) if fixed else request.POST.get('name', '').strip()
     doc_number = request.POST.get('doc_number', '').strip()
     file = request.FILES.get('file')
-    expiry_date_str = request.POST.get('expiry_date') or None
-
     expiry_date = None
-    if expiry_date_str:
+    if request.POST.get('expiry_date'):
         from datetime import datetime as dt
         try:
-            expiry_date = dt.strptime(expiry_date_str, '%Y-%m-%d').date()
+            expiry_date = dt.strptime(request.POST['expiry_date'], '%Y-%m-%d').date()
         except ValueError:
             expiry_date = None
 
     if not name or not file:
         return JsonResponse({'error': 'Название и файл обязательны'}, status=400)
+    if fixed and expiry_date is None:
+        return JsonResponse({'error': 'Укажите срок действия — по нему придёт напоминание'}, status=400)
 
-    try:
-        doc = PilotDocument.objects.create(
-            profile=profile,
-            name=name,
-            doc_number=doc_number,
-            file=file,
-            expiry_date=expiry_date,
-        )
-        return JsonResponse({
-            'success': True,
-            'id': doc.id,
-            'name': doc.name,
-            'doc_number': doc.doc_number,
-            'file_url': reverse('accounts:serve_pilot_document', args=[doc.id]),
-            'expiry_date': expiry_date.strftime('%d.%m.%Y') if expiry_date else '',
-            'is_expired': doc.is_expired,
-            'expires_soon': doc.expires_soon,
-        })
-    except Exception as e:
-        import traceback
-        return JsonResponse({'error': f'{type(e).__name__}: {e}', 'trace': traceback.format_exc()}, status=500)
+    # Документ постоянного типа один: новый заменяет прежний (в старых заявках — свои копии).
+    previous = list(profile.documents.filter(kind=kind)) if fixed else []
+    replaced = [d.id for d in previous]
+    doc = PilotDocument.objects.create(
+        profile=profile, kind=kind, name=name, doc_number=doc_number, file=file, expiry_date=expiry_date,
+    )
+    vault.replace_previous(previous)
+    return JsonResponse({
+        'success': True,
+        'replaced': replaced,
+        'id': doc.id,
+        'name': doc.name,
+        'doc_number': doc.doc_number,
+        'file_url': reverse('accounts:serve_pilot_document', args=[doc.id]),
+        'ics_url': reverse('accounts:pilot_document_ics', args=[doc.id]) if doc.expiry_date else '',
+        'expiry_date': expiry_date.strftime('%d.%m.%Y') if expiry_date else '',
+        'is_expired': doc.is_expired,
+        'expires_soon': doc.expires_soon,
+    })
 
 
 @login_required
@@ -490,6 +509,42 @@ def serve_pilot_document(request, doc_id):
     return FileResponse(
         doc.file.open('rb'), filename=doc.file.name.rsplit('/', 1)[-1], as_attachment=True,
     )
+
+
+@nocache_page
+@login_required
+def pilot_document_ics(request, doc_id):
+    """Файл календаря с напоминаниями о сроке документа из ЛК (только владельцу)."""
+    from applications import reminders
+    profile = getattr(request.user, 'profile', None)
+    doc = get_object_or_404(PilotDocument, pk=doc_id, profile=profile, expiry_date__isnull=False)
+    response = HttpResponse(reminders.ics(doc), content_type='text/calendar; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="{reminders.ics_filename(doc)}"'
+    return response
+
+
+@login_required
+def telegram_connect(request):
+    """Кнопка «Подключить Telegram»: одноразовая ссылка на бота (accounts/telegram_link.py)."""
+    from . import telegram_link
+    profile = getattr(request.user, 'profile', None)
+    if request.method != 'POST' or profile is None:
+        return redirect('accounts:profile')
+    url = telegram_link.start_link(profile)
+    if not url:
+        messages.error(request, 'Уведомления в Telegram сейчас недоступны. Попробуйте позже.')
+        return redirect(reverse('accounts:profile') + '#documents')
+    return redirect(url)
+
+
+@login_required
+def telegram_disconnect(request):
+    from . import telegram_link
+    profile = getattr(request.user, 'profile', None)
+    if request.method == 'POST' and profile is not None:
+        telegram_link.unlink(profile)
+        messages.success(request, 'Уведомления в Telegram отключены.')
+    return redirect(reverse('accounts:profile') + '#documents')
 
 
 # ─── Яндекс OAuth ────────────────────────────────────────────────────────────

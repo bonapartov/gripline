@@ -303,10 +303,21 @@
             {% for o in selected_options %}<div class="kv"><span class="k">{{ o.option.name }}</span><span class="v">{{ o.price_at_time|floatformat:0 }} ₽</span></div>{% endfor %}
             <div class="kv fw-bold"><span class="k text-warning">Итого</span><span class="v text-warning">{{ total|floatformat:0 }} ₽</span></div>
         </div>
-        {% if documents_required %}
-        <div class="alert alert-info">
-            Организатор запрашивает документы: {% for d in documents_required %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}.
-            Их и квитанцию об оплате можно загрузить после отправки — на странице заявки.
+        {% if documents_preview %}
+        <div class="app-card">
+            <div class="app-section-title">Документы</div>
+            {% for doc, saved, state in documents_preview %}
+            <div class="kv">
+                <span class="k">{{ doc.name }}{% if doc.required %}<span class="text-danger">*</span>{% endif %}</span>
+                <span class="v">
+                    {% if state == 'ok' %}<span class="text-success">из личного кабинета{% if saved.expiry_date %}, до {{ saved.expiry_date|date:"d.m.Y" }}{% endif %}</span>
+                    {% elif state == 'expired' %}<span class="text-warning">в кабинете действует до {{ saved.expiry_date|date:"d.m.Y" }} — меньше, чем идёт этап. Загрузите новый после отправки</span>
+                    {% elif state == 'rejected' %}<span class="text-warning">в кабинете отклонён организатором — загрузите новый после отправки</span>
+                    {% else %}<span class="text-muted">загрузить после отправки</span>{% endif %}
+                </span>
+            </div>
+            {% endfor %}
+            <div class="helptext mt-2">Документы и квитанцию об оплате можно загрузить после отправки — на странице заявки. Лицензия, доверенность, страховка и медицинская справка сохранятся в личном кабинете и подставятся в следующие заявки.</div>
         </div>
         {% endif %}
     {% endif %}

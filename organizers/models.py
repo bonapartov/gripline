@@ -348,7 +348,7 @@ def sync_wagtail_stage(sender, instance, created, **kwargs):
                 from applications.models import ChampionshipDocument, ChampionshipOption, StageDocument, StageOption
                 for doc in instance.championship.championship_documents.all():
                     StageDocument.objects.create(
-                        stage=instance, source=doc, name=doc.name, description=doc.description,
+                        stage=instance, source=doc, kind=doc.kind, name=doc.name, description=doc.description,
                         required=doc.required, minors_only=doc.minors_only,
                         has_expiry_date=doc.has_expiry_date, order=doc.order,
                     )

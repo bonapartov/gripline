@@ -1,0 +1,168 @@
+{% comment %}
+Документы ЛК пилота: предупреждения о сроках, подключение Telegram, список, загрузка.
+Контекст — accounts.views._documents_context(). Постоянные типы (лицензия, доверенность,
+страховка, медсправка) — один документ на тип, подставляются в заявки на этапы.
+{% endcomment %}
+<div class="profile-card mb-4" id="documents">
+    <h4 class="text-warning border-bottom border-secondary pb-2 mb-3">Мои документы</h4>
+    <p class="text-muted small mb-3">Загрузите документы один раз — они подставятся при регистрации на этап. Лицензия, доверенность, страховка и медицинская справка, загруженные в заявку, сохраняются здесь сами. Документы не публикуются на сайте и нужны только для регистрации на соревнования.</p>
+
+    {% for doc, left in doc_alerts %}
+    <div class="alert {% if left < 0 %}alert-danger{% else %}alert-warning{% endif %} small py-2 mb-2">
+        {% if left < 0 %}⚠️ Срок документа «{{ doc.name }}» истёк {{ doc.expiry_date|date:"d.m.Y" }}. Загрузите новый — без него организатор может не допустить к этапу.
+        {% elif left == 0 %}⚠️ Документ «{{ doc.name }}» действует последний день — {{ doc.expiry_date|date:"d.m.Y" }}. Загрузите новый.
+        {% else %}⏳ Документ «{{ doc.name }}» действует до {{ doc.expiry_date|date:"d.m.Y" }} — осталось {{ left }} дн. Загрузите новый заранее.{% endif %}
+    </div>
+    {% endfor %}
+
+    <div class="d-flex flex-wrap align-items-center gap-2 p-2 mb-3 rounded" style="background:#15151c; border:1px solid #2a2a35;">
+        <span class="small text-muted me-auto">
+            Напоминания о сроке документов приходят на <span class="text-white">{{ request.user.email }}</span>{% if is_minor_profile and parent_email %} и на почту родителя{% endif %}{% if telegram_connected %} и в <span class="text-white">Telegram</span>{% endif %}.
+        </span>
+        {% if telegram_connected %}
+        <form method="post" action="{% url 'accounts:telegram_disconnect' %}" class="m-0">{% csrf_token %}
+            <button class="btn btn-sm btn-outline-secondary">Отключить Telegram</button>
+        </form>
+        {% elif telegram_available %}
+        <form method="post" action="{% url 'accounts:telegram_connect' %}" class="m-0" target="_blank">{% csrf_token %}
+            <button class="btn btn-sm btn-outline-info"><i class="fab fa-telegram-plane me-1"></i>Подключить Telegram</button>
+        </form>
+        {% endif %}
+    </div>
+
+    <div id="pilotDocsList">
+    {% for doc in pilot_docs %}
+    <div class="d-flex align-items-center justify-content-between p-2 mb-2 rounded" id="pdoc_{{ doc.id }}"
+         style="background:#15151c; border:1px solid {% if doc.is_expired %}#dc3545{% elif doc.expires_soon %}#ffc107{% else %}#2a2a35{% endif %};">
+        <div>
+            <span class="text-white fw-bold">{{ doc.name }}</span>
+            {% if doc.doc_number %}<span class="ms-2 small text-muted"># {{ doc.doc_number }}</span>{% endif %}
+            {% if doc.expiry_date %}
+            <span class="ms-2 small {% if doc.is_expired %}text-danger{% elif doc.expires_soon %}text-warning{% else %}text-muted{% endif %}">
+                до {{ doc.expiry_date|date:"d.m.Y" }}
+                {% if doc.is_expired %}⚠️ истёк!{% elif doc.expires_soon %}⚠️ скоро истекает{% endif %}
+            </span>
+            {% endif %}
+            {% if doc.rejected_at %}<div class="small text-danger">Отклонён организатором{% if doc.rejected_comment %}: {{ doc.rejected_comment }}{% endif %} — в заявки не подставляется, загрузите новый.</div>{% endif %}
+            <a href="{% url 'accounts:serve_pilot_document' doc.id %}" target="_blank" class="text-info small ms-2">📎</a>
+            {% if doc.expiry_date and not doc.is_expired %}<a href="{% url 'accounts:pilot_document_ics' doc.id %}" class="text-info small ms-2" title="Добавить напоминания в календарь телефона">📅 в календарь</a>{% endif %}
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deletePilotDoc({{ doc.id }})">✕</button>
+    </div>
+    {% empty %}
+    <p class="text-muted small" id="noPilotDocs">Документов ещё нет.</p>
+    {% endfor %}
+    </div>
+
+    <div class="mt-3 p-3 rounded" style="border:1px dashed #2a2a35;">
+        <div class="row g-2">
+            <div class="col-md-3">
+                <label class="text-muted" style="font-size:0.75rem;" for="pdocKind">Документ*</label>
+                <select id="pdocKind" class="form-select form-select-sm">
+                    {% for code, label in doc_kinds %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3" id="pdocNameCol" style="display:none;">
+                <label class="text-muted" style="font-size:0.75rem;" for="pdocName">Название документа*</label>
+                <input type="text" id="pdocName" class="form-control form-control-sm" placeholder="Например Паспорт" maxlength="200">
+            </div>
+            <div class="col-md-2">
+                <label class="text-muted" style="font-size:0.75rem;" for="pdocNumber">Номер документа</label>
+                <input type="text" id="pdocNumber" class="form-control form-control-sm" placeholder="Напр. 123456" maxlength="100">
+            </div>
+            <div class="col-md-2">
+                <label class="text-muted" style="font-size:0.75rem;" for="pdocExpiry">Действует до<span id="pdocExpiryStar">*</span></label>
+                <input type="date" id="pdocExpiry" class="form-control form-control-sm">
+            </div>
+            <div class="col-md">
+                <label class="text-muted" style="font-size:0.75rem;" for="pdocFile">Файл*</label>
+                <input type="file" id="pdocFile" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-1 d-flex align-items-end">
+                <button type="button" class="btn btn-sm btn-warning w-100" onclick="uploadPilotDoc()">+</button>
+            </div>
+        </div>
+        <div id="pdocMsg" class="mt-2 small"></div>
+        <div class="mt-1" style="font-size:0.7rem;color:#6c757d;">* — обязательные поля. Новая лицензия, доверенность, страховка или медсправка заменяет прежнюю.</div>
+    </div>
+</div>
+
+<script>
+(function () {
+    function csrf() {
+        const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+        return m ? decodeURIComponent(m[1]) : '';
+    }
+    const kind = document.getElementById('pdocKind');
+    function syncKind() {
+        const other = kind.value === 'other';
+        document.getElementById('pdocNameCol').style.display = other ? '' : 'none';
+        document.getElementById('pdocExpiryStar').style.display = other ? 'none' : '';
+    }
+    kind.addEventListener('change', syncKind);
+    syncKind();
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    window.uploadPilotDoc = function () {
+        const name = document.getElementById('pdocName').value.trim();
+        const number = document.getElementById('pdocNumber').value.trim();
+        const file = document.getElementById('pdocFile').files[0];
+        const expiry = document.getElementById('pdocExpiry').value;
+        const msg = document.getElementById('pdocMsg');
+        const other = kind.value === 'other';
+
+        if (other && !name) { msg.innerHTML = '<span class="text-danger">Введите название документа.</span>'; return; }
+        if (!other && !expiry) { msg.innerHTML = '<span class="text-danger">Укажите, до какого числа действует документ.</span>'; return; }
+        if (!file) { msg.innerHTML = '<span class="text-danger">Выберите файл.</span>'; return; }
+
+        msg.innerHTML = '<span class="text-muted">⏳ Загружаем...</span>';
+        const fd = new FormData();
+        fd.append('kind', kind.value);
+        fd.append('name', name);
+        fd.append('file', file);
+        if (number) fd.append('doc_number', number);
+        if (expiry) fd.append('expiry_date', expiry);
+
+        fetch('{% url "accounts:upload_pilot_document" %}', {
+            method: 'POST', body: fd,
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrf() },
+        })
+        .then(r => r.json().catch(() => ({ error: 'HTTP ' + r.status })))
+        .then(data => {
+            if (!data.success) { msg.innerHTML = `<span class="text-danger">Ошибка: ${esc(data.error || 'сеть')}</span>`; return; }
+            msg.innerHTML = '<span class="text-success">✓ Документ загружен.</span>';
+            ['pdocName', 'pdocNumber', 'pdocFile', 'pdocExpiry'].forEach(id => { document.getElementById(id).value = ''; });
+            const noDocs = document.getElementById('noPilotDocs');
+            if (noDocs) noDocs.remove();
+            (data.replaced || []).forEach(id => { const el = document.getElementById('pdoc_' + id); if (el) el.remove(); });
+
+            let border = '#2a2a35', expiryLabel = '';
+            if (data.expiry_date) {
+                if (data.is_expired) { border = '#dc3545'; expiryLabel = ` <span class="text-danger small">до ${data.expiry_date} ⚠️ истёк!</span>`; }
+                else if (data.expires_soon) { border = '#ffc107'; expiryLabel = ` <span class="text-warning small">до ${data.expiry_date} ⚠️ скоро истекает</span>`; }
+                else { expiryLabel = ` <span class="text-muted small">до ${data.expiry_date}</span>`; }
+            }
+            const ics = data.ics_url && !data.is_expired ? ` <a href="${data.ics_url}" class="text-info small ms-2">📅 в календарь</a>` : '';
+            const row = document.createElement('div');
+            row.id = 'pdoc_' + data.id;
+            row.className = 'd-flex align-items-center justify-content-between p-2 mb-2 rounded';
+            row.style.cssText = `background:#15151c; border:1px solid ${border};`;
+            row.innerHTML = `<div><span class="text-white fw-bold">${esc(data.name)}</span>${expiryLabel} <a href="${data.file_url}" target="_blank" class="text-info small ms-2">📎</a>${ics}</div>` +
+                `<button type="button" class="btn btn-sm btn-outline-danger" onclick="deletePilotDoc(${data.id})">✕</button>`;
+            document.getElementById('pilotDocsList').appendChild(row);
+        })
+        .catch(e => { msg.innerHTML = `<span class="text-danger">Ошибка: ${esc(e.message || 'сеть')}</span>`; });
+    };
+
+    window.deletePilotDoc = function (id) {
+        if (!confirm('Удалить документ?')) return;
+        fetch(`/accounts/documents/${id}/delete/`, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrf() },
+        })
+        .then(r => r.json())
+        .then(data => { if (data.success) { const el = document.getElementById('pdoc_' + id); if (el) el.remove(); } });
+    };
+})();
+</script>

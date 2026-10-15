@@ -99,6 +99,8 @@
         text-decoration: none;
     }
 
+    .profile-card { background-color: #1a1a25; border: 1px solid #2a2a35; border-radius: 8px; padding: 2rem; text-align: left; }
+
     .status-badge {
         display: inline-block;
         background-color: #ffc107;
@@ -138,5 +140,8 @@
         <a href="{% url 'accounts:logout' %}" class="btn-pending" style="margin-top:1rem;">Выйти</a>
         <a href="/" class="btn-outline-warning">На главную</a>
     </div>
+    {% if pilot_docs or doc_alerts %}
+    <div style="max-width:900px;margin:0 auto;">{% include "accounts/_documents_card.html" %}</div>
+    {% endif %}
 </div>
 {% endblock %}

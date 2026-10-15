@@ -161,22 +161,24 @@
             {% if is_owner and doc.status != 'verified' %}
             <div class="mt-2">
                 <div class="row g-2 align-items-end">
+                    {% if doc.stage_document.has_expiry_date %}
+                    <div class="col-auto">
+                        <label class="text-muted small d-block" for="docExpiry_{{ doc.id }}">Действует до{% if doc.stage_document.is_fixed_kind %}*{% endif %}</label>
+                        <input type="date" class="form-control form-control-sm doc-expiry" id="docExpiry_{{ doc.id }}" data-doc-id="{{ doc.id }}" title="Срок действия">
+                    </div>
+                    {% endif %}
                     <div class="col">
                         <input type="file" class="form-control form-control-sm auto-doc-upload {% if doc.stage_document.required and doc.status == 'pending' %}doc-required{% endif %}"
                                id="docInput_{{ doc.id }}"
                                data-doc-id="{{ doc.id }}"
                                data-action="{% url 'applications:upload_document' doc.id %}">
                     </div>
-                    {% if doc.stage_document.has_expiry_date %}
-                    <div class="col-auto">
-                        <input type="date" class="form-control form-control-sm" id="docExpiry_{{ doc.id }}" title="Срок действия">
-                    </div>
-                    {% endif %}
                     <div class="col-auto">
                         <span class="upload-spinner" id="docSpinner_{{ doc.id }}">⏳</span>
                         <span class="doc-upload-result" id="docResult_{{ doc.id }}"></span>
                     </div>
                 </div>
+                {% if doc.stage_document.is_fixed_kind and application.submitted_by_type == 'pilot' %}<div class="text-muted small mt-1">Сохранится в личном кабинете и подставится в следующие заявки.</div>{% endif %}
             </div>
             {% endif %}
 
@@ -331,6 +333,14 @@ function showAlert(type, text) {
     area.innerHTML = `<div class="alert alert-${type === 'success' ? 'success' : 'danger'}">${text}</div>`;
     setTimeout(() => { area.innerHTML = ''; }, 6000);
 }
+
+// Срок указан после выбора файла (сервер отказал без срока) — отправляем ещё раз
+document.querySelectorAll('.doc-expiry').forEach(dateInput => {
+    dateInput.addEventListener('change', function() {
+        const fileInput = document.getElementById('docInput_' + this.dataset.docId);
+        if (this.value && fileInput && fileInput.files.length) fileInput.dispatchEvent(new Event('change'));
+    });
+});
 
 // Авто-загрузка документа при выборе файла
 document.querySelectorAll('.auto-doc-upload').forEach(input => {

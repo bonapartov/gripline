@@ -7,6 +7,8 @@ from wagtail.contrib.settings.models import BaseGenericSetting
 from wagtail.admin.panels import FieldPanel
 from wagtail.contrib.settings.registry import register_setting
 
+from applications import document_kinds
+
 class UserProfile(models.Model):
     """Расширение стандартной модели User"""
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
@@ -56,18 +58,22 @@ class UserProfile(models.Model):
         verbose_name = "Профиль пользователя"
         verbose_name_plural = "Профили пользователей"
 
+    # Не уникален: родитель подключает свой Telegram в аккаунтах нескольких детей.
     telegram_id = models.BigIntegerField(
         "Telegram ID",
         null=True,
         blank=True,
-        unique=True,
-        help_text="ID для отправки уведомлений в Telegram. Привязывается через бота."
+        db_index=True,
+        help_text="ID для отправки уведомлений в Telegram. Привязывается кнопкой в ЛК через бота."
     )
     telegram_notifications = models.BooleanField(
         "Уведомления в Telegram",
         default=False,
         help_text="Отправлять уведомления о статусе заявок в Telegram"
     )
+    # Одноразовый код ссылки t.me/<бот>?start=link-<код> (кнопка «Подключить Telegram» в ЛК).
+    telegram_link_token = models.CharField(max_length=64, blank=True, db_index=True)
+    telegram_link_created_at = models.DateTimeField(null=True, blank=True)
 
     # Личные данные пилота для автозаполнения заявок
     middle_name = models.CharField("Отчество", max_length=100, blank=True)
@@ -156,11 +162,17 @@ class PilotDocument(models.Model):
         UserProfile, on_delete=models.CASCADE,
         related_name='documents', verbose_name='Профиль'
     )
+    kind = models.CharField('Тип', max_length=30, choices=document_kinds.VAULT_CHOICES,
+                            default=document_kinds.OTHER, db_index=True)
     name = models.CharField('Название документа', max_length=200)
     doc_number = models.CharField('Номер документа', max_length=100, blank=True)
     file = models.FileField('Файл', upload_to='pilot_documents/')
     expiry_date = models.DateField('Срок действия', null=True, blank=True)
     uploaded_at = models.DateTimeField('Загружен', auto_now_add=True)
+    # Организатор отклонил этот файл в заявке — в новые заявки он сам не подставляется,
+    # пока пилот не загрузит другой.
+    rejected_at = models.DateTimeField('Отклонён организатором', null=True, blank=True)
+    rejected_comment = models.TextField('Причина отклонения', blank=True)
 
     class Meta:
         verbose_name = 'Документ пилота'
@@ -184,6 +196,17 @@ class PilotDocument(models.Model):
         from datetime import date
         delta = (self.expiry_date - date.today()).days
         return 0 <= delta <= 30
+
+    @property
+    def days_left(self):
+        if not self.expiry_date:
+            return None
+        from datetime import date
+        return (self.expiry_date - date.today()).days
+
+    def valid_through(self, day):
+        """Годится для этапа, который идёт до `day` включительно."""
+        return self.rejected_at is None and (self.expiry_date is None or self.expiry_date >= day)
 
 
 class DriverClaim(models.Model):

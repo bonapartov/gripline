@@ -23,6 +23,7 @@ from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.types import CallbackQuery, Message, ReactionTypeEmoji
 from django.utils import timezone
 
+from accounts import telegram_link
 from website.feedback import service, sources
 from website.feedback.channels.base import DeliveryError
 from website.feedback.db import run_sync
@@ -175,6 +176,14 @@ class FeedbackTelegramBot:
                     user, await run_sync(service.text, 'privacy_notice', policy_url=cfg.privacy_policy_url),
                 )
                 await run_sync(service.mark_privacy_notice_shown, user)
+            if telegram_link.is_link_param(command.args):
+                profile = await run_sync(telegram_link.complete_link, command.args, message.from_user.id)
+                if profile is None:
+                    await self.adapter.send_message(user, await run_sync(service.text, 'account_link_invalid'))
+                else:
+                    await self.adapter.send_message(user, await run_sync(
+                        service.text, 'account_linked', account=profile.user.email))
+                return
             parsed = sources.parse_start_param(command.args)
             if parsed:
                 code, kind, pk = parsed

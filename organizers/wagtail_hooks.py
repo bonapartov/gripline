@@ -117,9 +117,9 @@ class ChampionshipDocumentAdmin(ModelAdmin):
     model = ChampionshipDocument
     menu_label = "Документы мероприятий"
     menu_icon = "doc-full"
-    list_display = ('name', 'championship', 'required', 'minors_only', 'has_expiry_date')
+    list_display = ('name', 'kind', 'championship', 'required', 'minors_only', 'has_expiry_date')
     search_fields = ('name', 'championship__title')
-    list_filter = ('championship', 'required', 'minors_only')
+    list_filter = ('kind', 'championship', 'required', 'minors_only')
 
 
 class ChampionshipOptionAdmin(ModelAdmin):
@@ -137,9 +137,9 @@ class StageDocumentAdmin(ModelAdmin):
     model = StageDocument
     menu_label = "Документы этапов"
     menu_icon = "doc-full-inverse"
-    list_display = ('name', 'stage', 'required', 'minors_only')
+    list_display = ('name', 'kind', 'stage', 'required', 'minors_only')
     search_fields = ('name', 'stage__title', 'stage__championship__title')
-    list_filter = ('required', 'minors_only')
+    list_filter = ('kind', 'required', 'minors_only')
 
 
 class StageOptionAdmin(ModelAdmin):
@@ -160,6 +160,18 @@ class OrganizerSettingsAdmin(ModelAdmin):
     form_fields_exclude = ('created_at', 'updated_at')
 
 
+class DocumentReminderSettingsAdmin(ModelAdmin):
+    from applications.models import DocumentReminderSettings
+    model = DocumentReminderSettings
+    menu_label = "Напоминания о документах"
+    menu_icon = "date"
+    list_display = ('__str__', 'enabled', 'days_before', 'send_email', 'send_telegram')
+
+    def get_queryset(self, request):
+        self.model.get()  # единственная запись создаётся при первом открытии
+        return super().get_queryset(request)
+
+
 class OrganizersGroup(ModelAdminGroup):
     menu_label = "Организаторы"
     menu_icon = "group"
@@ -173,6 +185,7 @@ class OrganizersGroup(ModelAdminGroup):
         StageDocumentAdmin,
         StageOptionAdmin,
         OrganizerSettingsAdmin,
+        DocumentReminderSettingsAdmin,
     )
 
 

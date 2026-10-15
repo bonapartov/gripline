@@ -84,9 +84,11 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="add_document">
             <div class="row g-2">
-                <div class="col-md-6">{{ document_form.name }}</div>
-                <div class="col-md-6">{{ document_form.description }}</div>
+                <div class="col-md-4">{{ document_form.kind }}</div>
+                <div class="col-md-4 doc-name-col">{{ document_form.name }}</div>
+                <div class="col-md-4">{{ document_form.description }}</div>
             </div>
+            <div class="text-muted small mt-2 doc-kind-hint">Лицензия, доверенность, страховка и медицинская справка сохраняются в личном кабинете пилота и подставляются в следующие заявки; срок действия обязателен, доверенность — только для несовершеннолетних.</div>
             <div class="d-flex gap-4 mt-2">
                 <div class="form-check">{{ document_form.required }}<label class="form-check-label chk-label">Обязательный</label></div>
                 <div class="form-check">{{ document_form.minors_only }}<label class="form-check-label chk-label">Только несовершеннолетние</label></div>
@@ -139,4 +141,21 @@
         </form>
     </div>
 </div>
+<script>
+// Постоянный тип документа: название и флаги задаёт тип (applications/document_kinds.py)
+document.querySelectorAll('form .doc-kind-select').forEach(sel => {
+    const form = sel.closest('form');
+    const sync = () => {
+        const fixed = sel.value !== 'other';
+        form.querySelector('.doc-name-col').style.display = fixed ? 'none' : '';
+        const minors = form.querySelector('[name="minors_only"]');
+        const expiry = form.querySelector('[name="has_expiry_date"]');
+        if (fixed) { minors.checked = sel.value === 'power_of_attorney'; expiry.checked = true; }
+        minors.disabled = fixed; expiry.disabled = fixed;
+        form.querySelector('.doc-kind-hint').style.display = fixed ? '' : 'none';
+    };
+    sel.addEventListener('change', sync);
+    sync();
+});
+</script>
 {% endblock %}

@@ -118,12 +118,33 @@ class StageForm(forms.ModelForm):
 
 
 class StageDocumentForm(forms.ModelForm):
+    """Документ этапа или чемпионата. У постоянного типа (лицензия, доверенность, страховка,
+    медсправка) название и флаги задаёт тип; название вводится только для «другого»."""
+
+    def __init__(self, *args, existing_kinds=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.existing_kinds = set(existing_kinds)
+        self.fields['name'].required = False
+
+    def clean(self):
+        from applications import document_kinds
+        data = super().clean()
+        kind = data.get('kind')
+        if document_kinds.is_fixed(kind):
+            if kind in self.existing_kinds:
+                self.add_error('kind', f'«{document_kinds.label(kind)}» уже есть в списке.')
+            data['name'] = document_kinds.label(kind)
+        elif not (data.get('name') or '').strip():
+            self.add_error('name', 'Введите название документа.')
+        return data
+
     class Meta:
         from applications.models import StageDocument
         model = StageDocument
-        fields = ['name', 'description', 'required', 'minors_only', 'has_expiry_date']
+        fields = ['kind', 'name', 'description', 'required', 'minors_only', 'has_expiry_date']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Напр. Медицинская справка'}),
+            'kind': forms.Select(attrs={'class': 'form-select doc-kind-select'}),
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Название, напр. Анкета участника'}),
             'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Пояснение (необязательно)'}),
             'required': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'minors_only': forms.CheckboxInput(attrs={'class': 'form-check-input'}),

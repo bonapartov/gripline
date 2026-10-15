@@ -94,3 +94,30 @@ def notify_data_request(obj):
         logger.exception('data-request #%s: уведомление в Telegram не подготовлено', obj.pk)
         return
     notify_admin_chat(text, f'data-request #{obj.pk}')
+
+
+def send_user_message(chat_id, text_html):
+    """Личное сообщение пользователю от бота (напоминания из ЛК). Синхронно — для cron-команд.
+    True — отправлено; 'blocked' — пользователь остановил бота или удалил чат (больше не
+    писать); False — бот не настроен или сетевой сбой (повторить позже)."""
+    from website.models import FeedbackBotSettings
+    cfg = FeedbackBotSettings.get()
+    try:
+        token = cfg.get_token()
+    except Exception:
+        logger.exception('Не удалось расшифровать токен бота')
+        return False
+    if not token or not cfg.is_enabled:
+        return False
+    try:
+        tg_sync.api_call(token, 'sendMessage', cfg.proxy_url(), {
+            'chat_id': chat_id, 'text': text_html, 'parse_mode': 'HTML',
+            'disable_web_page_preview': True,
+        }, timeout=SEND_TIMEOUT)
+    except tg_sync.TelegramApiError as exc:
+        text = str(exc).lower()
+        if 'blocked' in text or 'chat not found' in text or 'deactivated' in text:
+            return 'blocked'
+        logger.warning('Личное сообщение не отправлено: %s', exc)
+        return False
+    return True

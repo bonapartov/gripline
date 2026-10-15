@@ -8,6 +8,7 @@ from django.conf import settings
 
 from website.mail import send_templated_mail
 from organizers.models import Stage
+from . import vault
 from .models import Application, ApplicationDocument, ApplicationPayment
 
 
@@ -169,6 +170,14 @@ def detail(request, application_id):
     })
 
 
+def _parse_date(value):
+    from datetime import datetime
+    try:
+        return datetime.strptime((value or '').strip(), '%Y-%m-%d').date()
+    except ValueError:
+        return None
+
+
 @login_required
 def upload_document(request, document_id):
     """Загрузка файла документа участником (поддерживает AJAX)"""
@@ -182,14 +191,22 @@ def upload_document(request, document_id):
         return redirect('/')
 
     if request.method == 'POST' and request.FILES.get('file'):
+        expiry = _parse_date(request.POST.get('expiry_date'))
+        if doc.stage_document.is_fixed_kind and expiry is None:
+            error = 'Укажите срок действия документа — по нему придёт напоминание.'
+            if is_ajax:
+                return JsonResponse({'error': error}, status=400)
+            messages.error(request, error)
+            return redirect('applications:detail', application_id=doc.application.id)
         doc.file = request.FILES['file']
-        expiry = request.POST.get('expiry_date')
         if expiry:
             doc.expiry_date = expiry
         doc.status = 'uploaded'
         doc.uploaded_at = timezone.now()
         doc.organizer_comment = ''
+        doc.vault_document = None
         doc.save()
+        vault.save_from_application(doc)
         if is_ajax:
             return JsonResponse({
                 'success': True,
@@ -408,6 +425,7 @@ def org_verify_document(request, document_id):
             doc.status = 'rejected'
             doc.organizer_comment = comment
             doc.save()
+            vault.mark_rejected(doc, comment)
             _notify(application, 'doc_rejected', comment, document=doc.stage_document)
 
     return redirect('applications:detail', application_id=doc.application.id)

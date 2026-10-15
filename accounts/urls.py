@@ -17,6 +17,9 @@ urlpatterns = [
     path('documents/upload/', views.upload_pilot_document, name='upload_pilot_document'),
     path('documents/<int:doc_id>/delete/', views.delete_pilot_document, name='delete_pilot_document'),
     path('documents/<int:doc_id>/file/', views.serve_pilot_document, name='serve_pilot_document'),
+    path('documents/<int:doc_id>/calendar.ics', views.pilot_document_ics, name='pilot_document_ics'),
+    path('telegram/connect/', views.telegram_connect, name='telegram_connect'),
+    path('telegram/disconnect/', views.telegram_disconnect, name='telegram_disconnect'),
     
     # Email verification
     path('verify-email/<uidb64>/<token>/', views.verify_email, name='verify_email'),

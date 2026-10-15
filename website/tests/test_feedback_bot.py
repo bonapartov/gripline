@@ -559,3 +559,20 @@ def test_pending_is_consumed_by_first_message(env):
     env.session.calls.clear()
     feed(env, msg(900, 'второе для коллег', chat_id=ADMIN_CHAT, chat_type='supergroup'))
     assert not confirmation_of(env)
+
+
+def test_start_link_connects_site_account(env):
+    from django.contrib.auth.models import User
+    from accounts import telegram_link
+    from django.utils import timezone
+    user = User.objects.create_user('pilot-link@example.com', 'pilot-link@example.com', 'pw')
+    token = 'x' * 32
+    type(user.profile).objects.filter(pk=user.profile.pk).update(
+        telegram_link_token=token, telegram_link_created_at=timezone.now())
+    param = telegram_link.PREFIX + token
+    feed(env, msg(111, '/start ' + param))
+    user.profile.refresh_from_db()
+    assert (user.profile.telegram_id, user.profile.telegram_notifications) == (111, True)
+    assert 'pilot-link@example.com' in env.session.texts_to(111)[-1]
+    feed(env, msg(111, '/start ' + param))       # повторно — код уже использован
+    assert 'устарела' in env.session.texts_to(111)[-1]

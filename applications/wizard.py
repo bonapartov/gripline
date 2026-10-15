@@ -8,14 +8,12 @@
 новую команду (DriverClaim/TeamClaim → уведомление админу в Telegram и письма) создаются
 только при отправке на шаге ⑤, чтобы брошенные черновики не засыпали модерацию.
 """
-import os
 import secrets
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.models import User
-from django.core.files.base import ContentFile
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -25,6 +23,7 @@ from wagtailcache.cache import nocache_page
 from organizers.models import Stage
 from website.services.balance_limits import ratelimit_post
 
+from . import vault
 from .forms import prefill_from_profile, save_to_profile
 from .models import (
     Application, ApplicationApplicant, ApplicationDocument, ApplicationOption, ApplicationPayment,
@@ -363,24 +362,9 @@ def _step_options(request, stage, application):
 
 # ── ⑤ проверка и отправка ────────────────────────────────────────────────────
 
-def _create_document_rows(application, user, is_minor):
-    """Строки требуемых документов; подходящие документы из хранилища пилота — сразу загружены."""
-    if application.documents.exists():
-        return
-    vault = {}
-    profile = getattr(user, 'profile', None) if application.submitted_by_type == 'pilot' else None
-    if profile is not None:
-        vault = {d.name.lower(): d for d in profile.documents.all() if not d.is_expired}
-    for doc in application.stage.required_documents.filter(is_active=True):
-        if doc.minors_only and not is_minor:
-            continue
-        match = vault.get(doc.name.lower())
-        row = ApplicationDocument(application=application, stage_document=doc)
-        if match:
-            match.file.seek(0)
-            row.file.save(os.path.basename(match.file.name), ContentFile(match.file.read()), save=False)
-            row.status, row.uploaded_at, row.expiry_date = 'uploaded', timezone.now(), match.expiry_date
-        row.save()
+def _documents_preview(stage, application):
+    pilot = _related(application, 'pilot')
+    return vault.preview(stage, vault.vault_profile(application), bool(pilot and pilot.is_minor))
 
 
 def _claim_pilot(application, user):
@@ -460,7 +444,7 @@ def _step_review(request, stage, application):
             return redirect(_step_url(stage, 1, application))
         with transaction.atomic():
             pilot = application.pilot
-            _create_document_rows(application, request.user, pilot.is_minor)
+            vault.create_document_rows(application, pilot.is_minor)
             ApplicationPayment.objects.update_or_create(
                 application=application,
                 defaults={'amount': application.get_total_amount(), 'method': 'manual'})
@@ -485,5 +469,5 @@ def _step_review(request, stage, application):
         'mechanic': _related(application, 'mechanic'), 'applicant': _related(application, 'applicant'),
         'selected_options': application.selected_options.select_related('option'),
         'total': application.get_total_amount(),
-        'documents_required': [d for d in stage.required_documents.filter(is_active=True)],
+        'documents_preview': _documents_preview(stage, application),
     })

@@ -494,10 +494,11 @@ def championship_reg_settings(request, pk):
         action = request.POST.get('action')
 
         if action == 'add_document':
-            form = StageDocumentForm(request.POST)
+            form = StageDocumentForm(request.POST, existing_kinds=championship.championship_documents.values_list('kind', flat=True))
             if form.is_valid():
                 doc = ChampionshipDocument.objects.create(
                     championship=championship,
+                    kind=form.cleaned_data['kind'],
                     name=form.cleaned_data['name'],
                     description=form.cleaned_data.get('description', ''),
                     required=form.cleaned_data.get('required', True),
@@ -507,6 +508,8 @@ def championship_reg_settings(request, pk):
                 )
                 _sync_championship_docs_to_stages(championship)
                 messages.success(request, f'Документ «{doc.name}» добавлен.')
+            else:
+                messages.error(request, ' '.join(e for errs in form.errors.values() for e in errs))
 
         elif action == 'delete_document':
             ChampionshipDocument.objects.filter(id=request.POST.get('doc_id'), championship=championship).delete()
@@ -544,7 +547,7 @@ def championship_reg_settings(request, pk):
     })
 
 
-_DOC_FIELDS = ('name', 'description', 'required', 'minors_only', 'has_expiry_date', 'order')
+_DOC_FIELDS = ('kind', 'name', 'description', 'required', 'minors_only', 'has_expiry_date', 'order')
 _OPT_FIELDS = ('name', 'description', 'price', 'is_mandatory', 'is_active', 'order')
 
 
@@ -682,13 +685,16 @@ def stage_settings(request, pk):
         action = request.POST.get('action')
 
         if action == 'add_document':
-            form = StageDocumentForm(request.POST)
+            form = StageDocumentForm(request.POST, existing_kinds=stage.required_documents.filter(
+                is_active=True).values_list('kind', flat=True))
             if form.is_valid():
                 doc = form.save(commit=False)
                 doc.stage = stage
                 doc.order = stage.required_documents.count()
                 doc.save()
                 messages.success(request, f'Документ «{doc.name}» добавлен.')
+            else:
+                messages.error(request, ' '.join(e for errs in form.errors.values() for e in errs))
             return redirect('organizers:stage_settings', pk=stage.id)
 
         if action == 'delete_document':

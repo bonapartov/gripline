@@ -15,6 +15,7 @@ JOBS = {
     'feedback_cleanup': ('Очистка обращений бота (ПД)', 36 * HOUR),
     'reset_demo_accounts': ('Сброс демо-аккаунтов', 36 * HOUR),
     'setupkart_trial_cleanup': ('Очистка устройств пробного периода', 36 * HOUR),
+    'send_document_reminders': ('Напоминания о сроке документов пилотов', 36 * HOUR),
     # cron раз в 3 часа (погода этапов из Open-Meteo в БД)
     'refresh_weather_widgets': ('Погода этапов (Open-Meteo)', 12 * HOUR),
     # cron раз в 10 минут: если молчит больше часа — cron или команда сломаны

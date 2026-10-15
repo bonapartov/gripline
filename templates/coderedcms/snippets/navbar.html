@@ -1,4 +1,4 @@
-{% load static wagtailcore_tags wagtailsettings_tags wagtailimages_tags coderedcms_tags i18n %}
+{% load static wagtailcore_tags wagtailsettings_tags wagtailimages_tags coderedcms_tags i18n document_alert_tags %}
 {% wagtail_site as site %}
 {% django_setting "CRX_DISABLE_LAYOUT" as disable_layout %}
 
@@ -71,7 +71,8 @@
           {% elif user.team_managers.exists and request.session.active_role != 'pilot' %}
             <a href="{% url 'teams:dashboard' %}" class="btn btn-sm btn-outline-success">Личный кабинет</a>
           {% else %}
-            <a href="{% url 'accounts:profile' %}" class="btn btn-sm btn-outline-success">Личный кабинет</a>
+            {% document_alert_count user as doc_alerts %}
+            <a href="{% url 'accounts:profile' %}{% if doc_alerts %}#documents{% endif %}" class="btn btn-sm btn-outline-success position-relative">Личный кабинет{% if doc_alerts %}<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark" title="Срок документов истекает — загрузите новые">{{ doc_alerts }}</span>{% endif %}</a>
           {% endif %}
           <a href="{% url 'accounts:logout' %}" class="btn btn-sm btn-outline-danger" title="Выйти">
             <i class="fas fa-sign-out-alt"></i>
