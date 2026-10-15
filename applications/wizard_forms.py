@@ -44,7 +44,8 @@ class StepParticipationForm(HighlightErrorsMixin, forms.Form):
         if number is not None and data.get('race_class'):
             available = set(self.stage.get_available_numbers(race_class=data['race_class'],
                                                              participation=data.get('participation')))
-            own = self.application.start_number if self.application else None
+            own = (self.application.start_number
+                   if self.application and self.application.is_number_reserved() else None)
             if number not in available and number != own:
                 self.add_error('start_number', 'Этот номер уже занят. Выберите другой.')
         return data

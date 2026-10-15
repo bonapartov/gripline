@@ -99,6 +99,7 @@
                            value="{{ form.start_number.value|default:'' }}" placeholder="выберите ниже (необязательно)">
                     {{ form.start_number }}
                     {% for e in form.start_number.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    <div class="helptext">Номер закреплён за черновиком 12 часов после последнего сохранения шага, после отправки заявки — насовсем.</div>
                 </div>
             </div>
             <div class="mt-3">

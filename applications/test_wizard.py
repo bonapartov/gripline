@@ -296,3 +296,55 @@ class PasswordResetVerifiesEmailTests(WizardFixture):
         self.assertTrue(is_email_verified(user))
         self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)   # автовход после сброса
         self.assertTrue(user.check_password('Very-strong-pass-42'))
+
+
+class DraftHoldTests(WizardFixture):
+    """Черновик держит номер и место DRAFT_HOLD (12 ч) после последнего сохранения шага."""
+
+    def draft(self, user, number, hours_ago=0):
+        app = Application.objects.create(stage=self.stage, submitted_by=user, race_class=self.mini,
+                                         start_number=number, status='draft', wizard_step=1)
+        Application.objects.filter(pk=app.pk).update(updated_at=timezone.now() - timedelta(hours=hours_ago))
+        app.refresh_from_db()
+        return app
+
+    def setUp(self):
+        super().setUp()
+        self.a = User.objects.create_user('a', 'a@example.com', 'x')
+        self.b = User.objects.create_user('b', 'b@example.com', 'x')
+
+    def test_fresh_draft_holds_number_and_place(self):
+        self.draft(self.a, 15, hours_ago=11)
+        self.assertNotIn(15, self.stage.get_available_numbers(race_class=self.mini))
+        self.stage.max_participants = 1
+        self.assertIsNotNone(self.stage.registration_closed_reason())
+
+    def test_abandoned_draft_releases_number_and_place(self):
+        app = self.draft(self.a, 15, hours_ago=13)
+        self.assertFalse(app.is_number_reserved())
+        self.assertIn(15, self.stage.get_available_numbers(race_class=self.mini))
+        self.stage.max_participants = 1
+        self.assertIsNone(self.stage.registration_closed_reason())
+
+    def test_other_pilot_takes_released_number(self):
+        self.draft(self.a, 15, hours_ago=13)
+        self.client.force_login(self.b)
+        self.assertEqual(self.step1(15).status_code, 302)
+        self.assertEqual(Application.objects.get(submitted_by=self.b).start_number, 15)
+
+    def test_owner_of_abandoned_draft_cannot_keep_taken_number(self):
+        self.draft(self.a, 15, hours_ago=13)
+        self.draft(self.b, 15)
+        self.client.force_login(self.a)
+        resp = self.client.get(self.url(1))
+        self.assertContains(resp, 'Номер 15 заняли')
+        resp = self.step1(15)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Этот номер уже занят')
+
+    def test_owner_of_abandoned_draft_keeps_free_number(self):
+        app = self.draft(self.a, 15, hours_ago=13)
+        self.client.force_login(self.a)
+        self.assertEqual(self.step1(15).status_code, 302)
+        app.refresh_from_db()
+        self.assertTrue(app.is_number_reserved())

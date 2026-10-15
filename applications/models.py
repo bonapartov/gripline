@@ -1,6 +1,12 @@
 from django.db import models
+from django.db.models import Q
 from django.contrib.auth.models import User
-from datetime import date
+from django.utils import timezone
+from datetime import date, timedelta
+
+# Сколько черновик держит стартовый номер и место в лимите после последнего сохранения шага.
+# Брошенный черновик не удаляется: вернувшись, человек продолжит, если номер ещё свободен.
+DRAFT_HOLD = timedelta(hours=12)
 
 
 class Application(models.Model):
@@ -71,8 +77,17 @@ class Application(models.Model):
         options_total = sum(o.price_at_time for o in self.selected_options.all())
         return self.entry_fee_amount + options_total
 
+    @staticmethod
+    def holding_q():
+        """Заявки, которые держат номер и место: поданные и подтверждённые, а черновики —
+        только DRAFT_HOLD после последнего сохранения."""
+        return (Q(status__in=('submitted', 'confirmed'))
+                | Q(status='draft', updated_at__gte=timezone.now() - DRAFT_HOLD))
+
     def is_number_reserved(self):
-        return self.status in ('draft', 'submitted', 'confirmed')
+        if self.status == 'draft':
+            return self.updated_at is None or self.updated_at >= timezone.now() - DRAFT_HOLD
+        return self.status in ('submitted', 'confirmed')
 
 
 class ApplicationApplicant(models.Model):

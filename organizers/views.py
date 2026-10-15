@@ -790,9 +790,9 @@ def stage_numbers(request, stage_id):
 
     stage = get_object_or_404(Stage, pk=stage_id, championship__organizer__user=request.user)
 
-    applications = Application.objects.filter(
-        stage=stage, start_number__isnull=False
-    ).exclude(status__in=['cancelled', 'rejected']).select_related('race_class', 'pilot', 'pilot__driver')
+    applications = stage.active_applications().filter(
+        start_number__isnull=False
+    ).select_related('race_class', 'pilot', 'pilot__driver')
 
     # Приоритет активной заявки при совпадении номера
     numbers_map = {}

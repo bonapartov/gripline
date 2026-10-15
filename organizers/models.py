@@ -161,9 +161,10 @@ class Stage(models.Model):
         return f"{self.championship.title} - {self.title}"
 
     def active_applications(self):
-        """Заявки, которые занимают место: всё, кроме отменённых и отклонённых."""
+        """Заявки, которые занимают место и номер: поданные, подтверждённые и черновики,
+        сохранённые не раньше чем DRAFT_HOLD назад (брошенный черновик места не держит)."""
         from applications.models import Application
-        return Application.objects.filter(stage=self).exclude(status__in=['rejected', 'cancelled'])
+        return Application.objects.filter(Application.holding_q(), stage=self)
 
     def race_applications(self):
         """Активные заявки тех, кто едет этап (без «только УТС») — для лимита участников."""
@@ -232,10 +233,7 @@ class Stage(models.Model):
         from applications.models import Application
         all_numbers = set(self.number_range(participation))
         reserved = set(self.reserved_start_numbers or [])
-        qs = Application.objects.filter(
-            stage=self,
-            start_number__isnull=False,
-        ).exclude(status__in=['rejected', 'cancelled'])
+        qs = self.active_applications().filter(start_number__isnull=False)
         if race_class is not None:
             qs = qs.filter(race_class=race_class)
         taken = set(qs.values_list('start_number', flat=True))

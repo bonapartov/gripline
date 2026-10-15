@@ -162,6 +162,12 @@ def _step_participation(request, stage, application):
     if application:
         initial = {'participation': application.participation, 'race_class': application.race_class_id,
                    'start_number': application.start_number}
+        if (request.method == 'GET' and application.start_number and not application.is_number_reserved()
+                and application.start_number not in stage.get_available_numbers(
+                    race_class=application.race_class, participation=application.participation)):
+            messages.warning(request, f'Номер {application.start_number} заняли, пока черновик ждал '
+                                      'больше 12 часов. Выберите другой.')
+            initial['start_number'] = None
     elif not request.user.is_authenticated:
         initial = _draft_from_session(request, stage) or {}
 
@@ -188,7 +194,8 @@ def _step_participation(request, stage, application):
     from website.models import RaceClass
     numbers = stage.get_available_numbers(race_class=RaceClass.objects.filter(pk=race_class).first(),
                                           participation=participation) if race_class else []
-    own = application.start_number if application else None
+    # Свой номер черновик держит только DRAFT_HOLD; брошенный — наравне со всеми, если свободен.
+    own = application.start_number if application and application.is_number_reserved() else None
     if own and own not in numbers:
         numbers = sorted([*numbers, own])
     return _render(request, stage, application, 1, {
