@@ -20,6 +20,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from wagtailcache.cache import nocache_page
 
 from organizers.models import Stage
 from website.services.balance_limits import ratelimit_post
@@ -111,6 +112,7 @@ def _submitted_by_type(user):
     return 'organizer' if user.is_authenticated and _is_organizer(user) else 'pilot'
 
 
+@nocache_page
 @ratelimit_post('apply_wizard', limit=60, window_seconds=3600)
 def wizard_step(request, stage_id, step):
     stage = get_object_or_404(Stage, pk=stage_id)
@@ -133,6 +135,7 @@ def wizard_step(request, stage_id, step):
     return handler(request, stage, application)
 
 
+@nocache_page
 def wizard_start(request, stage_id):
     """Вход в мастер: продолжить черновик с первого незавершённого шага."""
     stage = get_object_or_404(Stage, pk=stage_id)
