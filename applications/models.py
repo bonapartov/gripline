@@ -11,6 +11,46 @@ from . import document_kinds
 DRAFT_HOLD = timedelta(hours=12)
 
 
+class TeamStageEntry(models.Model):
+    """Заявка команды на этап: менеджер заявляет несколько пилотов (в т.ч. в разных классах)
+    одним пакетом. Каждый пилот — обычная Application(submitted_by_type='team') со ссылкой
+    сюда, поэтому номера, лимит мест, документы, УТС и экраны организатора работают как у
+    одиночной заявки. Мастер — applications/team_wizard.py."""
+
+    STATUS_CHOICES = [('draft', 'Черновик'), ('submitted', 'Отправлена')]
+    PAYMENT_SINGLE, PAYMENT_PER_PILOT = 'single', 'per_pilot'
+    PAYMENT_CHOICES = [(PAYMENT_PER_PILOT, 'Отдельно за каждого пилота'),
+                       (PAYMENT_SINGLE, 'Одной квитанцией за всю команду')]
+
+    stage = models.ForeignKey('organizers.Stage', on_delete=models.CASCADE, related_name='team_entries')
+    team = models.ForeignKey('website.Team', on_delete=models.CASCADE, related_name='stage_entries',
+                             verbose_name='Команда')
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='team_stage_entries',
+                                   verbose_name='Менеджер')
+    status = models.CharField('Статус', max_length=20, choices=STATUS_CHOICES, default='draft')
+    payment_mode = models.CharField('Оплата', max_length=20, choices=PAYMENT_CHOICES, default=PAYMENT_PER_PILOT)
+    rep_last_name = models.CharField('Фамилия представителя', max_length=100, blank=True)
+    rep_first_name = models.CharField('Имя представителя', max_length=100, blank=True)
+    rep_phone = models.CharField('Телефон представителя', max_length=30, blank=True)
+    rep_email = models.EmailField('Email представителя', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    submitted_at = models.DateTimeField('Отправлена', null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Заявка команды на этап'
+        verbose_name_plural = 'Заявки команд на этапы'
+        ordering = ['-created_at']
+        # Одна на команду и этап: пилотов добавляют в неё же, в т.ч. после отправки первых.
+        unique_together = [('stage', 'team')]
+
+    def __str__(self):
+        return f'{self.team} — {self.stage}'
+
+    def active_applications(self):
+        return self.applications.exclude(status__in=('rejected', 'cancelled'))
+
+
 class Application(models.Model):
     """Заявка на участие в этапе — универсальная, подаётся пилотом, командой или организатором"""
 
@@ -47,6 +87,10 @@ class Application(models.Model):
     )
     submitted_by_type = models.CharField(
         max_length=20, choices=SUBMITTED_BY_CHOICES, default='pilot'
+    )
+    team_entry = models.ForeignKey(
+        TeamStageEntry, on_delete=models.CASCADE, null=True, blank=True, related_name='applications',
+        verbose_name='Заявка команды',
     )
     race_class = models.ForeignKey(
         'website.RaceClass', on_delete=models.SET_NULL, null=True, blank=True

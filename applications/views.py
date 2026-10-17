@@ -100,7 +100,8 @@ def _duplicate_application(stage, user, submitted_by_type, race_class_id):
     if submitted_by_type == 'organizer' or not str(race_class_id or '').isdigit():
         return None
     from django.db.models import Q
-    who = Q(submitted_by=user)
+    # Заявки, поданные пользователем как менеджером команды, — за других пилотов.
+    who = Q(submitted_by=user) & ~Q(submitted_by_type='team')
     driver = getattr(getattr(user, 'profile', None), 'driver', None)
     if driver:
         who |= Q(pilot__driver=driver)
@@ -155,6 +156,10 @@ def detail(request, application_id):
     if not (is_owner or is_organizer):
         messages.error(request, 'У вас нет доступа к этой заявке.')
         return redirect('/')
+
+    if is_owner and application.status == 'draft' and application.team_entry_id:
+        # Черновик заявки команды заполняется в мастере команды, не здесь.
+        return redirect('teams:team_entry_pilot', entry_id=application.team_entry_id, application_id=application.id)
 
     in_wizard = application.status == 'draft' and application.submitted_by_type != 'team'
     return render(request, 'applications/detail.html', {

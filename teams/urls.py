@@ -1,4 +1,6 @@
 from django.urls import path
+from applications import team_wizard
+
 from . import views, balance_roster_views
 
 app_name = 'teams'
@@ -16,7 +18,6 @@ urlpatterns = [
     path('select-team/', views.select_team, name='select_team'),
     path('login/', views.login_view, name='login'),
     path('dashboard/', views.dashboard, name='dashboard'),
-    path('add-driver/', views.add_driver, name='add_driver'),
     path('invite-driver/', views.invite_driver, name='invite_driver'),
     path('invitation/<int:inv_id>/accept/', views.accept_invitation, name='accept_invitation'),
     path('invitation/<int:inv_id>/decline/', views.decline_invitation, name='decline_invitation'),
@@ -30,9 +31,13 @@ urlpatterns = [
     
     path('join/<slug:team_slug>/', views.join_team, name='join_team'),
 
-    # Регистрация пилота на этап от имени команды
-    path('apply/<int:stage_id>/', views.team_apply, name='team_apply'),
-    path('apply/<int:stage_id>/add-driver/', views.team_add_driver, name='team_add_driver'),
+    # Заявка команды на этап: несколько пилотов, разные классы (applications/team_wizard.py)
+    path('apply/<int:stage_id>/', team_wizard.start, name='team_apply'),
+    path('apply/entry/<int:entry_id>/', team_wizard.roster, name='team_entry'),
+    path('apply/entry/<int:entry_id>/add-pilot/', team_wizard.add_pilot, name='team_entry_add_pilot'),
+    path('apply/entry/<int:entry_id>/pilots/', team_wizard.pilots, name='team_entry_pilots'),
+    path('apply/entry/<int:entry_id>/pilots/<int:application_id>/', team_wizard.pilot, name='team_entry_pilot'),
+    path('apply/entry/<int:entry_id>/review/', team_wizard.review, name='team_entry_review'),
     path('apply/driver-search/', views.team_driver_search, name='team_driver_search'),
 
     # Email verification

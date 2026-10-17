@@ -1,0 +1,341 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block content %}
+<style>
+    .tw-wrap { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; color: var(--gl-fg-1); }
+    .tw-card { background: var(--gl-surface-card); border: 1px solid var(--gl-border-card); border-radius: var(--gl-radius-md);
+               padding: 1.25rem; margin-bottom: 1.25rem; }
+    .tw-title { color: var(--gl-brand-cyan); text-transform: uppercase; font-weight: 700; font-size: .95rem;
+                margin-bottom: 1rem; border-bottom: 1px solid var(--gl-border-card); padding-bottom: .5rem; }
+    .tw-wrap label { color: var(--gl-fg-3); font-size: .8rem; margin-bottom: .25rem; display: block; }
+    .tw-wrap .form-check-label { display: inline; color: var(--gl-fg-1); }
+    .tw-wrap .form-control, .tw-wrap .form-select { background: var(--gl-surface-deepest) !important;
+        border: 1px solid var(--gl-border-card) !important; color: var(--gl-fg-1) !important; }
+    .tw-wrap .form-control[readonly] { opacity: .7; }
+    .tw-help { color: var(--gl-fg-muted); font-size: .78rem; }
+    .field-error { color: var(--gl-signal-danger); font-size: .8rem; margin-top: .2rem; }
+    .tw-steps { display: flex; gap: .4rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .tw-step { flex: 1 1 0; min-width: 120px; padding: .55rem .6rem; border-radius: var(--gl-radius-sm);
+               background: var(--gl-surface-deepest); border: 1px solid var(--gl-border-card); color: var(--gl-fg-muted);
+               font-size: .8rem; text-decoration: none; }
+    .tw-step b { display: block; font-size: .95rem; }
+    .tw-step:hover { color: var(--gl-brand-yellow); border-color: var(--gl-brand-yellow); }
+    .tw-step.current { color: var(--gl-fg-on-yellow); background: var(--gl-brand-yellow); border-color: var(--gl-brand-yellow); font-weight: 600; }
+    .tw-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    .tw-table th { color: var(--gl-fg-3); font-weight: 400; font-size: .75rem; text-transform: uppercase; padding: .4rem; text-align: left; }
+    .tw-table td { padding: .45rem .4rem; border-top: 1px solid var(--gl-border-card); vertical-align: middle; }
+    .tw-table tr.off td:not(:first-child) { opacity: .45; }
+    .tw-table input[type=checkbox] { accent-color: var(--gl-brand-yellow); width: 1.15rem; height: 1.15rem; }
+    .tw-badge { display: inline-block; font-size: .72rem; padding: .1rem .45rem; border-radius: var(--gl-radius-pill);
+                border: 1px solid var(--gl-border-mid); color: var(--gl-fg-3); }
+    .tw-badge.ok { border-color: var(--gl-signal-success); color: var(--gl-signal-success); }
+    .tw-badge.warn { border-color: var(--gl-brand-yellow); color: var(--gl-brand-yellow); }
+    .tw-nav { display: flex; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
+    .tw-ac { position: relative; }
+    .tw-ac-list { position: absolute; z-index: 20; left: 0; right: 0; top: 100%; margin-top: 2px; background: var(--gl-surface-deepest);
+                  border: 1px solid var(--gl-border-mid); border-radius: var(--gl-radius-sm); max-height: 260px; overflow-y: auto; display: none; }
+    .tw-ac-list.open { display: block; }
+    .tw-ac-item { padding: .45rem .7rem; cursor: pointer; }
+    .tw-ac-item:hover { background: var(--gl-surface-card-hover); }
+    .kv { display: flex; justify-content: space-between; gap: 1rem; padding: .35rem 0; border-bottom: 1px solid var(--gl-border-divider); font-size: .9rem; }
+    .kv .k { color: var(--gl-fg-3); }
+    @media (max-width: 720px) {
+        .tw-table thead { display: none; }
+        .tw-table tr { display: block; border-top: 1px solid var(--gl-border-card); padding: .5rem 0; }
+        .tw-table td { display: block; border: none; padding: .2rem 0; }
+    }
+</style>
+
+<div class="tw-wrap">
+    <h1 class="text-warning mb-1">Заявка команды</h1>
+    <p class="text-muted">{% if team %}{{ team.name }} · {% endif %}{{ stage.championship.title }} · {{ stage.title }}</p>
+
+    {% if step and entry %}
+    <nav class="tw-steps" aria-label="Шаги заявки команды">
+        {% for n, title in steps %}
+        <a class="tw-step{% if n == step %} current{% endif %}"{% if n == step %} aria-current="step"{% endif %}
+           href="{% if n == 1 %}{% url 'teams:team_entry' entry.id %}{% elif n == 2 %}{% url 'teams:team_entry_pilots' entry.id %}{% else %}{% url 'teams:team_entry_review' entry.id %}{% endif %}"><b>{{ n }}</b>{{ title }}</a>
+        {% endfor %}
+    </nav>
+    {% endif %}
+
+    {% if messages %}{% for message in messages %}
+    <div class="alert {% if 'error' in message.tags %}alert-danger{% elif 'warning' in message.tags %}alert-warning{% else %}alert-success{% endif %}">{{ message }}</div>
+    {% endfor %}{% endif %}
+
+{% if step == 0 %}
+    <div class="tw-card">
+        <div class="tw-title">От какой команды заявка?</div>
+        <div class="d-flex flex-wrap gap-2">
+            {% for t in teams %}<a class="btn btn-outline-warning" href="?team={{ t.id }}">{{ t.name }}</a>{% endfor %}
+        </div>
+    </div>
+
+{% elif step == 1 %}
+    {% if closed_reason %}<div class="alert alert-warning">{{ closed_reason }}</div>{% endif %}
+    <form method="post" data-validate novalidate>
+        {% csrf_token %}
+        <div class="tw-card">
+            <div class="tw-title">Пилоты команды</div>
+            <p class="tw-help">Отметьте, кто едет, и выберите класс. Пилоты могут ехать в разных классах. Номер необязателен —
+                черновик держит его 12 часов после последнего сохранения, после отправки — насовсем.</p>
+            <table class="tw-table">
+                <thead><tr><th></th><th>Пилот</th><th>Класс</th>{% if participation_choices|length > 1 %}<th>Участие</th>{% endif %}<th>Номер</th></tr></thead>
+                <tbody>
+                {% for row in rows %}
+                <tr class="tw-row{% if not row.picked %} off{% endif %}" data-key="{{ row.key }}">
+                    <td>{% if row.locked %}<span class="tw-badge ok" title="{{ row.application.get_status_display }}">✓</span>
+                        {% else %}<input type="checkbox" name="pick_{{ row.key }}" value="1" aria-label="Едет: {{ row.name }}"{% if row.picked %} checked{% endif %}>{% endif %}</td>
+                    <td>{{ row.name }}{% if not row.in_roster %} <span class="tw-badge">не из состава</span>{% endif %}
+                        {% if row.locked %}<div class="tw-help">{{ row.application.get_status_display }} · <a class="text-warning" href="{% url 'applications:detail' row.application.id %}">открыть</a></div>{% endif %}
+                        {% for e in row.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</td>
+                    {% if row.locked %}
+                    <td>{{ row.application.race_class.name|default:"—" }}</td>
+                    {% if participation_choices|length > 1 %}<td>{{ row.application.get_participation_display }}</td>{% endif %}
+                    <td>{{ row.application.start_number|default:"—" }}</td>
+                    {% else %}
+                    <td><select name="class_{{ row.key }}" class="form-select form-select-sm tw-class" aria-label="Класс: {{ row.name }}">
+                        <option value="">— класс —</option>
+                        {% for c in classes %}<option value="{{ c.id }}"{% if c.id == row.class_id %} selected{% endif %}>{{ c.name }}</option>{% endfor %}
+                    </select>{% if participation_choices|length == 1 %}<input type="hidden" name="part_{{ row.key }}" value="{{ row.participation }}" class="tw-part">{% endif %}</td>
+                    {% if participation_choices|length > 1 %}
+                    <td><select name="part_{{ row.key }}" class="form-select form-select-sm tw-part" aria-label="Участие: {{ row.name }}">
+                        {% for code, label in participation_choices %}<option value="{{ code }}"{% if code == row.participation %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select></td>
+                    {% endif %}
+                    <td><select name="num_{{ row.key }}" class="form-select form-select-sm tw-num" data-current="{{ row.number|default:'' }}" aria-label="Номер: {{ row.name }}">
+                        <option value="">без номера</option>
+                        {% if row.number %}<option value="{{ row.number }}" selected>{{ row.number }}</option>{% endif %}
+                    </select></td>
+                    {% endif %}
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-muted">В составе команды пока нет пилотов — добавьте пилота ниже или пригласите в ЛК команды.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="tw-card">
+            <div class="tw-title">Представитель команды</div>
+            <div class="row g-3">
+                <div class="col-md-3"><label for="rep_last_name">Фамилия*</label><input id="rep_last_name" name="rep_last_name" class="form-control" required value="{{ entry.rep_last_name }}"></div>
+                <div class="col-md-3"><label for="rep_first_name">Имя*</label><input id="rep_first_name" name="rep_first_name" class="form-control" required value="{{ entry.rep_first_name }}"></div>
+                <div class="col-md-3"><label for="rep_phone">Телефон*</label><input id="rep_phone" name="rep_phone" class="form-control" required value="{{ entry.rep_phone }}"></div>
+                <div class="col-md-3"><label for="rep_email">Email*</label><input id="rep_email" name="rep_email" type="email" class="form-control" required value="{{ entry.rep_email }}"></div>
+            </div>
+        </div>
+
+        <div class="tw-nav mb-4">
+            <a href="{% url 'teams:dashboard' %}" class="btn btn-outline-secondary">В кабинет команды</a>
+            <button class="btn btn-warning fw-bold"{% if closed_reason %} disabled{% endif %}>Сохранить и заполнить данные пилотов →</button>
+        </div>
+    </form>
+
+    <div class="tw-card">
+        <div class="tw-title">Пилота нет в составе?</div>
+        <p class="tw-help">Добавится только в эту заявку, в состав команды — нет: в команду пилота можно пригласить в кабинете команды, с его согласием.</p>
+        <form method="post" action="{% url 'teams:team_entry_add_pilot' entry.id %}" class="row g-2 align-items-end" id="addPilotForm">
+            {% csrf_token %}
+            <input type="hidden" name="driver_id" id="addDriverId">
+            <div class="col-md-5 tw-ac">
+                <label for="addSearch">Найти в базе пилотов</label>
+                <input id="addSearch" class="form-control" autocomplete="off" placeholder="Фамилия">
+                <div class="tw-ac-list" id="addSuggest" role="listbox"></div>
+            </div>
+            <div class="col-md-3"><label for="addLast">или новый: фамилия</label><input id="addLast" name="last_name" class="form-control"></div>
+            <div class="col-md-2"><label for="addFirst">имя</label><input id="addFirst" name="first_name" class="form-control"></div>
+            <div class="col-md-2"><button class="btn btn-outline-warning w-100">Добавить</button></div>
+        </form>
+    </div>
+
+{% elif step == 2 and application %}
+    <div class="tw-card">
+        <div class="d-flex flex-wrap gap-2">
+            {% for a, ready in drafts %}
+            <a href="{% url 'teams:team_entry_pilot' entry.id a.id %}" class="btn btn-sm {% if a.id == application.id %}btn-warning{% elif ready %}btn-outline-success{% else %}btn-outline-secondary{% endif %}">
+                {{ a.pilot.full_name }}{% if ready and a.id != application.id %} ✓{% endif %}</a>
+            {% endfor %}
+        </div>
+    </div>
+    <form method="post" data-validate novalidate>
+        {% csrf_token %}
+        <div class="tw-card">
+            <div class="tw-title">{{ application.pilot.full_name }} · {{ application.race_class.name|default:"класс не выбран" }}{% if application.start_number %} · №{{ application.start_number }}{% endif %}</div>
+            <div class="row g-3">
+                {% for f in form %}{% if f.name in pilot_fields %}
+                <div class="col-md-4"><label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %}*{% endif %}</label>{{ f }}
+                    {% for e in f.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+                {% endif %}{% endfor %}
+            </div>
+            <div id="parentBlock" class="mt-3 pt-3" style="display:none; border-top:1px dashed var(--gl-border-card);">
+                <div class="text-warning small mb-2">Пилот несовершеннолетний — укажите данные родителя или опекуна</div>
+                <div class="row g-3">
+                    {% for f in form %}{% if f.name|slice:":7" == "parent_" %}
+                    <div class="col-md-4"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% for e in f.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+                    {% endif %}{% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="tw-card">
+            <div class="tw-title">Карт</div>
+            <div class="row g-3">
+                {% for f in kart_form %}{% if f.name != 'ad_consent' %}
+                <div class="col-md-4"><label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %}*{% endif %}</label>
+                    {% if f.name == 'chassis_brand' %}
+                    <input type="text" name="{{ f.html_name }}" id="{{ f.id_for_label }}" value="{{ f.value|default:'' }}" list="chassisList"
+                           class="form-control{% if f.errors %} is-invalid{% endif %}" autocomplete="off" required>
+                    <datalist id="chassisList">{% for c in chassis_list %}<option value="{{ c }}">{% endfor %}</datalist>
+                    {% elif f.name == 'tires' and tyres_fixed %}
+                    <input type="text" name="{{ f.html_name }}" value="{{ f.value|default:'' }}" class="form-control" readonly>
+                    <div class="tw-help">Определено организатором</div>
+                    {% else %}{{ f }}{% endif %}
+                    {% for e in f.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+                {% endif %}{% endfor %}
+                <div class="col-12"><label class="form-check-label">{{ kart_form.ad_consent }} {{ kart_form.ad_consent.label }}</label></div>
+            </div>
+        </div>
+        <div class="tw-card">
+            <div class="tw-title">Механик <span class="text-muted text-lowercase fw-normal">(необязательно)</span></div>
+            <div class="row g-3">
+                {% for f in mech_form %}<div class="col-md-4"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% for e in f.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>{% endfor %}
+            </div>
+            <div class="tw-help mt-2">Шасси и механик подставлены из уже заполненного пилота команды — поправьте, если у этого пилота другие.</div>
+        </div>
+        <div class="tw-nav mb-4">
+            <a href="{% url 'teams:team_entry_pilots' entry.id %}" class="btn btn-outline-secondary">← Все пилоты</a>
+            <button class="btn btn-warning fw-bold">Сохранить →</button>
+        </div>
+    </form>
+
+{% elif step == 2 %}
+    <div class="tw-card">
+        <div class="tw-title">Данные пилотов</div>
+        <table class="tw-table">
+            <thead><tr><th>Пилот</th><th>Класс</th><th>Номер</th><th>Данные</th><th></th></tr></thead>
+            <tbody>
+            {% for a, ready in drafts %}
+            <tr><td>{{ a.pilot.full_name }}</td><td>{{ a.race_class.name|default:"—" }}</td><td>{{ a.start_number|default:"—" }}</td>
+                <td>{% if ready %}<span class="tw-badge ok">заполнены</span>{% else %}<span class="tw-badge warn">заполнить</span>{% endif %}</td>
+                <td><a class="btn btn-sm btn-outline-warning" href="{% url 'teams:team_entry_pilot' entry.id a.id %}">{% if ready %}Изменить{% else %}Заполнить{% endif %}</a></td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="tw-nav mb-4">
+        <a href="{% url 'teams:team_entry' entry.id %}" class="btn btn-outline-secondary">← Состав</a>
+        <a href="{% url 'teams:team_entry_review' entry.id %}" class="btn {% if all_ready %}btn-warning fw-bold{% else %}btn-outline-warning{% endif %}">К проверке →</a>
+    </div>
+
+{% elif step == 3 %}
+    <div class="tw-card">
+        <div class="tw-title">Пилоты в заявке</div>
+        <table class="tw-table">
+            <thead><tr><th>Пилот</th><th>Класс</th><th>Номер</th><th>Взнос</th><th>Статус</th></tr></thead>
+            <tbody>
+            {% for a, ready in apps %}
+            <tr><td>{{ a.pilot.full_name }}{% if a.pilot.is_minor %} <span class="tw-badge">до 18</span>{% endif %}</td>
+                <td>{{ a.race_class.name|default:"—" }}{% if stage.has_training %}<div class="tw-help">{{ a.get_participation_display }}</div>{% endif %}</td>
+                <td>{{ a.start_number|default:"—" }}</td>
+                <td>{{ a.get_total_amount|floatformat:0 }} ₽</td>
+                <td>{% if a.status == 'draft' %}
+                        {% if ready %}<span class="tw-badge ok">готов к отправке</span>
+                        {% else %}<a href="{% url 'teams:team_entry_pilot' entry.id a.id %}" class="tw-badge warn text-decoration-none">заполнить данные</a>{% endif %}
+                    {% else %}<a href="{% url 'applications:detail' a.id %}" class="text-warning">{{ a.get_status_display }}</a>{% endif %}</td></tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-muted">Пилотов нет — отметьте их в «Составе».</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if ready_count %}
+    <form method="post" class="tw-card">
+        {% csrf_token %}
+        <div class="d-flex justify-content-between fs-5 fw-bold text-warning mb-2"><span>К отправке: {{ ready_count }} пил.</span><span>{{ ready_total|floatformat:0 }} ₽</span></div>
+        <p class="tw-help">Обязательные опции этапа добавятся автоматически. Документы и квитанцию можно загрузить после отправки — на странице заявки каждого пилота.
+            {% if draft_count > ready_count %}Пилоты с незаполненными данными останутся черновиками — их можно отправить позже.{% endif %}</p>
+        <button class="btn btn-warning btn-lg w-100 fw-bold">Отправить организатору</button>
+    </form>
+    {% endif %}
+    <div class="tw-nav mb-4">
+        <a href="{% url 'teams:team_entry' entry.id %}" class="btn btn-outline-secondary">← Состав</a>
+        <a href="{% url 'teams:dashboard' %}" class="btn btn-outline-secondary">В кабинет команды</a>
+    </div>
+{% endif %}
+</div>
+
+{% if step == 1 %}
+<script>
+(function () {
+    var numbersUrl = "{% url 'applications:available_numbers' stage.id %}";
+    function loadNumbers(row) {
+        var cls = row.querySelector('.tw-class'), part = row.querySelector('.tw-part'), num = row.querySelector('.tw-num');
+        if (!cls || !num) return;
+        var current = num.value || num.dataset.current;
+        if (!cls.value) { num.innerHTML = '<option value="">без номера</option>'; return; }
+        fetch(numbersUrl + '?class_id=' + cls.value + '&participation=' + encodeURIComponent(part ? part.value : ''))
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                var list = d.numbers || [];
+                if (current && list.indexOf(+current) === -1) list = [+current].concat(list).sort(function (a, b) { return a - b; });
+                num.innerHTML = '<option value="">без номера</option>' + list.map(function (n) {
+                    return '<option value="' + n + '"' + (String(n) === String(current) ? ' selected' : '') + '>' + n + '</option>';
+                }).join('');
+            });
+    }
+    document.querySelectorAll('.tw-row').forEach(function (row) {
+        var box = row.querySelector('input[type=checkbox]');
+        if (box) box.addEventListener('change', function () { row.classList.toggle('off', !box.checked); });
+        ['.tw-class', '.tw-part'].forEach(function (sel) {
+            var el = row.querySelector(sel);
+            if (el && el.tagName === 'SELECT') el.addEventListener('change', function () {
+                if (box && !box.checked) { box.checked = true; row.classList.remove('off'); }
+                loadNumbers(row);
+            });
+        });
+        loadNumbers(row);
+    });
+
+    var input = document.getElementById('addSearch'), list = document.getElementById('addSuggest'),
+        hidden = document.getElementById('addDriverId'), timer;
+    if (!input) return;
+    input.addEventListener('input', function () {
+        hidden.value = '';
+        clearTimeout(timer);
+        var q = input.value.trim();
+        if (q.length < 2) { list.classList.remove('open'); return; }
+        timer = setTimeout(function () {
+            fetch("{% url 'teams:team_driver_search' %}?q=" + encodeURIComponent(q))
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    list.innerHTML = '';
+                    (d.drivers || []).forEach(function (p) {
+                        var item = document.createElement('div');
+                        item.className = 'tw-ac-item'; item.setAttribute('role', 'option'); item.textContent = p.name;
+                        item.addEventListener('click', function () {
+                            hidden.value = p.id; input.value = p.name; list.classList.remove('open');
+                            document.getElementById('addPilotForm').submit();
+                        });
+                        list.appendChild(item);
+                    });
+                    list.classList.toggle('open', list.children.length > 0);
+                });
+        }, 250);
+    });
+})();
+</script>
+{% elif step == 2 and application %}
+<script>
+(function () {
+    var birth = document.querySelector('[name=birth_date]'), block = document.getElementById('parentBlock');
+    function toggle() {
+        if (!birth || !birth.value) { block.style.display = 'none'; return; }
+        var age = (Date.now() - new Date(birth.value).getTime()) / (365.25 * 864e5);
+        block.style.display = age < 18 ? 'block' : 'none';
+    }
+    if (birth) { birth.addEventListener('change', toggle); toggle(); }
+    {% if form.errors %}block.style.display = block.querySelector('.field-error') ? 'block' : block.style.display;{% endif %}
+})();
+</script>
+{% endif %}
+{% endblock %}

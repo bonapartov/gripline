@@ -69,7 +69,8 @@ def _find_draft(request, stage):
     его черновики различаются по ?app=<id> (без него — новый)."""
     if not request.user.is_authenticated:
         return None
-    drafts = Application.objects.filter(stage=stage, submitted_by=request.user, status='draft')
+    drafts = Application.objects.filter(stage=stage, submitted_by=request.user, status='draft',
+                                        team_entry__isnull=True)
     if _is_organizer(request.user):
         app_id = request.GET.get('app') or request.POST.get('app')
         return drafts.filter(pk=app_id).first() if str(app_id or '').isdigit() else None
@@ -286,7 +287,7 @@ def _step_pilot(request, stage, application):
 # ── ③ карт, механик, заявитель ───────────────────────────────────────────────
 
 def _last_application(user, exclude):
-    return (Application.objects.filter(submitted_by=user).exclude(pk=exclude.pk)
+    return (Application.objects.filter(submitted_by=user, team_entry__isnull=True).exclude(pk=exclude.pk)
             .exclude(status='draft').order_by('-created_at').first())
 
 
@@ -427,6 +428,21 @@ def _notify_participant_submitted(application):
         pass
 
 
+def finalize_submission(application, user):
+    """Черновик → «Подана»: строки документов, платёж, заявки на профиль пилота и на новую
+    команду. Вызывать внутри transaction.atomic; уведомления — после, отдельно."""
+    vault.create_document_rows(application, application.pilot.is_minor)
+    ApplicationPayment.objects.update_or_create(
+        application=application,
+        defaults={'amount': application.get_total_amount(), 'method': 'manual'})
+    _claim_pilot(application, user)
+    _claim_team(application, user)
+    application.status = 'submitted'
+    application.submitted_at = timezone.now()
+    application.wizard_step = LAST_STEP
+    application.save()
+
+
 def _step_review(request, stage, application):
     if request.method == 'POST':
         if application.wizard_step < LAST_STEP - 1:
@@ -444,16 +460,7 @@ def _step_review(request, stage, application):
             return redirect(_step_url(stage, 1, application))
         with transaction.atomic():
             pilot = application.pilot
-            vault.create_document_rows(application, pilot.is_minor)
-            ApplicationPayment.objects.update_or_create(
-                application=application,
-                defaults={'amount': application.get_total_amount(), 'method': 'manual'})
-            _claim_pilot(application, request.user)
-            _claim_team(application, request.user)
-            application.status = 'submitted'
-            application.submitted_at = timezone.now()
-            application.wizard_step = LAST_STEP
-            application.save()
+            finalize_submission(application, request.user)
             if application.submitted_by_type == 'pilot':
                 save_to_profile(request.user, {f: getattr(pilot, f) for f in (
                     'middle_name', 'birth_date', 'citizenship', 'phone', 'license_number', 'sport_rank',
