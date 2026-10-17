@@ -150,7 +150,7 @@ def detail(request, application_id):
     """Просмотр своей заявки + загрузка документов и квитанции"""
     application = get_object_or_404(Application, pk=application_id)
 
-    is_owner = application.submitted_by == request.user
+    is_owner = can_manage(request.user, application)
     is_organizer = (hasattr(request.user, 'organizer_profile')
                     and application.stage.championship.organizer == request.user.organizer_profile)
     if not (is_owner or is_organizer):
@@ -167,6 +167,7 @@ def detail(request, application_id):
         'is_owner': is_owner,
         'is_organizer': is_organizer,
         'can_withdraw': is_owner and can_withdraw(application),
+        'vault_on': vault.vault_profile(application) is not None,
         'in_wizard': in_wizard,
         'wizard_url': reverse('applications:apply', args=[application.stage_id])
                       + (f'?app={application.id}' if application.submitted_by_type == 'organizer' else ''),
@@ -183,13 +184,23 @@ def _parse_date(value):
         return None
 
 
+def _back(request, application):
+    """Куда вернуться после загрузки: next со своего сайта (страница заявки команды) или заявка."""
+    from django.utils.http import url_has_allowed_host_and_scheme
+    nxt = request.POST.get('next') or ''
+    if nxt and url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()},
+                                               require_https=request.is_secure()):
+        return redirect(nxt)
+    return redirect('applications:detail', application_id=application.id)
+
+
 @login_required
 def upload_document(request, document_id):
     """Загрузка файла документа участником (поддерживает AJAX)"""
     doc = get_object_or_404(ApplicationDocument, pk=document_id)
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
-    if doc.application.submitted_by != request.user:
+    if not can_manage(request.user, doc.application):
         if is_ajax:
             return JsonResponse({'error': 'Нет доступа.'}, status=403)
         messages.error(request, 'Нет доступа.')
@@ -202,7 +213,7 @@ def upload_document(request, document_id):
             if is_ajax:
                 return JsonResponse({'error': error}, status=400)
             messages.error(request, error)
-            return redirect('applications:detail', application_id=doc.application.id)
+            return _back(request, doc.application)
         doc.file = request.FILES['file']
         if expiry:
             doc.expiry_date = expiry
@@ -220,7 +231,7 @@ def upload_document(request, document_id):
                 'file_url': reverse('applications:serve_document', args=[doc.id]),
             })
         messages.success(request, f'Документ «{doc.stage_document.name}» загружен.')
-        return redirect('applications:detail', application_id=doc.application.id)
+        return _back(request, doc.application)
 
     if is_ajax:
         return JsonResponse({'error': 'Файл не выбран.'}, status=400)
@@ -233,7 +244,7 @@ def upload_payment(request, application_id):
     application = get_object_or_404(Application, pk=application_id)
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
-    if application.submitted_by != request.user:
+    if not can_manage(request.user, application):
         if is_ajax:
             return JsonResponse({'error': 'Нет доступа.'}, status=403)
         messages.error(request, 'Нет доступа.')
@@ -256,16 +267,29 @@ def upload_payment(request, application_id):
                 'file_url': reverse('applications:serve_receipt', args=[application.id]),
             })
         messages.success(request, 'Квитанция загружена. Ожидайте подтверждения.')
-        return redirect('applications:detail', application_id=application.id)
+        return _back(request, application)
 
     if is_ajax:
         return JsonResponse({'error': 'Файл не выбран.'}, status=400)
     return redirect('applications:detail', application_id=application.id)
 
 
+def can_manage(user, application):
+    """Участник-заявитель: подавший заявку, а у заявки команды — любой действующий менеджер
+    этой команды (у команды бывает несколько менеджеров, пакет у них общий)."""
+    if not user.is_authenticated:
+        return False
+    if application.submitted_by_id == user.id:
+        return True
+    if application.team_entry_id:
+        from teams.models import TeamManager
+        return TeamManager.objects.filter(user=user, team_id=application.team_entry.team_id,
+                                          is_active=True).exists()
+    return False
+
+
 def _can_view_application(request, application):
-    return (application.submitted_by == request.user
-            or _check_organizer(request, application))
+    return can_manage(request.user, application) or _check_organizer(request, application)
 
 
 @login_required
@@ -346,7 +370,7 @@ def can_withdraw(application):
 def cancel(request, application_id):
     """Отзыв заявки участником (или удаление черновика): номер сразу освобождается."""
     application = get_object_or_404(Application, pk=application_id)
-    if application.submitted_by != request.user:
+    if not can_manage(request.user, application):
         messages.error(request, 'Нет доступа.')
         return redirect('/')
     if request.method != 'POST':
@@ -472,7 +496,7 @@ def submit_application(request, application_id):
     application = get_object_or_404(Application, pk=application_id)
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
-    if application.submitted_by != request.user:
+    if not can_manage(request.user, application):
         if is_ajax:
             return JsonResponse({'error': 'Нет доступа.'}, status=403)
         messages.error(request, 'Нет доступа.')

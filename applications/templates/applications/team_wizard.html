@@ -233,8 +233,9 @@
         <table class="tw-table">
             <thead><tr><th>Пилот</th><th>Класс</th><th>Номер</th><th>Взнос</th><th>Статус</th></tr></thead>
             <tbody>
-            {% for a, ready in apps %}
-            <tr><td>{{ a.pilot.full_name }}{% if a.pilot.is_minor %} <span class="tw-badge">до 18</span>{% endif %}</td>
+            {% for a, ready, preview in apps %}
+            <tr><td>{{ a.pilot.full_name }}{% if a.pilot.is_minor %} <span class="tw-badge">до 18</span>{% endif %}
+                    {% if preview %}<div class="tw-help">{% for d, state in preview %}{{ d.name }}: {% if state == 'ok' %}<span class="text-success">из кабинета пилота</span>{% elif state == 'expired' %}<span class="text-warning">в кабинете истекает до этапа</span>{% else %}загрузить после отправки{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</div>{% endif %}</td>
                 <td>{{ a.race_class.name|default:"—" }}{% if stage.has_training %}<div class="tw-help">{{ a.get_participation_display }}</div>{% endif %}</td>
                 <td>{{ a.start_number|default:"—" }}</td>
                 <td>{{ a.get_total_amount|floatformat:0 }} ₽</td>
@@ -248,15 +249,99 @@
             </tbody>
         </table>
     </div>
+
+    {% if option_rows and options %}
+    <form method="post" class="tw-card">
+        {% csrf_token %}<input type="hidden" name="action" value="options">
+        <div class="tw-title">Опции</div>
+        <div class="table-responsive">
+        <table class="tw-table">
+            <thead><tr><th>Пилот</th>{% for o in options %}<th>{{ o.name }}<div class="tw-help">{{ o.price|floatformat:0 }} ₽{% if o.is_mandatory %} · обязательно{% endif %}</div>
+                {% if not o.is_mandatory %}<label class="tw-help"><input type="checkbox" class="opt-all" data-opt="{{ o.id }}"> всем</label>{% endif %}</th>{% endfor %}</tr></thead>
+            <tbody>
+            {% for a, cells in option_rows %}
+            <tr><td>{{ a.pilot.full_name }}</td>
+                {% for o, checked in cells %}<td><input type="checkbox" name="opt_{{ a.id }}_{{ o.id }}" value="1" data-opt="{{ o.id }}" aria-label="{{ o.name }}: {{ a.pilot.full_name }}"
+                    {% if checked %} checked{% endif %}{% if o.is_mandatory %} disabled{% endif %}></td>{% endfor %}</tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        <button class="btn btn-outline-warning mt-3">Сохранить опции</button>
+    </form>
+    {% endif %}
+
     {% if ready_count %}
     <form method="post" class="tw-card">
-        {% csrf_token %}
+        {% csrf_token %}<input type="hidden" name="action" value="submit">
         <div class="d-flex justify-content-between fs-5 fw-bold text-warning mb-2"><span>К отправке: {{ ready_count }} пил.</span><span>{{ ready_total|floatformat:0 }} ₽</span></div>
-        <p class="tw-help">Обязательные опции этапа добавятся автоматически. Документы и квитанцию можно загрузить после отправки — на странице заявки каждого пилота.
+        <p class="tw-help">Обязательные опции этапа добавятся автоматически. Документы, которые есть в кабинетах пилотов из состава команды, подставятся сами; остальные можно загрузить после отправки — ниже на этой странице.
             {% if draft_count > ready_count %}Пилоты с незаполненными данными останутся черновиками — их можно отправить позже.{% endif %}</p>
         <button class="btn btn-warning btn-lg w-100 fw-bold">Отправить организатору</button>
     </form>
     {% endif %}
+
+    {% if sent %}
+    <div class="tw-card">
+        <div class="tw-title">Документы</div>
+        <p class="tw-help">Документ пилота из состава команды сохраняется в его личном кабинете и подставится в следующие заявки.</p>
+        {% for a, docs in sent %}
+        <div class="mb-3">
+            <div class="fw-bold">{{ a.pilot.full_name }} <span class="tw-help">· {{ a.race_class.name }}</span></div>
+            {% for doc in docs %}
+            <div class="d-flex flex-wrap align-items-center gap-2 py-1" style="border-bottom:1px solid var(--gl-border-divider);">
+                <span class="flex-grow-1">{{ doc.stage_document.name }}{% if not doc.stage_document.required %} <span class="tw-help">(необязательно)</span>{% endif %}</span>
+                <span class="tw-badge{% if doc.status == 'verified' or doc.status == 'uploaded' %} ok{% elif doc.status == 'rejected' %} warn{% endif %}">{{ doc.get_status_display }}{% if doc.vault_document_id and doc.status == 'uploaded' %} · из кабинета{% endif %}</span>
+                {% if doc.status != 'verified' %}
+                <form method="post" action="{% url 'applications:upload_document' doc.id %}" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center">
+                    {% csrf_token %}<input type="hidden" name="next" value="{{ back_url }}">
+                    <input type="file" name="file" class="form-control form-control-sm" style="max-width:230px" required aria-label="Файл: {{ doc.stage_document.name }}, {{ a.pilot.full_name }}">
+                    {% if doc.stage_document.is_fixed_kind or doc.stage_document.has_expiry_date %}<input type="date" name="expiry_date" class="form-control form-control-sm" style="max-width:160px"{% if doc.stage_document.is_fixed_kind %} required{% endif %} aria-label="Действует до">{% endif %}
+                    <button class="btn btn-sm btn-outline-warning">Загрузить</button>
+                </form>
+                {% endif %}
+            </div>
+            {% if doc.organizer_comment %}<div class="tw-help text-warning">{{ doc.organizer_comment }}</div>{% endif %}
+            {% empty %}<div class="tw-help">Документы не требуются.</div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="tw-card">
+        <div class="tw-title">Оплата</div>
+        <form method="post" class="d-flex flex-wrap gap-3 mb-3">
+            {% csrf_token %}<input type="hidden" name="action" value="payment_mode">
+            {% for code, label in payment_choices %}
+            <label class="form-check-label"><input type="radio" name="payment_mode" value="{{ code }}" onchange="this.form.submit()"{% if entry.payment_mode == code %} checked{% endif %}> {{ label }}</label>
+            {% endfor %}
+        </form>
+        <table class="tw-table mb-3">
+            <tbody>
+            {% for a, p in payments %}
+            <tr><td>{{ a.pilot.full_name }}</td><td>{{ p.amount|default:a.get_total_amount|floatformat:0 }} ₽</td>
+                <td>{% if p %}<span class="tw-badge{% if p.status == 'verified' %} ok{% elif p.status == 'rejected' %} warn{% endif %}">{{ p.get_status_display }}</span>{% endif %}</td>
+                <td>{% if entry.payment_mode == 'per_pilot' and p.status != 'verified' %}
+                    <form method="post" action="{% url 'applications:upload_payment' a.id %}" enctype="multipart/form-data" class="d-flex gap-2">
+                        {% csrf_token %}<input type="hidden" name="next" value="{{ back_url }}">
+                        <input type="file" name="receipt" class="form-control form-control-sm" style="max-width:230px" required aria-label="Квитанция: {{ a.pilot.full_name }}">
+                        <button class="btn btn-sm btn-outline-warning">Загрузить</button>
+                    </form>{% endif %}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% if entry.payment_mode == 'single' %}
+        <form method="post" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center">
+            {% csrf_token %}<input type="hidden" name="action" value="receipt">
+            <span class="fw-bold text-warning me-2">К оплате: {{ due_total|floatformat:0 }} ₽</span>
+            <input type="file" name="receipt" class="form-control form-control-sm" style="max-width:260px" required aria-label="Квитанция за команду">
+            <button class="btn btn-sm btn-warning">Загрузить квитанцию за команду</button>
+        </form>
+        <div class="tw-help mt-2">Квитанция приложится ко всем отправленным заявкам, которые ещё ждут оплату. Пилотов, отправленных позже, оплатите отдельной квитанцией.</div>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <div class="tw-nav mb-4">
         <a href="{% url 'teams:team_entry' entry.id %}" class="btn btn-outline-secondary">← Состав</a>
         <a href="{% url 'teams:dashboard' %}" class="btn btn-outline-secondary">В кабинет команды</a>
@@ -323,6 +408,14 @@
         }, 250);
     });
 })();
+</script>
+{% elif step == 3 %}
+<script>
+document.querySelectorAll('.opt-all').forEach(function (all) {
+    all.addEventListener('change', function () {
+        document.querySelectorAll('input[name^="opt_"][data-opt="' + all.dataset.opt + '"]').forEach(function (c) { c.checked = all.checked; });
+    });
+});
 </script>
 {% elif step == 2 and application %}
 <script>

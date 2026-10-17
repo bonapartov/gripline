@@ -459,10 +459,80 @@ def _number_taken(application):
     ).exclude(pk=application.pk).exists()
 
 
+def _save_options(entry, drafts, data):
+    """Опции этапа по каждому пилоту-черновику: галочки opt_<заявка>_<опция>; обязательные — всегда."""
+    options = list(entry.stage.options.filter(is_active=True))
+    for app in drafts:
+        chosen = {o.id for o in options if o.is_mandatory or data.get(f'opt_{app.id}_{o.id}')}
+        selected = set(app.selected_options.values_list('option_id', flat=True))
+        app.selected_options.exclude(option_id__in=chosen).delete()
+        for opt in options:
+            if opt.id in chosen and opt.id not in selected:
+                ApplicationOption.objects.create(application=app, option=opt, price_at_time=opt.price)
+
+
+def _apply_team_receipt(entry):
+    """Квитанция за команду → платежи отправленных заявок пакета, которые её ещё ждут.
+    Подтверждённые и уже проверяемые оплаты не трогаем. Возвращает число заявок."""
+    from .models import ApplicationPayment
+    count = 0
+    for app in entry.applications.filter(status__in=('submitted', 'confirmed')):
+        payment, _ = ApplicationPayment.objects.get_or_create(
+            application=app, defaults={'amount': app.get_total_amount(), 'method': 'manual'})
+        if payment.status in ('pending', 'rejected'):
+            payment.receipt_file.name = entry.receipt_file.name
+            payment.status = 'uploaded'
+            payment.save(update_fields=['receipt_file', 'status'])
+            count += 1
+    return count
+
+
+def _submit_ready(request, entry, drafts, ready):
+    stage = entry.stage
+    reason = closed_reason(stage)
+    if reason:
+        messages.error(request, reason)
+        return redirect('teams:team_entry_review', entry_id=entry.id)
+    if not ready:
+        messages.error(request, 'Нет пилотов, готовых к отправке: заполните данные пилота и карта.')
+        return redirect('teams:team_entry_pilots', entry_id=entry.id)
+    taken = [a for a in ready if _number_taken(a)]
+    if taken:
+        names = ', '.join(f'{a.pilot.full_name} (№{a.start_number})' for a in taken)
+        messages.error(request, f'Пока заявка заполнялась, номера заняли: {names}. Выберите другие.')
+        return redirect('teams:team_entry', entry_id=entry.id)
+    if stage.max_participants:
+        holding = set(stage.race_applications().values_list('id', flat=True))
+        new = [a for a in ready if a.participation != Application.PARTICIPATION_TRAINING and a.id not in holding]
+        if len(holding) + len(new) > stage.max_participants:
+            messages.error(request, 'Мест на этапе не хватает на всех отмеченных пилотов: часть черновиков '
+                                    'потеряла бронь (прошло больше 12 часов). Уберите лишних в «Составе».')
+            return redirect('teams:team_entry', entry_id=entry.id)
+    with transaction.atomic():
+        for app in ready:
+            applicant = app.applicant
+            for f in ('rep_last_name', 'rep_first_name', 'rep_phone', 'rep_email'):
+                setattr(applicant, f, getattr(entry, f))
+            applicant.save()
+            _add_mandatory_options(app)
+            finalize_submission(app, request.user)
+        entry.status = 'submitted'
+        entry.submitted_at = timezone.now()
+        entry.save(update_fields=['status', 'submitted_at', 'updated_at'])
+    notify_team_submitted(entry, ready, request.user)
+    left = len(drafts) - len(ready)
+    from_vault = sum(1 for a in ready for d in a.documents.all() if d.vault_document_id)
+    messages.success(request, f'Отправлено пилотов: {len(ready)}.'
+                     + (f' Документов подставлено из кабинетов пилотов: {from_vault}.' if from_vault else '')
+                     + (f' Не отправлено (не заполнены): {left}.' if left else ''))
+    return redirect('teams:team_entry_review', entry_id=entry.id)
+
+
 @login_required
 @nocache_page
-@ratelimit_post('team_apply_submit', limit=30, window_seconds=3600)
+@ratelimit_post('team_apply_submit', limit=60, window_seconds=3600)
 def review(request, entry_id):
+    from . import vault
     entry = _entry_or_redirect(request, entry_id)
     if entry is None:
         return redirect('/')
@@ -471,48 +541,49 @@ def review(request, entry_id):
                 .order_by('race_class__sort_order', 'pilot__last_name'))
     drafts = [a for a in apps if a.status == 'draft']
     ready = [a for a in drafts if is_ready(a)]
+    sent = [a for a in apps if a.status in ('submitted', 'confirmed')]
 
     if request.method == 'POST':
-        reason = closed_reason(stage)
-        if reason:
-            messages.error(request, reason)
-            return redirect('teams:team_entry_review', entry_id=entry.id)
-        if not ready:
-            messages.error(request, 'Нет пилотов, готовых к отправке: заполните данные пилота и карта.')
-            return redirect('teams:team_entry_pilots', entry_id=entry.id)
-        taken = [a for a in ready if _number_taken(a)]
-        if taken:
-            names = ', '.join(f'{a.pilot.full_name} (№{a.start_number})' for a in taken)
-            messages.error(request, f'Пока заявка заполнялась, номера заняли: {names}. Выберите другие.')
-            return redirect('teams:team_entry', entry_id=entry.id)
-        if stage.max_participants:
-            holding = set(stage.race_applications().values_list('id', flat=True))
-            new = [a for a in ready if a.participation != Application.PARTICIPATION_TRAINING and a.id not in holding]
-            if len(holding) + len(new) > stage.max_participants:
-                messages.error(request, 'Мест на этапе не хватает на всех отмеченных пилотов: часть черновиков '
-                                        'потеряла бронь (прошло больше 12 часов). Уберите лишних в «Составе».')
-                return redirect('teams:team_entry', entry_id=entry.id)
-        with transaction.atomic():
-            for app in ready:
-                applicant = app.applicant
-                for f in ('rep_last_name', 'rep_first_name', 'rep_phone', 'rep_email'):
-                    setattr(applicant, f, getattr(entry, f))
-                applicant.save()
-                _add_mandatory_options(app)
-                finalize_submission(app, request.user)
-            entry.status = 'submitted'
-            entry.submitted_at = timezone.now()
-            entry.save(update_fields=['status', 'submitted_at', 'updated_at'])
-        notify_team_submitted(entry, ready, request.user)
-        left = len(drafts) - len(ready)
-        messages.success(request, f'Отправлено пилотов: {len(ready)}.'
-                         + (f' Не отправлено (не заполнены): {left}.' if left else ''))
+        action = request.POST.get('action', 'submit')
+        if action == 'options':
+            with transaction.atomic():
+                _save_options(entry, drafts, request.POST)
+            messages.success(request, 'Опции сохранены.')
+        elif action == 'payment_mode':
+            mode = request.POST.get('payment_mode')
+            if mode in dict(TeamStageEntry.PAYMENT_CHOICES):
+                entry.payment_mode = mode
+                entry.save(update_fields=['payment_mode', 'updated_at'])
+        elif action == 'receipt':
+            if entry.payment_mode != TeamStageEntry.PAYMENT_SINGLE or not request.FILES.get('receipt'):
+                messages.error(request, 'Выберите файл квитанции.')
+            else:
+                entry.receipt_file = request.FILES['receipt']
+                entry.save(update_fields=['receipt_file', 'updated_at'])
+                count = _apply_team_receipt(entry)
+                messages.success(request, f'Квитанция загружена и приложена к заявкам: {count}.')
+        else:
+            return _submit_ready(request, entry, drafts, ready)
         return redirect('teams:team_entry_review', entry_id=entry.id)
 
+    options = list(stage.options.filter(is_active=True))
+    option_rows = []
+    for app in drafts:
+        selected = set(app.selected_options.values_list('option_id', flat=True))
+        option_rows.append((app, [(o, o.is_mandatory or o.id in selected) for o in options]))
+    previews = {a.id: [(d, state) for d, _m, state in vault.preview(stage, vault.vault_profile(a), a.pilot.is_minor)]
+                for a in ready}
+    payments = [(a, getattr(a, 'payment', None)) for a in sent]
     return _render(request, entry, 3, {
-        'apps': [(a, is_ready(a)) for a in apps],
+        'apps': [(a, is_ready(a), previews.get(a.id)) for a in apps],
         'ready_count': len(ready), 'draft_count': len(drafts),
         'ready_total': sum(a.get_total_amount() for a in ready),
+        'options': options, 'option_rows': option_rows,
+        'sent': [(a, list(a.documents.select_related('stage_document'))) for a in sent],
+        'payments': payments,
+        'due_total': sum(p.amount for _a, p in payments if p and p.status in ('pending', 'rejected', 'uploaded')),
+        'payment_choices': TeamStageEntry.PAYMENT_CHOICES,
+        'back_url': request.path,
     })
 
 

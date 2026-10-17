@@ -33,6 +33,10 @@ class TeamStageEntry(models.Model):
     rep_first_name = models.CharField('Имя представителя', max_length=100, blank=True)
     rep_phone = models.CharField('Телефон представителя', max_length=30, blank=True)
     rep_email = models.EmailField('Email представителя', blank=True)
+    # Режим «одной квитанцией»: файл копируется ссылкой в платежи всех отправленных заявок пакета,
+    # которые ещё ждут квитанцию; организатор подтверждает оплату по каждой заявке, как обычно.
+    receipt_file = models.FileField('Квитанция за команду', upload_to='payment_receipts/%Y/%m/',
+                                    blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     submitted_at = models.DateTimeField('Отправлена', null=True, blank=True)

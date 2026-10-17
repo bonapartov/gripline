@@ -299,3 +299,126 @@ class TeamWizardSubmitTests(TeamWizardFixture):
         entry2 = TeamStageEntry.objects.get(stage=stage2)
         self.roster(entry2, [(self.d1, self.mini, None)])
         self.assertEqual(entry2.applications.get().pilot.license_number, 'LIC-7')
+
+
+class TeamWizardStage2Tests(TeamWizardFixture):
+    """Этап 2: документы из ЛК пилота (членство в команде = согласие), общий доступ менеджеров,
+    опции по пилотам, оплата одной квитанцией."""
+
+    @classmethod
+    def setUpClass(cls):
+        import tempfile
+        from django.test import override_settings
+        super().setUpClass()
+        cls._media_root = tempfile.mkdtemp()
+        cls._override = override_settings(MEDIA_ROOT=cls._media_root)
+        cls._override.enable()
+
+    @classmethod
+    def tearDownClass(cls):
+        import shutil
+        cls._override.disable()
+        shutil.rmtree(cls._media_root, ignore_errors=True)
+        super().tearDownClass()
+
+    def setUp(self):
+        super().setUp()
+        from . import document_kinds
+        self.license = StageDocument.objects.create(stage=self.stage, kind=document_kinds.LICENSE)
+        self.pilot_user = User.objects.create_user('anna@example.com', 'anna@example.com', 'x')
+        profile = self.pilot_user.profile
+        profile.driver, profile.verified = self.d1, True
+        profile.save()
+        self.profile = profile
+
+    def pdf(self, name='scan.pdf'):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        return SimpleUploadedFile(name, b'%PDF-1.4 test', content_type='application/pdf')
+
+    def vault_license(self):
+        from accounts.models import PilotDocument
+        return PilotDocument.objects.create(profile=self.profile, kind='license', name='Лицензия', file=self.pdf(),
+                                            expiry_date=self.stage.end_date.date() + timedelta(days=90))
+
+    def sent(self, *drivers):
+        entry = self.entry()
+        classes = {self.d1.id: self.mini, self.d2.id: self.ok, self.d3.id: self.mini}
+        self.roster(entry, [(d, classes.get(d.id, self.mini), None) for d in drivers])
+        for app in entry.applications.all():
+            self.fill(entry, app)
+        self.client.post(f'/teams/apply/entry/{entry.id}/review/', {'action': 'submit'})
+        return entry
+
+    def test_roster_pilot_documents_come_from_his_cabinet(self):
+        saved = self.vault_license()
+        entry = self.sent(self.d1)
+        row = entry.applications.get().documents.get(stage_document=self.license)
+        self.assertEqual((row.status, row.vault_document), ('uploaded', saved))
+
+    def test_pilot_added_outside_roster_gets_nothing_from_cabinet(self):
+        self.vault_license()
+        TeamMembership.objects.filter(driver=self.d1, team=self.team).update(is_active=False)
+        entry = self.entry()
+        self.client.post(f'/teams/apply/entry/{entry.id}/add-pilot/', {'driver_id': self.d1.id})
+        app = entry.applications.get()
+        self.client.post(f'/teams/apply/entry/{entry.id}/', {
+            **REP, f'pick_a{app.id}': '1', f'class_a{app.id}': self.mini.id, f'part_a{app.id}': 'race'})
+        self.fill(entry, app)
+        self.client.post(f'/teams/apply/entry/{entry.id}/review/', {'action': 'submit'})
+        self.assertEqual(app.documents.get(stage_document=self.license).status, 'pending')
+
+    def test_manager_upload_lands_in_pilot_cabinet_and_returns_to_team_page(self):
+        from accounts.models import PilotDocument
+        entry = self.sent(self.d1)
+        row = entry.applications.get().documents.get(stage_document=self.license)
+        back = f'/teams/apply/entry/{entry.id}/review/'
+        resp = self.client.post(f'/applications/document/{row.id}/upload/', {
+            'file': self.pdf(), 'expiry_date': '2030-01-01', 'next': back})
+        self.assertRedirects(resp, back, fetch_redirect_response=False)
+        doc = PilotDocument.objects.get(profile=self.profile, kind='license')
+        self.assertEqual(str(doc.expiry_date), '2030-01-01')
+
+    def test_upload_next_must_be_local(self):
+        entry = self.sent(self.d1)
+        row = entry.applications.get().documents.get(stage_document=self.license)
+        resp = self.client.post(f'/applications/document/{row.id}/upload/', {
+            'file': self.pdf(), 'expiry_date': '2030-01-01', 'next': 'https://evil.example/'})
+        self.assertRedirects(resp, f'/applications/{row.application_id}/', fetch_redirect_response=False)
+
+    def test_second_manager_of_team_sees_and_uploads(self):
+        entry = self.sent(self.d2)
+        app = entry.applications.get()
+        other = User.objects.create_user('mgr2', 'mgr2@example.com', 'x')
+        TeamManager.objects.create(user=other, team=self.team, is_active=True)
+        self.client.force_login(other)
+        self.assertEqual(self.client.get(f'/applications/{app.id}/').status_code, 200)
+        self.assertEqual(self.client.get(f'/teams/apply/entry/{entry.id}/review/').status_code, 200)
+        stranger = User.objects.create_user('st', 'st@example.com', 'x')
+        self.client.force_login(stranger)
+        self.assertRedirects(self.client.get(f'/applications/{app.id}/'), '/', fetch_redirect_response=False)
+
+    def test_options_per_pilot(self):
+        extra = StageOption.objects.create(stage=self.stage, name='Слики', price=1000)
+        entry = self.entry()
+        self.roster(entry, [(self.d1, self.mini, None), (self.d2, self.ok, None)])
+        a1 = entry.applications.get(pilot__driver=self.d1)
+        self.client.post(f'/teams/apply/entry/{entry.id}/review/', {'action': 'options', f'opt_{a1.id}_{extra.id}': '1'})
+        self.assertEqual(a1.get_total_amount(), 6500)            # 5000 + обязательная 500 + слики
+        a2 = entry.applications.get(pilot__driver=self.d2)
+        self.assertEqual(a2.get_total_amount(), 5500)
+
+    def test_single_receipt_attached_to_waiting_payments(self):
+        entry = self.sent(self.d1, self.d2)
+        verified = entry.applications.get(pilot__driver=self.d2).payment
+        verified.status = 'verified'
+        verified.save()
+        url = f'/teams/apply/entry/{entry.id}/review/'
+        self.client.post(url, {'action': 'payment_mode', 'payment_mode': 'single'})
+        self.client.post(url, {'action': 'receipt', 'receipt': self.pdf('pay.pdf')})
+        entry.refresh_from_db()
+        p1 = entry.applications.get(pilot__driver=self.d1).payment
+        self.assertEqual((p1.status, p1.receipt_file.name), ('uploaded', entry.receipt_file.name))
+        verified.refresh_from_db()
+        self.assertEqual((verified.status, bool(verified.receipt_file)), ('verified', False))
+        page = self.client.get(url)
+        self.assertEqual(page.status_code, 200)

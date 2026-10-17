@@ -8,8 +8,10 @@
   этого типа в ЛК (прежний заменяется; в старых заявках остаются свои копии).
 - Отклонение: организатор отклонил файл — документ ЛК помечается и сам больше не подставляется.
 
-Хранилище — только у заявок, поданных самим пилотом (или родителем из аккаунта пилота):
-за пилотов команд и организаторов документы в чужой ЛК не пишутся.
+Хранилище — у заявок, поданных самим пилотом (или родителем из аккаунта пилота), и у заявок
+команды за пилота из её состава: по решению владельца (17.10.2026) активное членство в команде —
+согласие пилота, что менеджер берёт документы из его ЛК и сохраняет туда загруженные. Пилот,
+добавленный в заявку команды не из состава, и заявки организатора ЛК не трогают.
 """
 import os
 
@@ -20,9 +22,24 @@ from . import document_kinds
 
 
 def vault_profile(application):
-    if application.submitted_by_type != 'pilot':
+    if application.submitted_by_type == 'pilot':
+        return getattr(application.submitted_by, 'profile', None)
+    if application.submitted_by_type == 'team' and application.team_entry_id:
+        return team_pilot_profile(application)
+    return None
+
+
+def team_pilot_profile(application):
+    """ЛК пилота заявки команды: только подтверждённый профиль пилота из активного состава
+    этой команды."""
+    from accounts.models import UserProfile
+    from website.models import TeamMembership
+    pilot = getattr(application, 'pilot', None)
+    driver_id = pilot.driver_id if pilot is not None else None
+    if not driver_id or not TeamMembership.objects.filter(
+            team_id=application.team_entry.team_id, driver_id=driver_id, is_active=True).exists():
         return None
-    return getattr(application.submitted_by, 'profile', None)
+    return UserProfile.objects.filter(driver_id=driver_id, verified=True).first()
 
 
 def stage_last_day(stage):
@@ -88,7 +105,7 @@ def create_document_rows(application, is_minor):
 
 def save_from_application(app_doc):
     """Файл постоянного типа из заявки → текущий документ этого типа в ЛК. Возвращает
-    документ ЛК или None (тип «другой», заявка не от пилота)."""
+    документ ЛК или None (тип «другой», у заявки нет ЛК — см. vault_profile)."""
     from accounts.models import PilotDocument
     kind = app_doc.stage_document.kind
     profile = vault_profile(app_doc.application)

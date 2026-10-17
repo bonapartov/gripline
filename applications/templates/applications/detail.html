@@ -178,7 +178,7 @@
                         <span class="doc-upload-result" id="docResult_{{ doc.id }}"></span>
                     </div>
                 </div>
-                {% if doc.stage_document.is_fixed_kind and application.submitted_by_type == 'pilot' %}<div class="text-muted small mt-1">Сохранится в личном кабинете и подставится в следующие заявки.</div>{% endif %}
+                {% if doc.stage_document.is_fixed_kind and vault_on %}<div class="text-muted small mt-1">Сохранится в личном кабинете пилота и подставится в следующие заявки.</div>{% endif %}
             </div>
             {% endif %}
 
