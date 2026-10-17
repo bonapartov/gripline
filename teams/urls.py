@@ -1,5 +1,6 @@
 from django.urls import path
 from applications import team_wizard
+from website.setupkart import session_views
 
 from . import views
 
@@ -10,6 +11,7 @@ urlpatterns = [
     path('select-team/', views.select_team, name='select_team'),
     path('login/', views.login_view, name='login'),
     path('dashboard/', views.dashboard, name='dashboard'),
+    path('app-sessions/', session_views.team_sessions, name='app_sessions'),
     path('invite-driver/', views.invite_driver, name='invite_driver'),
     path('invitation/<int:inv_id>/accept/', views.accept_invitation, name='accept_invitation'),
     path('invitation/<int:inv_id>/decline/', views.decline_invitation, name='decline_invitation'),

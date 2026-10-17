@@ -1,0 +1,42 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block title %}{{ row.name|default:"Сессия" }} — сессия из приложения{% endblock %}
+
+{% block content %}
+<style>
+    .gl-sess-card { background: var(--gl-surface-card); border: 1px solid var(--gl-border-card); border-radius: var(--gl-radius-md); color: var(--gl-fg-1); padding: 1.25rem; margin-bottom: 1rem; }
+    .gl-sess-muted { color: var(--gl-fg-3); font-size: .9rem; }
+    .gl-sess-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
+    .gl-sess-kv { display: flex; justify-content: space-between; gap: 1rem; padding: .3rem 0; border-bottom: 1px solid var(--gl-border-card); font-size: .92rem; }
+    .gl-sess-kv span:first-child { color: var(--gl-fg-3); }
+    .gl-sess-kv span:last-child { text-align: right; white-space: pre-line; }
+</style>
+<div class="container py-4" style="max-width:1100px;">
+    <a href="{% if own %}{% url 'accounts:app_sessions' %}{% else %}{% url 'teams:app_sessions' %}{% endif %}" class="gl-sess-muted">← Все сессии</a>
+    <h1 class="h3 text-warning mt-2 mb-1"><span class="badge bg-secondary" style="font-size:12px; border-radius:4px; vertical-align:middle;" title="Тренировка — личные данные">Тр</span> {{ row.name|default:"Без названия" }}</h1>
+    <p class="gl-sess-muted">{{ row.date|date:"d.m.Y H:i"|default:"" }}{% if row.track %} · {{ row.track }}{% endif %}{% if row.pilot %} · {{ row.pilot }}{% endif %}{% if row.race_class %} · {{ row.race_class }}{% endif %}{% if row.kart %} · {{ row.kart }}{% endif %}{% if row.engine %} · {{ row.engine }}{% endif %}{% if row.best %} · лучший круг {{ row.best }}{% endif %}{% if not own %} · сохранил(а): {{ record.user.get_full_name|default:"пилот" }}{% endif %}</p>
+
+    {% if own %}
+    <form method="post" action="{% url 'accounts:app_session_visibility' record.uuid %}" class="gl-sess-card d-flex flex-wrap gap-3 align-items-center">
+        {% csrf_token %}
+        <label class="m-0"><input type="checkbox" name="team" value="1" {% if record.visible_to_team %}checked{% endif %}> Видна команде</label>
+        <label class="m-0"><input type="checkbox" name="public" value="1" {% if record.public %}checked{% endif %}> На моей странице</label>
+        <button class="btn btn-sm btn-outline-warning ms-auto">Сохранить</button>
+        {% if profile and not profile.app_sessions_team %}<div class="gl-sess-muted w-100">Показ команде выключен в общих настройках на странице «Мои сессии».</div>{% endif %}
+        {% if record.public and profile and not profile.app_sessions_public %}<div class="gl-sess-muted w-100">Показ на странице выключен в общих настройках на странице «Мои сессии».</div>{% endif %}
+    </form>
+    {% endif %}
+
+    <div class="gl-sess-grid">
+        {% for title, items in sections %}
+        <div class="gl-sess-card mb-0">
+            <h2 class="h6 text-warning mb-2">{{ title }}</h2>
+            {% for label, value in items %}<div class="gl-sess-kv"><span>{{ label }}</span><span>{{ value }}</span></div>{% endfor %}
+        </div>
+        {% empty %}
+        <div class="gl-sess-card gl-sess-muted">В сессии нет заполненных полей.</div>
+        {% endfor %}
+    </div>
+    <p class="gl-sess-muted mt-3">Данные введены в приложении GripLine SetupKart и не проверялись. Результаты соревнований — по протоколам.</p>
+</div>
+{% endblock %}

@@ -1,7 +1,14 @@
-{% if devices %}
+{% if devices or sessions %}
 <div class="{{ card_class }} mb-4" id="app-devices">
-    <h4 class="text-warning border-bottom border-secondary pb-2 mb-3">Устройства приложения</h4>
-    <p class="text-muted small mb-3">Телефоны, на которых выполнен вход в приложение GripLine SetupKart этим аккаунтом. Не узнаёте устройство — нажмите «Выйти».</p>
+    <h4 class="text-warning border-bottom border-secondary pb-2 mb-3">Приложение GripLine SetupKart</h4>
+    {% if sessions %}
+    <p class="mb-3">
+        {% if mode == 'team' %}<a href="{% url 'teams:app_sessions' %}" class="btn btn-sm btn-outline-warning">Сессии пилотов команды ({{ sessions }})</a>
+        {% else %}<a href="{% url 'accounts:app_sessions' %}" class="btn btn-sm btn-outline-warning">Мои сессии из приложения ({{ sessions }})</a>{% endif %}
+    </p>
+    {% endif %}
+    {% if devices %}
+    <p class="text-muted small mb-2">Телефоны, на которых выполнен вход в приложение этим аккаунтом. Не узнаёте устройство — нажмите «Выйти».</p>
     {% for d in devices %}
     <div class="d-flex flex-wrap align-items-center gap-2 py-2{% if not forloop.last %} border-bottom border-secondary{% endif %}">
         <div class="me-auto">
@@ -13,5 +20,6 @@
         </form>
     </div>
     {% endfor %}
+    {% endif %}
 </div>
 {% endif %}

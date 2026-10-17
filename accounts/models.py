@@ -71,6 +71,13 @@ class UserProfile(models.Model):
         default=False,
         help_text="Отправлять уведомления о статусе заявок в Telegram"
     )
+    # Сессии из приложения SetupKart (17.10.2026): общие переключатели пилота; у каждой сессии — свои.
+    app_sessions_team = models.BooleanField(
+        "Сессии приложения видны команде", default=True,
+        help_text="Менеджеры команд, в составе которых пилот, видят его сессии из приложения.")
+    app_sessions_public = models.BooleanField(
+        "Сессии приложения на странице пилота", default=False,
+        help_text="Отмеченные сессии показываются на публичной странице пилота.")
     # Одноразовый код ссылки t.me/<бот>?start=link-<код> (кнопка «Подключить Telegram» в ЛК).
     telegram_link_token = models.CharField(max_length=64, blank=True, db_index=True)
     telegram_link_created_at = models.DateTimeField(null=True, blank=True)

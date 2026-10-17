@@ -205,6 +205,7 @@ def account_payload(user):
         'teams': [{'id': m.team_id, 'name': m.team.name} for m in teams],
         'team_pilots': pilots,
         'account_url': base + reverse('accounts:profile'),
+        'sessions_url': base + reverse('accounts:app_sessions'),
         'delete_url': base + '/legal/data-request/',
     }
 

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import api, auth
+from . import api, auth, sync
 
 urlpatterns = [
     path('config/', api.config, name='setupkart_api_config'),
@@ -15,5 +15,7 @@ urlpatterns = [
     path('auth/exchange/', auth.exchange, name='setupkart_auth_exchange'),
     path('auth/me/', auth.me, name='setupkart_auth_me'),
     path('auth/logout/', auth.logout, name='setupkart_auth_logout'),
+    path('sync/push/', sync.push, name='setupkart_sync_push'),
+    path('sync/pull/', sync.pull, name='setupkart_sync_pull'),
     path('auth/devices/<int:token_id>/revoke/', auth.revoke_device, name='setupkart_auth_revoke'),
 ]

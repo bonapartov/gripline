@@ -1,0 +1,208 @@
+{
+  "version": 1,
+  "sections": [
+    {
+      "key": "driver",
+      "title": "Пилот, класс, шасси, двигатель",
+      "fields": [
+        {"key": "driver", "label": "Пилот", "type": "text"},
+        {"key": "engine_category", "label": "Класс", "type": "engine_category", "allow_custom": true},
+        {"key": "chassis", "label": "Шасси", "type": "choice", "allow_custom": true,
+         "_comment": "Встроенный список на случай без сети; с сайта приходит актуальный (популярные первыми).",
+         "options": ["Energy", "Tony Kart", "Birel ART", "LN", "IPK", "Parolin", {"value": "Kosmic", "label": "Kosmic", "aliases": ["Cosmik"]}, "SODI", {"value": "Drago Corse", "label": "Drago Corse", "aliases": ["Drago"]}, "DR", "EKS", {"value": "Kart Republic", "label": "Kart Republic", "aliases": ["KR"]}, "Formula K", "INTREPID", "Малыш", "BR-K02", "CRG", "МСГТ", "CKR", "Exprit", "FK", "Fernando Alonso", "Maranello", "Monster K", "RMS-Austria"]},
+        {"key": "engine_make", "label": "Марка двигателя", "type": "engine_make", "default": "rotax"},
+        {"key": "track", "label": "Трасса", "type": "text"},
+        {"key": "day_temp_c", "label": "Температура", "type": "number", "unit": "°C", "min": -20, "max": 50, "step": 1},
+        {"key": "humidity_pct", "label": "Влажность", "type": "number", "unit": "%", "min": 0, "max": 100, "step": 1,
+         "pro": "air_density"},
+        {"key": "air_pressure_hpa", "label": "Давление на трассе", "type": "number", "unit": "гПа", "min": 850,
+         "max": 1100, "step": 1, "pro": "air_density"},
+        {"key": "condition", "label": "Условия", "type": "radio", "default": "dry",
+         "options": [
+           {"value": "dry", "label": "Сухо"},
+           {"value": "changing", "label": "Пасмурно"},
+           {"value": "wet", "label": "Мокро"},
+           {"value": "rain", "label": "Дождь"}
+         ]},
+        {"key": "grip_level", "label": "Зацеп трассы", "type": "radio", "default": "Нормальный",
+         "options": ["Низкий", "Нормальный", "Высокий"], "pro": "grip_level"},
+        {"key": "best_time_ms", "label": "Лучшее время", "type": "laptime"}
+      ]
+    },
+    {
+      "key": "laps",
+      "title": "Круги и анализ",
+      "fields": [
+        {"key": "laps", "label": "Круги", "type": "laps"},
+        {"key": "engine_minutes", "label": "Моторесурс сессии", "type": "number", "unit": "мин", "min": 0, "max": 600, "step": 1,
+         "_comment": "Время работы двигателя за сессию — идёт в моточасы двигателя сессии. Без ручного ввода подставляется сумма кругов, округлённая вверх."}
+      ]
+    },
+    {
+      "key": "handling",
+      "title": "Поведение карта",
+      "fields": [
+        {"key": "handling_phase", "label": "Где", "type": "radio", "pro": "chassis_advice",
+         "options": [{"value": "entry", "label": "Вход"}, {"value": "middle", "label": "Середина"},
+                     {"value": "exit", "label": "Выход"}]},
+        {"key": "handling_symptom", "label": "Что происходит", "type": "radio", "pro": "chassis_advice",
+         "options": [{"value": "understeer", "label": "Недостаточная поворачиваемость"},
+                     {"value": "oversteer", "label": "Избыточная поворачиваемость"},
+                     {"value": "hopping", "label": "Прыгает одно колесо"},
+                     {"value": "lifting", "label": "Отрываются оба внутренних колеса"},
+                     {"value": "drift", "label": "Скользит всеми колёсами"},
+                     {"value": "neutral", "label": "Всё хорошо"}]}
+      ]
+    },
+    {
+      "key": "front",
+      "title": "Передняя ось, ступицы, высота",
+      "fields": [
+        {"key": "spacer_left", "label": "Проставки слева", "type": "number", "min": 0, "max": 5, "step": 0.5,
+         "decimals": 1, "default": 2.0, "note": "[проверить] диапазон"},
+        {"key": "spacer_right", "label": "Проставки справа", "type": "number", "min": 0, "max": 5, "step": 0.5,
+         "decimals": 1, "default": 2.0, "note": "[проверить] диапазон"},
+        {"key": "front_height", "label": "Высота передней оси", "type": "choice", "default": "mid",
+         "options": [{"value": "low", "label": "Низкая"}, {"value": "mid", "label": "Средняя"}, {"value": "high", "label": "Высокая"}]},
+        {"key": "caster_left", "label": "Кастер левый", "type": "radio", "default": "0",
+         "options": ["-2", "-1", "0", "+1", "+2"]},
+        {"key": "caster_right", "label": "Кастер правый", "type": "radio", "default": "0",
+         "options": ["-2", "-1", "0", "+1", "+2"]},
+        {"key": "steering_column_hole", "label": "Рулевая колонка: отверстие", "type": "radio", "default": "2",
+         "options": ["1", "2", "3"]},
+        {"key": "steering_column_note", "label": "Рулевая колонка: тип, длина", "type": "text"},
+        {"key": "stub_axle_photos", "label": "Фото ступиц", "type": "photo"},
+        {"key": "pressure", "label": "Давление в шинах", "type": "pressure4", "unit": "бар",
+         "min": 0, "step": 0.05, "decimals": 2,
+         "default": {
+           "fl.cold": 0.50, "fr.cold": 0.50, "rl.cold": 0.55, "rr.cold": 0.55,
+           "fl.warm": 0.60, "fr.warm": 0.60, "rl.warm": 0.65, "rr.warm": 0.65
+         }},
+        {"key": "track_width_front_cm", "label": "Колея передняя", "type": "number", "unit": "см",
+         "min": 0, "step": 0.1, "decimals": 1, "default": 122.0},
+        {"key": "track_width_rear_cm", "label": "Колея задняя", "type": "number", "unit": "см",
+         "min": 0, "step": 0.1, "decimals": 1, "default": 139.5},
+        {"key": "camber_left", "label": "Камбер левый", "type": "number", "min": -4, "max": 3, "step": 0.25,
+         "decimals": 2, "default": 0, "note": "мишень-подсказка — позже"},
+        {"key": "camber_right", "label": "Камбер правый", "type": "number", "min": -4, "max": 3, "step": 0.25,
+         "decimals": 2, "default": 0, "note": "мишень-подсказка — позже"},
+        {"key": "toe_mm", "label": "Схождение (− развал)", "type": "number", "unit": "мм", "min": -5, "max": 5,
+         "step": 0.5, "decimals": 1, "default": 0, "pro": "toe"},
+        {"key": "torsion_front", "label": "Передний стабилизатор", "type": "radio", "default": "Нет",
+         "options": ["Нет", "Горизонтально", "Вертикально"], "pro": "torsion_bars"},
+        {"key": "ackermann", "label": "Аккерман", "type": "radio", "default": "neutral",
+         "options": [{"value": "neg", "label": "−"}, {"value": "neutral", "label": "Нейтрально"}, {"value": "pos", "label": "+"}]},
+        {"key": "front_hub_length_mm", "label": "Длина передней ступицы", "type": "choice", "unit": "мм", "allow_custom": true,
+         "default": "60", "options": ["S", "M", "L", "40", "50", "55", "58", "60", "65", "70", "75", "80", "90", "95", "110", "115", "120"]},
+        {"key": "front_bumper", "label": "Передний бампер", "type": "radio", "default": "tight",
+         "options": [{"value": "tight", "label": "Затянут"}, {"value": "loose", "label": "Свободно"}]},
+        {"key": "front_note", "label": "Заметка", "type": "text"}
+      ]
+    },
+    {
+      "key": "tires",
+      "title": "Шины",
+      "fields": [
+        {"key": "tire_make", "label": "Производитель", "type": "choice", "allow_custom": true,
+         "options": ["Mojo", "Vega", "MG", "LeCont", "Dunlop", "Mitas", "Maxxis", "Komet"]},
+        {"key": "tire_type", "label": "Тип", "type": "radio",
+         "options": [
+           {"value": "slick", "label": "Слик"},
+           {"value": "wet", "label": "Дождь"}
+         ]},
+        {"key": "tire_type_compound", "label": "Состав", "type": "text"},
+        {"key": "rim_material", "label": "Диски", "type": "radio", "default": "magnesium",
+         "options": [{"value": "magnesium", "label": "Магний"}, {"value": "aluminium", "label": "Алюминий"}]},
+        {"key": "tire_note", "label": "Заметка", "type": "text"}
+      ]
+    },
+    {
+      "key": "tyre_analysis",
+      "title": "Анализ шин",
+      "fields": [
+        {"key": "tyre_temp", "label": "Температура протектора после заезда", "type": "tyre_temps4", "unit": "°C",
+         "pro": "tyre_analysis"},
+        {"key": "tyre_target_temp_c", "label": "Рабочая температура шины", "type": "number", "unit": "°C", "min": 30,
+         "max": 120, "step": 1, "default": 80, "pro": "tyre_analysis"},
+        {"key": "track_direction", "label": "Направление трассы", "type": "radio", "default": "cw", "pro": "tyre_analysis",
+         "options": [{"value": "cw", "label": "По часовой"}, {"value": "ccw", "label": "Против часовой"}]}
+      ]
+    },
+    {
+      "key": "rear",
+      "title": "Задняя ось",
+      "fields": [
+        {"key": "rear_axle_stiffness", "label": "Жёсткость оси", "type": "choice", "default": "M",
+         "options": [{"value": "S", "label": "Мягкая (S)"}, {"value": "M", "label": "Средняя (M)"}, {"value": "H", "label": "Жёсткая (H)"}]},
+        {"key": "rear_axle_height", "label": "Высота задней оси", "type": "choice", "default": "mid",
+         "options": [{"value": "low", "label": "Низкая"}, {"value": "mid", "label": "Средняя"}, {"value": "high", "label": "Высокая"}]},
+        {"key": "hub_width_mm", "label": "Ширина ступицы", "type": "choice", "unit": "мм", "allow_custom": true,
+         "default": "50", "options": ["40", "50", "55", "60", "65", "70", "75", "80"]},
+        {"key": "torsion_rear", "label": "Задний стабилизатор", "type": "radio", "default": "Нет",
+         "options": ["Нет", "Горизонтально", "Вертикально"], "pro": "torsion_bars"},
+        {"key": "torsion_middle", "label": "Средний (4-й) стабилизатор", "type": "radio", "default": "no",
+         "options": [{"value": "no", "label": "Нет"}, {"value": "yes", "label": "Есть"}]},
+        {"key": "rear_bearings", "label": "Подшипники задней оси", "type": "radio", "default": "3",
+         "options": ["2", "3"]},
+        {"key": "rear_bumper", "label": "Задний бампер", "type": "radio", "default": "tight",
+         "options": [{"value": "tight", "label": "Затянут"}, {"value": "loose", "label": "Свободно"}]},
+        {"key": "sidepods", "label": "Крепления боковых понтонов", "type": "radio", "default": "tight",
+         "options": [{"value": "tight", "label": "Затянуты"}, {"value": "loose", "label": "Свободно"}]},
+        {"key": "seat_strut_left", "label": "Распорки слева", "type": "number", "min": 0, "max": 3, "step": 1,
+         "default": 0, "pro": "seat_struts"},
+        {"key": "seat_strut_right", "label": "Распорки справа", "type": "number", "min": 0, "max": 3, "step": 1,
+         "default": 0, "pro": "seat_struts"},
+        {"key": "rear_note", "label": "Заметка", "type": "text"}
+      ]
+    },
+    {
+      "key": "balance",
+      "title": "Развесовка",
+      "fields": [
+        {"key": "weight", "label": "Вес по углам (с пилотом)", "type": "balance4", "unit": "кг", "decimals": 1},
+        {"key": "driver_weight_kg", "label": "Вес пилота в экипировке", "type": "decimal_input", "unit": "кг"},
+        {"key": "seat_shift_mm", "label": "Сиденье: вперёд/назад", "type": "number", "unit": "мм", "min": -30,
+         "max": 60, "step": 5, "default": 0, "pro": "seat_position"},
+        {"key": "seat_side_mm", "label": "Сиденье: влево/вправо", "type": "number", "unit": "мм", "min": -30,
+         "max": 30, "step": 5, "default": 0, "pro": "seat_position"},
+        {"key": "seat_type", "label": "Сиденье: жёсткость", "type": "choice", "default": "Жёсткое",
+         "options": ["Очень мягкое", "Мягкое", "Жёсткое", "Очень жёсткое"]},
+        {"key": "seat_size", "label": "Сиденье: размер", "type": "choice", "allow_custom": true, "default": "M",
+         "options": ["Micro", "Mini 1", "Mini 2", "Junior", "1", "2", "3", "4", "5", "XS", "S", "MS", "M", "ML", "L", "XL", "XXL"]},
+        {"key": "seat_raise_mm", "label": "Сиденье: подъём", "type": "number", "unit": "мм", "min": 0, "max": 50,
+         "step": 5, "default": 0, "pro": "seat_position"},
+        {"key": "rain_meister", "label": "Rainmeister (подъём центра тяжести)", "type": "radio", "default": "no",
+         "options": [{"value": "no", "label": "Нет"}, {"value": "yes", "label": "Есть"}]}
+      ]
+    },
+    {
+      "key": "gearing",
+      "title": "Передаточное число и скорость",
+      "fields": [
+        {"key": "pinion_teeth", "label": "Пиньон", "type": "choice", "allow_custom": true, "default": "12",
+         "options": ["11", "12", "13"]},
+        {"key": "sprocket_teeth", "label": "Звезда", "type": "choice", "allow_custom": true, "default": "75",
+         "range": {"from": 66, "to": 85, "step": 0.5, "decimals": 1}, "note": "[проверить] начало списка"},
+        {"key": "gear_ratio", "label": "Передаточное соотношение", "type": "computed"},
+        {"key": "rpm", "label": "Обороты", "type": "number", "unit": "об/мин", "min": 0, "max": 25000, "step": 100},
+        {"key": "speed_kmh", "label": "Скорость", "type": "number", "unit": "км/ч", "min": 0, "max": 200, "step": 1}
+      ]
+    },
+    {"key": "carburetor_slot", "title": "", "fields": []},
+    {
+      "key": "egt",
+      "title": "Температура выхлопа",
+      "fields": [
+        {"key": "egt_min_c", "label": "Нижний предел", "type": "number", "unit": "°C", "min": 0, "max": 1000, "step": 5},
+        {"key": "egt_max_c", "label": "Верхний предел", "type": "number", "unit": "°C", "min": 0, "max": 1000, "step": 5}
+      ]
+    },
+    {
+      "key": "notes",
+      "title": "Заметки к сессии",
+      "fields": [
+        {"key": "setup_notes", "label": "Заметки", "type": "multiline"}
+      ]
+    }
+  ]
+}

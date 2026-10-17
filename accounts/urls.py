@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from website.setupkart import session_views
 
 app_name = 'accounts'
 
@@ -13,6 +14,9 @@ urlpatterns = [
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
     path('profile/', views.profile, name='profile'),
+    path('app-sessions/', session_views.my_sessions, name='app_sessions'),
+    path('app-sessions/<str:uuid>/', session_views.session_detail, name='app_session'),
+    path('app-sessions/<str:uuid>/visibility/', session_views.session_visibility, name='app_session_visibility'),
     path('api/process-claim/', views.process_claim_api, name='process_claim_api'),
     path('documents/upload/', views.upload_pilot_document, name='upload_pilot_document'),
     path('documents/<int:doc_id>/delete/', views.delete_pilot_document, name='delete_pilot_document'),

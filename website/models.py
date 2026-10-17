@@ -5207,6 +5207,7 @@ APP_PRO_FEATURES = [
     ('air_density', 'Плотность воздуха (RAD) по погоде', 'toggle', 'pro'),
     ('chassis_advice', 'Советы по поведению карта', 'toggle', 'pro'),
     ('tyre_analysis', 'Анализ шин (температуры и давление)', 'toggle', 'pro'),
+    ('cloud_sync', 'Копия сессий на сайте и синхронизация', 'toggle', 'free'),
 ]
 APP_PRO_FEATURE_KINDS = {k: kind for k, _, kind, _ in APP_PRO_FEATURES}
 
@@ -5486,6 +5487,54 @@ class AppDeviceToken(models.Model):
 
     def __str__(self):
         return f"{self.user} — {self.device_name or 'устройство'}"
+
+
+APP_SYNC_TABLES = ['karts', 'engines', 'tracks', 'sessions']
+
+
+class AppSyncRecord(models.Model):
+    """Запись приложения на сайте (17.10.2026, этап 2 плана setupkart-account-sync): карт, двигатель, трасса
+    или сессия пользователя — строка drift `toJson()` как есть (`data`), по UUID приложения.
+
+    Источник правды — телефон: запись заменяется, только если `updatedAt` присланной строки новее
+    (`client_updated_at`); прежняя версия уходит в `AppSyncRecordVersion`. У сессий — поля для ЛК: пилот сайта
+    (только свой или из состава своей команды), трасса сайта, видимость команде и на странице пилота.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='app_records')
+    table = models.CharField("Вид", max_length=16, choices=[(t, t) for t in APP_SYNC_TABLES])
+    uuid = models.CharField("UUID", max_length=64)
+    data = models.JSONField("Данные")
+    schema_version = models.PositiveIntegerField("Версия схемы приложения", default=0)
+    client_updated_at = models.BigIntegerField("Изменено в приложении (мс)")
+    deleted = models.BooleanField("Удалено", default=False)
+    server_updated_at = models.DateTimeField("Получено", db_index=True)
+
+    driver = models.ForeignKey(Driver, on_delete=models.SET_NULL, null=True, blank=True, related_name='app_sessions')
+    track = models.ForeignKey('Track', on_delete=models.SET_NULL, null=True, blank=True, related_name='app_sessions')
+    started_at = models.DateTimeField("Начало сессии", null=True, blank=True, db_index=True)
+    visible_to_team = models.BooleanField("Видна команде", default=True)
+    public = models.BooleanField("На странице пилота", default=False)
+
+    class Meta:
+        verbose_name = "Запись приложения"
+        verbose_name_plural = "Записи приложения"
+        unique_together = [('user', 'table', 'uuid')]
+        indexes = [models.Index(fields=['user', 'server_updated_at', 'id'])]
+
+    def __str__(self):
+        return f"{self.table} {self.uuid}"
+
+
+class AppSyncRecordVersion(models.Model):
+    """Прежняя версия записи, заменённой более новой (конфликт двух телефонов — ничего не теряется)."""
+    KEEP = 10
+    record = models.ForeignKey(AppSyncRecord, on_delete=models.CASCADE, related_name='versions')
+    data = models.JSONField()
+    client_updated_at = models.BigIntegerField()
+    replaced_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-replaced_at']
 
 
 class AppProFeature(Orderable):
