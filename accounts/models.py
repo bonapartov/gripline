@@ -157,10 +157,19 @@ class SocialAuthSettings(BaseGenericSetting):
 
 
 class PilotDocument(models.Model):
-    """Личное хранилище документов пилота (паспорт, лицензия и т.д.)"""
+    """Личное хранилище документов пилота (паспорт, лицензия и т.д.).
+
+    Обычно привязан к профилю. Документ, который менеджер команды загрузил за пилота без
+    подтверждённого аккаунта, хранится у пилота (driver, profile пустой) и переходит в его ЛК,
+    когда аккаунт подтвердят (applications.vault.attach_held_documents) — до этого его не видит
+    никто, кроме команды через её заявки: неподтверждённый аккаунт мог завести кто угодно."""
     profile = models.ForeignKey(
-        UserProfile, on_delete=models.CASCADE,
+        UserProfile, on_delete=models.CASCADE, null=True, blank=True,
         related_name='documents', verbose_name='Профиль'
+    )
+    driver = models.ForeignKey(
+        'website.Driver', on_delete=models.CASCADE, null=True, blank=True,
+        related_name='held_documents', verbose_name='Пилот (до подтверждения аккаунта)'
     )
     kind = models.CharField('Тип', max_length=30, choices=document_kinds.VAULT_CHOICES,
                             default=document_kinds.OTHER, db_index=True)
@@ -178,9 +187,12 @@ class PilotDocument(models.Model):
         verbose_name = 'Документ пилота'
         verbose_name_plural = 'Документы пилота'
         ordering = ['name']
+        constraints = [models.CheckConstraint(
+            condition=models.Q(profile__isnull=False) | models.Q(driver__isnull=False),
+            name='pilotdocument_has_owner')]
 
     def __str__(self):
-        return f"{self.profile} — {self.name}"
+        return f"{self.profile or self.driver} — {self.name}"
 
     @property
     def is_expired(self):

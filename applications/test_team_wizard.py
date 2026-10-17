@@ -422,3 +422,45 @@ class TeamWizardStage2Tests(TeamWizardFixture):
         self.assertEqual((verified.status, bool(verified.receipt_file)), ('verified', False))
         page = self.client.get(url)
         self.assertEqual(page.status_code, 200)
+
+    def test_documents_of_pilot_without_confirmed_account_are_held_and_move_to_cabinet(self):
+        from accounts.models import DriverClaim, PilotDocument
+        entry = self.sent(self.d2)                                   # у d2 нет подтверждённого аккаунта
+        row = entry.applications.get().documents.get(stage_document=self.license)
+        self.client.post(f'/applications/document/{row.id}/upload/', {'file': self.pdf(), 'expiry_date': '2030-01-01'})
+        held = PilotDocument.objects.get(driver=self.d2)
+        self.assertIsNone(held.profile)
+
+        # Следующий этап: документ подставляется из хранилища пилота.
+        start = timezone.now() + timedelta(days=40)
+        stage2 = Stage.objects.create(championship=self.stage.championship, title='Этап 2', start_date=start,
+                                      end_date=start + timedelta(hours=8), entry_fee=5000)
+        from . import document_kinds
+        lic2 = StageDocument.objects.create(stage=stage2, kind=document_kinds.LICENSE)
+        self.client.get(f'/teams/apply/{stage2.id}/')
+        entry2 = TeamStageEntry.objects.get(stage=stage2)
+        self.roster(entry2, [(self.d2, self.ok, None)])
+        app2 = entry2.applications.get()
+        self.fill(entry2, app2)
+        self.client.post(f'/teams/apply/entry/{entry2.id}/review/', {'action': 'submit'})
+        self.assertEqual(app2.documents.get(stage_document=lic2).vault_document, held)
+
+        # Неподтверждённый аккаунт, назвавшийся этим пилотом, документа не видит.
+        boris = User.objects.create_user('boris@example.com', 'boris@example.com', 'x')
+        claim = DriverClaim.objects.create(user=boris, driver=self.d2, status='pending')
+        boris.profile.refresh_from_db()
+        self.assertFalse(boris.profile.documents.exists())
+        # Подтвердили — документ в его ЛК.
+        claim.status = 'approved'
+        claim.save()
+        held.refresh_from_db()
+        self.assertEqual(held.profile, boris.profile)
+
+    def test_held_document_older_than_cabinet_one_is_dropped_on_attach(self):
+        from accounts.models import PilotDocument
+        from .vault import attach_held_documents
+        old = PilotDocument.objects.create(driver=self.d1, kind='license', name='Лицензия', file=self.pdf())
+        newer = self.vault_license()                 # уже в ЛК d1, загружен позже
+        attach_held_documents(self.profile)
+        self.assertFalse(PilotDocument.objects.filter(pk=old.pk).exists())
+        self.assertTrue(PilotDocument.objects.filter(pk=newer.pk, profile=self.profile).exists())

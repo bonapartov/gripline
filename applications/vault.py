@@ -29,17 +29,57 @@ def vault_profile(application):
     return None
 
 
+class HeldVault:
+    """Хранилище пилота без подтверждённого аккаунта: документы на Driver, профиль пустой.
+    Тот же интерфейс, что у UserProfile (.documents), — vault работает с ним одинаково.
+    При подтверждении аккаунта документы переходят в ЛК (attach_held_documents)."""
+
+    def __init__(self, driver):
+        self.driver = driver
+
+    @property
+    def documents(self):
+        from accounts.models import PilotDocument
+        return PilotDocument.objects.filter(driver=self.driver, profile__isnull=True)
+
+    def owner(self):
+        return {'driver': self.driver, 'profile': None}
+
+
 def team_pilot_profile(application):
-    """ЛК пилота заявки команды: только подтверждённый профиль пилота из активного состава
-    этой команды."""
+    """ЛК пилота заявки команды — только у пилота из активного состава этой команды: его
+    подтверждённый профиль, а без него — хранилище при пилоте (HeldVault)."""
     from accounts.models import UserProfile
     from website.models import TeamMembership
     pilot = getattr(application, 'pilot', None)
-    driver_id = pilot.driver_id if pilot is not None else None
-    if not driver_id or not TeamMembership.objects.filter(
-            team_id=application.team_entry.team_id, driver_id=driver_id, is_active=True).exists():
+    driver = pilot.driver if pilot is not None else None
+    if driver is None or not TeamMembership.objects.filter(
+            team_id=application.team_entry.team_id, driver=driver, is_active=True).exists():
         return None
-    return UserProfile.objects.filter(driver_id=driver_id, verified=True).first()
+    return UserProfile.objects.filter(driver=driver, verified=True).first() or HeldVault(driver)
+
+
+def _owner(profile):
+    return profile.owner() if isinstance(profile, HeldVault) else {'profile': profile}
+
+
+def attach_held_documents(profile):
+    """Аккаунт пилота подтверждён: документы, сохранённые командой до этого, переходят в ЛК.
+    Документ постоянного типа заменяет более старый того же типа (и наоборот — более новый
+    из ЛК остаётся)."""
+    if not (profile and profile.verified and profile.driver_id):
+        return 0
+    held = list(HeldVault(profile.driver).documents.order_by('uploaded_at'))
+    for doc in held:
+        if document_kinds.is_fixed(doc.kind):
+            same = list(profile.documents.filter(kind=doc.kind))
+            if any(d.uploaded_at > doc.uploaded_at for d in same):
+                replace_previous([doc])
+                continue
+            replace_previous(same)
+        doc.profile = profile
+        doc.save(update_fields=['profile'])
+    return len(held)
 
 
 def stage_last_day(stage):
@@ -112,7 +152,7 @@ def save_from_application(app_doc):
     if profile is None or not document_kinds.is_fixed(kind) or not app_doc.file:
         return None
     previous = list(profile.documents.filter(kind=kind))
-    doc = PilotDocument(profile=profile, kind=kind, name=document_kinds.label(kind),
+    doc = PilotDocument(**_owner(profile), kind=kind, name=document_kinds.label(kind),
                         expiry_date=app_doc.expiry_date)
     _copy_file(app_doc.file, doc.file)
     doc.save()

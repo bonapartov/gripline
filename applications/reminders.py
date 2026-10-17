@@ -36,7 +36,7 @@ def due(today=None, days=None):
     if not days:
         return []
     horizon = today + timedelta(days=max(days))
-    docs = (PilotDocument.objects.filter(expiry_date__gte=today, expiry_date__lte=horizon)
+    docs = (PilotDocument.objects.filter(expiry_date__gte=today, expiry_date__lte=horizon, profile__isnull=False)
             .select_related('profile__user'))
     sent = set(DocumentReminder.objects.filter(document__in=docs).values_list(
         'document_id', 'days_before', 'expiry_date'))

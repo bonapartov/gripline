@@ -47,6 +47,11 @@ def _sync_roles(user):
         team=team,
         verified=verified,
     )
+    if verified:
+        # Документы, которые команда сохранила за пилота до подтверждения аккаунта.
+        from applications.vault import attach_held_documents
+        profile.refresh_from_db()
+        attach_held_documents(profile)
 
 
 @receiver(post_save, sender=User)
