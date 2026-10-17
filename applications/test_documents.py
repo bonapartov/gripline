@@ -274,6 +274,43 @@ class ReminderTests(MediaMixin, WizardFixture):
         self.profile.refresh_from_db()
         self.assertFalse(self.profile.telegram_notifications)
 
+    def _team_with_manager(self, driver, manager_email='mgr@example.com', active=True):
+        from teams.models import TeamManager
+        from website.models import Team, TeamMembership
+        team = Team.objects.create(name=f'Команда {manager_email}', slug=manager_email.split('@')[0])
+        TeamMembership.objects.create(team=team, driver=driver, is_active=active)
+        mgr = User.objects.create_user(manager_email, manager_email, 'pw')
+        TeamManager.objects.create(user=mgr, team=team, is_active=True)
+        return mgr
+
+    def test_team_manager_gets_own_reminder(self):
+        from website.models import Driver
+        driver = Driver.objects.create(first_name='Анна', last_name='Иванова', slug='anna')
+        self.profile.driver = driver
+        self.profile.save()
+        self._team_with_manager(driver)
+        self._team_with_manager(driver, 'ex@example.com', active=False)     # бывшая команда — нет
+        mgr = User.objects.get(email='mgr@example.com')
+        mgr.profile.telegram_id, mgr.profile.telegram_notifications = 888, True
+        mgr.profile.save()
+        self.doc(5)
+        with mock.patch('website.feedback.notify.send_user_message', return_value=True) as send:
+            self.assertEqual(self.run_on(self.today)[0], 1)
+        self.assertEqual(sorted(m.to[0] for m in mail.outbox), ['mgr@example.com', 'pilot@example.com'])
+        to_mgr = next(m for m in mail.outbox if m.to == ['mgr@example.com'])
+        self.assertIn('Иванова', to_mgr.subject)
+        self.assertEqual([c.args[0] for c in send.call_args_list], [888])
+        self.assertEqual(self.run_on(self.today)[0], 0)                    # повторно — никому
+
+    def test_held_document_reminds_managers_only(self):
+        from website.models import Driver
+        driver = Driver.objects.create(first_name='Борис', last_name='Смирнов', slug='boris')
+        self._team_with_manager(driver)
+        PilotDocument.objects.create(driver=driver, kind=LICENSE, name='Лицензия', file=pdf(),
+                                     expiry_date=self.today + timedelta(days=1))
+        self.assertEqual(self.run_on(self.today)[0], 1)
+        self.assertEqual([m.to for m in mail.outbox], [['mgr@example.com']])
+
     def test_alerts_include_expired_and_near(self):
         self.doc(-3)
         self.doc(20, kind=INSURANCE)

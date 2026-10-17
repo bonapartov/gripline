@@ -9,6 +9,9 @@
 
 Получатели: email аккаунта; пилоту младше 18 — ещё и email родителя из профиля. Telegram —
 если в ЛК подключены уведомления (UserProfile.telegram_id через бота обратной связи).
+Менеджерам команд, в активном составе которых пилот, — отдельное письмо/Telegram каждому
+(в т.ч. по документам, которые хранятся при пилоте без подтверждённого аккаунта, —
+им пилоту писать некому, узнают только менеджеры).
 """
 import html
 import logging
@@ -36,8 +39,8 @@ def due(today=None, days=None):
     if not days:
         return []
     horizon = today + timedelta(days=max(days))
-    docs = (PilotDocument.objects.filter(expiry_date__gte=today, expiry_date__lte=horizon, profile__isnull=False)
-            .select_related('profile__user'))
+    docs = (PilotDocument.objects.filter(expiry_date__gte=today, expiry_date__lte=horizon)
+            .select_related('profile__user', 'profile__driver', 'driver'))
     sent = set(DocumentReminder.objects.filter(document__in=docs).values_list(
         'document_id', 'days_before', 'expiry_date'))
     result = []
@@ -84,6 +87,62 @@ def owner_name(profile):
     return profile.user.get_full_name() or profile.user.email
 
 
+def doc_driver(doc):
+    return doc.profile.driver if doc.profile is not None else doc.driver
+
+
+def doc_owner_name(doc):
+    if doc.profile is not None:
+        return owner_name(doc.profile)
+    return doc.driver.full_name if doc.driver else ''
+
+
+def team_managers(doc):
+    """[(пользователь, команда)] — действующие менеджеры команд, в активном составе которых пилот."""
+    from teams.models import TeamManager
+    from website.models import TeamMembership
+    driver = doc_driver(doc)
+    if driver is None:
+        return []
+    team_ids = TeamMembership.objects.filter(driver=driver, is_active=True).values_list('team_id', flat=True)
+    seen, result = set(), []
+    for m in (TeamManager.objects.filter(team_id__in=team_ids, is_active=True, user__is_active=True)
+              .select_related('user', 'team').order_by('team__name')):
+        if m.user_id not in seen:
+            seen.add(m.user_id)
+            result.append((m.user, m.team))
+    return result
+
+
+def send_manager_email(doc, left, user, team):
+    from website.mail import send_templated_mail
+    who = doc_owner_name(doc)
+    link = _base_url() + reverse('teams:dashboard')
+    subject = f'{who}: «{doc.name}» истекает {when_text(left)}'
+    send_templated_mail('application_update', subject, [user.email], {
+        'subject': subject,
+        'preheader': f'У пилота команды {team.name} заканчивается срок документа «{doc.name}».',
+        'status': 'wait', 'status_label': 'Срок документа', 'status_text': 'Срок документа',
+        'title': f'У пилота {who} истекает «{doc.name}»',
+        'pilot_name': user.get_full_name() or user.email,
+        'lead': (f'Срок действия документа «{doc.name}» пилота {who} (команда {team.name}) заканчивается '
+                 f'{doc.expiry_date:%d.%m.%Y}. Новый документ можно загрузить в заявке команды на этап — '
+                 'он сохранится у пилота и подставится в следующие заявки.'),
+        'rows': [('Пилот', who), ('Команда', team.name), ('Документ', doc.name),
+                 ('Действует до', f'{doc.expiry_date:%d.%m.%Y}')],
+        'comment': '', 'comment_label': '',
+        'button': 'Открыть кабинет команды', 'link': link,
+    })
+
+
+def manager_telegram_text(doc, left, team):
+    link = _base_url() + reverse('teams:dashboard')
+    return (f'📄 <b>{html.escape(doc.name)}</b> пилота {html.escape(doc_owner_name(doc))} '
+            f'({html.escape(team.name)}) — срок действия заканчивается {when_text(left)}, '
+            f'{doc.expiry_date:%d.%m.%Y}.\n'
+            f'Новый документ можно загрузить в <a href="{html.escape(link, quote=True)}">заявке команды</a>.')
+
+
 def send_email(doc, left, emails):
     from website.mail import send_templated_mail
     link = _base_url() + reverse('accounts:profile') + '#documents'
@@ -93,7 +152,7 @@ def send_email(doc, left, emails):
         'preheader': f'Документ «{doc.name}» действует до {doc.expiry_date:%d.%m.%Y}. Загрузите новый в личном кабинете.',
         'status': 'wait', 'status_label': 'Срок документа', 'status_text': 'Срок документа',
         'title': f'«{doc.name}» истекает {when_text(left)}',
-        'pilot_name': owner_name(doc.profile),
+        'pilot_name': doc_owner_name(doc),
         'lead': (f'Срок действия документа «{doc.name}» заканчивается {doc.expiry_date:%d.%m.%Y}. '
                  'Загрузите новый в личном кабинете — он подставится в следующие заявки на этапы.'),
         'rows': [('Документ', doc.name), ('Действует до', f'{doc.expiry_date:%d.%m.%Y}')],
@@ -105,7 +164,7 @@ def send_email(doc, left, emails):
 
 def telegram_text(doc, left):
     link = _base_url() + reverse('accounts:profile') + '#documents'
-    who = owner_name(doc.profile)
+    who = doc_owner_name(doc)
     return (f'📄 <b>{html.escape(doc.name)}</b> ({html.escape(who)}) — срок действия заканчивается '
             f'{when_text(left)}, {doc.expiry_date:%d.%m.%Y}.\n'
             f'Загрузите новый документ в <a href="{html.escape(link, quote=True)}">личном кабинете</a>.')
@@ -124,12 +183,15 @@ def send_all(today=None, dry_run=False):
     for doc, closest, left in due(today, days):
         profile = doc.profile
         channels = []
-        emails = recipients(profile) if cfg.send_email else []
-        telegram = cfg.send_telegram and profile.telegram_notifications and profile.telegram_id
+        emails = recipients(profile) if (cfg.send_email and profile is not None) else []
+        telegram = (cfg.send_telegram and profile is not None and profile.telegram_notifications
+                    and profile.telegram_id)
+        managers = [(u, t) for u, t in team_managers(doc) if profile is None or u.id != profile.user_id]
         log.append(f'документ {doc.id} ({doc.kind}), осталось {left}, срок {closest}: '
-                   f'{len(emails)} email, telegram={"да" if telegram else "нет"}')
+                   f'{len(emails)} email, telegram={"да" if telegram else "нет"}, менеджеров {len(managers)}')
         if dry_run:
             continue
+        attempted = bool(emails or telegram)
         if emails:
             try:
                 send_email(doc, left, emails)
@@ -142,7 +204,26 @@ def send_all(today=None, dry_run=False):
                 type(profile).objects.filter(pk=profile.pk).update(telegram_notifications=False)
             elif result:
                 channels.append('telegram')
-        if not channels and (emails or telegram):
+        for user, team in managers:
+            mgr_profile = getattr(user, 'profile', None)
+            if cfg.send_email and user.email:
+                attempted = True
+                try:
+                    send_manager_email(doc, left, user, team)
+                    if 'manager_email' not in channels:
+                        channels.append('manager_email')
+                except Exception as exc:
+                    logger.warning('Напоминание о документе %s менеджеру %s: письмо не отправлено: %s',
+                                   doc.id, user.id, exc)
+            if (cfg.send_telegram and mgr_profile is not None and mgr_profile.telegram_notifications
+                    and mgr_profile.telegram_id):
+                attempted = True
+                result = notify.send_user_message(mgr_profile.telegram_id, manager_telegram_text(doc, left, team))
+                if result == 'blocked':
+                    type(mgr_profile).objects.filter(pk=mgr_profile.pk).update(telegram_notifications=False)
+                elif result and 'manager_telegram' not in channels:
+                    channels.append('manager_telegram')
+        if not channels and attempted:
             failed += 1  # повторим завтра: отметку не ставим
             continue
         # Отмечаем этот срок и все более дальние, чтобы не догонять их следующими письмами.
