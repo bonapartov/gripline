@@ -11,7 +11,7 @@ from wagtailcache.cache import nocache_page
 from website.mail import send_templated_mail
 from website.services.balance_limits import ratelimit_post
 from organizers.models import Stage
-from . import vault
+from . import health_consent, vault
 from .models import Application, ApplicationDocument, ApplicationPayment
 
 
@@ -173,6 +173,7 @@ def detail(request, application_id):
         'is_organizer': is_organizer,
         'can_withdraw': is_owner and can_withdraw(application),
         'vault_on': vault.vault_profile(application) is not None,
+        'health_text': health_consent.text_for(application),
         'is_team_pilot': is_pilot,
         'decline_url': (team_notify.decline_url(application)
                         if is_pilot and application.status != 'cancelled' and can_withdraw(application) else ''),
@@ -222,6 +223,13 @@ def upload_document(request, document_id):
                 return JsonResponse({'error': error}, status=400)
             messages.error(request, error)
             return _back(request, doc.application)
+        if health_consent.needed(doc.stage_document.kind):
+            if not health_consent.given(request.POST):
+                if is_ajax:
+                    return JsonResponse({'error': health_consent.ERROR}, status=400)
+                messages.error(request, health_consent.ERROR)
+                return _back(request, doc.application)
+            health_consent.stamp(doc, request.user)
         doc.file = request.FILES['file']
         if expiry:
             doc.expiry_date = expiry

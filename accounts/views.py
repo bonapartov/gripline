@@ -209,10 +209,11 @@ def login_view(request):
 
 def _documents_context(request):
     """Контекст блока «Мои документы» (accounts/_documents_card.html)."""
-    from applications import document_kinds, reminders
+    from applications import document_kinds, health_consent, reminders
     from . import telegram_link
     profile = getattr(request.user, 'profile', None)
     return {
+        'health_text': health_consent.PILOT_TEXT,
         'pilot_docs': profile.documents.all() if profile else [],
         'doc_alerts': reminders.alerts(profile),
         'doc_kinds': document_kinds.VAULT_CHOICES,
@@ -437,13 +438,19 @@ def upload_pilot_document(request):
         return JsonResponse({'error': 'Название и файл обязательны'}, status=400)
     if fixed and expiry_date is None:
         return JsonResponse({'error': 'Укажите срок действия — по нему придёт напоминание'}, status=400)
+    from applications import health_consent
+    if health_consent.needed(kind) and not health_consent.given(request.POST):
+        return JsonResponse({'error': health_consent.ERROR}, status=400)
 
     # Документ постоянного типа один: новый заменяет прежний (в старых заявках — свои копии).
     previous = list(profile.documents.filter(kind=kind)) if fixed else []
     replaced = [d.id for d in previous]
-    doc = PilotDocument.objects.create(
+    doc = PilotDocument(
         profile=profile, kind=kind, name=name, doc_number=doc_number, file=file, expiry_date=expiry_date,
     )
+    if health_consent.needed(kind):
+        health_consent.stamp(doc, request.user)
+    doc.save()
     vault.replace_previous(previous)
     return JsonResponse({
         'success': True,

@@ -296,6 +296,7 @@
                 <form method="post" action="{% url 'applications:upload_document' doc.id %}" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center">
                     {% csrf_token %}<input type="hidden" name="next" value="{{ back_url }}">
                     <input type="file" name="file" class="form-control form-control-sm" style="max-width:230px" required aria-label="Файл: {{ doc.stage_document.name }}, {{ a.pilot.full_name }}">
+                    {% if doc.stage_document.kind == 'medical' %}<label class="tw-help d-flex gap-2 align-items-start w-100 order-last"><input type="checkbox" name="health_consent" value="1" required class="mt-1"><span>{{ health_text }}</span></label>{% endif %}
                     {% if doc.stage_document.is_fixed_kind or doc.stage_document.has_expiry_date %}<input type="date" name="expiry_date" class="form-control form-control-sm" style="max-width:160px"{% if doc.stage_document.is_fixed_kind %} required{% endif %} aria-label="Действует до">{% endif %}
                     <button class="btn btn-sm btn-outline-warning">Загрузить</button>
                 </form>

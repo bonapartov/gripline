@@ -21,6 +21,7 @@ from wagtailcache.cache import nocache_page
 from organizers.models import Stage
 from website.services.balance_limits import ratelimit_post
 
+from . import health_consent
 from .models import Application, ApplicationApplicant, ApplicationOption, ApplicationPilot, TeamStageEntry
 from .wizard import _related, finalize_submission
 from .wizard_forms import StepKartForm, StepMechanicForm, StepPilotForm
@@ -592,6 +593,7 @@ def review(request, entry_id):
         'payments': payments,
         'due_total': sum(p.amount for _a, p in payments if p and p.status in ('pending', 'rejected', 'uploaded')),
         'payment_choices': TeamStageEntry.PAYMENT_CHOICES,
+        'health_text': health_consent.TEAM_TEXT,
         'back_url': request.path,
     })
 

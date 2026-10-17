@@ -82,6 +82,10 @@
                 <button type="button" class="btn btn-sm btn-warning w-100" onclick="uploadPilotDoc()">+</button>
             </div>
         </div>
+        <label id="pdocConsentRow" class="d-flex gap-2 align-items-start small mt-2" style="display:none; color:var(--gl-fg-3);">
+            <input type="checkbox" id="pdocConsent" class="mt-1" value="1">
+            <span>{{ health_text }} <a href="/legal/privacy/" target="_blank" class="text-info">Политика</a></span>
+        </label>
         <div id="pdocMsg" class="mt-2 small"></div>
         <div class="mt-1" style="font-size:0.7rem;color:#6c757d;">* — обязательные поля. Новая лицензия, доверенность, страховка или медсправка заменяет прежнюю.</div>
     </div>
@@ -98,6 +102,7 @@
         const other = kind.value === 'other';
         document.getElementById('pdocNameCol').style.display = other ? '' : 'none';
         document.getElementById('pdocExpiryStar').style.display = other ? 'none' : '';
+        document.getElementById('pdocConsentRow').style.setProperty('display', kind.value === 'medical' ? 'flex' : 'none', 'important');
     }
     kind.addEventListener('change', syncKind);
     syncKind();
@@ -115,6 +120,8 @@
         if (other && !name) { msg.innerHTML = '<span class="text-danger">Введите название документа.</span>'; return; }
         if (!other && !expiry) { msg.innerHTML = '<span class="text-danger">Укажите, до какого числа действует документ.</span>'; return; }
         if (!file) { msg.innerHTML = '<span class="text-danger">Выберите файл.</span>'; return; }
+        const consent = document.getElementById('pdocConsent');
+        if (kind.value === 'medical' && !consent.checked) { msg.innerHTML = '<span class="text-danger">Отметьте согласие на обработку сведений о здоровье.</span>'; return; }
 
         msg.innerHTML = '<span class="text-muted">⏳ Загружаем...</span>';
         const fd = new FormData();
@@ -123,6 +130,7 @@
         fd.append('file', file);
         if (number) fd.append('doc_number', number);
         if (expiry) fd.append('expiry_date', expiry);
+        if (kind.value === 'medical' && consent.checked) fd.append('health_consent', '1');
 
         fetch('{% url "accounts:upload_pilot_document" %}', {
             method: 'POST', body: fd,

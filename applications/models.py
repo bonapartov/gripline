@@ -389,6 +389,12 @@ class ApplicationDocument(models.Model):
         related_name='application_documents', verbose_name='Документ из ЛК',
     )
     organizer_comment = models.TextField(blank=True, verbose_name='Комментарий организатора')
+    # Медсправка: согласие на обработку сведений о здоровье (applications/health_consent.py).
+    health_consent_at = models.DateTimeField('Согласие на сведения о здоровье', null=True, blank=True)
+    health_consent_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+        verbose_name='Согласие отметил',
+    )
     uploaded_at = models.DateTimeField(null=True, blank=True)
     verified_at = models.DateTimeField(null=True, blank=True)
     verified_by = models.ForeignKey(

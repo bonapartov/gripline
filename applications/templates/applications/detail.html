@@ -184,6 +184,12 @@
                         <span class="doc-upload-result" id="docResult_{{ doc.id }}"></span>
                     </div>
                 </div>
+                {% if doc.stage_document.kind == 'medical' %}
+                <label class="d-flex gap-2 align-items-start small mt-2" style="color:var(--gl-fg-3);">
+                    <input type="checkbox" class="mt-1 doc-health-consent" id="docConsent_{{ doc.id }}" value="1">
+                    <span>{{ health_text }} <a href="/legal/privacy/" target="_blank" class="text-info">Политика</a></span>
+                </label>
+                {% endif %}
                 {% if doc.stage_document.is_fixed_kind and vault_on %}<div class="text-muted small mt-1">Сохранится в личном кабинете пилота и подставится в следующие заявки.</div>{% endif %}
             </div>
             {% endif %}
@@ -191,6 +197,7 @@
             {% if is_organizer %}
             <div class="org-review">
                 <span class="org-tag">Организатор</span>
+                {% if doc.stage_document.kind == 'medical' and doc.health_consent_at %}<span class="text-muted small me-2">согласие на сведения о здоровье — {{ doc.health_consent_at|date:"d.m.Y H:i" }}</span>{% endif %}
                 {% if doc.file %}<a href="{% url 'applications:serve_document' doc.id %}" target="_blank" class="text-info small me-2">📎 открыть документ</a>{% else %}<span class="text-muted small">документ ещё не загружен</span>{% endif %}
                 {% if doc.status == 'verified' %}
                 <span class="text-success small">✓ принято вами</span>
@@ -362,9 +369,16 @@ document.querySelectorAll('.auto-doc-upload').forEach(input => {
         if (spinner) spinner.style.display = 'inline';
         if (resultEl) resultEl.textContent = '';
 
+        const consentInput = document.getElementById('docConsent_' + docId);
+        if (consentInput && !consentInput.checked) {
+            if (resultEl) resultEl.innerHTML = '<span class="text-danger">Отметьте согласие ниже</span>';
+            this.value = '';
+            return;
+        }
         const fd = new FormData();
         fd.append('file', this.files[0]);
         if (expiryInput && expiryInput.value) fd.append('expiry_date', expiryInput.value);
+        if (consentInput && consentInput.checked) fd.append('health_consent', '1');
 
         fetch(action, {
             method: 'POST',

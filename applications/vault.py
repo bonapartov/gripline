@@ -18,7 +18,7 @@ import os
 from django.core.files.base import ContentFile
 from django.utils import timezone
 
-from . import document_kinds
+from . import document_kinds, health_consent
 
 
 def vault_profile(application):
@@ -140,6 +140,7 @@ def create_document_rows(application, is_minor):
             _copy_file(match.file, row.file)
             row.status, row.uploaded_at = 'uploaded', timezone.now()
             row.expiry_date, row.vault_document = match.expiry_date, match
+            health_consent.copy(match, row)
         row.save()
 
 
@@ -154,6 +155,7 @@ def save_from_application(app_doc):
     previous = list(profile.documents.filter(kind=kind))
     doc = PilotDocument(**_owner(profile), kind=kind, name=document_kinds.label(kind),
                         expiry_date=app_doc.expiry_date)
+    health_consent.copy(app_doc, doc)
     _copy_file(app_doc.file, doc.file)
     doc.save()
     replace_previous(previous)

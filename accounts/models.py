@@ -182,6 +182,12 @@ class PilotDocument(models.Model):
     # пока пилот не загрузит другой.
     rejected_at = models.DateTimeField('Отклонён организатором', null=True, blank=True)
     rejected_comment = models.TextField('Причина отклонения', blank=True)
+    # Медсправка: согласие на обработку сведений о здоровье (applications/health_consent.py).
+    health_consent_at = models.DateTimeField('Согласие на сведения о здоровье', null=True, blank=True)
+    health_consent_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+        verbose_name='Согласие отметил',
+    )
 
     class Meta:
         verbose_name = 'Документ пилота'

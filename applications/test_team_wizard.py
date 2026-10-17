@@ -301,9 +301,8 @@ class TeamWizardSubmitTests(TeamWizardFixture):
         self.assertEqual(entry2.applications.get().pilot.license_number, 'LIC-7')
 
 
-class TeamWizardStage2Tests(TeamWizardFixture):
-    """Этап 2: документы из ЛК пилота (членство в команде = согласие), общий доступ менеджеров,
-    опции по пилотам, оплата одной квитанцией."""
+class Stage2Fixture(TeamWizardFixture):
+    """Пилот d1 с подтверждённым аккаунтом, лицензия в документах этапа, медиа во временной папке."""
 
     @classmethod
     def setUpClass(cls):
@@ -348,6 +347,12 @@ class TeamWizardStage2Tests(TeamWizardFixture):
             self.fill(entry, app)
         self.client.post(f'/teams/apply/entry/{entry.id}/review/', {'action': 'submit'})
         return entry
+
+
+
+class TeamWizardStage2Tests(Stage2Fixture):
+    """Этап 2: документы из ЛК пилота (членство в команде = согласие), общий доступ менеджеров,
+    опции по пилотам, оплата одной квитанцией."""
 
     def test_roster_pilot_documents_come_from_his_cabinet(self):
         saved = self.vault_license()
@@ -549,3 +554,44 @@ class TeamWizardStage3Tests(TeamWizardFixture):
         self.assertIn('Команда Альфа', resp.content.decode())
         filtered = self.client.get(f'/organizers/stage/{self.stage.id}/registrations/?team={self.team.id}')
         self.assertEqual(sum(len(v) for v in filtered.context['by_class'].values()), 2)
+
+
+class HealthConsentTests(Stage2Fixture):
+    """Медсправка: без отметки согласия не загружается; отметка переносится в ЛК и обратно."""
+
+    def setUp(self):
+        super().setUp()
+        from . import document_kinds
+        self.med = StageDocument.objects.create(stage=self.stage, kind=document_kinds.MEDICAL)
+
+    def test_medical_upload_requires_consent_and_records_it(self):
+        from accounts.models import PilotDocument
+        entry = self.sent(self.d1)
+        row = entry.applications.get().documents.get(stage_document=self.med)
+        url = f'/applications/document/{row.id}/upload/'
+        resp = self.client.post(url, {'file': self.pdf(), 'expiry_date': '2030-01-01'},
+                                HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(resp.status_code, 400)
+        row.refresh_from_db()
+        self.assertEqual(row.status, 'pending')
+        self.client.post(url, {'file': self.pdf(), 'expiry_date': '2030-01-01', 'health_consent': '1'})
+        row.refresh_from_db()
+        self.assertEqual((row.status, row.health_consent_by), ('uploaded', self.manager))
+        saved = PilotDocument.objects.get(profile=self.profile, kind='medical')
+        self.assertEqual(saved.health_consent_at, row.health_consent_at)
+
+    def test_cabinet_medical_upload_requires_consent(self):
+        self.client.force_login(self.pilot_user)
+        data = {'kind': 'medical', 'expiry_date': '2030-01-01'}
+        resp = self.client.post('/accounts/documents/upload/', {**data, 'file': self.pdf()})
+        self.assertEqual(resp.status_code, 400)
+        resp = self.client.post('/accounts/documents/upload/', {**data, 'file': self.pdf(), 'health_consent': '1'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(self.profile.documents.get(kind='medical').health_consent_by, self.pilot_user)
+
+    def test_other_documents_do_not_need_consent(self):
+        entry = self.sent(self.d2)
+        row = entry.applications.get().documents.get(stage_document=self.license)
+        self.client.post(f'/applications/document/{row.id}/upload/', {'file': self.pdf(), 'expiry_date': '2030-01-01'})
+        row.refresh_from_db()
+        self.assertEqual(row.status, 'uploaded')
