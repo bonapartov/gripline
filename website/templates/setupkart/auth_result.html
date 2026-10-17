@@ -1,0 +1,19 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block title %}Вход в приложение GripLine SetupKart{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width:560px;">
+    <div class="p-4 text-center" style="background:var(--gl-surface-card); border:1px solid var(--gl-border-card); border-radius:var(--gl-radius-md); color:var(--gl-fg-1);">
+        <h1 class="h4 text-warning mb-3">Вход в GripLine SetupKart</h1>
+        {% if app_link %}
+            <p>Вы вошли как <b>{{ request.user.get_full_name|default:request.user.email }}</b>. Вернитесь в приложение, чтобы закончить вход.</p>
+            <a id="glAppLink" href="{{ app_link }}" class="btn btn-warning btn-lg w-100">Вернуться в приложение</a>
+            <p class="small mt-3 mb-0" style="color:var(--gl-fg-3);">Ссылка действует 3 минуты. Не сработала — нажмите «Войти» в приложении ещё раз.</p>
+            <script>setTimeout(function () { window.location.href = document.getElementById('glAppLink').href; }, 300);</script>
+        {% else %}
+            <p class="mb-0">{{ error }}</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

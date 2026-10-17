@@ -1,4 +1,5 @@
 {% extends "coderedcms/pages/web_page.html" %}
+{% load app_devices_tags %}
 {% load wagtailimages_tags %}
 
 {% block content %}
@@ -332,6 +333,7 @@
             {% endif %}
 
             {% include "accounts/_documents_card.html" %}
+            {% app_devices_card %}
 
             <div class="profile-card">
                 <form method="post" enctype="multipart/form-data">

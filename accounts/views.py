@@ -227,6 +227,11 @@ def _documents_context(request):
 @login_required
 def profile(request):
     """Личный кабинет пилота"""
+    # Вход в приложение SetupKart через Яндекс/VK приводит сюда — вернуть в приложение.
+    from website.setupkart.auth import pending_redirect
+    back = pending_redirect(request)
+    if back is not None:
+        return back
     try:
         claim = DriverClaim.objects.filter(
             user=request.user,

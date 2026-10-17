@@ -1,0 +1,17 @@
+{% if devices %}
+<div class="{{ card_class }} mb-4" id="app-devices">
+    <h4 class="text-warning border-bottom border-secondary pb-2 mb-3">Устройства приложения</h4>
+    <p class="text-muted small mb-3">Телефоны, на которых выполнен вход в приложение GripLine SetupKart этим аккаунтом. Не узнаёте устройство — нажмите «Выйти».</p>
+    {% for d in devices %}
+    <div class="d-flex flex-wrap align-items-center gap-2 py-2{% if not forloop.last %} border-bottom border-secondary{% endif %}">
+        <div class="me-auto">
+            <div class="text-white">{{ d.device_name|default:"Телефон" }}</div>
+            <div class="small text-muted">Вход {{ d.created_at|date:"d.m.Y H:i" }}{% if d.last_used_at %} · связь {{ d.last_used_at|date:"d.m.Y H:i" }}{% endif %}{% if d.app_version %} · версия {{ d.app_version }}{% endif %}</div>
+        </div>
+        <form method="post" action="{% url 'setupkart_auth_revoke' d.pk %}" class="m-0">{% csrf_token %}
+            <button class="btn btn-sm btn-outline-secondary">Выйти</button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}

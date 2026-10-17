@@ -5465,6 +5465,29 @@ class AppTrialDevice(models.Model):
     trial_ends_at.short_description = "Пробный период до"
 
 
+class AppDeviceToken(models.Model):
+    """Вход в приложение аккаунтом сайта (17.10.2026): токен на одно устройство.
+
+    Хранится только SHA-256 токена — сам токен видит лишь телефон. Выход в приложении или в ЛК
+    («Устройства приложения») ставит `revoked_at`; заблокированный пользователь не проходит проверку токена.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='app_tokens')
+    key_hash = models.CharField("Токен (хэш)", max_length=64, unique=True)
+    device_name = models.CharField("Устройство", max_length=120, blank=True)
+    app_version = models.CharField("Версия приложения", max_length=40, blank=True)
+    created_at = models.DateTimeField("Вход", auto_now_add=True)
+    last_used_at = models.DateTimeField("Последняя связь", null=True, blank=True)
+    revoked_at = models.DateTimeField("Выход", null=True, blank=True, db_index=True)
+
+    class Meta:
+        verbose_name = "Вход в приложение"
+        verbose_name_plural = "Входы в приложение"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user} — {self.device_name or 'устройство'}"
+
+
 class AppProFeature(Orderable):
     settings = ParentalKey(AppProSettings, on_delete=models.CASCADE, related_name='features')
     key = models.CharField("Функция", max_length=30, choices=[(k, name) for k, name, _, _ in APP_PRO_FEATURES])

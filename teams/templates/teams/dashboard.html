@@ -1,5 +1,6 @@
 {% extends "coderedcms/pages/web_page.html" %}
 {% load wagtailimages_tags %}
+{% load app_devices_tags %}
 
 {% block content %}
 <style>
@@ -580,6 +581,7 @@
                 {% endfor %}
             </div>
             {% endif %}
+            <div class="mt-4">{% app_devices_card "dashboard-card" %}</div>
         </div>
     </div>
 </div>
