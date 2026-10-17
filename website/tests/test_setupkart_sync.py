@@ -186,3 +186,99 @@ def test_stranger_cannot_open_or_change(client):
     client.force_login(other)
     assert client.get('/accounts/app-sessions/s1/').status_code == 404
     assert client.post('/accounts/app-sessions/s1/visibility/', {'team': '1'}).status_code == 404
+
+
+# ───── Этап 4: этап по протоколу, аналитика, сравнение, страница пилота ─────
+
+def _event_with_result(driver, track, day, position=3, best=59800):
+    """Этап на трассе [track] в день [day] с результатом пилота в протоколе."""
+    import datetime
+    from django.utils import timezone as tz
+    from wagtail.models import Page
+    from website.models import EventOccurrence, EventPage, RaceClass, RaceClassResultGroup, RaceResult
+    root = Page.objects.get(depth=1)
+    event = root.add_child(instance=EventPage(title='1 этап', slug='stage-1', track=track))
+    start = tz.make_aware(datetime.datetime.combine(day, datetime.time(9)))
+    EventOccurrence.objects.create(event=event, start=start, end=start + datetime.timedelta(hours=8))
+    klass = RaceClass.objects.create(name='Rotax Senior')
+    group = RaceClassResultGroup.objects.create(page=event, race_class=klass)
+    RaceResult.objects.create(group=group, driver=driver, position=position, best_lap_ms=best)
+    return event
+
+
+def test_session_on_race_day_shows_protocol_result(client):
+    import datetime
+    track = Track.objects.create(name='Ижорец')
+    pilot, driver, _ = _team_setup()
+    auth = token_for(pilot)
+    row = session_row(driver_id=driver.pk)
+    day = datetime.datetime.fromtimestamp(row['startedAt'] / 1000).date()
+    _event_with_result(driver, track, day)
+    push(client, auth, tracks=[{'id': 't1', 'name': 'Ижорец', 'source': 'base', 'baseId': track.pk, 'updatedAt': 5}],
+         sessions=[row])
+    client.force_login(pilot)
+    page = client.get('/accounts/app-sessions/s1/').content.decode()
+    assert 'В этот день — этап' in page and '3 место' in page and '59.800' in page
+    assert '1 этап' in client.get('/accounts/app-sessions/').content.decode()
+
+
+def test_analytics_and_compare_pages(client):
+    pilot, driver, _ = _team_setup()
+    auth = token_for(pilot)
+    rows = []
+    for i, (jet, best) in enumerate([(120, 61000), (122, 60500), (124, 60900)]):
+        r = session_row(f's{i}', driver_id=driver.pk, name=f'Заезд {i}')
+        setup = json.loads(r['setupJson'])
+        setup['main_jet'] = str(jet)
+        r['setupJson'] = json.dumps(setup)
+        r['bestTimeMs'] = best
+        r['startedAt'] += i * 3600_000
+        rows.append(r)
+    push(client, auth, sessions=rows)
+    client.force_login(pilot)
+    page = client.get('/accounts/app-sessions/analytics/', {'x': 'main_jet'}).content.decode()
+    assert 'glSessScatterData' in page and 'Главный жиклёр' in page
+    assert 'Главный жиклёр: 120 → 122' in page  # «что меняли → что дало»
+    cmp = client.get('/accounts/app-sessions/compare/', {'a': 's0', 'b': 's1'}).content.decode()
+    assert 'class="gl-sess-diff"' in cmp and '120' in cmp and '122' in cmp
+    # чужую сессию сравнить нельзя
+    other = make_user('x@example.com')
+    client.force_login(other)
+    assert 'class="gl-sess-diff"' not in client.get('/accounts/app-sessions/compare/', {'a': 's0', 'b': 's1'}).content.decode()
+
+
+def test_public_trainings_only_when_pilot_allows():
+    from website.setupkart.public import training_sessions
+    from django.test import Client
+    client = Client()
+    pilot, driver, manager = _team_setup()
+    push(client, token_for(pilot), sessions=[session_row('own', driver_id=driver.pk)])
+    push(client, token_for(manager), sessions=[session_row('by-manager', driver_id=driver.pk)])
+    assert training_sessions(driver) == []
+    AppSyncRecord.objects.update(public=True)
+    assert training_sessions(driver) == [], 'общее разрешение выключено'
+    from accounts.models import UserProfile
+    UserProfile.objects.filter(user=pilot).update(app_sessions_public=True)
+    got = training_sessions(driver)
+    assert len(got) == 1 and got[0]['best'] == '1:00.500', 'сессия менеджера на страницу пилота не попадает'
+
+
+def test_trainings_never_reach_rating_data():
+    """Рейтинг считается только по протоколам: загрузчик аналитики не знает о сессиях приложения."""
+    import inspect
+    from analytics.core import data_loader
+    src = inspect.getsource(data_loader)
+    assert 'AppSyncRecord' not in src and 'app_sessions' not in src
+
+
+def test_driver_page_shows_public_trainings(client):
+    from accounts.models import UserProfile
+    pilot, driver, _ = _team_setup()
+    push(client, token_for(pilot), sessions=[session_row(driver_id=driver.pk)])
+    AppSyncRecord.objects.update(public=True)
+    UserProfile.objects.filter(user=pilot).update(app_sessions_public=True)
+    page = client.get(driver.get_absolute_url())
+    assert page.status_code == 200
+    html = page.content.decode()
+    assert 'Тренировки' in html and '1:00.500' in html
+    assert 'Главный жиклёр' not in html, 'настройки карта на публичной странице не показываются'

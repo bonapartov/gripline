@@ -20,6 +20,8 @@ from wagtailcache.cache import nocache_page
 
 from website.models import AppSyncRecord
 
+from . import analytics
+from .public import purge_driver_page
 from .session_display import laps_summary, laptime, sections
 
 
@@ -65,10 +67,12 @@ def _rows(records):
     records = list(records)
     users = {r.user_id for r in records}
     karts, engines = _names(users, 'karts'), _names(users, 'engines')
+    events = analytics.match_events(records)
     rows = []
     for r in records:
         setup = _setup(r)
         rows.append({
+            'event': events.get(r.pk),
             'record': r,
             'date': timezone.localtime(r.started_at) if r.started_at else None,
             'name': r.data.get('name') or '',
@@ -120,6 +124,7 @@ def my_sessions(request):
         profile.app_sessions_team = request.POST.get('team') == '1'
         profile.app_sessions_public = request.POST.get('public') == '1'
         profile.save(update_fields=['app_sessions_team', 'app_sessions_public'])
+        purge_driver_page(profile.driver)
         return redirect('accounts:app_sessions')
     rows, options = _filter(_rows(_ordered(_sessions().filter(user=request.user))), request)
     return render(request, 'setupkart/sessions_list.html', {
@@ -164,4 +169,47 @@ def session_visibility(request, uuid):
     record.visible_to_team = request.POST.get('team') == '1'
     record.public = request.POST.get('public') == '1'
     record.save(update_fields=['visible_to_team', 'public'])
+    purge_driver_page(record.driver)
     return redirect('accounts:app_session', uuid=uuid)
+
+
+def _visible_qs(user):
+    return _sessions().filter(Q(user=user) | Q(pk__in=team_sessions_qs(user).values('pk')))
+
+
+@nocache_page
+@login_required
+def sessions_analytics(request):
+    """Аналитика своих сессий: время круга от параметра, лучшие сессии, «что меняли → что дало»."""
+    rows, options = _filter(_rows(_ordered(_sessions().filter(user=request.user))), request)
+    events = {row['record'].pk: row['event'] for row in rows if row['event']}
+    pts = analytics.points(rows, events)
+    params = analytics.numeric_params(pts)
+    keys = [k for k, _ in params]
+    x = request.GET.get('x') or next((k for k in ('day_temp_c', 'main_jet', 'pressure.fl.cold') if k in keys),
+                                     keys[0] if keys else '')
+    try:
+        temp = float(request.GET.get('temp', '').replace(',', '.'))
+    except ValueError:
+        temp = None
+    return render(request, 'setupkart/sessions_analytics.html', {
+        'options': options, 'q': request.GET, 'params': params, 'x': x,
+        'x_label': analytics.label_of(x) if x else '',
+        'scatter': analytics.scatter(pts, x) if x in keys else [],
+        'best': analytics.best_sessions(pts), 'best_temp': analytics.best_sessions(pts, temp) if temp is not None else None,
+        'temp': temp, 'changes': analytics.changes(pts), 'count': len(pts),
+    })
+
+
+@nocache_page
+@login_required
+def sessions_compare(request):
+    qs = _visible_qs(request.user)
+    a = qs.filter(uuid=request.GET.get('a', '')).first()
+    b = qs.filter(uuid=request.GET.get('b', '')).first()
+    choices = _rows(_ordered(_sessions().filter(user=request.user))[:300])
+    ctx = {'choices': choices, 'q': request.GET}
+    if a and b:
+        ra, rb = _rows([a, b])
+        ctx.update({'a': ra, 'b': rb, 'rows': analytics.compare_rows(_setup(a), _setup(b))})
+    return render(request, 'setupkart/sessions_compare.html', ctx)

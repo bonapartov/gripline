@@ -578,6 +578,28 @@
         </div>
 
         <button type="button" class="glv2-btn w-100 justify-content-center mt-3" id="glv2HistoryMoreBtn" style="padding:0.75rem;">Показать ещё</button>
+
+        {% if training_sessions %}
+        {# Тренировки из приложения GripLine SetupKart — только отмеченные пилотом; в рейтинг и статистику не входят. #}
+        <h3 class="h6 mt-4 mb-2" style="color:var(--gl-fg-1);">Тренировки</h3>
+        <p class="text-muted mb-2" style="font-size:0.85rem;"><span class="badge bg-secondary" style="font-size:10px; border-radius:4px;">Тр</span> Данные пилота из приложения GripLine SetupKart. Не проверялись и не учитываются в рейтинге, рекордах и статистике.</p>
+        <div class="table-responsive glv2-card" style="padding:0;">
+            <table class="glv2-history-table">
+                <thead><tr><th style="width:92px;">Дата</th><th>Трасса</th><th style="width:150px;">Класс</th><th style="width:110px;" class="text-center">Лучший круг</th><th style="width:90px;" class="text-center">Кругов</th></tr></thead>
+                <tbody>
+                {% for t in training_sessions %}
+                <tr>
+                    <td>{{ t.date|date:"d.m.Y" }}</td>
+                    <td><span class="badge bg-secondary me-1" style="font-size:10px; border-radius:4px;" title="Тренировка — данные пилота">Тр</span>{{ t.track|default:"—" }}</td>
+                    <td>{{ t.race_class|default:"—" }}</td>
+                    <td class="text-center">{{ t.best|default:"—" }}</td>
+                    <td class="text-center">{{ t.laps|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
     </div>
 
 </div>

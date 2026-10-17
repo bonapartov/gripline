@@ -108,6 +108,7 @@ def push(request):
 
     drivers = allowed_driver_ids(user)
     accepted = skipped = 0
+    public_drivers = set()
     with transaction.atomic():
         now = timezone.now()
         for table, row in rows:
@@ -153,6 +154,13 @@ def push(request):
                 _session_fields(record, row, drivers, bases)
             record.save()
             accepted += 1
+            if record.public and record.driver_id:
+                public_drivers.add(record.driver_id)
+    if public_drivers:
+        from website.models import Driver
+        from .public import purge_driver_page
+        for driver in Driver.objects.filter(pk__in=public_drivers):
+            purge_driver_page(driver)
     return JsonResponse({'accepted': accepted, 'skipped': skipped})
 
 

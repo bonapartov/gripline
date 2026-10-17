@@ -16,7 +16,15 @@
     <h1 class="h3 text-warning mt-2 mb-1"><span class="badge bg-secondary" style="font-size:12px; border-radius:4px; vertical-align:middle;" title="Тренировка — личные данные">Тр</span> {{ row.name|default:"Без названия" }}</h1>
     <p class="gl-sess-muted">{{ row.date|date:"d.m.Y H:i"|default:"" }}{% if row.track %} · {{ row.track }}{% endif %}{% if row.pilot %} · {{ row.pilot }}{% endif %}{% if row.race_class %} · {{ row.race_class }}{% endif %}{% if row.kart %} · {{ row.kart }}{% endif %}{% if row.engine %} · {{ row.engine }}{% endif %}{% if row.best %} · лучший круг {{ row.best }}{% endif %}{% if not own %} · сохранил(а): {{ record.user.get_full_name|default:"пилот" }}{% endif %}</p>
 
+    {% if row.event %}
+    <div class="gl-sess-card" style="border-left:4px solid var(--gl-brand-cyan);">
+        <b>В этот день — этап <a href="{{ row.event.url }}">{{ row.event.event }}</a></b> ({{ row.event.race_class }}).
+        По протоколу: {% if row.event.position %}{{ row.event.position }} место{% elif row.event.status %}{{ row.event.status }}{% else %}место не указано{% endif %}{% if row.event.best_ms %}, лучший круг {{ row.event.best_text }}{% endif %}.
+        <div class="gl-sess-muted mt-1">Официальные результаты — по протоколу соревнования. Круги и настройки ниже — данные из приложения.</div>
+    </div>
+    {% endif %}
     {% if own %}
+    <p class="mb-3"><a href="{% url 'accounts:app_sessions_compare' %}?a={{ record.uuid }}" class="btn btn-sm btn-outline-warning">Сравнить с другой сессией</a></p>
     <form method="post" action="{% url 'accounts:app_session_visibility' record.uuid %}" class="gl-sess-card d-flex flex-wrap gap-3 align-items-center">
         {% csrf_token %}
         <label class="m-0"><input type="checkbox" name="team" value="1" {% if record.visible_to_team %}checked{% endif %}> Видна команде</label>

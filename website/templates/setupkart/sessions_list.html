@@ -31,6 +31,12 @@
     </form>
     {% endif %}
 
+    {% if mode == 'own' and rows %}
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <a href="{% url 'accounts:app_sessions_analytics' %}" class="btn btn-sm btn-warning">Аналитика</a>
+        <a href="{% url 'accounts:app_sessions_compare' %}" class="btn btn-sm btn-outline-warning">Сравнить две сессии</a>
+    </div>
+    {% endif %}
     <form method="get" class="gl-sess-card gl-sess-filters d-flex flex-wrap gap-2 align-items-center">
         <select name="track"><option value="">Все трассы</option>{% for key, name in options.tracks %}<option value="{{ key }}" {% if q.track == key %}selected{% endif %}>{{ name }}</option>{% endfor %}</select>
         <select name="kart"><option value="">Все карты</option>{% for key, name in options.karts %}<option value="{{ key }}" {% if q.kart == key %}selected{% endif %}>{{ name }}</option>{% endfor %}</select>
@@ -48,7 +54,7 @@
             {% for r in rows %}
             <tr>
                 <td style="white-space:nowrap;">{{ r.date|date:"d.m.Y H:i"|default:"—" }}</td>
-                <td><span class="badge bg-secondary gl-badge-tr" title="Тренировка — личные данные">Тр</span> <a href="{% url 'accounts:app_session' r.record.uuid %}">{{ r.name|default:"Без названия" }}</a>{% if r.laps %}<div class="gl-sess-muted">{{ r.laps }}</div>{% endif %}</td>
+                <td><span class="badge bg-secondary gl-badge-tr" title="Тренировка — личные данные">Тр</span> <a href="{% url 'accounts:app_session' r.record.uuid %}">{{ r.name|default:"Без названия" }}</a>{% if r.event %}<div class="gl-sess-muted">этап: <a href="{{ r.event.url }}">{{ r.event.event }}</a>{% if r.event.position %} · {{ r.event.position }} место{% elif r.event.status %} · {{ r.event.status }}{% endif %}</div>{% endif %}{% if r.laps %}<div class="gl-sess-muted">{{ r.laps }}</div>{% endif %}</td>
                 <td>{{ r.track|default:"—" }}</td>
                 <td>{{ r.pilot|default:"—" }}</td>
                 <td>{{ r.race_class|default:"—" }}</td>

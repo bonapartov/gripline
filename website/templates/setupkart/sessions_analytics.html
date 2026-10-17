@@ -1,0 +1,121 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block title %}Аналитика сессий{% endblock %}
+
+{% block content %}
+<style>
+    .gl-sess-card { background: var(--gl-surface-card); border: 1px solid var(--gl-border-card); border-radius: var(--gl-radius-md); color: var(--gl-fg-1); padding: 1.25rem; margin-bottom: 1rem; }
+    .gl-sess-muted { color: var(--gl-fg-3); font-size: .9rem; }
+    .gl-sess-filters select, .gl-sess-filters input { background: var(--gl-surface-deepest); color: var(--gl-fg-1); border: 1px solid var(--gl-border-card); border-radius: 6px; padding: .35rem .5rem; }
+    .gl-sess-table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+    .gl-sess-table th { color: var(--gl-fg-3); font-weight: 500; text-align: left; padding: .45rem; border-bottom: 1px solid var(--gl-border-card); }
+    .gl-sess-table td { padding: .45rem; border-bottom: 1px solid var(--gl-border-card); vertical-align: top; }
+    .gl-sess-table a { color: var(--gl-fg-1); }
+    .gl-delta-good { color: var(--gl-signal-success); }
+    .gl-delta-bad { color: var(--gl-signal-danger); }
+</style>
+<div class="container py-4" style="max-width:1100px;">
+    <a href="{% url 'accounts:app_sessions' %}" class="gl-sess-muted">← Мои сессии</a>
+    <h1 class="h3 text-warning mt-2 mb-1">Аналитика сессий</h1>
+    <p class="gl-sess-muted">По сессиям из приложения ({{ count }} с лучшим кругом). В день этапа время берётся из протокола соревнования (◆), в остальные дни — ваше из приложения (●). Тренировки в рейтинг и результаты не попадают.</p>
+
+    <form method="get" class="gl-sess-card gl-sess-filters d-flex flex-wrap gap-2 align-items-center">
+        <select name="track"><option value="">Все трассы</option>{% for key, name in options.tracks %}<option value="{{ key }}" {% if q.track == key %}selected{% endif %}>{{ name }}</option>{% endfor %}</select>
+        <select name="kart"><option value="">Все карты</option>{% for key, name in options.karts %}<option value="{{ key }}" {% if q.kart == key %}selected{% endif %}>{{ name }}</option>{% endfor %}</select>
+        <select name="class"><option value="">Все классы</option>{% for c in options.classes %}<option {% if q.class == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select>
+        <select name="x">{% for key, label in params %}<option value="{{ key }}" {% if key == x %}selected{% endif %}>{{ label }}</option>{% empty %}<option value="">нет параметров</option>{% endfor %}</select>
+        <button class="btn btn-sm btn-warning">Показать</button>
+    </form>
+
+    <div class="gl-sess-card">
+        <h2 class="h6 text-warning">Лучший круг в зависимости от параметра{% if x_label %}: {{ x_label }}{% endif %}</h2>
+        {% if scatter|length >= 2 %}
+        <div style="position:relative; height:340px;"><canvas id="glSessScatter"></canvas></div>
+        {{ scatter|json_script:"glSessScatterData" }}
+        <p class="gl-sess-muted mt-2 mb-0">Выберите одну трассу и один карт — так сравнение честнее: на разных трассах время разное. Нажмите на точку, чтобы открыть сессию.</p>
+        {% else %}
+        <p class="gl-sess-muted mb-0">Нужно хотя бы две сессии с лучшим кругом и разными значениями параметра.</p>
+        {% endif %}
+    </div>
+
+    <div class="gl-sess-card">
+        <h2 class="h6 text-warning">Лучшая сессия на трассе</h2>
+        <form method="get" class="gl-sess-filters d-flex flex-wrap gap-2 align-items-center mb-2">
+            {% for k, v in q.items %}{% if k != 'temp' %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}{% endfor %}
+            <span class="gl-sess-muted">Похожая погода: температура</span>
+            <input type="number" name="temp" step="1" value="{% if temp is not None %}{{ temp|floatformat:0 }}{% endif %}" style="width:90px;"> °C ± 5
+            <button class="btn btn-sm btn-outline-warning">Найти</button>
+        </form>
+        {% with list=best_temp|default_if_none:best %}
+        {% if list %}
+        <table class="gl-sess-table">
+            <thead><tr><th>Трасса</th><th>Лучший круг</th><th>Сессия</th><th>Дата</th><th>Температура</th></tr></thead>
+            <tbody>
+            {% for p in list %}
+            <tr>
+                <td>{{ p.row.track|default:"—" }}</td>
+                <td>{{ p.best_text }}{% if p.official %} ◆{% endif %}</td>
+                <td><a href="{% url 'accounts:app_session' p.row.record.uuid %}">{{ p.row.name|default:"Без названия" }}</a></td>
+                <td>{{ p.row.date|date:"d.m.Y" }}</td>
+                <td>{% if p.params.day_temp_c is not None %}{{ p.params.day_temp_c|floatformat:0 }} °C{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="gl-sess-muted mb-0">{% if temp is not None %}Нет сессий с температурой {{ temp|floatformat:0 }} ± 5 °C.{% else %}Нет сессий с лучшим кругом.{% endif %}</p>
+        {% endif %}
+        {% endwith %}
+    </div>
+
+    <div class="gl-sess-card">
+        <h2 class="h6 text-warning">Что меняли → что дало</h2>
+        <p class="gl-sess-muted">Соседние сессии одного дня на одной трассе и одном карте.</p>
+        {% for c in changes %}
+        <div class="py-2" style="border-bottom:1px solid var(--gl-border-card);">
+            <div><b>{{ c.when|date:"d.m.Y" }}</b> · {{ c.b.row.track|default:"—" }} · {{ c.b.row.kart }} ·
+                <a href="{% url 'accounts:app_session' c.a.row.record.uuid %}">{{ c.a.row.name|default:"сессия" }}</a> →
+                <a href="{% url 'accounts:app_session' c.b.row.record.uuid %}">{{ c.b.row.name|default:"сессия" }}</a>:
+                <span class="{% if c.delta < 0 %}gl-delta-good{% elif c.delta > 0 %}gl-delta-bad{% endif %}">{% if c.delta > 0 %}+{% endif %}{{ c.delta|floatformat:3 }} с</span>
+                <a class="gl-sess-muted ms-2" href="{% url 'accounts:app_sessions_compare' %}?a={{ c.a.row.record.uuid }}&b={{ c.b.row.record.uuid }}">сравнить</a>
+            </div>
+            <div class="gl-sess-muted">{% for label, old, new in c.diff %}{{ label }}: {{ old }} → {{ new }}{% if not forloop.last %}; {% endif %}{% empty %}настройки не менялись{% endfor %}</div>
+        </div>
+        {% empty %}
+        <p class="gl-sess-muted mb-0">Пока нет двух сессий подряд в один день на одной трассе и карте.</p>
+        {% endfor %}
+    </div>
+</div>
+{% if scatter|length >= 2 %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    var data = JSON.parse(document.getElementById('glSessScatterData').textContent);
+    var css = getComputedStyle(document.documentElement);
+    var yellow = css.getPropertyValue('--gl-brand-yellow').trim() || '#ffc107';
+    var cyan = css.getPropertyValue('--gl-brand-cyan').trim() || '#0dcaf0';
+    var muted = css.getPropertyValue('--gl-fg-3').trim() || '#9a9aa2';
+    function pts(official) { return data.filter(function (p) { return p.official === official; }); }
+    var chart = new Chart(document.getElementById('glSessScatter'), {
+        type: 'scatter',
+        data: { datasets: [
+            { label: 'Тренировка (приложение)', data: pts(false), backgroundColor: yellow, pointRadius: 5 },
+            { label: 'Этап (протокол)', data: pts(true), backgroundColor: cyan, pointStyle: 'rectRot', pointRadius: 6 }
+        ] },
+        options: {
+            maintainAspectRatio: false,
+            scales: {
+                x: { title: { display: true, text: (document.querySelector('select[name=x] option:checked') || {}).textContent || '', color: muted }, ticks: { color: muted } },
+                y: { title: { display: true, text: 'Лучший круг, с', color: muted }, ticks: { color: muted } }
+            },
+            plugins: {
+                legend: { labels: { color: muted } },
+                tooltip: { callbacks: { label: function (c) { var p = c.raw; return (p.date ? p.date + ' · ' : '') + (p.name || 'сессия') + ': ' + p.y + ' с (' + p.x + ')'; } } }
+            },
+            onClick: function (e, items) { if (items.length) { var p = items[0].element.$context.raw; window.location.href = '{% url "accounts:app_sessions" %}' + encodeURIComponent(p.uuid) + '/'; } }
+        }
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

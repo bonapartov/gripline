@@ -1,0 +1,46 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block title %}Сравнение сессий{% endblock %}
+
+{% block content %}
+<style>
+    .gl-sess-card { background: var(--gl-surface-card); border: 1px solid var(--gl-border-card); border-radius: var(--gl-radius-md); color: var(--gl-fg-1); padding: 1.25rem; margin-bottom: 1rem; }
+    .gl-sess-muted { color: var(--gl-fg-3); font-size: .9rem; }
+    .gl-sess-filters select { background: var(--gl-surface-deepest); color: var(--gl-fg-1); border: 1px solid var(--gl-border-card); border-radius: 6px; padding: .35rem .5rem; max-width: 100%; }
+    .gl-sess-table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+    .gl-sess-table th { color: var(--gl-fg-3); font-weight: 500; text-align: left; padding: .45rem; border-bottom: 1px solid var(--gl-border-card); }
+    .gl-sess-table td { padding: .45rem; border-bottom: 1px solid var(--gl-border-card); }
+    .gl-sess-diff td { color: var(--gl-brand-yellow); }
+</style>
+<div class="container py-4" style="max-width:1100px;">
+    <a href="{% url 'accounts:app_sessions' %}" class="gl-sess-muted">← Мои сессии</a>
+    <h1 class="h3 text-warning mt-2 mb-3">Сравнение сессий</h1>
+    <form method="get" class="gl-sess-card gl-sess-filters d-flex flex-wrap gap-2 align-items-center">
+        {% for side in "ab" %}
+        <select name="{{ side }}">
+            <option value="">Сессия {% if side == 'a' %}A{% else %}B{% endif %}</option>
+            {% for r in choices %}<option value="{{ r.record.uuid }}" {% if side == 'a' and q.a == r.record.uuid or side == 'b' and q.b == r.record.uuid %}selected{% endif %}>{{ r.date|date:"d.m.Y" }} · {{ r.name|default:"Без названия" }}{% if r.track %} · {{ r.track }}{% endif %}{% if r.best %} · {{ r.best }}{% endif %}</option>{% endfor %}
+        </select>
+        {% endfor %}
+        <button class="btn btn-sm btn-warning">Сравнить</button>
+    </form>
+    {% if rows %}
+    <div class="gl-sess-card" style="overflow-x:auto;">
+        <table class="gl-sess-table">
+            <thead><tr><th></th>
+                <th><a href="{% url 'accounts:app_session' a.record.uuid %}" class="text-warning">A: {{ a.name|default:"сессия" }}</a><div class="gl-sess-muted">{{ a.date|date:"d.m.Y H:i" }}{% if a.best %} · {{ a.best }}{% endif %}{% if a.event %} · этап: {{ a.event.event }}{% endif %}</div></th>
+                <th><a href="{% url 'accounts:app_session' b.record.uuid %}" class="text-warning">B: {{ b.name|default:"сессия" }}</a><div class="gl-sess-muted">{{ b.date|date:"d.m.Y H:i" }}{% if b.best %} · {{ b.best }}{% endif %}{% if b.event %} · этап: {{ b.event.event }}{% endif %}</div></th>
+            </tr></thead>
+            <tbody>
+            {% for label, va, vb, differs in rows %}
+            <tr{% if differs %} class="gl-sess-diff"{% endif %}><td style="color:var(--gl-fg-3);">{{ label }}</td><td>{{ va|default:"—" }}</td><td>{{ vb|default:"—" }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <p class="gl-sess-muted mt-2 mb-0">Отличия — вверху и выделены цветом.</p>
+    </div>
+    {% elif q.a or q.b %}
+    <div class="gl-sess-card gl-sess-muted">Выберите две свои сессии.</div>
+    {% endif %}
+</div>
+{% endblock %}

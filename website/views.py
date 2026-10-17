@@ -130,6 +130,12 @@ class EngineViewSet(SnippetViewSet):
             path("<slug:slug>/", engine_detail_view, name="details"),
         ]
 
+def public_training_sessions(driver):
+    """Тренировки из приложения, которые пилот открыл на своей странице (website/setupkart/public.py)."""
+    from .setupkart.public import training_sessions
+    return training_sessions(driver)
+
+
 def driver_detail_view(request, slug):
     driver = get_object_or_404(Driver, slug=slug)
 
@@ -432,6 +438,7 @@ def driver_detail_view(request, slug):
         "default_scope": default_scope,
         "nearby_rivals": nearby_rivals,
         "history_data": history_data,
+        "training_sessions": public_training_sessions(driver),
         "available_seasons": available_seasons,
         "available_history_classes": available_history_classes,
         "can_view_mediakit": can_view_mediakit,
