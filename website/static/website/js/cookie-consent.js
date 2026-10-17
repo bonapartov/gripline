@@ -4,7 +4,7 @@
  * Выбор хранится в cookie gl_cookie_consent на ~180 дней: "all" (принял аналитику) или
  * "necessary" (только необходимые). Пока выбора нет или он "necessary" — скрипт Метрики
  * (и Вебвизор) НЕ загружается вообще, window.ym не существует. Это единственное место,
- * где грузится счётчик: base.html (сайт) и balance/app_base.html (/balance/).
+ * где грузится счётчик: base.html сайта.
  *
  * Управление на странице политики /legal/cookies/ (блок «Статистика посещений»):
  *   [data-cookie-switch] — переключатель «Учитывать мои визиты» (all <-> necessary);
@@ -47,7 +47,6 @@
       referrer: document.referrer, url: location.href,
       accurateTrackBounce: true, trackLinks: true
     });
-    window.__balanceYmCounter = COUNTER; // /balance/ шлёт цели reachGoal, только если счётчик реально поднят
   }
 
   // Cookie Метрики (_ym*, _ya*) стираем на хосте и на родительском домене.

@@ -288,8 +288,15 @@ def can_manage(user, application):
     return False
 
 
+def is_platform_admin(user):
+    """Администратор сайта (решение владельца 17.10.2026): видит файлы любых заявок из Wagtail-админки
+    («Заявки на участие»). Право — то же, что на редактирование заявок в админке."""
+    return user.is_authenticated and (user.is_superuser or user.has_perm('applications.change_application'))
+
+
 def _can_view_application(request, application):
-    return can_manage(request.user, application) or _check_organizer(request, application)
+    return (can_manage(request.user, application) or _check_organizer(request, application)
+            or is_platform_admin(request.user))
 
 
 @login_required

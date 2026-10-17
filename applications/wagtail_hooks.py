@@ -34,6 +34,15 @@ STATUS_COLORS = {
 SKIP_FIELDS = {'id', 'application', 'gateway_response'}
 
 
+def _file_url(obj, field_name):
+    from django.urls import reverse
+    if isinstance(obj, ApplicationDocument):
+        return reverse('applications:serve_document', args=[obj.pk])
+    if isinstance(obj, ApplicationPayment) and field_name == 'receipt_file':
+        return reverse('applications:serve_receipt', args=[obj.application_id])
+    return None
+
+
 def model_rows(obj):
     """[(подпись, значение, ссылка-или-None)] по полям связанной записи."""
     rows = []
@@ -43,10 +52,11 @@ def model_rows(obj):
         value = getattr(obj, field.name)
         url = None
         if isinstance(field, dj_models.FileField):
-            # Только имя файла, без ссылки: файлы заявок отдаются через applications/views.py::
-            # serve_document/serve_receipt (доступ — заявитель и организатор этапа; результат
-            # security-аудита), а не по публичному /media/. Админу платформы эти вьюхи не
-            # открывают файл — расширять доступ без отдельного решения нельзя.
+            # Ссылка — не на публичный /media/, а на applications/views.py::serve_document/
+            # serve_receipt: они проверяют права (заявитель, организатор этапа, администратор сайта —
+            # решение владельца 17.10.2026) и отдают файл как вложение.
+            if value:
+                url = _file_url(obj, field.name)
             value = value.name.rsplit('/', 1)[-1] if value else ''
         elif field.choices:
             value = getattr(obj, f'get_{field.name}_display')()

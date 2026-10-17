@@ -71,6 +71,24 @@ def test_inspect_has_no_public_file_link(staff, app):
     assert 'href="/media/' not in html
 
 
+def test_inspect_links_files_through_protected_views(staff, app):
+    html = staff.get(f'/admin/applications/application/inspect/{app.pk}/').content.decode()
+    doc = app.documents.get()
+    assert f'href="/applications/document/{doc.pk}/file/"' in html
+
+
+def test_admin_can_download_application_file_but_stranger_cannot(client, app, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    (tmp_path / 'application_docs/2026/10').mkdir(parents=True)
+    (tmp_path / 'application_docs/2026/10/secret.pdf').write_bytes(b'%PDF-1.4')
+    doc = app.documents.get()
+    client.force_login(User.objects.create_user('nobody', 'n@example.com', 'pw'))
+    assert client.get(f'/applications/document/{doc.pk}/file/').status_code == 403
+    client.force_login(User.objects.create_superuser('root2', 'r2@example.com', 'pw'))
+    resp = client.get(f'/applications/document/{doc.pk}/file/')
+    assert resp.status_code == 200 and 'attachment' in resp['Content-Disposition']
+
+
 def test_inspect_works_for_application_without_related_data(staff, db):
     org = OrganizerProfile.objects.create(user=User.objects.create_user('o2', 'o2@example.com', 'x'))
     champ = Championship.objects.create(organizer=org, title='К2', slug='k2')

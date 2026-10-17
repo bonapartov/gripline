@@ -81,9 +81,13 @@ def test_hidden_when_bot_disabled_or_no_username_or_no_items(ready):
     assert 'glFeedback' not in render()
 
 
-def test_widget_on_site_pages_but_not_in_balance_app(client, ready, site):
+def test_widget_on_site_pages(client, ready, site):
     assert 'id="glFeedback"' in client.get('/legal/data-request/').content.decode()
-    assert 'glFeedback' not in client.get('/balance/').content.decode()
+
+
+def test_balance_removed_redirects_home(client):
+    assert client.get('/balance/').url == '/'
+    assert client.get('/balance/compare/?a=1').url == '/'
 
 
 def test_redirect_to_bot(client, ready):
