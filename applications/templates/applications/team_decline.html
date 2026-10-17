@@ -1,0 +1,28 @@
+{% extends "coderedcms/pages/web_page.html" %}
+
+{% block content %}
+<div class="container py-5" style="max-width:640px;">
+    <div class="p-4" style="background:var(--gl-surface-card); border:1px solid var(--gl-border-card); border-radius:var(--gl-radius-md); color:var(--gl-fg-1);">
+        <h1 class="h3 text-warning mb-3">Заявка команды на этап</h1>
+        <div class="mb-3" style="color:var(--gl-fg-3);">
+            <div>Пилот: <b style="color:var(--gl-fg-1);">{{ application.pilot.full_name }}</b></div>
+            <div>Команда: {{ application.team_entry.team.name }}</div>
+            <div>Этап: {{ application.stage.title }} · {{ application.stage.championship.title }}</div>
+            <div>Класс: {{ application.race_class.name|default:"—" }}{% if application.start_number %} · №{{ application.start_number }}{% endif %}</div>
+        </div>
+        {% if declined %}
+            <div class="alert alert-success mb-0">Заявка отозвана. Команда и организатор этапа получили уведомление.</div>
+        {% elif allowed %}
+            <p>Если вы не планируете участвовать, откажитесь от заявки. Стартовый номер освободится, команда и организатор получат уведомление. Отменить отказ нельзя — заявку придётся подать заново.</p>
+            <form method="post">
+                {% csrf_token %}
+                <label for="reason" class="form-label" style="color:var(--gl-fg-3);">Причина (необязательно)</label>
+                <textarea id="reason" name="reason" rows="2" class="form-control mb-3" style="background:var(--gl-surface-deepest); color:var(--gl-fg-1); border-color:var(--gl-border-card);"></textarea>
+                <button class="btn btn-outline-danger">Отказаться от участия</button>
+            </form>
+        {% else %}
+            <div class="alert alert-secondary mb-0">Отказаться уже нельзя: этап начался или заявка закрыта. Свяжитесь с командой или организатором.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

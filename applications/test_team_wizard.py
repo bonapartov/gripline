@@ -464,3 +464,88 @@ class TeamWizardStage2Tests(TeamWizardFixture):
         attach_held_documents(self.profile)
         self.assertFalse(PilotDocument.objects.filter(pk=old.pk).exists())
         self.assertTrue(PilotDocument.objects.filter(pk=newer.pk, profile=self.profile).exists())
+
+
+class TeamWizardStage3Tests(TeamWizardFixture):
+    """Этап 3: уведомление пилоту с отказом, заявка в ЛК пилота, «Команда» у организатора."""
+
+    def submit(self, *rows, **pilot):
+        entry = self.entry()
+        self.roster(entry, list(rows))
+        for app in entry.applications.all():
+            self.fill(entry, app, **pilot)
+        mail.outbox.clear()
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(f'/teams/apply/entry/{entry.id}/review/', {'action': 'submit'})
+        return entry
+
+    def test_pilot_and_parent_notified_with_decline_link(self):
+        minor = (timezone.now().date() - timedelta(days=365 * 12)).isoformat()
+        entry = self.submit((self.d1, self.mini, 15), email='anna@example.com', birth_date=minor,
+                            parent_last_name='Иванова', parent_first_name='Мария', parent_phone='+7900',
+                            parent_email='mom@example.com')
+        app = entry.applications.get()
+        to_pilot = [m for m in mail.outbox if 'заявила вас' in m.subject]
+        self.assertEqual(sorted(m.to[0] for m in to_pilot), ['anna@example.com', 'mom@example.com'])
+        self.assertIn(f'/applications/{app.id}/decline/', to_pilot[0].body)
+
+    def test_manager_does_not_get_pilot_notice(self):
+        self.submit((self.d1, self.mini, None), email='mgr@example.com')
+        self.assertFalse([m for m in mail.outbox if 'заявила вас' in m.subject])
+
+    def test_decline_by_link_without_login(self):
+        from .team_notify import decline_token
+        entry = self.submit((self.d1, self.mini, 15), email='anna@example.com')
+        app = entry.applications.get()
+        self.client.logout()
+        url = f'/applications/{app.id}/decline/{decline_token(app)}/'
+        self.assertEqual(self.client.get(url).status_code, 200)
+        mail.outbox.clear()
+        self.client.post(url, {'reason': 'болею'})
+        app.refresh_from_db()
+        self.assertEqual(app.status, 'cancelled')
+        self.assertIn('болею', app.withdraw_reason)
+        self.assertEqual(sorted(m.to[0] for m in mail.outbox), ['mgr@example.com', 'org@example.com'])
+        self.assertIn(15, self.stage.get_available_numbers(race_class=self.mini))
+
+    def test_bad_or_foreign_token_is_404(self):
+        from .team_notify import decline_token
+        entry = self.submit((self.d1, self.mini, None), (self.d2, self.ok, None))
+        a1, a2 = entry.applications.order_by('id')
+        self.client.logout()
+        self.assertEqual(self.client.get(f'/applications/{a1.id}/decline/garbage/').status_code, 404)
+        self.assertEqual(self.client.post(f'/applications/{a1.id}/decline/{decline_token(a2)}/').status_code, 404)
+        a1.refresh_from_db()
+        self.assertEqual(a1.status, 'submitted')
+
+    def test_verified_pilot_sees_team_application(self):
+        entry = self.submit((self.d1, self.mini, None))
+        app = entry.applications.get()
+        pilot = User.objects.create_user('anna@example.com', 'anna@example.com', 'x')
+        pilot.profile.driver, pilot.profile.verified = self.d1, True
+        pilot.profile.save()
+        self.client.force_login(pilot)
+        resp = self.client.get(f'/applications/{app.id}/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.context['is_team_pilot'])
+        self.assertIn('/decline/', resp.context['decline_url'])
+        # Чужой пилот — нет.
+        other = User.objects.create_user('b@example.com', 'b@example.com', 'x')
+        other.profile.driver, other.profile.verified = self.d2, True
+        other.profile.save()
+        self.client.force_login(other)
+        self.assertRedirects(self.client.get(f'/applications/{app.id}/'), '/', fetch_redirect_response=False)
+
+    def test_organizer_sees_team_badge_and_filter(self):
+        self.submit((self.d1, self.mini, None), (self.d2, self.ok, None))
+        own = Application.objects.create(stage=self.stage, submitted_by=User.objects.create_user('s', 's@x.ru', 'x'),
+                                         race_class=self.mini, status='submitted')
+        from .models import ApplicationPilot
+        ApplicationPilot.objects.create(application=own, first_name='Сам', last_name='Пилот')
+        self.client.force_login(User.objects.get(email='org@example.com'))
+        resp = self.client.get(f'/organizers/stage/{self.stage.id}/registrations/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['team_filters'][0]['n'], 2)
+        self.assertIn('Команда Альфа', resp.content.decode())
+        filtered = self.client.get(f'/organizers/stage/{self.stage.id}/registrations/?team={self.team.id}')
+        self.assertEqual(sum(len(v) for v in filtered.context['by_class'].values()), 2)

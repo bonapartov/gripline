@@ -10,6 +10,7 @@ urlpatterns = [
     path('drivers/search/', views.driver_search_api, name='driver_search'),
     path('<int:application_id>/', views.detail, name='detail'),
     path('<int:application_id>/cancel/', views.cancel, name='cancel'),
+    path('<int:application_id>/decline/<str:token>/', views.team_decline, name='team_decline'),
     path('<int:application_id>/submit/', views.submit_application, name='submit'),
     path('<int:application_id>/pay/', views.upload_payment, name='upload_payment'),
     path('document/<int:document_id>/upload/', views.upload_document, name='upload_document'),

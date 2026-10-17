@@ -77,6 +77,12 @@
     <div class="alert alert-warning"><strong>Комментарий организатора:</strong> {{ application.organizer_comment }}</div>
     {% endif %}
 
+    {% if is_team_pilot %}
+    <div class="alert alert-info d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span>Эту заявку подала за вас команда <strong>{{ application.team_entry.team.name }}</strong>. Документы и оплату ведёт команда.</span>
+        {% if decline_url %}<a href="{{ decline_url }}" class="btn btn-outline-danger btn-sm">Отказаться от участия</a>{% endif %}
+    </div>
+    {% endif %}
     {% if is_owner and in_wizard %}
     <div class="alert alert-info d-flex flex-wrap justify-content-between align-items-center gap-2">
         <span><strong>Черновик заявки.</strong> Заполнение не закончено — организатор её пока не видит.</span>

@@ -1,12 +1,15 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse, FileResponse
+from django.http import FileResponse, Http404, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.conf import settings
 
+from wagtailcache.cache import nocache_page
+
 from website.mail import send_templated_mail
+from website.services.balance_limits import ratelimit_post
 from organizers.models import Stage
 from . import vault
 from .models import Application, ApplicationDocument, ApplicationPayment
@@ -150,10 +153,12 @@ def detail(request, application_id):
     """Просмотр своей заявки + загрузка документов и квитанции"""
     application = get_object_or_404(Application, pk=application_id)
 
+    from . import team_notify
     is_owner = can_manage(request.user, application)
     is_organizer = (hasattr(request.user, 'organizer_profile')
                     and application.stage.championship.organizer == request.user.organizer_profile)
-    if not (is_owner or is_organizer):
+    is_pilot = not is_owner and team_notify.is_team_pilot(request.user, application)
+    if not (is_owner or is_organizer or is_pilot):
         messages.error(request, 'У вас нет доступа к этой заявке.')
         return redirect('/')
 
@@ -168,6 +173,9 @@ def detail(request, application_id):
         'is_organizer': is_organizer,
         'can_withdraw': is_owner and can_withdraw(application),
         'vault_on': vault.vault_profile(application) is not None,
+        'is_team_pilot': is_pilot,
+        'decline_url': (team_notify.decline_url(application)
+                        if is_pilot and application.status != 'cancelled' and can_withdraw(application) else ''),
         'in_wizard': in_wizard,
         'wizard_url': reverse('applications:apply', args=[application.stage_id])
                       + (f'?app={application.id}' if application.submitted_by_type == 'organizer' else ''),
@@ -295,8 +303,9 @@ def is_platform_admin(user):
 
 
 def _can_view_application(request, application):
+    from .team_notify import is_team_pilot
     return (can_manage(request.user, application) or _check_organizer(request, application)
-            or is_platform_admin(request.user))
+            or is_platform_admin(request.user) or is_team_pilot(request.user, application))
 
 
 @login_required
@@ -398,6 +407,30 @@ def cancel(request, application_id):
         messages.success(request, 'Заявка отозвана, стартовый номер освобождён. '
                                   'По возврату взноса свяжитесь с организатором.')
     return redirect('applications:detail', application_id=application.id)
+
+
+@nocache_page
+@ratelimit_post('team_decline', limit=30, window_seconds=3600)
+def team_decline(request, application_id, token):
+    """Отказ пилота от заявки, поданной командой, — по подписанной ссылке из письма, без входа
+    (у многих пилотов нет аккаунта). Отказ = отзыв заявки: номер освобождается, менеджеры
+    команды и организатор получают письмо."""
+    from . import team_notify
+    application = get_object_or_404(Application.objects.select_related('team_entry__team', 'stage', 'pilot'),
+                                    pk=application_id)
+    if not application.team_entry_id or not team_notify.check_token(application, token):
+        raise Http404
+    allowed = can_withdraw(application) and application.status != 'cancelled'
+    if request.method == 'POST' and allowed:
+        reason = (request.POST.get('reason') or '').strip()[:900]
+        application.status = 'cancelled'
+        application.withdrawn_at = timezone.now()
+        application.withdraw_reason = 'Пилот отказался от участия' + (f': {reason}' if reason else '')
+        application.save()
+        team_notify.notify_declined(application)
+        allowed = False
+    return render(request, 'applications/team_decline.html', {
+        'application': application, 'allowed': allowed, 'declined': application.status == 'cancelled'})
 
 
 # ---------------------------------------------------------------------------

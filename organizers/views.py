@@ -761,9 +761,17 @@ def stage_registrations(request, stage_id):
                  .select_related('race_class', 'pilot').order_by('-withdrawn_at'))
     applications = Application.objects.filter(stage=stage).exclude(
         status__in=['cancelled', 'draft']
-    ).select_related('race_class', 'pilot', 'pilot__driver', 'payment').prefetch_related(
+    ).select_related('race_class', 'pilot', 'pilot__driver', 'payment', 'team_entry__team').prefetch_related(
         'documents__stage_document'
     ).order_by('race_class__sort_order', 'race_class__name', 'start_number', 'created_at')
+    # Заявки команд: фильтр по команде (?team=<id>) и список команд с числом пилотов.
+    from django.db.models import Count
+    team_filters = list(applications.filter(team_entry__isnull=False)
+                        .values('team_entry__team_id', 'team_entry__team__name')
+                        .annotate(n=Count('id')).order_by('team_entry__team__name'))
+    team_id = request.GET.get('team', '')
+    if team_id.isdigit():
+        applications = applications.filter(team_entry__team_id=team_id)
 
     by_class = {}
     for app in applications:
@@ -786,6 +794,8 @@ def stage_registrations(request, stage_id):
         'drafts_count': drafts_count,
         'withdrawn': withdrawn,
         'payments_enabled': payments_enabled,
+        'team_filters': team_filters,
+        'team_id': int(team_id) if team_id.isdigit() else None,
     })
 
 

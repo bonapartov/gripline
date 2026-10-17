@@ -287,9 +287,13 @@ def profile(request):
                 wagtail_page__isnull=False,
                 end_date__gte=timezone.now(),
             ).exists()
+            # Свои заявки и заявки, которые подала за пилота его команда (черновики команды — нет).
+            from django.db.models import Q
             my_applications = Application.objects.filter(
-                submitted_by=request.user
-            ).select_related('stage', 'stage__championship', 'race_class').order_by('-created_at')[:10]
+                Q(submitted_by=request.user, team_entry__isnull=True)
+                | Q(pilot__driver=driver, team_entry__isnull=False) & ~Q(status='draft')
+            ).select_related('stage', 'stage__championship', 'race_class', 'team_entry__team'
+                             ).order_by('-created_at')[:10]
             return render(request, 'accounts/profile.html', {
                 'driver': driver,
                 'claim': claim,

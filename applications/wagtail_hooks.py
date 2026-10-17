@@ -226,7 +226,7 @@ class ApplicationAdmin(ModelAdmin):
     edit_view_class = ApplicationEditView
     edit_template_name = 'applications/admin/application_edit.html'
     list_display = ('id', 'pilot_name', 'stage', 'race_class', 'start_number', 'status_badge', 'submitted_by_type', 'created_at')
-    list_filter = ('status', 'submitted_by_type', 'stage__championship')
+    list_filter = ('status', 'submitted_by_type', 'stage__championship', 'team_entry__team')
     search_fields = ('pilot__last_name', 'pilot__first_name', 'submitted_by__email', 'stage__title')
     ordering = ('-created_at',)
     list_select_related = ('stage', 'race_class', 'submitted_by')

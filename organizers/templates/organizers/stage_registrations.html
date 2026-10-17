@@ -37,6 +37,16 @@
         {% endfor %}
     {% endif %}
 
+    {% if team_filters %}
+    <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+        <span class="text-muted small">Заявки команд:</span>
+        <a href="?" class="btn btn-sm {% if not team_id %}btn-warning{% else %}btn-outline-secondary{% endif %}">Все</a>
+        {% for t in team_filters %}
+        <a href="?team={{ t.team_entry__team_id }}" class="btn btn-sm {% if team_id == t.team_entry__team_id %}btn-warning{% else %}btn-outline-info{% endif %}">{{ t.team_entry__team__name }} · {{ t.n }}</a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     {% if by_class %}
         {% for cls_name, apps in by_class.items %}
         <div class="reg-card mb-4">
@@ -68,7 +78,7 @@
                                 {% endif %}
                                 {% if app.pilot.is_minor %}<span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem;">н/л</span>{% endif %}
                             </td>
-                            <td class="text-muted small">{{ app.applicant.name|default:"—" }}</td>
+                            <td class="text-muted small">{% if app.team_entry %}<a href="?team={{ app.team_entry.team_id }}" class="badge bg-info text-dark text-decoration-none" title="Заявка команды — показать всех её пилотов">Команда {{ app.team_entry.team.name }}</a>{% if app.team_entry.payment_mode == 'single' %}<div class="mt-1">оплата одной квитанцией</div>{% endif %}{% else %}{{ app.applicant.name|default:"—" }}{% endif %}</td>
                             <td>
                                 {% if app.docs_total %}
                                     <span class="{% if app.docs_verified == app.docs_total %}pay-ok{% else %}pay-wait{% endif %}">

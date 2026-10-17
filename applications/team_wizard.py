@@ -9,6 +9,8 @@
 'team', status='draft'); черновик держит номер DRAFT_HOLD, как у одиночной заявки. Отправка —
 та же finalize_submission, что в мастере пилота (applications/wizard.py).
 """
+import logging
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
@@ -32,6 +34,7 @@ CARRY_PILOT_FIELDS = ['middle_name', 'birth_date', 'citizenship', 'sport_rank', 
                       'parent_relation', 'parent_phone', 'parent_email']
 KART_FIELDS = ['chassis_brand', 'engine_1', 'engine_2', 'tires', 'transponder_number', 'ad_consent']
 MECH_FIELDS = ['last_name', 'first_name', 'middle_name', 'license_number', 'phone', 'email']
+logger = logging.getLogger(__name__)
 READY_STEP = 2   # wizard_step черновика: 1 — класс выбран, 2 — данные пилота и карт заполнены
 
 
@@ -520,6 +523,12 @@ def _submit_ready(request, entry, drafts, ready):
         entry.submitted_at = timezone.now()
         entry.save(update_fields=['status', 'submitted_at', 'updated_at'])
     notify_team_submitted(entry, ready, request.user)
+    from .team_notify import notify_pilot_entered
+    for app in ready:
+        try:
+            notify_pilot_entered(app)
+        except Exception:
+            logger.exception('Заявка %s: уведомление пилоту не отправлено', app.id)
     left = len(drafts) - len(ready)
     from_vault = sum(1 for a in ready for d in a.documents.all() if d.vault_document_id)
     messages.success(request, f'Отправлено пилотов: {len(ready)}.'
