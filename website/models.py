@@ -5224,6 +5224,8 @@ APP_PRO_FEATURES = [
     ('chassis_advice', 'Советы по поведению карта', 'toggle', 'pro'),
     ('tyre_analysis', 'Анализ шин (температуры и давление)', 'toggle', 'pro'),
     ('cloud_sync', 'Копия сессий на сайте и синхронизация', 'toggle', 'free'),
+    # 18.10.2026 — подбор сетапа из своих прошлых сессий по трассе, классу и погоде
+    ('smart_setup', 'Smart Setup — подбор сетапа по прошлым сессиям', 'toggle', 'pro'),
 ]
 APP_PRO_FEATURE_KINDS = {k: kind for k, _, kind, _ in APP_PRO_FEATURES}
 
