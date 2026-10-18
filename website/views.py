@@ -1673,6 +1673,7 @@ def _get_driver_class_ratings(driver):
             'win_pct': win_pct,
             'podium_pct': podium_pct,
             'low_data': starts < 3,
+            'races_left': max(3 - starts, 0),
             'last_race_date': last_race_date,
             'form_trend': _compute_form_trend(driver.id, class_id),
             'gap_to_above': gap_to_above,
