@@ -1,6 +1,7 @@
 {% load static %}{% comment %}
-Плашка согласия на cookie + условная загрузка Яндекс Метрики. Подключается ОДИН раз на страницу
+Плашка согласия на cookie + условная загрузка Яндекс Метрики и Google Analytics
+(идентификатор GA — админка «Настройки → Трекинг», поле Google Analytics). Подключается ОДИН раз на страницу
 (base.html сайта). Метрика грузится только после «Принять аналитику» —
 никакого <noscript>-пикселя (его нельзя поставить под согласие).
 {% endcomment %}<link rel="stylesheet" href="{% static 'website/css/cookie-consent.css' %}">
-<script src="{% static 'website/js/cookie-consent.js' %}" data-ym-counter="108405016" defer></script>
+<script src="{% static 'website/js/cookie-consent.js' %}" data-ym-counter="108405016"{% if settings.coderedcms.AnalyticsSettings.ga_g_tracking_id %} data-ga-id="{{ settings.coderedcms.AnalyticsSettings.ga_g_tracking_id }}"{% endif %} defer></script>

@@ -1,5 +1,6 @@
 /*
- * Согласие на cookie и условная загрузка Яндекс Метрики (152-ФЗ, Политика cookie /legal/cookies/).
+ * Согласие на cookie и условная загрузка Яндекс Метрики и Google Analytics (152-ФЗ, Политика cookie
+ * /legal/cookies/). Идентификатор GA — атрибут data-ga-id (админка «Настройки → Трекинг»).
  *
  * Выбор хранится в cookie gl_cookie_consent на ~180 дней: "all" (принял аналитику) или
  * "necessary" (только необходимые). Пока выбора нет или он "necessary" — скрипт Метрики
@@ -21,6 +22,8 @@
   var POLICY_URL = "/legal/cookies/";
   var banner = null;
   var metrikaLoaded = false;
+  var GA_ID = script ? (script.getAttribute("data-ga-id") || "") : "";
+  var gaLoaded = false;
 
   function readConsent() {
     var m = document.cookie.match(new RegExp("(?:^|; )" + COOKIE + "=([^;]*)"));
@@ -49,14 +52,32 @@
     });
   }
 
-  // Cookie Метрики (_ym*, _ya*) стираем на хосте и на родительском домене.
+  function loadGoogleAnalytics() {
+    if (gaLoaded || !/^G-[A-Z0-9]+$/.test(GA_ID)) return;
+    gaLoaded = true;
+    var k = document.createElement("script");
+    k.async = true;
+    k.src = "https://www.googletagmanager.com/gtag/js?id=" + GA_ID;
+    document.head.appendChild(k);
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { window.dataLayer.push(arguments); };
+    window.gtag("js", new Date());
+    window.gtag("config", GA_ID);
+  }
+
+  function loadAnalytics() {
+    loadMetrika();
+    loadGoogleAnalytics();
+  }
+
+  // Cookie Метрики (_ym*, _ya*) и Google Analytics (_ga*) стираем на хосте и на родительском домене.
   function purgeMetrikaCookies() {
     var host = location.hostname, parts = host.split(".");
     var domains = [host, "." + host];
     if (parts.length > 2) domains.push("." + parts.slice(-2).join("."));
     document.cookie.split(";").forEach(function (c) {
       var name = c.split("=")[0].trim();
-      if (!/^_ym|^_ya/.test(name)) return;
+      if (!/^_ym|^_ya|^_ga/.test(name)) return;
       domains.forEach(function (d) {
         document.cookie = name + "=; Max-Age=0; Path=/; Domain=" + d;
       });
@@ -84,11 +105,11 @@
   }
 
   function choose(value) {
-    var hadAnalytics = metrikaLoaded || readConsent() === "all";
+    var hadAnalytics = metrikaLoaded || gaLoaded || readConsent() === "all";
     writeConsent(value);
     hideBanner();
     if (value === "all") {
-      loadMetrika();
+      loadAnalytics();
     } else if (hadAnalytics) {
       // Уже запущенный счётчик остановить нельзя — чистим его cookie и перезагружаем страницу.
       purgeMetrikaCookies();
@@ -117,7 +138,7 @@
     var text = document.createElement("p");
     text.className = "gl-cookie__text";
     text.appendChild(document.createTextNode(
-      "Мы используем cookie: необходимые — для работы сайта (вход, защита форм), и Яндекс Метрику — для статистики, " +
+      "Мы используем cookie: необходимые — для работы сайта (вход, защита форм), и Яндекс Метрику" + (GA_ID ? " и Google Analytics" : "") + " — для статистики, " +
       "включая запись действий на странице (Вебвизор). Статистика включается только с вашего согласия. "
     ));
     var link = document.createElement("a");
@@ -152,7 +173,7 @@
 
   function init() {
     var consent = readConsent();
-    if (consent === "all") loadMetrika();
+    if (consent === "all") loadAnalytics();
     if (!consent) showBanner();
     updateStatus();
   }

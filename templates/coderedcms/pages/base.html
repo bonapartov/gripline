@@ -1,6 +1,13 @@
 {% extends "coderedcms/pages/base.html" %}
 {% load static coderedcms_tags %}
 
+{% comment %}
+Счётчики CodeRed («Настройки → Трекинг»: Google Analytics, GTM, скрипты в head) родитель вставляет
+в <head> без согласия на cookie. Отключено: Google Analytics грузит cookie-consent.js только после
+«Принять аналитику» (идентификатор берётся из той же настройки, см. includes/cookie_consent.html).
+{% endcomment %}
+{% block tracking %}{% endblock %}
+
 {% block frontend_assets %}
 {% comment %}
 Bootstrap, crx-front и Font Awesome — обычные (блокирующие) стили. В августе 2026 они грузились
