@@ -100,3 +100,44 @@ def test_small_class_shows_everyone_when_nobody_has_enough_starts():
     for i in range(4):
         _driver(f'Малыш{i}', 1.0 - i / 10, 2, 10, klass)
     assert len(_class_ranking_entries(klass.id, Driver.objects.all())) == 4
+
+
+def test_transfer_prior_is_place_in_previous_class():
+    """Лидер прошлого класса получает долю 1.0, только что начавший — без опоры."""
+    from datetime import date as _d
+    from website.management.commands.update_ratings import Command
+
+    bt = {1: {10: 3.0, 11: 1.0, 12: 0.0}, 2: {10: 0.5, 13: 1.0}}
+    spans = {
+        10: {1: (_d(2025, 3, 1), _d(2025, 9, 1), 5), 2: (_d(2026, 3, 1), _d(2026, 5, 1), 1)},
+        11: {1: (_d(2025, 3, 1), _d(2025, 9, 1), 5)},
+        12: {1: (_d(2025, 3, 1), _d(2025, 9, 1), 5)},
+        13: {2: (_d(2026, 3, 1), _d(2026, 5, 1), 3), 1: (_d(2026, 3, 1), _d(2026, 3, 1), 1)},
+    }
+    priors = Command.transfer_priors(bt, spans)
+    assert priors == {(10, 2): (1.0, 1)}, 'у 13 в классе 1 один старт и тот же день — не переход'
+
+
+def test_transferred_leader_starts_above_middle():
+    """Лидер прошлого класса с одним стартом в новом стоит выше середины, а не на ней."""
+    from website.models import AnalyticsSettings
+    klass = RaceClass.objects.create(name='RM Junior')
+    for i in range(5):
+        _driver(f'Опытный{i}', 2.0 - i / 2, 10, 10, klass)  # медиана 1.0
+    newcomer = _driver('Переход', 1.0, 1, 10, klass)
+    rbc = newcomer.rating_by_class
+    rbc[str(klass.id)]['prior_pct'] = 1.0
+    newcomer.rating_by_class = rbc
+    newcomer.save()
+
+    s = AnalyticsSettings.get()
+    s.class_transfer_weight = 0.0
+    s.save()
+    own = _class_ranking_entries(klass.id, Driver.objects.all(), keep_driver_id=newcomer.id)
+    middle = next(e for e in own if e['driver_id'] == newcomer.id)['rank']
+
+    s.class_transfer_weight = 0.5
+    s.save()
+    own = _class_ranking_entries(klass.id, Driver.objects.all(), keep_driver_id=newcomer.id)
+    lifted = next(e for e in own if e['driver_id'] == newcomer.id)['rank']
+    assert lifted < middle

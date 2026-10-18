@@ -1244,6 +1244,43 @@ def rating_out_reason(entry, settings, min_starts):
     return None
 
 
+def _quantile(sorted_scores, pct):
+    """Значение на доле pct (0 — худший, 1 — лучший) отсортированного списка, с интерполяцией."""
+    if len(sorted_scores) == 1:
+        return sorted_scores[0]
+    pos = max(0.0, min(1.0, pct)) * (len(sorted_scores) - 1)
+    lo = int(pos)
+    hi = min(lo + 1, len(sorted_scores) - 1)
+    return sorted_scores[lo] + (sorted_scores[hi] - sorted_scores[lo]) * (pos - lo)
+
+
+class ClassSmoother:
+    """Байесовское сглаживание рейтинга в классе: (N × BT + C × опора) / (N + C).
+
+    Опора — медиана класса. У пилота, перешедшего из другого класса (update_ratings
+    кладёт в рейтинг 'prior_pct' — его место в прошлом классе, 0 — последний, 1 — первый),
+    опора сдвинута от медианы к тому же месту нового класса на долю class_transfer_weight
+    (18.10.2026: лидер Mini в Junior начинает выше середины, а не с неё).
+    Одна формула для таблицы, главной, страницы пилота и сравнения.
+    """
+
+    def __init__(self, scores, settings):
+        import statistics as _stats
+        self.sorted = sorted(scores)
+        self.mu = _stats.median(self.sorted) if self.sorted else 0.0
+        self.C = settings.bayes_c
+        self.weight = settings.class_transfer_weight
+
+    def prior(self, entry):
+        pct = (entry or {}).get('prior_pct')
+        if pct is None or not self.weight or not self.sorted:
+            return self.mu
+        return self.mu + self.weight * (_quantile(self.sorted, float(pct)) - self.mu)
+
+    def smooth(self, bt_score, starts, entry):
+        return (starts * bt_score + self.C * self.prior(entry)) / (starts + self.C)
+
+
 def _class_ranking_entries(class_id, all_drivers, keep_driver_id=None):
     """Полный отсортированный рейтинг пилотов в классе — Байесовское сглаживание
     (C из AnalyticsSettings.bayes_c, та же формула, что и top_drivers_view). Используется и
@@ -1257,10 +1294,9 @@ def _class_ranking_entries(class_id, all_drivers, keep_driver_id=None):
     вне таблицы, он возвращается отдельной записью с `inactive=True`, `out_reason`
     и местом, которое занял бы; места остальных от этого не меняются.
     """
-    import json, statistics as _stats
+    import json
     from .models import AnalyticsSettings
 
-    C = AnalyticsSettings.get().bayes_c
     class_id_str = str(class_id)
     settings = AnalyticsSettings.get()
     all_drivers = list(all_drivers)
@@ -1285,6 +1321,7 @@ def _class_ranking_entries(class_id, all_drivers, keep_driver_id=None):
             'slug': d.slug,
             'bt_score': float(entry.get('score', 0.0)),
             'starts': int(entry.get('starts', 0)),
+            'entry': entry,
             'inactive': False,
             'out_reason': None,
         }
@@ -1299,11 +1336,11 @@ def _class_ranking_entries(class_id, all_drivers, keep_driver_id=None):
     if not entries:
         return [extra] if extra else []
 
-    def smooth(e):
-        n = e['starts']
-        return (n * e['bt_score'] + C * mu) / (n + C)
+    smoother = ClassSmoother([e['bt_score'] for e in entries], settings)
 
-    mu = _stats.median(e['bt_score'] for e in entries)
+    def smooth(e):
+        return smoother.smooth(e['bt_score'], e['starts'], e['entry'])
+
     for e in entries:
         e['smoothed'] = smooth(e)
     entries.sort(key=lambda x: x['smoothed'], reverse=True)
@@ -1981,6 +2018,7 @@ def top_drivers_view(request):
         driver.win_percentage = win_percentage
         driver.bt_score = bt_score
         driver.starts_in_class = starts
+        driver._rating_entry = bt_data
 
         result_drivers.append(driver)
 
@@ -1995,14 +2033,11 @@ def top_drivers_view(request):
             "feedback_source": ("rating", selected_class_id),
         })
 
-    # Байесовское сглаживание: тянем новичков к медиане класса (C — AnalyticsSettings.bayes_c)
-    raw_scores = [d.bt_score for d in result_drivers]
-    mu = statistics.median(raw_scores)
-    C = AnalyticsSettings.get().bayes_c
-
+    # Байесовское сглаживание: новичков тянет к медиане класса или к их уровню
+    # в прошлом классе (ClassSmoother)
+    smoother = ClassSmoother([d.bt_score for d in result_drivers], AnalyticsSettings.get())
     for driver in result_drivers:
-        n = driver.starts_in_class
-        driver.smoothed_score = (n * driver.bt_score + C * mu) / (n + C)
+        driver.smoothed_score = smoother.smooth(driver.bt_score, driver.starts_in_class, driver._rating_entry)
 
     # Сортировка и места
     result_drivers.sort(key=lambda x: x.smoothed_score, reverse=True)
@@ -2854,15 +2889,15 @@ def home_top_drivers_api(request):
         driver.win_count = results.filter(position=1).count()
         driver._bt_score = bt_data.get('score', 0)
         driver._starts = bt_data.get('starts', 0)
+        driver._rating_entry = bt_data
         candidates.append(driver)
 
     if not candidates:
         return JsonResponse({'drivers': []})
 
-    mu = _stats.median(d._bt_score for d in candidates)
-    C = AnalyticsSettings.get().bayes_c
+    smoother = ClassSmoother([d._bt_score for d in candidates], _as)
     for d in candidates:
-        d._smoothed = (d._starts * d._bt_score + C * mu) / (d._starts + C)
+        d._smoothed = smoother.smooth(d._bt_score, d._starts, d._rating_entry)
     candidates.sort(key=lambda x: x._smoothed, reverse=True)
     min_s = candidates[-1]._smoothed
     max_s = candidates[0]._smoothed

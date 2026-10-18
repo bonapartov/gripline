@@ -151,6 +151,7 @@ class AnalyticsSettingsAdmin(ModelAdmin):
     list_display = (
         'lambda_active',
         'bayes_c',
+        'class_transfer_weight',
         'inactive_threshold_days',
         'bt_alpha',
         'pagerank_damping',

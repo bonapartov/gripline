@@ -188,6 +188,7 @@ class Command(BaseCommand):
 
         classes = RaceClass.objects.all()
         bt_ratings = {}
+        spans = {}  # {driver_id: {class_id: (первый старт, последний старт, стартов)}}
 
         for race_class in classes:
             self.stdout.write(f"    Класс {race_class.name}...")
@@ -215,10 +216,11 @@ class Command(BaseCommand):
             for did, dgroup in df_class.groupby('driver_id'):
                 dates = dgroup['date'].dropna()
                 if len(dates) > 0:
-                    last = max(dates)
+                    first, last = min(dates), max(dates)
                     if hasattr(last, 'date'):
-                        last = last.date()
+                        first, last = first.date(), last.date()
                     driver_last_dates[did] = str(last)
+                    spans.setdefault(did, {})[race_class.id] = (first, last, len(dgroup))
 
             with transaction.atomic():
                 for driver_id, score in ratings.items():
@@ -238,7 +240,70 @@ class Command(BaseCommand):
 
             self.stdout.write(f"      Обновлено {len(ratings)} пилотов")
 
+        self._store_transfer_priors(bt_ratings, spans)
         return bt_ratings
+
+    # Сколько стартов в прошлом классе нужно, чтобы его место учитывалось при переходе
+    MIN_STARTS_PREV_CLASS = 2
+
+    @classmethod
+    def transfer_priors(cls, bt_ratings, spans):
+        """Место пилота в прошлом классе для каждого класса, куда он перешёл (18.10.2026).
+
+        Прошлый класс — тот, где пилот закончил выступать не позже своего первого старта
+        в новом классе (раньше дня дебюта; самый поздний из таких), с MIN_STARTS_PREV_CLASS+ стартами и
+        рейтингом. Место — доля пилотов прошлого класса с рейтингом ниже: 0 — последний,
+        1 — первый. Возвращает {(driver_id, class_id): (доля, id прошлого класса)}.
+        Как доля превращается в опору сглаживания — website.views.ClassSmoother.
+        """
+        sorted_scores = {cid: sorted(r.values()) for cid, r in bt_ratings.items()}
+        result = {}
+        for did, classes in spans.items():
+            for cid, (first, _last, _n) in classes.items():
+                if did not in bt_ratings.get(cid, {}):
+                    continue
+                prev = [(last, n, pcid) for pcid, (_f, last, n) in classes.items()
+                        if pcid != cid and last < first and n >= cls.MIN_STARTS_PREV_CLASS
+                        and did in bt_ratings.get(pcid, {})]
+                if not prev:
+                    continue
+                _last, _n, pcid = max(prev)
+                scores = sorted_scores[pcid]
+                if len(scores) < 2:
+                    continue
+                own = bt_ratings[pcid][did]
+                below = sum(1 for x in scores if x < own)
+                result[(int(did), int(cid))] = (round(below / (len(scores) - 1), 4), int(pcid))
+        return result
+
+    def _store_transfer_priors(self, bt_ratings, spans):
+        priors = self.transfer_priors(bt_ratings, spans)
+        changed = 0
+        with transaction.atomic():
+            for driver in Driver.objects.filter(id__in=[int(d) for d in spans]):
+                rbc = driver.rating_by_class or {}
+                dirty = False
+                for cid_str, entry in rbc.items():
+                    try:
+                        key = (driver.id, int(cid_str))
+                    except ValueError:
+                        continue
+                    if not isinstance(entry, dict):
+                        continue
+                    if key in priors:
+                        pct, pcid = priors[key]
+                        if entry.get('prior_pct') != pct or entry.get('prior_class') != pcid:
+                            entry['prior_pct'], entry['prior_class'] = pct, pcid
+                            dirty = True
+                    elif 'prior_pct' in entry:
+                        entry.pop('prior_pct', None)
+                        entry.pop('prior_class', None)
+                        dirty = True
+                if dirty:
+                    driver.rating_by_class = rbc
+                    driver.save(update_fields=['rating_by_class'])
+                    changed += 1
+        self.stdout.write(f"  Переход между классами: учтено {len(priors)}, обновлено пилотов {changed}")
 
     def _load_bt_ratings_from_db(self):
         """Загружает BT-рейтинги из БД (для передачи в контекстную модель)."""

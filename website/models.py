@@ -2131,6 +2131,15 @@ class AnalyticsSettings(models.Model):
             "3–9 этапов, поэтому C ≈ 4. Действует сразу, пересчёт не нужен."
         ),
     )
+    class_transfer_weight = models.FloatField(
+        default=0.5,
+        verbose_name="Учёт прошлого класса при переходе",
+        help_text=(
+            "Пилот, перешедший в новый класс, начинает не с середины таблицы, а ближе к месту, "
+            "которое занимал в прошлом классе. 0 — не учитывать (все с середины), 1 — то же "
+            "место, что в прошлом классе, 0.5 — посередине. Действует сразу, пересчёт не нужен."
+        ),
+    )
 
     # --- Пороги данных ---
     min_races_per_class = models.IntegerField(
@@ -3675,7 +3684,7 @@ class HomePage(TransliteratedSlugMixin, CoderedWebPage):
             class_key = str(selected_class_id)
             _as = AnalyticsSettings.get()
             all_drivers = list(Driver.objects.exclude(rating_by_class={}).exclude(rating_by_class__isnull=True))
-            from website.views import class_min_starts, rating_out_reason
+            from website.views import ClassSmoother, class_min_starts, rating_out_reason
             min_starts = class_min_starts(selected_class_id, all_drivers, _as)
 
             # Один запрос для всех статистик по классу
@@ -3710,13 +3719,13 @@ class HomePage(TransliteratedSlugMixin, CoderedWebPage):
                 driver.win_count = s.get('win_count', 0)
                 driver._bt_score = bt_data.get('score', 0)
                 driver._starts = bt_data.get('starts', 0)
+                driver._rating_entry = bt_data
                 candidates.append(driver)
 
             if candidates:
-                mu = _stats.median(d._bt_score for d in candidates)
-                C = _as.bayes_c
+                smoother = ClassSmoother([d._bt_score for d in candidates], _as)
                 for d in candidates:
-                    d._smoothed = (d._starts * d._bt_score + C * mu) / (d._starts + C)
+                    d._smoothed = smoother.smooth(d._bt_score, d._starts, d._rating_entry)
                 candidates.sort(key=lambda x: x._smoothed, reverse=True)
                 min_s = candidates[-1]._smoothed
                 max_s = candidates[0]._smoothed
