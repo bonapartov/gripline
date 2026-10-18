@@ -413,19 +413,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderHistory() { applyFilters(); }
 
-    // ---------- Share ----------
-    var shareBtn = document.getElementById('glv2ShareBtn');
-    if (shareBtn) {
-        shareBtn.addEventListener('click', function () {
-            var name = shareBtn.getAttribute('data-driver-name') || document.title;
-            if (navigator.share) {
-                navigator.share({ title: name, url: window.location.href }).catch(function () {});
-            } else if (navigator.clipboard) {
-                navigator.clipboard.writeText(window.location.href);
-            }
-        });
-    }
-
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
         if (typeof bootstrap !== 'undefined') { new bootstrap.Tooltip(el); }
     });
