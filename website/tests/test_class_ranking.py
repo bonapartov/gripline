@@ -51,3 +51,28 @@ def test_inactive_driver_gets_virtual_place_without_moving_others():
 
     # без keep_driver_id неактивного нет вовсе
     assert 'Ушедший' not in {e['full_name'].split()[0] for e in _class_ranking_entries(klass.id, Driver.objects.all())}
+
+
+def test_no_absence_penalty_before_first_start_in_class():
+    """Пилот перешёл в класс позже — этапы класса до его дебюта не считаются пропусками."""
+    import pandas as pd
+    from types import SimpleNamespace
+    from website.management.commands.update_ratings import Command
+
+    settings = SimpleNamespace(inactive_threshold_days=365, lambda_active=0.8, lambda_inactive=2.0)
+    d = lambda s: pd.Timestamp(s)
+    df = pd.DataFrame([
+        # этап 1 — новичка ещё нет в классе
+        {'group_id': 1, 'driver_id': 10, 'position': 1, 'date': d('2026-03-01')},
+        {'group_id': 1, 'driver_id': 11, 'position': 2, 'date': d('2026-03-01')},
+        # этап 2 — дебют новичка (20)
+        {'group_id': 2, 'driver_id': 20, 'position': 1, 'date': d('2026-05-01')},
+        {'group_id': 2, 'driver_id': 10, 'position': 2, 'date': d('2026-05-01')},
+        {'group_id': 2, 'driver_id': 11, 'position': 3, 'date': d('2026-05-01')},
+        # этап 3 — новичок пропустил
+        {'group_id': 3, 'driver_id': 10, 'position': 1, 'date': d('2026-07-01')},
+        {'group_id': 3, 'driver_id': 11, 'position': 2, 'date': d('2026-07-01')},
+    ])
+    comps = Command()._create_class_comparisons(df, 'driver', settings)
+    losses = comps[comps['loser_id'] == 20]
+    assert set(losses['group_id']) == {3}, 'до дебюта (этап 1) штрафа нет, после (этап 3) — есть'

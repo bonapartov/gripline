@@ -454,6 +454,8 @@ class Command(BaseCommand):
 
         Пилоты, отсутствовавшие на заезде, получают виртуальное последнее место
         и проигрывают всем участникам — рейтинг падает при каждом пропущенном этапе.
+        Пропуском считается только заезд ПОСЛЕ первого старта пилота в этом классе
+        (18.10.2026): до перехода в класс пилот ехал в другом классе, а не пропускал.
         """
         import math
         from datetime import date as date_type
@@ -466,6 +468,19 @@ class Command(BaseCommand):
 
         # Все пилоты/шасси, когда-либо выступавшие в этом классе
         all_entity_ids = set(df_class[f'{entity_type}_id'].unique())
+
+        def _as_date(value):
+            if value is None or pd.isna(value):
+                return None
+            return value.date() if hasattr(value, 'date') else value
+
+        # Первый старт в классе — до него отсутствие не штрафуется
+        first_start = {}
+        if 'date' in df_class.columns:
+            for eid, dates in df_class.groupby(f'{entity_type}_id')['date']:
+                known = [d for d in (_as_date(v) for v in dates) if d is not None]
+                if known:
+                    first_start[eid] = min(known)
 
         for group_id, group in df_class.groupby('group_id'):
             if len(group) < 2:
@@ -513,6 +528,9 @@ class Command(BaseCommand):
             # каждый участник заезда обгоняет каждого отсутствующего
             participants = set(group[f'{entity_type}_id'].values)
             absent_ids = all_entity_ids - participants
+            if race_date is not None:
+                absent_ids = {a for a in absent_ids
+                              if first_start.get(a) is None or first_start[a] < race_date}
             last_position = group['position'].max()
 
             for absent_id in absent_ids:
