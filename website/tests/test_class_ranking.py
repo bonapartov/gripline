@@ -162,3 +162,26 @@ def test_transferred_leader_starts_above_middle():
     own = _class_ranking_entries(klass.id, Driver.objects.all(), keep_driver_id=newcomer.id)
     lifted = next(e for e in own if e['driver_id'] == newcomer.id)['rank']
     assert lifted < middle
+
+
+def test_team_ratings_use_class_table_scores(monkeypatch):
+    """Командный рейтинг берёт балл пилота из таблицы класса (раньше у всех было 50)."""
+    from django.test import RequestFactory
+    from website import views
+    from website.models import Team
+
+    klass = RaceClass.objects.create(name='RM Senior')
+    strong = [_driver(f'Сильный{i}', 3.0 - i / 10, 10, 10, klass) for i in range(3)]
+    weak = [_driver(f'Слабый{i}', -1.0 - i / 10, 10, 10, klass) for i in range(3)]
+    t_strong = Team.objects.create(name='Быстрые', slug='fast')
+    t_weak = Team.objects.create(name='Медленные', slug='slow')
+    teams = {d.id: t_strong.id for d in strong} | {d.id: t_weak.id for d in weak}
+    monkeypatch.setattr(views, '_compute_driver_current_teams', lambda: teams)
+    captured = {}
+    monkeypatch.setattr(views, 'render', lambda req, tpl, ctx: captured.update(ctx))
+    monkeypatch.setattr(views.Site, 'find_for_request', staticmethod(lambda r: None))
+
+    views.team_ratings_view(RequestFactory().get('/team-ratings/'))
+    rows = captured['team_rows']
+    assert [r['team'].name for r in rows] == ['Быстрые', 'Медленные']
+    assert rows[0]['avg_score'] > 80 and rows[1]['avg_score'] < 20

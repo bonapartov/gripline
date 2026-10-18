@@ -2933,38 +2933,20 @@ def team_ratings_view(request):
 
     current_site = Site.find_for_request(request)
 
-    # Собираем все рейтинги всех пилотов для нормализации
-    all_drivers = Driver.objects.exclude(rating_by_class__isnull=True).exclude(rating_by_class={})
-    global_class_bt = {}  # {class_id_str: [bt_score, ...]}
-    for d in all_drivers:
-        rbc = d.rating_by_class or {}
-        if isinstance(rbc, str):
-            try:
-                rbc = json.loads(rbc)
-            except Exception:
-                rbc = {}
-        for class_id_str, entry in rbc.items():
-            bt = entry.get('bt_score', 0) or 0
-            starts = entry.get('starts', 0) or 0
-            if starts < 3:
-                continue
-            global_class_bt.setdefault(class_id_str, []).append(bt)
+    # Балл пилота — тот же, что в таблице его класса (_class_ranking_entries): та же
+    # выборка, сглаживание и нормировка 0–100. Пилоты вне таблицы класса (давно не
+    # выступал, мало стартов) в командный рейтинг не входят. До 18.10.2026 здесь читалось
+    # несуществующее поле 'bt_score' — у всех пилотов выходило 50, команды не различались.
+    all_drivers = list(Driver.objects.exclude(rating_by_class__isnull=True).exclude(rating_by_class={}))
+    class_scores = {}  # {class_id_str: {driver_id: балл 0–100}}
 
-    # Байесовское сглаживание и нормализация 0-100 на уровне класса
-    C = AnalyticsSettings.get().bayes_c
-
-    def normalized_bt(class_id_str, bt_score, starts):
-        entries = global_class_bt.get(class_id_str, [])
-        if not entries:
-            return 0
-        mu = _stats.median(entries)
-        smoothed = (starts * bt_score + C * mu) / (starts + C)
-        all_smoothed = [(n * b + C * mu) / (n + C) for b, n in
-                        zip(entries, [3] * len(entries))]
-        mn, mx = min(all_smoothed), max(all_smoothed)
-        if mx == mn:
-            return 50
-        return round((smoothed - mn) / (mx - mn) * 100, 1)
+    def class_table(class_id_str):
+        if class_id_str not in class_scores:
+            class_scores[class_id_str] = {
+                e['driver_id']: e['normalized']
+                for e in _class_ranking_entries(class_id_str, all_drivers)
+            }
+        return class_scores[class_id_str]
 
     # Получаем класс_id → name
     class_name_map = {str(c.id): c.name for c in RaceClass.objects.for_site()}
@@ -2991,13 +2973,13 @@ def team_ratings_view(request):
                     rbc = json.loads(rbc)
                 except Exception:
                     rbc = {}
-            for class_id_str, entry in rbc.items():
-                bt = entry.get('score', 0) or 0
-                starts = entry.get('starts', 0) or 0
-                if starts < 3:
+            for class_id_str in rbc:
+                if class_id_str not in class_name_map:
+                    continue  # класс только для приложения или удалён
+                norm = class_table(class_id_str).get(driver.id)
+                if norm is None:
                     continue
-                class_name = class_name_map.get(class_id_str, f'Класс {class_id_str}')
-                norm = normalized_bt(class_id_str, bt, starts)
+                class_name = class_name_map[class_id_str]
                 class_data.setdefault(class_name, {'scores': [], 'drivers': []})
                 class_data[class_name]['scores'].append(norm)
                 class_data[class_name]['drivers'].append({
