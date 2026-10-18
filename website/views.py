@@ -1207,25 +1207,36 @@ def _rating_inactive(entry, threshold_days):
         return False
 
 
+def rating_out_reason(entry, settings):
+    """Почему пилота нет в таблице рейтинга класса: 'inactive' (давно не выступал),
+    'few_starts' (меньше min_starts_display стартов в классе) или None — он в таблице.
+    Одно правило для таблицы /top/drivers/, главной и страницы пилота."""
+    if _rating_inactive(entry, settings.inactive_threshold_days):
+        return 'inactive'
+    if int(entry.get('starts', 0) or 0) < settings.min_starts_display:
+        return 'few_starts'
+    return None
+
+
 def _class_ranking_entries(class_id, all_drivers, keep_driver_id=None):
     """Полный отсортированный рейтинг пилотов в классе — Байесовское сглаживание
     (C из AnalyticsSettings.bayes_c, та же формула, что и top_drivers_view). Используется и
     _get_driver_class_ratings (место/соседи/немезис текущего пилота), и
     _nearby_class_rivals (вкладка «Соперники»).
 
-    Выборка — как в таблице /top/drivers/: пилоты, не выступавшие в классе дольше
-    AnalyticsSettings.inactive_threshold_days, не участвуют (иначе медиана и места
-    расходились с таблицей: 18.10.2026 — №4 в таблице, №5 на странице пилота).
-    Если [keep_driver_id] сам неактивен, он возвращается отдельной записью с
-    `inactive=True` и местом, которое занял бы среди активных; места остальных
-    от этого не меняются.
+    Выборка — как в таблице /top/drivers/ (rating_out_reason): не участвуют пилоты,
+    не выступавшие в классе дольше inactive_threshold_days, и пилоты с числом стартов
+    меньше min_starts_display (иначе медиана и места расходились с таблицей:
+    18.10.2026 — №4 в таблице, №5 на странице пилота). Если [keep_driver_id] сам
+    вне таблицы, он возвращается отдельной записью с `inactive=True`, `out_reason`
+    и местом, которое занял бы; места остальных от этого не меняются.
     """
     import json, statistics as _stats
     from .models import AnalyticsSettings
 
     C = AnalyticsSettings.get().bayes_c
     class_id_str = str(class_id)
-    threshold = AnalyticsSettings.get().inactive_threshold_days
+    settings = AnalyticsSettings.get()
 
     entries = []
     extra = None
@@ -1247,10 +1258,13 @@ def _class_ranking_entries(class_id, all_drivers, keep_driver_id=None):
             'bt_score': float(entry.get('score', 0.0)),
             'starts': int(entry.get('starts', 0)),
             'inactive': False,
+            'out_reason': None,
         }
-        if _rating_inactive(entry, threshold):
+        reason = rating_out_reason(entry, settings)
+        if reason:
             if d.id == keep_driver_id:
                 item['inactive'] = True
+                item['out_reason'] = reason
                 extra = item
             continue
         entries.append(item)
@@ -1585,6 +1599,7 @@ def _get_driver_class_ratings(driver):
             'class_name': class_name,
             'rank': rank,
             'inactive': target['inactive'],
+            'out_reason': target['out_reason'],
             'total': total,
             'normalized_score': target['normalized'],
             'starts': starts,
@@ -1914,15 +1929,9 @@ def top_drivers_view(request):
         if not bt_data:
             continue
 
-        # Hide drivers inactive in this class beyond threshold
-        last_race_str = bt_data.get('last_race_date')
-        if last_race_str:
-            try:
-                last_race = date.fromisoformat(last_race_str)
-                if (date.today() - last_race).days > analytics_settings.inactive_threshold_days:
-                    continue
-            except (ValueError, TypeError):
-                pass
+        # Давно не выступал или мало стартов — не в таблице (rating_out_reason)
+        if rating_out_reason(bt_data, analytics_settings):
+            continue
 
         bt_score = bt_data.get('score', 0)
         starts = bt_data.get('starts', 0)
@@ -2308,33 +2317,19 @@ def get_driver_stats(driver, class_id=None, all_drivers=None, other_driver=None)
 
     # === НОРМИРОВАННЫЙ РЕЙТИНГ (байесовский BT, класс с наибольшим числом стартов) ===
     normalized_rating = 0
-    import json as _json, statistics as _stats
-    C = AnalyticsSettings.get().bayes_c
+    import json as _json
     rbc = driver.rating_by_class or {}
     if isinstance(rbc, str):
         try: rbc = _json.loads(rbc)
         except: rbc = {}
-    if rbc and all_drivers:
+    if rbc:
+        # тот же расчёт и та же выборка, что в таблице рейтинга и на странице пилота
         best_class_str = max(rbc.keys(), key=lambda k: rbc[k].get('starts', 0))
-        class_entries = []
-        for d in all_drivers:
-            d_rbc = d.rating_by_class or {}
-            if isinstance(d_rbc, str):
-                try: d_rbc = _json.loads(d_rbc)
-                except: d_rbc = {}
-            if best_class_str in d_rbc:
-                class_entries.append({'bt': float(d_rbc[best_class_str].get('score', 0)),
-                                      'n': int(d_rbc[best_class_str].get('starts', 0))})
-        if class_entries:
-            mu = _stats.median(e['bt'] for e in class_entries)
-            smoothed = [(e['n'] * e['bt'] + C * mu) / (e['n'] + C) for e in class_entries]
-            my_entry = rbc[best_class_str]
-            my_n = int(my_entry.get('starts', 0))
-            my_bt = float(my_entry.get('score', 0))
-            my_s = (my_n * my_bt + C * mu) / (my_n + C)
-            mn, mx = min(smoothed), max(smoothed)
-            rng = mx - mn if mx != mn else 1.0
-            normalized_rating = round((my_s - mn) / rng * 100, 1)
+        entries = _class_ranking_entries(
+            int(best_class_str), Driver.objects.exclude(rating_by_class={}), keep_driver_id=driver.id)
+        mine = next((e for e in entries if e['driver_id'] == driver.id), None)
+        if mine:
+            normalized_rating = mine['normalized']
 
     return {
         'total_starts': total_starts,
@@ -2819,15 +2814,9 @@ def home_top_drivers_api(request):
         if not bt_data:
             continue
 
-        # Skip drivers inactive in this class beyond threshold
-        last_race_str = bt_data.get('last_race_date')
-        if last_race_str:
-            try:
-                last_race = _date.fromisoformat(last_race_str)
-                if (_date.today() - last_race).days > _as.inactive_threshold_days:
-                    continue
-            except (ValueError, TypeError):
-                pass
+        # Давно не выступал или мало стартов — не в таблице (rating_out_reason)
+        if rating_out_reason(bt_data, _as):
+            continue
 
         results = RaceResult.objects.filter(driver=driver, group__race_class_id=class_id)
         driver.race_count = results.count()

@@ -410,7 +410,11 @@
                 <div class="col-6 col-md-2 text-center">
                     {% if cr.inactive %}
                     <div class="glv2-rating-rank">—</div>
-                    <div class="text-muted small" title="Нет стартов в классе дольше года — пилот не показывается в таблице рейтинга">вне рейтинга: давно не выступал</div>
+                    {% if cr.out_reason == 'few_starts' %}
+                    <div class="text-muted small" title="Пилот появится в таблице рейтинга после нескольких стартов в классе">вне рейтинга: мало стартов</div>
+                    {% else %}
+                    <div class="text-muted small" title="Нет стартов в классе дольше порога неактивности — пилот не показывается в таблице рейтинга">вне рейтинга: давно не выступал</div>
+                    {% endif %}
                     {% else %}
                     <div class="glv2-rating-rank">#{{ cr.rank }}</div>
                     <div class="text-muted small">из {{ cr.total }} пилотов</div>

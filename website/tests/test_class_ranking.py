@@ -76,3 +76,19 @@ def test_no_absence_penalty_before_first_start_in_class():
     comps = Command()._create_class_comparisons(df, 'driver', settings)
     losses = comps[comps['loser_id'] == 20]
     assert set(losses['group_id']) == {3}, 'до дебюта (этап 1) штрафа нет, после (этап 3) — есть'
+
+
+def test_few_starts_not_in_table_but_shown_on_own_page():
+    """Меньше min_starts_display стартов — нет в таблице, на своей странице «мало стартов»."""
+    klass = RaceClass.objects.create(name='RM Junior')
+    _driver('Опытный', 1.0, 10, 10, klass)
+    _driver('Средний', 0.5, 8, 10, klass)
+    rookie = _driver('Новичок', 5.0, 1, 10, klass)
+
+    table = _class_ranking_entries(klass.id, Driver.objects.all())
+    assert [e['full_name'].split()[0] for e in table] == ['Опытный', 'Средний']
+
+    own = _class_ranking_entries(klass.id, Driver.objects.all(), keep_driver_id=rookie.id)
+    me = next(e for e in own if e['driver_id'] == rookie.id)
+    assert me['inactive'] is True and me['out_reason'] == 'few_starts'
+    assert me['total'] == 2

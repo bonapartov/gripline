@@ -2146,7 +2146,10 @@ class AnalyticsSettings(models.Model):
     min_starts_display = models.IntegerField(
         default=3,
         verbose_name="Мин. стартов для отображения рейтинга",
-        help_text="Пилоты с меньшим числом стартов считаются без достаточной статистики.",
+        help_text=(
+            "Пилоты с меньшим числом стартов в классе не показываются в таблице рейтинга "
+            "и на главной; на странице пилота — «вне рейтинга: мало стартов». Действует сразу."
+        ),
     )
     min_races_context = models.IntegerField(
         default=10,
@@ -3696,15 +3699,10 @@ class HomePage(TransliteratedSlugMixin, CoderedWebPage):
                 if not bt_data:
                     continue
 
-                # Skip drivers inactive in this class beyond threshold
-                last_race_str = bt_data.get('last_race_date')
-                if last_race_str:
-                    try:
-                        last_race = _date.fromisoformat(last_race_str)
-                        if (_date.today() - last_race).days > _as.inactive_threshold_days:
-                            continue
-                    except (ValueError, TypeError):
-                        pass
+                # Давно не выступал или мало стартов — не в таблице
+                from website.views import rating_out_reason
+                if rating_out_reason(bt_data, _as):
+                    continue
 
                 s = race_stats.get(driver.id, {})
                 driver.race_count = s.get('race_count', 0)
