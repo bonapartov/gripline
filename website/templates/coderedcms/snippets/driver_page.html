@@ -118,7 +118,7 @@
                         </a>
                         <div class="glv2-pill-stat">
                             <span>Место в рейтинге</span>
-                            <span class="glv2-mono">#{{ latest_class_rating.rank }} из {{ latest_class_rating.total }}</span>
+                            <span class="glv2-mono">{% if latest_class_rating.inactive %}вне рейтинга{% else %}#{{ latest_class_rating.rank }} из {{ latest_class_rating.total }}{% endif %}</span>
                         </div>
                     </div>
                     {% endif %}
@@ -399,7 +399,7 @@
                 {% endif %}
                 <span class="text-info text-uppercase fw-bold">{{ cr.class_name }}</span>
                 {% if cr.low_data %}<span title="Мало стартов — рейтинг предварительный">⚠️</span>{% endif %}
-                {% if cr.rank == 1 %}<span class="text-warning fw-bold" style="font-size:0.85rem;"><i class="fas fa-crown me-1"></i>Лидер класса</span>{% endif %}
+                {% if cr.rank == 1 and not cr.inactive %}<span class="text-warning fw-bold" style="font-size:0.85rem;"><i class="fas fa-crown me-1"></i>Лидер класса</span>{% endif %}
                 {% if cr.last_race_date %}<span class="text-muted ms-auto" style="font-size:0.8rem;">последний старт: {{ cr.last_race_date|date:"m.Y" }}</span>{% endif %}
             </div>
             <div class="row g-3 align-items-center">
@@ -408,8 +408,13 @@
                     <div class="text-muted small">из 100 баллов</div>
                 </div>
                 <div class="col-6 col-md-2 text-center">
+                    {% if cr.inactive %}
+                    <div class="glv2-rating-rank">—</div>
+                    <div class="text-muted small" title="Нет стартов в классе дольше года — пилот не показывается в таблице рейтинга">вне рейтинга: давно не выступал</div>
+                    {% else %}
                     <div class="glv2-rating-rank">#{{ cr.rank }}</div>
                     <div class="text-muted small">из {{ cr.total }} пилотов</div>
+                    {% endif %}
                 </div>
                 <div class="col-6 col-md-2 text-center">
                     {% if cr.form_trend == 'up' %}<div class="glv2-trend-up fw-bold" style="font-size:1.4rem;">▲</div><div class="glv2-trend-up small">На подъёме</div>

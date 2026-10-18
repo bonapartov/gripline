@@ -1195,19 +1195,40 @@ def _compute_form_trend(driver_id, class_id, window=None):
     return 'stable'
 
 
-def _class_ranking_entries(class_id, all_drivers):
+def _rating_inactive(entry, threshold_days):
+    """Пилот не выступал в классе дольше порога — в таблице рейтинга его нет."""
+    from datetime import date as _date
+    last = entry.get('last_race_date')
+    if not last:
+        return False
+    try:
+        return (_date.today() - _date.fromisoformat(last)).days > threshold_days
+    except (ValueError, TypeError):
+        return False
+
+
+def _class_ranking_entries(class_id, all_drivers, keep_driver_id=None):
     """Полный отсортированный рейтинг пилотов в классе — Байесовское сглаживание
-    (C=15, та же формула, что и top_drivers_view). Единственное место с этой
-    формулой: используется и _get_driver_class_ratings (место/соседи/немезис
-    текущего пилота), и _nearby_class_rivals (окно вокруг его места на вкладке
-    «Соперники») — раньше формула была продублирована в обеих функциях.
+    (C=15, та же формула, что и top_drivers_view). Используется и
+    _get_driver_class_ratings (место/соседи/немезис текущего пилота), и
+    _nearby_class_rivals (вкладка «Соперники»).
+
+    Выборка — как в таблице /top/drivers/: пилоты, не выступавшие в классе дольше
+    AnalyticsSettings.inactive_threshold_days, не участвуют (иначе медиана и места
+    расходились с таблицей: 18.10.2026 — №4 в таблице, №5 на странице пилота).
+    Если [keep_driver_id] сам неактивен, он возвращается отдельной записью с
+    `inactive=True` и местом, которое занял бы среди активных; места остальных
+    от этого не меняются.
     """
     import json, statistics as _stats
+    from .models import AnalyticsSettings
 
     C = 15
     class_id_str = str(class_id)
+    threshold = AnalyticsSettings.get().inactive_threshold_days
 
     entries = []
+    extra = None
     for d in all_drivers:
         d_rbc = d.rating_by_class or {}
         if isinstance(d_rbc, str):
@@ -1218,21 +1239,31 @@ def _class_ranking_entries(class_id, all_drivers):
         if class_id_str not in d_rbc:
             continue
         entry = d_rbc[class_id_str]
-        entries.append({
+        item = {
             'driver': d,
             'driver_id': d.id,
             'full_name': f"{d.first_name} {d.last_name}".strip(),
             'slug': d.slug,
             'bt_score': float(entry.get('score', 0.0)),
             'starts': int(entry.get('starts', 0)),
-        })
+            'inactive': False,
+        }
+        if _rating_inactive(entry, threshold):
+            if d.id == keep_driver_id:
+                item['inactive'] = True
+                extra = item
+            continue
+        entries.append(item)
     if not entries:
-        return []
+        return [extra] if extra else []
+
+    def smooth(e):
+        n = e['starts']
+        return (n * e['bt_score'] + C * mu) / (n + C)
 
     mu = _stats.median(e['bt_score'] for e in entries)
     for e in entries:
-        n = e['starts']
-        e['smoothed'] = (n * e['bt_score'] + C * mu) / (n + C)
+        e['smoothed'] = smooth(e)
     entries.sort(key=lambda x: x['smoothed'], reverse=True)
 
     min_s = min(e['smoothed'] for e in entries)
@@ -1243,6 +1274,12 @@ def _class_ranking_entries(class_id, all_drivers):
         e['rank'] = i + 1
         e['total'] = total
         e['normalized'] = round((e['smoothed'] - min_s) / rng * 100, 1)
+    if extra:
+        extra['smoothed'] = smooth(extra)
+        extra['rank'] = sum(1 for e in entries if e['smoothed'] > extra['smoothed']) + 1
+        extra['total'] = total
+        extra['normalized'] = round(min(100.0, max(0.0, (extra['smoothed'] - min_s) / rng * 100)), 1)
+        entries.append(extra)
     return entries
 
 
@@ -1257,7 +1294,7 @@ def _nearby_class_rivals(driver, class_id, count=5):
         Driver.objects.exclude(rating_by_class={})
         .only('id', 'first_name', 'last_name', 'slug', 'photo', 'city', 'rating_by_class')
     )
-    entries = _class_ranking_entries(class_id, all_drivers)
+    entries = _class_ranking_entries(class_id, all_drivers, keep_driver_id=driver.id)
     if not entries:
         return []
 
@@ -1305,7 +1342,7 @@ def _class_stat_percentiles(driver, class_id):
         Driver.objects.exclude(rating_by_class={})
         .only('id', 'first_name', 'last_name', 'slug', 'rating_by_class')
     )
-    entries = _class_ranking_entries(class_id, all_drivers)
+    entries = _class_ranking_entries(class_id, all_drivers, keep_driver_id=driver.id)
     if not entries:
         return None
 
@@ -1452,19 +1489,21 @@ def _get_driver_class_ratings(driver):
     for class_id_str in rbc.keys():
         class_id = int(class_id_str)
 
-        class_entries = _class_ranking_entries(class_id, all_drivers)
+        class_entries = _class_ranking_entries(class_id, all_drivers, keep_driver_id=driver.id)
         if not class_entries:
             continue
-
-        total = len(class_entries)
 
         target = next((e for e in class_entries if e['driver_id'] == driver.id), None)
         if target is None:
             continue
 
+        total = target['total']
         rank = target['rank']
-        driver_above = class_entries[rank - 2] if rank > 1 else None
-        driver_below = class_entries[rank] if rank < total else None
+        # Соседи — среди остальных пилотов (для неактивного пилота — вокруг места,
+        # которое он занял бы).
+        pool = [e for e in class_entries if e is not target]
+        driver_above = pool[rank - 2] if rank > 1 else None
+        driver_below = pool[rank - 1] if rank - 1 < len(pool) else None
         gap_to_above = round(driver_above['normalized'] - target['normalized'], 1) if driver_above else None
         gap_to_below = round(target['normalized'] - driver_below['normalized'], 1) if driver_below else None
 
@@ -1545,6 +1584,7 @@ def _get_driver_class_ratings(driver):
             'class_id': class_id,
             'class_name': class_name,
             'rank': rank,
+            'inactive': target['inactive'],
             'total': total,
             'normalized_score': target['normalized'],
             'starts': starts,
