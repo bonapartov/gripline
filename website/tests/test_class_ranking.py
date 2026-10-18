@@ -114,8 +114,29 @@ def test_transfer_prior_is_place_in_previous_class():
         12: {1: (_d(2025, 3, 1), _d(2025, 9, 1), 5)},
         13: {2: (_d(2026, 3, 1), _d(2026, 5, 1), 3), 1: (_d(2026, 3, 1), _d(2026, 3, 1), 1)},
     }
-    priors = Command.transfer_priors(bt, spans)
+    priors = Command.transfer_priors(bt, bt, spans)
     assert priors == {(10, 2): (1.0, 1)}, 'у 13 в классе 1 один старт и тот же день — не переход'
+
+
+def test_level_ignores_absences_after_leaving_class():
+    """Уровень для перехода — без виртуальных поражений: ушедший лидер остаётся лидером."""
+    import pandas as pd
+    from types import SimpleNamespace
+    from website.management.commands.update_ratings import Command
+
+    settings = SimpleNamespace(lambda_active=0.8)
+    d = pd.Timestamp
+    df = pd.DataFrame([
+        {'group_id': 1, 'driver_id': 10, 'position': 1, 'date': d('2025-03-01')},
+        {'group_id': 1, 'driver_id': 11, 'position': 2, 'date': d('2025-03-01')},
+        {'group_id': 2, 'driver_id': 11, 'position': 1, 'date': d('2026-03-01')},
+        {'group_id': 2, 'driver_id': 12, 'position': 2, 'date': d('2026-03-01')},
+    ])
+    level = Command()._create_class_comparisons(df, 'driver', settings, level_only=True)
+    assert not (level['loser_id'] == 10).any()
+    assert set(level['weight'].round(6)) == {0.5}, 'без затухания'
+    full = Command()._create_class_comparisons(df, 'driver', settings)
+    assert (full['loser_id'] == 10).any()
 
 
 def test_transferred_leader_starts_above_middle():

@@ -189,6 +189,7 @@ class Command(BaseCommand):
         classes = RaceClass.objects.all()
         bt_ratings = {}
         spans = {}  # {driver_id: {class_id: (первый старт, последний старт, стартов)}}
+        level_ratings = {}  # {class_id: {driver_id: уровень по реально проведённым гонкам}}
 
         for race_class in classes:
             self.stdout.write(f"    Класс {race_class.name}...")
@@ -210,6 +211,13 @@ class Command(BaseCommand):
 
             ratings = model.get_all_ratings()
             bt_ratings[race_class.id] = ratings
+
+            # Уровень в классе по реально проведённым гонкам — для учёта при переходе
+            df_level = self._create_class_comparisons(df_class, 'driver', settings, level_only=True)
+            if len(df_level):
+                level_model = BradleyTerryLasso(alpha=settings.bt_alpha)
+                level_model.fit(df_level)
+                level_ratings[race_class.id] = level_model.get_all_ratings()
 
             # Last race date per driver in this class
             driver_last_dates = {}
@@ -240,23 +248,29 @@ class Command(BaseCommand):
 
             self.stdout.write(f"      Обновлено {len(ratings)} пилотов")
 
-        self._store_transfer_priors(bt_ratings, spans)
+        self._store_transfer_priors(level_ratings, bt_ratings, spans)
         return bt_ratings
 
     # Сколько стартов в прошлом классе нужно, чтобы его место учитывалось при переходе
     MIN_STARTS_PREV_CLASS = 2
 
     @classmethod
-    def transfer_priors(cls, bt_ratings, spans):
+    def transfer_priors(cls, level_ratings, bt_ratings, spans):
         """Место пилота в прошлом классе для каждого класса, куда он перешёл (18.10.2026).
 
-        Прошлый класс — тот, где пилот закончил выступать не позже своего первого старта
-        в новом классе (раньше дня дебюта; самый поздний из таких), с MIN_STARTS_PREV_CLASS+ стартами и
-        рейтингом. Место — доля пилотов прошлого класса с рейтингом ниже: 0 — последний,
-        1 — первый. Возвращает {(driver_id, class_id): (доля, id прошлого класса)}.
-        Как доля превращается в опору сглаживания — website.views.ClassSmoother.
+        Прошлый класс — тот, где пилот закончил выступать раньше дня своего первого
+        старта в новом классе (самый поздний из таких), с MIN_STARTS_PREV_CLASS+ стартами.
+        Место — по уровню из реально проведённых гонок (level_ratings, без пропусков и
+        затухания), среди пилотов прошлого класса с MIN_STARTS_PREV_CLASS+ стартами:
+        доля тех, кто ниже, 0 — последний, 1 — первый. Возвращает
+        {(driver_id, class_id): (доля, id прошлого класса)} для пилотов с рейтингом
+        в новом классе. Как доля превращается в опору — website.views.ClassSmoother.
         """
-        sorted_scores = {cid: sorted(r.values()) for cid, r in bt_ratings.items()}
+        pools = {}
+        for pcid, levels in level_ratings.items():
+            pools[pcid] = sorted(
+                score for did, score in levels.items()
+                if spans.get(did, {}).get(pcid, (None, None, 0))[2] >= cls.MIN_STARTS_PREV_CLASS)
         result = {}
         for did, classes in spans.items():
             for cid, (first, _last, _n) in classes.items():
@@ -264,20 +278,20 @@ class Command(BaseCommand):
                     continue
                 prev = [(last, n, pcid) for pcid, (_f, last, n) in classes.items()
                         if pcid != cid and last < first and n >= cls.MIN_STARTS_PREV_CLASS
-                        and did in bt_ratings.get(pcid, {})]
+                        and did in level_ratings.get(pcid, {})]
                 if not prev:
                     continue
                 _last, _n, pcid = max(prev)
-                scores = sorted_scores[pcid]
+                scores = pools[pcid]
                 if len(scores) < 2:
                     continue
-                own = bt_ratings[pcid][did]
+                own = level_ratings[pcid][did]
                 below = sum(1 for x in scores if x < own)
                 result[(int(did), int(cid))] = (round(below / (len(scores) - 1), 4), int(pcid))
         return result
 
-    def _store_transfer_priors(self, bt_ratings, spans):
-        priors = self.transfer_priors(bt_ratings, spans)
+    def _store_transfer_priors(self, level_ratings, bt_ratings, spans):
+        priors = self.transfer_priors(level_ratings, bt_ratings, spans)
         changed = 0
         with transaction.atomic():
             for driver in Driver.objects.filter(id__in=[int(d) for d in spans]):
@@ -514,8 +528,12 @@ class Command(BaseCommand):
 
         self.stdout.write(f"    Обновлено {len(ratings)} шасси")
 
-    def _create_class_comparisons(self, df_class, entity_type, settings):
+    def _create_class_comparisons(self, df_class, entity_type, settings, level_only=False):
         """Создает парные сравнения для одного класса с temporal decay.
+
+        level_only=True — только реально проведённые гонки, без затухания и без
+        виртуальных поражений: «уровень» пилота в классе для учёта при переходе
+        (после ухода из класса пропуски обвалили бы его рейтинг там).
 
         Пилоты, отсутствовавшие на заезде, получают виртуальное последнее место
         и проигрывают всем участникам — рейтинг падает при каждом пропущенном этапе.
@@ -556,7 +574,7 @@ class Command(BaseCommand):
             # Temporal decay weight для всей группы (гонки)
             temporal_weight = 1.0
             race_date = group['date'].iloc[0] if 'date' in group.columns else None
-            if race_date is not None:
+            if race_date is not None and not level_only:
                 if hasattr(race_date, 'date'):
                     race_date = race_date.date()
                 days = (today - race_date).days
@@ -587,6 +605,9 @@ class Command(BaseCommand):
                         'weight': weight,
                         'group_id': group_id,
                     })
+
+            if level_only:
+                continue
 
             # Виртуальные поражения для отсутствовавших пилотов:
             # каждый участник заезда обгоняет каждого отсутствующего
