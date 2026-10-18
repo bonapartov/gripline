@@ -81,14 +81,22 @@ def test_no_absence_penalty_before_first_start_in_class():
 def test_few_starts_not_in_table_but_shown_on_own_page():
     """Меньше min_starts_display стартов — нет в таблице, на своей странице «мало стартов»."""
     klass = RaceClass.objects.create(name='RM Junior')
-    _driver('Опытный', 1.0, 10, 10, klass)
-    _driver('Средний', 0.5, 8, 10, klass)
+    for i in range(5):
+        _driver(f'Опытный{i}', 1.0 - i / 10, 10, 10, klass)
     rookie = _driver('Новичок', 5.0, 1, 10, klass)
 
     table = _class_ranking_entries(klass.id, Driver.objects.all())
-    assert [e['full_name'].split()[0] for e in table] == ['Опытный', 'Средний']
+    assert len(table) == 5 and rookie.id not in {e['driver_id'] for e in table}
 
     own = _class_ranking_entries(klass.id, Driver.objects.all(), keep_driver_id=rookie.id)
     me = next(e for e in own if e['driver_id'] == rookie.id)
     assert me['inactive'] is True and me['out_reason'] == 'few_starts'
-    assert me['total'] == 2
+    assert me['total'] == 5
+
+
+def test_small_class_shows_everyone_when_nobody_has_enough_starts():
+    """Микро, 4Т, E-10: у всех по 1–2 старта — таблица не должна пустеть."""
+    klass = RaceClass.objects.create(name='4Т Дети')
+    for i in range(4):
+        _driver(f'Малыш{i}', 1.0 - i / 10, 2, 10, klass)
+    assert len(_class_ranking_entries(klass.id, Driver.objects.all())) == 4

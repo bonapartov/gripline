@@ -3674,7 +3674,9 @@ class HomePage(TransliteratedSlugMixin, CoderedWebPage):
             from django.db.models import Count, Q
             class_key = str(selected_class_id)
             _as = AnalyticsSettings.get()
-            all_drivers = Driver.objects.exclude(rating_by_class={}).exclude(rating_by_class__isnull=True)
+            all_drivers = list(Driver.objects.exclude(rating_by_class={}).exclude(rating_by_class__isnull=True))
+            from website.views import class_min_starts, rating_out_reason
+            min_starts = class_min_starts(selected_class_id, all_drivers, _as)
 
             # Один запрос для всех статистик по классу
             race_stats = {
@@ -3700,8 +3702,7 @@ class HomePage(TransliteratedSlugMixin, CoderedWebPage):
                     continue
 
                 # Давно не выступал или мало стартов — не в таблице
-                from website.views import rating_out_reason
-                if rating_out_reason(bt_data, _as):
+                if rating_out_reason(bt_data, _as, min_starts):
                     continue
 
                 s = race_stats.get(driver.id, {})

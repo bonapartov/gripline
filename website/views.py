@@ -1207,13 +1207,39 @@ def _rating_inactive(entry, threshold_days):
         return False
 
 
-def rating_out_reason(entry, settings):
+MIN_PILOTS_FOR_STARTS_RULE = 5
+
+
+def class_min_starts(class_key, drivers, settings):
+    """Порог стартов для таблицы класса. Действует, только если его набрали хотя бы
+    MIN_PILOTS_FOR_STARTS_RULE активных пилотов: в небольших классах (Микро, 4Т, E-10…)
+    у всех по 1–2 старта, и таблица иначе опустела бы — там показываются все."""
+    import json
+    need = settings.min_starts_display
+    enough = 0
+    for d in drivers:
+        rbc = d.rating_by_class or {}
+        if isinstance(rbc, str):
+            try:
+                rbc = json.loads(rbc)
+            except Exception:
+                rbc = {}
+        entry = rbc.get(str(class_key))
+        if (entry and int(entry.get('starts', 0) or 0) >= need
+                and not _rating_inactive(entry, settings.inactive_threshold_days)):
+            enough += 1
+            if enough >= MIN_PILOTS_FOR_STARTS_RULE:
+                return need
+    return 0
+
+
+def rating_out_reason(entry, settings, min_starts):
     """Почему пилота нет в таблице рейтинга класса: 'inactive' (давно не выступал),
-    'few_starts' (меньше min_starts_display стартов в классе) или None — он в таблице.
-    Одно правило для таблицы /top/drivers/, главной и страницы пилота."""
+    'few_starts' (меньше [min_starts] стартов — см. class_min_starts) или None.
+    Одно правило для таблицы /top/drivers/, главной, страницы пилота и сравнения."""
     if _rating_inactive(entry, settings.inactive_threshold_days):
         return 'inactive'
-    if int(entry.get('starts', 0) or 0) < settings.min_starts_display:
+    if int(entry.get('starts', 0) or 0) < min_starts:
         return 'few_starts'
     return None
 
@@ -1237,6 +1263,8 @@ def _class_ranking_entries(class_id, all_drivers, keep_driver_id=None):
     C = AnalyticsSettings.get().bayes_c
     class_id_str = str(class_id)
     settings = AnalyticsSettings.get()
+    all_drivers = list(all_drivers)
+    min_starts = class_min_starts(class_id, all_drivers, settings)
 
     entries = []
     extra = None
@@ -1260,7 +1288,7 @@ def _class_ranking_entries(class_id, all_drivers, keep_driver_id=None):
             'inactive': False,
             'out_reason': None,
         }
-        reason = rating_out_reason(entry, settings)
+        reason = rating_out_reason(entry, settings, min_starts)
         if reason:
             if d.id == keep_driver_id:
                 item['inactive'] = True
@@ -1909,7 +1937,9 @@ def top_drivers_view(request):
     analytics_settings = AnalyticsSettings.get()
 
     # Пилоты с BT-рейтингом (чистый Bradley-Terry, без PageRank)
-    drivers = Driver.objects.exclude(rating_by_class={}).order_by('last_name')
+    drivers = list(Driver.objects.exclude(rating_by_class={}).order_by('last_name'))
+    min_starts = (class_min_starts(selected_class_id, drivers, analytics_settings)
+                  if selected_class_id else 0)
 
     result_drivers = []
 
@@ -1930,7 +1960,7 @@ def top_drivers_view(request):
             continue
 
         # Давно не выступал или мало стартов — не в таблице (rating_out_reason)
-        if rating_out_reason(bt_data, analytics_settings):
+        if rating_out_reason(bt_data, analytics_settings, min_starts):
             continue
 
         bt_score = bt_data.get('score', 0)
@@ -2801,7 +2831,8 @@ def home_top_drivers_api(request):
 
     _as = AnalyticsSettings.get()
 
-    all_drivers = Driver.objects.exclude(rating_by_class={}).exclude(rating_by_class__isnull=True)
+    all_drivers = list(Driver.objects.exclude(rating_by_class={}).exclude(rating_by_class__isnull=True))
+    min_starts = class_min_starts(class_id, all_drivers, _as)
     candidates = []
     for driver in all_drivers:
         rbc = driver.rating_by_class
@@ -2815,7 +2846,7 @@ def home_top_drivers_api(request):
             continue
 
         # Давно не выступал или мало стартов — не в таблице (rating_out_reason)
-        if rating_out_reason(bt_data, _as):
+        if rating_out_reason(bt_data, _as, min_starts):
             continue
 
         results = RaceResult.objects.filter(driver=driver, group__race_class_id=class_id)
