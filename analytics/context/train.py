@@ -100,7 +100,7 @@ def train_context_model_by_class(
                     if hasattr(race_date, 'date'):
                         race_date = race_date.date()
                     days = (today - race_date).days
-                    lam = settings.lambda_inactive if days > settings.inactive_threshold_days else settings.lambda_active
+                    lam = settings.lambda_active  # одна кривая для всех гонок (18.10.2026)
                     temporal_weight = math.exp(-lam * days / 365)
 
             for i, row_i in group.iterrows():

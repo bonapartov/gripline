@@ -154,8 +154,7 @@ class DataLoader:
                     if hasattr(race_date, 'date'):
                         race_date = race_date.date()
                     days = (today - race_date).days
-                    is_inactive = days > settings.inactive_threshold_days
-                    lam = settings.lambda_inactive if is_inactive else settings.lambda_active
+                    lam = settings.lambda_active  # одна кривая для всех гонок (18.10.2026)
                     temporal_weight = math.exp(-lam * days / 365)
 
             # Создаем все попарные сравнения
@@ -252,8 +251,7 @@ class DataLoader:
                     if hasattr(race_date, 'date'):
                         race_date = race_date.date()
                     days = (today - race_date).days
-                    is_inactive = days > settings.inactive_threshold_days
-                    lam = settings.lambda_inactive if is_inactive else settings.lambda_active
+                    lam = settings.lambda_active  # одна кривая для всех гонок (18.10.2026)
                     temporal_weight = math.exp(-lam * days / 365)
 
             # Создаем все попарные сравнения

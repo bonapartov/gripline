@@ -113,7 +113,7 @@ class Command(BaseCommand):
         self.stdout.write(f"  Модели: {model}")
         self.stdout.write(f"  alpha (БТ): {settings.bt_alpha}")
         self.stdout.write(f"  damping (PR): {settings.pagerank_damping}")
-        self.stdout.write(f"  lambda active/inactive: {settings.lambda_active}/{settings.lambda_inactive}")
+        self.stdout.write(f"  lambda: {settings.lambda_active}")
         self.stdout.write(f"  inactive threshold: {settings.inactive_threshold_days} дней")
 
         try:
@@ -495,8 +495,7 @@ class Command(BaseCommand):
                 if hasattr(race_date, 'date'):
                     race_date = race_date.date()
                 days = (today - race_date).days
-                is_inactive = days > settings.inactive_threshold_days
-                lam = settings.lambda_inactive if is_inactive else settings.lambda_active
+                lam = settings.lambda_active  # одна кривая для всех гонок (18.10.2026)
                 temporal_weight = math.exp(-lam * days / 365)
 
             # Реальные парные сравнения между участниками

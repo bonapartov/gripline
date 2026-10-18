@@ -150,7 +150,7 @@ class AnalyticsSettingsAdmin(ModelAdmin):
     menu_icon = 'cog'
     list_display = (
         'lambda_active',
-        'lambda_inactive',
+        'bayes_c',
         'inactive_threshold_days',
         'bt_alpha',
         'pagerank_damping',

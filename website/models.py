@@ -2103,24 +2103,32 @@ class AnalyticsSettings(models.Model):
         default=0.8,
         verbose_name="λ активного пилота",
         help_text=(
-            "Скорость затухания для пилотов с недавними гонками. "
+            "Скорость затухания веса гонки со временем (одна для всех гонок). "
             "Полураспад = ln(2)/λ лет. Рекомендуется 0.5–1.2."
         ),
     )
+    # С 18.10.2026 не используется: одна плавная кривая затухания (lambda_active)
+    # для всех гонок, без скачка веса на пороге неактивности. Поле оставлено в БД.
     lambda_inactive = models.FloatField(
         default=2.0,
-        verbose_name="λ неактивного пилота",
-        help_text=(
-            "Скорость затухания для пилотов без гонок дольше порога. "
-            "Должен быть выше lambda_active. Рекомендуется 1.5–3.0."
-        ),
+        editable=False,
+        verbose_name="λ неактивного пилота (не используется)",
     )
     inactive_threshold_days = models.IntegerField(
         default=180,
         verbose_name="Порог неактивности (дней)",
         help_text=(
-            "Количество дней без гонок в классе, после которого применяется "
-            "lambda_inactive. Один летний сезон ≈ 180 дней."
+            "Пилот, не выступавший в классе дольше этого срока, не показывается "
+            "в таблице рейтинга (на его странице — «вне рейтинга»)."
+        ),
+    )
+    bayes_c = models.FloatField(
+        default=4.0,
+        verbose_name="Вес сглаживания (C)",
+        help_text=(
+            "Байесовское сглаживание: (N × BT + C × медиана) / (N + C). При N = C стартов "
+            "пилот получает 50% доверия к своим результатам. Обычно пилот проводит в классе "
+            "3–9 этапов, поэтому C ≈ 4. Действует сразу, пересчёт не нужен."
         ),
     )
 
@@ -2199,7 +2207,7 @@ class AnalyticsSettings(models.Model):
 
     def __str__(self):
         return (
-            f"AnalyticsSettings (λ={self.lambda_active}/{self.lambda_inactive}, "
+            f"AnalyticsSettings (λ={self.lambda_active}, C={self.bayes_c}, "
             f"inactive={self.inactive_threshold_days}d)"
         )
 
@@ -3707,7 +3715,7 @@ class HomePage(TransliteratedSlugMixin, CoderedWebPage):
 
             if candidates:
                 mu = _stats.median(d._bt_score for d in candidates)
-                C = 15
+                C = _as.bayes_c
                 for d in candidates:
                     d._smoothed = (d._starts * d._bt_score + C * mu) / (d._starts + C)
                 candidates.sort(key=lambda x: x._smoothed, reverse=True)

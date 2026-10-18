@@ -15,7 +15,7 @@ from .models import EventOccurrence
 from django.db import models
 from django.utils import timezone
 import zoneinfo
-from .models import AnalyticsMetadata
+from .models import AnalyticsMetadata, AnalyticsSettings
 from datetime import timedelta
 from django.db.models import Max
 from .models import TeamStaff, TeamStaffMembership
@@ -1209,7 +1209,7 @@ def _rating_inactive(entry, threshold_days):
 
 def _class_ranking_entries(class_id, all_drivers, keep_driver_id=None):
     """Полный отсортированный рейтинг пилотов в классе — Байесовское сглаживание
-    (C=15, та же формула, что и top_drivers_view). Используется и
+    (C из AnalyticsSettings.bayes_c, та же формула, что и top_drivers_view). Используется и
     _get_driver_class_ratings (место/соседи/немезис текущего пилота), и
     _nearby_class_rivals (вкладка «Соперники»).
 
@@ -1223,7 +1223,7 @@ def _class_ranking_entries(class_id, all_drivers, keep_driver_id=None):
     import json, statistics as _stats
     from .models import AnalyticsSettings
 
-    C = 15
+    C = AnalyticsSettings.get().bayes_c
     class_id_str = str(class_id)
     threshold = AnalyticsSettings.get().inactive_threshold_days
 
@@ -1465,7 +1465,7 @@ def _get_driver_class_ratings(driver):
     """
     Returns per-class rating context for a driver profile page:
     rank, total, normalized BT score (0-100), form trend, gaps to neighbours.
-    Uses same Bayesian smoothing (C=15) as top_drivers_view.
+    Uses same Bayesian smoothing (AnalyticsSettings.bayes_c) as top_drivers_view.
     """
     import json, statistics as _stats
     from datetime import datetime, timezone as dt_timezone
@@ -1956,10 +1956,10 @@ def top_drivers_view(request):
             "feedback_source": ("rating", selected_class_id),
         })
 
-    # Байесовское сглаживание: тянем новичков к медиане класса (C=15)
+    # Байесовское сглаживание: тянем новичков к медиане класса (C — AnalyticsSettings.bayes_c)
     raw_scores = [d.bt_score for d in result_drivers]
     mu = statistics.median(raw_scores)
-    C = 15
+    C = AnalyticsSettings.get().bayes_c
 
     for driver in result_drivers:
         n = driver.starts_in_class
@@ -2309,7 +2309,7 @@ def get_driver_stats(driver, class_id=None, all_drivers=None, other_driver=None)
     # === НОРМИРОВАННЫЙ РЕЙТИНГ (байесовский BT, класс с наибольшим числом стартов) ===
     normalized_rating = 0
     import json as _json, statistics as _stats
-    C = 15
+    C = AnalyticsSettings.get().bayes_c
     rbc = driver.rating_by_class or {}
     if isinstance(rbc, str):
         try: rbc = _json.loads(rbc)
@@ -2840,7 +2840,7 @@ def home_top_drivers_api(request):
         return JsonResponse({'drivers': []})
 
     mu = _stats.median(d._bt_score for d in candidates)
-    C = 15
+    C = AnalyticsSettings.get().bayes_c
     for d in candidates:
         d._smoothed = (d._starts * d._bt_score + C * mu) / (d._starts + C)
     candidates.sort(key=lambda x: x._smoothed, reverse=True)
@@ -2896,7 +2896,7 @@ def team_ratings_view(request):
             global_class_bt.setdefault(class_id_str, []).append(bt)
 
     # Байесовское сглаживание и нормализация 0-100 на уровне класса
-    C = 15
+    C = AnalyticsSettings.get().bayes_c
 
     def normalized_bt(class_id_str, bt_score, starts):
         entries = global_class_bt.get(class_id_str, [])
@@ -3471,7 +3471,7 @@ def rating_stats_api(request):
         'last_update': last_update_str,
         'settings': {
             'lambda_active': settings.lambda_active,
-            'lambda_inactive': settings.lambda_inactive,
+            'bayes_c': f'{settings.bayes_c:g}',
             'inactive_threshold_days': settings.inactive_threshold_days,
             'min_starts_display': settings.min_starts_display,
             'bt_alpha': settings.bt_alpha,
