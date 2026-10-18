@@ -3527,6 +3527,7 @@ def rating_stats_api(request):
         'settings': {
             'lambda_active': settings.lambda_active,
             'bayes_c': f'{settings.bayes_c:g}',
+            'class_transfer_weight': f'{settings.class_transfer_weight * 100:g}',
             'inactive_threshold_days': settings.inactive_threshold_days,
             'min_starts_display': settings.min_starts_display,
             'bt_alpha': settings.bt_alpha,
