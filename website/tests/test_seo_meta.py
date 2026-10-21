@@ -56,3 +56,23 @@ def test_meta_template_escapes_quotes():
     t = Team.objects.create(name='Команда "X"')
     html = render_to_string("includes/seo_meta.html", {"seo": team_seo(t, None)})
     assert 'content="Команда &quot;X&quot;' in html
+
+
+
+def test_sitemap_skips_drivers_without_results():
+    from website.sitemaps import DriverSitemap
+
+    Driver.objects.create(first_name="Пустой", last_name="Профиль", slug="empty")
+    assert list(DriverSitemap().items()) == []
+
+
+def test_sitemap_teams_with_roster_or_results_only():
+    from website.models import TeamMembership
+    from website.sitemaps import TeamSitemap
+
+    driver = Driver.objects.create(first_name="Гонщик", last_name="Команды", slug="team-driver")
+    team = Team.objects.create(name="Команда с составом")
+    Team.objects.create(name="Пустая команда")
+    Team.objects.create(name="Черновик", live=False)
+    TeamMembership.objects.create(driver=driver, team=team, is_active=True)
+    assert [t.name for t in TeamSitemap().items()] == ["Команда с составом"]

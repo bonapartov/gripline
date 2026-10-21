@@ -6,6 +6,9 @@ from django.conf.urls.static import static
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import views as auth_views
 from accounts.views import VerifyingPasswordResetConfirmView
+from wagtail.contrib.sitemaps import Sitemap as WagtailPagesSitemap
+from wagtail.contrib.sitemaps.views import sitemap as wagtail_sitemap_view
+from website.sitemaps import DriverSitemap, TeamSitemap
 from website.models import Driver, Chassis, RaceResult, Track
 from website.views import staff_detail_view, staff_api
 from website.views import rating_stats_api
@@ -84,6 +87,12 @@ urlpatterns = [
         success_url=reverse_lazy('accounts:profile'),
     ), name='password_reset_confirm'),
     path('accounts/password-reset/complete/', auth_views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
+
+    # Перехватываем sitemap.xml ДО coderedcms.urls: там тот же путь без параметра sitemaps=,
+    # и в карту попадают только Wagtail-страницы. Пилоты и команды — Django-модели.
+    path("sitemap.xml", wagtail_sitemap_view, {
+        "sitemaps": {"pages": WagtailPagesSitemap, "drivers": DriverSitemap, "teams": TeamSitemap},
+    }, name="sitemap"),
 
     path("", include("coderedcms.urls")),  # Wagtail в самом конце
 ]
