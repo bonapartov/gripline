@@ -106,3 +106,20 @@ def test_track_title_skips_city_already_in_name():
         "5 соревнований на трассе, рекорды круга в 3 классах."
     )
     assert seo["og_type"] == "place"
+
+
+def test_empty_twitter_site_not_rendered():
+    """Без аккаунта в «Настройки → SEO» wagtail-seo выводил twitter:site content="@"."""
+    from django.template.loader import get_template
+
+    src = get_template("wagtailseo/meta.html").template.source
+    assert "{% if settings.wagtailseo.SeoSettings.twitter_site %}" in src
+
+
+def test_with_championship_not_repeated():
+    from types import SimpleNamespace
+    from website.seo_meta import _with_championship
+
+    champ = SimpleNamespace(title="Зимний кубок")
+    assert _with_championship("1 этап", champ) == "1 этап, Зимний кубок"
+    assert _with_championship("1 этап Зимний кубок", champ) == "1 этап Зимний кубок"

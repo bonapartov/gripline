@@ -178,3 +178,84 @@ def track_seo(track, site, *, events_count=0, record_classes=0, next_event=None)
                                         if record_classes else "") + ".")
     return _meta(site, title, " ".join(parts), track.get_absolute_url(),
                  _absolute_image_url(site, track.photo), "place")
+
+
+# --- Описания Wagtail-страниц соревнований (21.10.2026) ---------------------------
+# Ручное «Описание для поиска» из админки (вкладка «Продвижение») всегда главнее:
+# эти функции вызываются из seo_description моделей, только если оно пустое.
+
+def _date(dt):
+    return f"{dt:%d.%m.%Y}" if dt else ""
+
+
+def _with_championship(title, championship):
+    """«1 этап» → «1 этап, Зимний кубок …» — если чемпионат ещё не назван в заголовке."""
+    if championship and championship.title.lower() not in title.lower():
+        return f"{title}, {championship.title}"
+    return title
+
+
+def event_page_description(page):
+    """EventPage — класс на этапе: таблица результатов и хронометраж."""
+    from website.models import RaceResult
+
+    occurrence = page.occurrences.first()
+    groups = list(page.race_class_groups.select_related("race_class"))
+    title = page.title
+    # Часто заголовок — просто «1 этап»: без класса описание у всех классов этапа одинаковое
+    names = list(dict.fromkeys(g.race_class.name for g in groups if g.race_class.name.lower() not in title.lower()))
+    if names:
+        title += ", " + ", ".join(names)
+    lead = _with_championship(title, page.get_championship())
+    place = ", ".join(x for x in (
+        _date(occurrence.start if occurrence else None),
+        f"трасса {page.track.name}" if page.track else "",
+    ) if x)
+    parts = [lead + (f": {place}." if place else ".")]
+
+    results = RaceResult.objects.filter(group__page=page)
+    count = results.values("driver_id").distinct().count()
+    if count:
+        line = f"Результаты: {_plural(count, 'пилот', 'пилота', 'пилотов')}"
+        if len(groups) == 1:
+            winner = groups[0].sorted_results().select_related("driver").first()
+            if winner and winner.driver:
+                line += f", победитель — {winner.driver.full_name}"
+        parts.append(line + ".")
+    return " ".join(parts)
+
+
+def stage_page_description(page):
+    """StagePage — хаб этапа: даты, трасса, классы."""
+    lead = _with_championship(page.title, page.get_parent().specific)
+    when = _date(page.start_date)
+    if page.end_date and page.start_date and page.end_date.date() != page.start_date.date():
+        when = f"{page.start_date:%d.%m}–{page.end_date:%d.%m.%Y}"
+    place = ", ".join(x for x in (when, f"трасса {page.track.name}" if page.track else "") if x)
+    parts = [lead + (f": {place}." if place else ".")]
+    classes = page.get_classes_with_results()
+    if classes:
+        parts.append("Классы: " + ", ".join(classes) + ".")
+    return " ".join(parts)
+
+
+def championship_page_description(page):
+    from website.models import RaceClass, StagePage
+
+    stages = StagePage.objects.child_of(page).live()
+    parts = [f"{page.title} — соревнования по картингу."]
+    if stages.exists():
+        tracks = list(dict.fromkeys(s.track.name for s in stages.select_related("track") if s.track))
+        line = _plural(stages.count(), "этап", "этапа", "этапов")
+        if tracks:
+            line += ", " + ("трасса " if len(tracks) == 1 else "трассы: ") + ", ".join(tracks)
+        parts.append(line + ".")
+    # Порядок — по регламенту (RaceClass.Meta.ordering)
+    class_names = list(RaceClass.objects.filter(
+        raceclassresultgroup__page__path__startswith=page.path,
+        raceclassresultgroup__class_results__isnull=False,
+    ).distinct().values_list("name", flat=True))
+    if class_names:
+        parts.append("Классы: " + ", ".join(class_names) + ".")
+        parts.append("Турнирные таблицы и результаты этапов.")
+    return " ".join(parts)

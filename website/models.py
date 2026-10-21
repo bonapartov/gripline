@@ -378,6 +378,12 @@ class EventPage(TransliteratedSlugMixin, CoderedEventPage):
         """Используем admin_title в админке, если он есть"""
         return self.admin_title or self.title
 
+    @property
+    def seo_description(self) -> str:
+        # Пустое «Описание для поиска» — из данных этапа, а не текст меню в сниппете
+        from website.seo_meta import event_page_description
+        return super().seo_description or event_page_description(self)
+
     def get_championship(self):
         """Ближайший ChampionshipPage: родитель напрямую либо родитель StagePage-родителя."""
         parent = self.get_parent().specific
@@ -495,6 +501,11 @@ class ChampionshipPage(TransliteratedSlugMixin, CoderedWebPage):
     ]
 
     promote_panels = CoderedWebPage.promote_panels  # Без изменений
+
+    @property
+    def seo_description(self) -> str:
+        from website.seo_meta import championship_page_description
+        return super().seo_description or championship_page_description(self)
 
     def get_years(self):
         """
@@ -3880,6 +3891,11 @@ class StagePage(TransliteratedSlugMixin, CoderedWebPage):
     def seo_struct_event_json(self):
         from website.schema import render_json_ld
         return render_json_ld(self.seo_struct_event_dict)
+
+    @property
+    def seo_description(self) -> str:
+        from website.seo_meta import stage_page_description
+        return super().seo_description or stage_page_description(self)
 
     def get_child_classes(self):
         """
