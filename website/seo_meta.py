@@ -32,12 +32,13 @@ def _default_image_url(site):
     return _absolute_image_url(site, SeoSettings.for_site(site).og_image_default)
 
 
-def _meta(site, title, description, path, image):
+def _meta(site, title, description, path, image, og_type="profile"):
     return {
         "title": title,
         "description": description,
         "canonical": _absolute_url(site, path),
         "image": image or _default_image_url(site),
+        "og_type": og_type,
     }
 
 
@@ -125,3 +126,55 @@ def team_seo(team, site, *, classes=(), drivers_count=0, team_stats=None):
         site, title, " ".join(parts), team.get_absolute_url(),
         _absolute_image_url(site, team.logo),
     )
+
+
+def rating_seo(site, *, race_class=None, drivers_count=0, leader=None, is_default=False):
+    """Рейтинг /top/drivers/: у каждого класса свой адрес (?class=ID) — свой заголовок.
+    is_default — класс, открывающийся без параметра: canonical на /top/drivers/, без дубля."""
+    path = "/top/drivers/"
+    if race_class and not is_default:
+        path += f"?class={race_class.id}"
+    if not race_class:
+        return _meta(site, f"Рейтинг пилотов картинга | {BRAND}",
+                     "Рейтинг пилотов картинга по результатам соревнований.", path, None, "website")
+
+    title = f"Рейтинг пилотов картинга — {race_class.name} | {BRAND}"
+    parts = [f"Рейтинг пилотов картинга в классе {race_class.name} по результатам соревнований."]
+    if drivers_count:
+        parts.append(f"В таблице {_plural(drivers_count, 'пилот', 'пилота', 'пилотов')}"
+                     + (f", лидер — {leader.full_name}." if leader else "."))
+    parts.append("Места, победы, подиумы и форма; модель Bradley-Terry.")
+    return _meta(site, title, " ".join(parts), path, None, "website")
+
+
+def track_seo(track, site, *, events_count=0, record_classes=0, next_event=None):
+    """next_event — ближайшее предстоящее соревнование (dict из track_detail_view)."""
+    title = f"{track.name} — картинг-трасса"
+    if track.city and track.city.lower() not in track.name.lower():
+        title += f", {track.city}"
+    title += f" | {BRAND}"
+
+    lead = f"Картинг-трасса «{track.name}»"
+    place = ", ".join(x for x in (track.city, track.address) if x)
+    if place:
+        lead += f": {place}"
+    parts = [lead + "."]
+    if next_event:
+        # У этапа часто безликое название («1 этап») — с чемпионатом
+        name = next_event["title"]
+        champ = ""
+        parent = next_event.get("championship")  # фактически родитель этапа — обычно StagePage
+        if parent is not None:
+            from website.models import ChampionshipPage
+
+            found = ChampionshipPage.objects.ancestor_of(parent, inclusive=True).first()
+            champ = found.title if found else ""
+        if champ and champ.lower() not in name.lower():
+            name = f"{champ}, {name}"
+        parts.append(f"Ближайшее соревнование — {name}, {next_event['start']:%d.%m.%Y}.")
+    if events_count:
+        parts.append(_plural(events_count, "соревнование", "соревнования", "соревнований")
+                     + " на трассе" + (f", рекорды круга в {_plural(record_classes, 'классе', 'классах', 'классах')}"
+                                        if record_classes else "") + ".")
+    return _meta(site, title, " ".join(parts), track.get_absolute_url(),
+                 _absolute_image_url(site, track.photo), "place")

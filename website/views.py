@@ -784,7 +784,15 @@ def track_detail_view(request, slug):
         {"name": track.name, "url": _absolute_url(current_site, track.get_absolute_url())},
     ]
 
+    from website.seo_meta import track_seo
+
     return render(request, "coderedcms/snippets/track_page.html", {
+        "seo": track_seo(
+            track, current_site,
+            events_count=len(past_events) + len(upcoming_events),
+            record_classes=len(track_records),
+            next_event=upcoming_events[0] if upcoming_events else None,
+        ),
         "track": track,
         "object": track,
         "page": track,
@@ -2042,8 +2050,15 @@ def top_drivers_view(request):
 
         result_drivers.append(driver)
 
+    from website.seo_meta import rating_seo
+
+    selected_class = next((c for c in classes if c.id == selected_class_id), None)
+    is_default_class = bool(classes) and selected_class_id == classes[0].id
+
     if not result_drivers:
         return render(request, "coderedcms/snippets/top_drivers_page.html", {
+            "seo": rating_seo(current_site, race_class=selected_class, is_default=is_default_class),
+            "selected_class": selected_class,
             "drivers": [],
             "classes": classes,
             "selected_class_id": selected_class_id,
@@ -2076,6 +2091,9 @@ def top_drivers_view(request):
         driver.form_trend = _compute_form_trend(driver.id, selected_class_id)
 
     return render(request, "coderedcms/snippets/top_drivers_page.html", {
+        "seo": rating_seo(current_site, race_class=selected_class, drivers_count=len(result_drivers),
+                          leader=result_drivers[0], is_default=is_default_class),
+        "selected_class": selected_class,
         "drivers": result_drivers,
         "classes": classes,
         "selected_class_id": selected_class_id,

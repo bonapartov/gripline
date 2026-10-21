@@ -76,3 +76,33 @@ def test_sitemap_teams_with_roster_or_results_only():
     Team.objects.create(name="Черновик", live=False)
     TeamMembership.objects.create(driver=driver, team=team, is_active=True)
     assert [t.name for t in TeamSitemap().items()] == ["Команда с составом"]
+
+
+def test_rating_title_per_class_and_canonical():
+    from website.models import RaceClass
+    from website.seo_meta import rating_seo
+
+    rc = RaceClass.objects.create(name="RM Mini")
+    leader = Driver(first_name="Михаил", last_name="Твердохлебов")
+    seo = rating_seo(None, race_class=rc, drivers_count=32, leader=leader)
+    assert seo["title"] == "Рейтинг пилотов картинга — RM Mini | Gripline"
+    assert "В таблице 32 пилота, лидер — Михаил Твердохлебов." in seo["description"]
+    assert seo["canonical"] == f"/top/drivers/?class={rc.id}"
+    # Класс, открывающийся без параметра, — без дубля адреса
+    assert rating_seo(None, race_class=rc, is_default=True)["canonical"] == "/top/drivers/"
+
+
+def test_track_title_skips_city_already_in_name():
+    from datetime import datetime
+    from website.models import Track
+    from website.seo_meta import track_seo
+
+    t = Track.objects.create(name="Картодром Тула", slug="tula", city="Тула", address="ул. Мира, 1")
+    seo = track_seo(t, None, events_count=5, record_classes=3,
+                    next_event={"title": "Кубок Тулы", "start": datetime(2026, 11, 7)})
+    assert seo["title"] == "Картодром Тула — картинг-трасса | Gripline"
+    assert seo["description"] == (
+        "Картинг-трасса «Картодром Тула»: Тула, ул. Мира, 1. Ближайшее соревнование — Кубок Тулы, 07.11.2026. "
+        "5 соревнований на трассе, рекорды круга в 3 классах."
+    )
+    assert seo["og_type"] == "place"
