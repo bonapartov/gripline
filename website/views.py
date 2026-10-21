@@ -401,6 +401,17 @@ def driver_detail_view(request, slug):
         {"name": driver.full_name, "url": _absolute_url(current_site, driver.get_absolute_url())},
     ]
 
+    # Текущий класс — класс самой свежей по дате гонки (results отсортированы по дате убыв.)
+    from website.seo_meta import driver_seo
+    seo_class = history_data[0]['class_name'] if history_data else None
+    driver_seo_meta = driver_seo(
+        driver, current_site,
+        current_class=seo_class,
+        current_team=current_team,
+        total_starts=total_starts, wins=wins, podiums=podiums, titles_count=titles_count,
+        class_rating=next((cr for cr in class_ratings if cr['class_name'] == seo_class), None),
+    )
+
     return render(request, "coderedcms/snippets/driver_page.html", {
         "driver": driver,
         "object": driver,
@@ -444,6 +455,7 @@ def driver_detail_view(request, slug):
         "can_view_mediakit": can_view_mediakit,
         "schema_json_ld": driver_schema_json_ld,
         "breadcrumb_items": driver_breadcrumb_items,
+        "seo": driver_seo_meta,
     })
 
 def _compute_driver_current_teams():
@@ -643,6 +655,7 @@ def team_detail_view(request, slug):
         join_status = 'no_auth'
 
     from website.schema import team_sportsteam_dict, render_json_ld, _absolute_url
+    from website.seo_meta import team_seo
 
     team_schema_json_ld = render_json_ld(
         team_sportsteam_dict(team, current_site, members=team_drivers)
@@ -670,6 +683,12 @@ def team_detail_view(request, slug):
         "can_view_team_mediakit": can_view_team_mediakit,
         "schema_json_ld": team_schema_json_ld,
         "breadcrumb_items": team_breadcrumb_items,
+        "seo": team_seo(
+            team, current_site,
+            classes=list(sorted_driver_classes),
+            drivers_count=len(team_drivers),
+            team_stats=team_stats,
+        ),
     })
 
 def track_detail_view(request, slug):

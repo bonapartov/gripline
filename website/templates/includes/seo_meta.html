@@ -1,0 +1,17 @@
+{% comment %}
+Метатеги страниц без Wagtail Page (пилот, команда): wagtailseo/meta.html для них ничего
+не выводит. Контекст `seo` собирает website/seo_meta.py.
+{% endcomment %}
+<title>{{ seo.title }}</title>
+<link rel="canonical" href="{{ seo.canonical }}">
+<meta name="description" content="{{ seo.description }}">
+<meta property="og:title" content="{{ seo.title }}">
+<meta property="og:description" content="{{ seo.description }}">
+<meta property="og:url" content="{{ seo.canonical }}">
+<meta property="og:type" content="profile">
+<meta property="og:site_name" content="Gripline">
+{% if seo.image %}<meta property="og:image" content="{{ seo.image }}">{% endif %}
+<meta name="twitter:card" content="{% if seo.image %}summary_large_image{% else %}summary{% endif %}">
+<meta name="twitter:title" content="{{ seo.title }}">
+<meta name="twitter:description" content="{{ seo.description }}">
+{% if seo.image %}<meta name="twitter:image" content="{{ seo.image }}">{% endif %}

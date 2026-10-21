@@ -30,6 +30,7 @@ CLS 0,4 (страница рисовалась без сетки и иконок
 {% endblock %}
 
 {% block custom_assets %}
+{% if seo %}{% include "includes/seo_meta.html" %}{% endif %}
 <meta name="google-site-verification" content="YNdq9iQBhN1R10JnDT4tk9ktX0vJDqqhTPrMTeFgbic" />
 {# Токены дизайн-системы Gripline — всегда первым, до custom.css #}
 <link rel="stylesheet" href="{% static 'website/css/tokens.css' %}">

@@ -865,6 +865,10 @@ apt-get update && apt-get install -y libpango-1.0-0 libpangoft2-1.0-0
 
 ---
 
+## title/description страниц пилота и команды (21.10.2026)
+
+`wagtailseo/meta.html` выводит `<title>`, description, canonical и OG только для Wagtail Page (`self.seo_pagetitle`). У пилота и команды (Django-модели) `<head>` был пустой: Яндекс показывал вместо заголовка URL, в сниппете — текст меню. Теперь вьюха кладёт в контекст `seo` (`website/seo_meta.py::driver_seo`/`team_seo`), `base.html` выводит его инклюдом `includes/seo_meta.html`. Схема по справкам Яндекса/Google: title = имя + одно уточнение (текущий класс у пилота — класс самой свежей гонки; город у команды; у однофамильцев пилота — ещё город) + « | Gripline», **без перечислений** («рейтинг, результаты, фото» — Яндекс прямо называет это плохим шаблоном); цифры (старты/победы/подиумы/титулы, место в рейтинге — только если пилот в таблице) — в description. Имя пилота в шапке — `<h1>`. Другие страницы без Wagtail Page (`/top/drivers/`, `/compare/`, `/compare-drivers/`, трассы, шасси, двигатели) пока без title — подключаются так же: dict `seo` в контекст. Тесты: `website/tests/test_seo_meta.py`.
+
 ## Правовые страницы и форма обращения по ПД (реализовано 2026-10-05)
 
 - **Страницы** `/legal/` (оглавление), `/legal/privacy/` (Политика обработки ПД), `/legal/terms/` (Пользовательское соглашение) — `WebPage` с html-блоком. Тексты лежат в `website/legal_pages/*.html` с плейсхолдерами `{{OPERATOR}}`/`{{TG}}`/`{{DATE}}`; ФИО оператора и Telegram в репозитории не хранятся, подставляются при запуске: `python manage.py create_legal_pages --operator "…" --tg "@…" --publish` (идемпотентно; без `--publish` — черновики). Команда же ставит редирект `/privacy-policy/` → `/legal/privacy/`. Текст правится в `website/legal_pages/`, затем команду нужно запустить на проде заново (в БД лежит копия).

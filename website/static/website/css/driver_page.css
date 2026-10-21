@@ -52,7 +52,7 @@ html { scroll-behavior: smooth; }
     color: var(--gl-fg-muted);
 }
 .glv2-avatar-sm img { width: 100%; height: 100%; object-fit: cover; }
-.glv2-name-sm { font-weight: var(--gl-weight-bold); color: var(--gl-fg-1); font-size: 1.05rem; }
+.glv2-name-sm { font-weight: var(--gl-weight-bold); color: var(--gl-fg-1); font-size: 1.05rem; margin: 0; line-height: inherit; } /* h1 — сброс отступов Bootstrap */
 .glv2-pill {
     display: inline-flex; align-items: center; padding: 0.25rem 0.65rem;
     border-radius: var(--gl-radius-pill); font-size: 0.78rem; font-weight: var(--gl-weight-semibold);
