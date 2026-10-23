@@ -17,7 +17,7 @@
     { name: 'S3', color: '#28a745', on: '#ffffff', hex: 0x28a745 }
   ];
 
-  var MAX_SECTOR_KMH = 160;
+  var MAX_SECTOR_KMH = 120;
 
   function fmt(t) {
     var m = Math.floor(t / 60), r = (t - m * 60).toFixed(3);
