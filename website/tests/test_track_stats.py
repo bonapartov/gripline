@@ -225,3 +225,37 @@ def test_reference_is_private(client, track, tmp_path, monkeypatch):
     assert client.get(f'/admin/track-scheme/{track.pk}/reference/').status_code in (302, 403)
     with pytest.raises(ValueError):
         Track.objects.get(pk=track.pk).scheme_reference.url
+
+
+def test_implausible_sector_is_dropped():
+    """Лемар, финал 7 этапа: S3 = 3.000 при круге 55.371 — ошибка импорта, секторы сессии не берём."""
+    assert st.plausible_sectors(55371, [None, None, 3000]) == [None, None, None]
+    assert st.plausible_sectors(55677, [18679, 21660, 15338]) == [18679, 21660, 15338]
+    assert st.plausible_sectors(55000, [18000, 20000, 10000]) == [None, None, None]  # сумма 48 с из 55
+    assert st.plausible_sectors(None, [1, 2, 3]) == [1, 2, 3]
+
+
+def test_class_with_ideal_far_below_record_has_no_sectors():
+    # рекорд 60.000 — с круга без секторов; секторы другой сессии в сумме 50.000 (83 % рекорда)
+    rows = [row(1, 1, D1, qual=(60000, None, None, None)),
+            row(2, 1, D1, qual=(64000, 17000, 17000, 16000))]
+    c = st.class_data(rows, [2025])
+    assert not c['has_sectors']
+
+
+@pytest.mark.django_db
+def test_load_rows_drops_bad_import_sector(track):
+    RaceResult.objects.filter(qual_best_lap_ms=62000).update(best_lap_ms=61900, best_s3_ms=3000)
+    rows = st.load_rows(track)
+    r = next(x for x in rows if x['sessions']['qual']['lap'] == 62000)
+    assert r['sessions']['final']['sec'] == [None, None, None]
+    kz = next(c for c in st.build_track_classes(rows) if c['name'] == 'KZ2')
+    assert kz['sectors'][2]['ms'] == 20900
+
+
+def test_sector_far_from_class_median_is_dropped():
+    """Лемар, RM Mini: S3 = 10.000 при обычных 14.6–14.8 — в доли круга укладывается, но выпадает из медианы."""
+    rows = [row(i, 1, D1, qual=(53500 + i * 50, 18000 + i * 10, 20800, 14700)) for i in range(5)]
+    rows.append(row(9, 1, D1, final=(53420, 17959, 20751, 10000)))
+    c = st.class_data(rows, [2025])
+    assert c['has_sectors'] and c['sectors'][2]['ms'] == 14700

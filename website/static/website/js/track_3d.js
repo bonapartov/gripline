@@ -17,6 +17,8 @@
     { name: 'S3', color: '#28a745', on: '#ffffff', hex: 0x28a745 }
   ];
 
+  var MAX_SECTOR_KMH = 160;
+
   function fmt(t) {
     var m = Math.floor(t / 60), r = (t - m * 60).toFixed(3);
     if (r.length < 6) r = '0' + r;
@@ -369,7 +371,16 @@
       setClass: function (c) {
         if (cls === c) return;
         cls = c; t = 0; hold = 0; trN = 0; dirty = true;
-        if (c && c.sectors_ms && c.record_ms) {
+        // средняя скорость сектора = длина сектора по схеме / его время; больше MAX_SECTOR_KMH — время секторов
+        // не сходится со схемой (ошибка в протоколе или граница сектора не там) — метку не пускаем
+        var shares = [b1 / N, (b2 - b1) / N, (N - b2) / N];
+        var plausible = !!(c && c.sectors_ms && c.record_ms) && c.sectors_ms.every(function (ms, k) {
+          return LENGTH_M * shares[k] / (ms / 1000) * 3.6 <= MAX_SECTOR_KMH;
+        });
+        q$('.gl-tr-v3d-nosec span').textContent = c && c.sectors_ms && !plausible
+          ? 'Время секторов не сходится со схемой трассы — метка не едет.'
+          : 'Нет данных по секторам для этого класса — метка не едет.';
+        if (plausible) {
           var sec = c.sectors_ms.map(function (x) { return x / 1000; }), rcd = c.record_ms / 1000;
           var ideal = sec[0] + sec[1] + sec[2];
           // время секторов рекордного круга = лучшие секторы × (рекорд / идеальный круг)

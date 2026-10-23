@@ -21,6 +21,27 @@ SESSIONS = (
 SESSION_LABELS = {key: label for key, label, *_ in SESSIONS}
 LEADERS_LIMIT = 5
 
+# Правдоподобие секторов (ошибки импорта протоколов: на Лемаре в финале 7 этапа S3 = 3.000 при круге 55 с,
+# в 3D метка разгонялась до ~470 км/ч). Сектор — от 10 до 80 % круга сессии; сумма трёх лучших — не быстрее
+# 90 % и не медленнее 102 % лучшего круга (лучшие секторы могут быть с разных кругов — сумма чуть меньше круга).
+SECTOR_MIN_SHARE, SECTOR_MAX_SHARE = 0.10, 0.80
+SECTOR_SUM_MIN, SECTOR_SUM_MAX = 0.90, 1.02
+# Идеальный круг класса заметно быстрее рекорда — данные секторов противоречат кругам, секторов «нет»
+IDEAL_MIN_SHARE = 0.93
+# Сектор сильно не похож на тот же сектор у остальных пилотов класса на трассе (S3 = 10.000 при медиане 14.7)
+SECTOR_VS_MEDIAN_MIN, SECTOR_VS_MEDIAN_MAX = 0.80, 1.50
+
+
+def plausible_sectors(lap, sec):
+    """Секторы сессии без явных ошибок; иначе [None, None, None]. Без времени круга проверить нечем — как есть."""
+    if not lap or not any(sec):
+        return sec
+    if any(v and not SECTOR_MIN_SHARE * lap <= v <= SECTOR_MAX_SHARE * lap for v in sec):
+        return [None, None, None]
+    if all(sec) and not SECTOR_SUM_MIN * lap <= sum(sec) <= SECTOR_SUM_MAX * lap:
+        return [None, None, None]
+    return sec
+
 
 def load_rows(track):
     """Строки результатов этой трассы (только опубликованные этапы) в виде простых dict."""
@@ -42,9 +63,10 @@ def load_rows(track):
             # Дисквалификация в сессии — её круг и секторы в рекорды не идут
             if getattr(r, status_f) == 'DQ':
                 continue
+            lap = getattr(r, lap_f) or None
             sessions[key] = {
-                'lap': getattr(r, lap_f) or None,
-                'sec': [getattr(r, f) or None for f in sec_f],
+                'lap': lap,
+                'sec': plausible_sectors(lap, [getattr(r, f) or None for f in sec_f]),
             }
         rc = r.group.race_class
         rows.append({
@@ -178,10 +200,30 @@ def record_history(rows):
     return list(reversed(hist))
 
 
+def drop_outlier_sectors(rows):
+    """Копия строк класса без секторов сессий, где хоть один сектор выпадает из медианы класса."""
+    medians = []
+    for k in range(3):
+        vals = [s['sec'][k] for r in rows for s in r['sessions'].values() if s['sec'][k]]
+        medians.append(statistics.median(vals) if vals else None)
+    out = []
+    for r in rows:
+        sessions = {}
+        for key, s in r['sessions'].items():
+            bad = any(v and medians[k] and not SECTOR_VS_MEDIAN_MIN * medians[k] <= v <= SECTOR_VS_MEDIAN_MAX * medians[k]
+                      for k, v in enumerate(s['sec']))
+            sessions[key] = {**s, 'sec': [None, None, None] if bad else s['sec']}
+        out.append({**r, 'sessions': sessions})
+    return out
+
+
 def class_data(rows, years):
+    rows = drop_outlier_sectors(rows)
     rec = best_lap(rows)
     sectors = best_sectors(rows)
     sectors_ok = has_full_sectors(rows) and all(sectors)
+    if sectors_ok and rec and sum(x['ms'] for x in sectors) < IDEAL_MIN_SHARE * rec['ms']:
+        sectors_ok = False
     data = {
         'id': rows[0]['class_id'],
         'name': rows[0]['class_name'],
