@@ -118,7 +118,7 @@
     <section class="gl-tr-section" aria-labelledby="up-h">
         <h2 id="up-h" class="gl-tr-h2 gl-tr-sec-h">Предстоящие</h2>
         {% if upcoming_events %}
-            <div class="gl-tr-events">
+            <div class="gl-tr-past">
             {% for event in upcoming_events %}
                 {% include "coderedcms/snippets/track/event_card.html" with upcoming=True %}
             {% endfor %}

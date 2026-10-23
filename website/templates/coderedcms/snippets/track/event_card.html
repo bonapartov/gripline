@@ -1,4 +1,4 @@
-<div class="gl-tr-card gl-tr-event{% if upcoming %} gl-tr-event--up{% endif %}">
+<div class="gl-tr-card gl-tr-event">
     <div class="gl-tr-event-body">
         <span class="gl-tr-event-d">{{ event.start|date:"d.m.Y" }}{% if event.end and event.end.date != event.start.date %} — {{ event.end|date:"d.m.Y" }}{% endif %}</span>
         <span class="gl-tr-event-t">{{ event.title }}</span>
@@ -7,7 +7,7 @@
     </div>
     {% if event.championship %}
         {% if upcoming %}
-        <a href="{{ event.championship.url }}" class="gl-tr-outline gl-tr-outline--yellow">Подробнее</a>
+        <a href="{{ event.championship.url }}" class="gl-tr-outline gl-tr-outline--cyan">Подробнее</a>
         {% else %}
         <a href="{{ event.championship.url }}" class="gl-tr-outline gl-tr-outline--cyan">Результаты</a>
         {% endif %}

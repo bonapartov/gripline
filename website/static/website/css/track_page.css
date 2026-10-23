@@ -143,10 +143,8 @@
 .gl-tr-gapline b { color: var(--gl-brand-cyan); font-family: var(--gl-font-mono); font-variant-numeric: tabular-nums; display: inline-block; min-width: 7ch; }
 
 /* Этапы */
-.gl-tr-events, .gl-tr-past { display: grid; gap: 12px; }
-.gl-tr-past { grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); }
+.gl-tr-past { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); }
 .gl-tr-event { display: flex; flex-wrap: nowrap; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px; }
-.gl-tr-event--up { border-color: var(--gl-brand-yellow); }
 .gl-tr-event-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .gl-tr-event-d { color: var(--gl-brand-cyan); font-size: 13px; font-weight: 700; }
 .gl-tr-event-t { color: var(--gl-fg-1); font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
@@ -155,7 +153,6 @@
 .gl-tr-badge { padding: 2px 8px; border-radius: 4px; background: var(--gl-surface-card-hover); color: var(--gl-fg-4); font-size: 12px; font-weight: 600; }
 .gl-track .gl-tr-outline { padding: 7px 13px; border-radius: 6px; border: 1px solid currentColor; font-size: 13px; font-weight: 600; flex: none; white-space: nowrap; }
 .gl-track .gl-tr-outline--cyan { color: var(--gl-brand-cyan); }
-.gl-track .gl-tr-outline--yellow { color: var(--gl-brand-yellow); }
 
 /* Рекорды */
 .gl-tr-records { width: 100%; border-collapse: collapse; font-size: 14px; }
