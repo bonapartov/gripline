@@ -109,6 +109,6 @@
 {% endblock %}
 {% block extra_js %}
 {{ block.super }}
-<script src="{% static 'website/js/track_scheme_geom.js' %}"></script>
-<script src="{% static 'website/js/track_scheme_editor.js' %}"></script>
+<script src="{% static 'website/js/track_scheme_geom.js' %}" defer></script>
+<script src="{% static 'website/js/track_scheme_editor.js' %}" defer></script>
 {% endblock %}
