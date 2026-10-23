@@ -295,16 +295,23 @@
       var mid = new THREE.Vector3((pa[0] + pb[0]) / 2, 0, (pa[1] + pb[1]) / 2);
       var dir = m === 'orbit' ? new THREE.Vector3(-0.25, 0.75, 0.62).normalize() : new THREE.Vector3(0, 1, 0.00001).normalize();
       if (m !== 'chase') {
-        // отъезжаем, пока все углы подложки не попадут в кадр (в перспективе ближний край больше)
-        var corners = [[pa[0], pa[1]], [pb[0], pa[1]], [pa[0], pb[1]], [pb[0], pb[1]]].map(function (c) { return new THREE.Vector3(c[0], 0, c[1]); });
-        var dist = fit * 0.9, v = new THREE.Vector3();
-        for (var it = 0; it < 60; it++) {
-          camera.position.copy(mid).addScaledVector(dir, dist); camera.lookAt(mid); camera.updateMatrixWorld();
-          var inside = corners.every(function (c) { v.copy(c).project(camera); return Math.abs(v.x) <= 0.96 && Math.abs(v.y) <= 0.94; });
-          if (inside) break;
-          dist *= 1.05;
+        // приближение под окно: вписываем саму трассу (не подложку с полями), угол камеры не меняется
+        var xs = P.map(function (q) { return q[0]; }), zs = P.map(function (q) { return q[1]; });
+        var tmid = new THREE.Vector3((Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2, 0, (Math.min.apply(null, zs) + Math.max.apply(null, zs)) / 2);
+        var probe = [];
+        for (var pi = 0; pi < N; pi += 8) {
+          var w = HALF + 6;  // полотно и столбики поворотов/ворот
+          probe.push(new THREE.Vector3(P[pi][0] + Nr[pi][0] * w, 0, P[pi][1] + Nr[pi][1] * w), new THREE.Vector3(P[pi][0] - Nr[pi][0] * w, 0, P[pi][1] - Nr[pi][1] * w));
         }
-        controls.target.copy(mid);
+        var v = new THREE.Vector3();
+        var fits = function (dist) {
+          camera.position.copy(tmid).addScaledVector(dir, dist); camera.lookAt(tmid); camera.updateMatrixWorld();
+          return probe.every(function (c) { v.copy(c).project(camera); return Math.abs(v.x) <= 0.92 && Math.abs(v.y) <= 0.86; });
+        };
+        var lo = 5, hi = fit * 4;
+        for (var it = 0; it < 30; it++) { var md = (lo + hi) / 2; if (fits(md)) hi = md; else lo = md; }
+        fits(hi);
+        controls.target.copy(tmid);
       }
       controls.update(); dirty = true;
     }
