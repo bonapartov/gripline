@@ -4,6 +4,35 @@
    <template id="glTrStatsTpl<id>"> — JS только подставляет их. */
 (function () {
   'use strict';
+  // ── Карта «О трассе»: JS API Яндекс.Карт, как на /pulse/ (у iframe-виджета — рекламные блоки).
+  // API грузится, только когда карта близко к экрану.
+  (function () {
+    var box = document.getElementById('glTrMap');
+    if (!box) return;
+    var started = false;
+    function init() {
+      if (started) return;
+      started = true;
+      var sc = document.createElement('script');
+      sc.src = box.dataset.api;
+      sc.onload = function () {
+        window.ymaps.ready(function () {
+          var at = [parseFloat(box.dataset.lat), parseFloat(box.dataset.lon)];
+          var map = new window.ymaps.Map(box, { center: at, zoom: 15, controls: ['zoomControl', 'typeSelector', 'fullscreenControl'] },
+            { suppressMapOpenBlock: true });
+          map.behaviors.disable('scrollZoom');  // колесо прокручивает страницу, а не масштаб карты
+          map.geoObjects.add(new window.ymaps.Placemark(at, { hintContent: box.dataset.name, balloonContent: '<strong>' + box.dataset.name.replace(/[&<>"]/g, '') + '</strong>' },
+            { preset: 'islands#yellowDotIcon' }));
+        });
+      };
+      document.head.appendChild(sc);
+    }
+    if (window.IntersectionObserver) {
+      var io = new IntersectionObserver(function (en) { if (en[0].isIntersecting) { io.disconnect(); init(); } }, { rootMargin: '400px' });
+      io.observe(box);
+    } else init();
+  })();
+
   var dataEl = document.getElementById('track-data');
   if (!dataEl) return;
   var DATA = JSON.parse(dataEl.textContent);

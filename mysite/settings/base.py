@@ -452,6 +452,9 @@ AXES_CLIENT_IP_CALLABLE = 'mysite.security.get_client_ip'
 # - yastatic.net — статика Яндекса (JS Метрики/Карт, курсоры карты).
 # - id.vk.ru / login.vk.ru — VK ID SDK при реальном запросе к VK (One Tap,
 #   попап логина) стучится не только на unpkg.com за самим скриптом.
+# Ключ JS API Яндекс.Карт (публичный, виден в HTML страницы; тот же, что в pulse_index_page.html)
+YANDEX_MAPS_API_KEY = os.getenv('YANDEX_MAPS_API_KEY', 'fe4bbab7-bb35-4949-bce5-676cbc2df5e6')
+
 CSP_REPORT_ONLY_DIRECTIVES = {
     'default-src': ["'self'"],
     'script-src': [
@@ -486,8 +489,7 @@ CSP_REPORT_ONLY_DIRECTIVES = {
         'https://log.api-maps.yandex.ru',               # логирование Яндекс.Карт (не только img)
         'https://id.vk.ru',                             # VK ID One Tap
     ],
-    'frame-src': ["'self'", 'https://mc.yandex.ru', 'https://id.vk.ru', 'https://login.vk.ru',
-                  'https://yandex.ru'],          # карта на странице трассы (yandex.ru/map-widget)
+    'frame-src': ["'self'", 'https://mc.yandex.ru', 'https://id.vk.ru', 'https://login.vk.ru'],
     'object-src': ["'none'"],
     'base-uri': ["'self'"],
     'frame-ancestors': ["'self'"],

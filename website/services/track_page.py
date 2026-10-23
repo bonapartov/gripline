@@ -1,6 +1,7 @@
 """Контекст страницы трассы /tracks/<slug>/ (без списков этапов — их собирает track_detail_view)."""
 from urllib.parse import quote
 
+from django.conf import settings
 from django.templatetags.static import static
 from django.utils.safestring import mark_safe
 
@@ -15,8 +16,10 @@ def map_links(track):
     ll = f'{lon},{lat}'
     return {
         'coords': f'{lat:.4f}, {lon:.4f}',
-        # Пока «Код карты» из админки в приоритете (временное решение владельца, 23.10.2026)
-        'iframe_src': f'https://yandex.ru/map-widget/v1/?ll={quote(ll)}&z=15&pt={quote(ll)},pm2ywm',
+        'lat': lat,
+        'lon': lon,
+        # JS API Яндекс.Карт, как на /pulse/ — без рекламных блоков iframe-виджета
+        'api_url': f'https://api-maps.yandex.ru/2.1/?apikey={settings.YANDEX_MAPS_API_KEY}&lang=ru_RU',
         'route_url': f'https://yandex.ru/maps/?rtext=~{lat},{lon}&rtt=auto',
         'maps_url': f'https://yandex.ru/maps/?pt={quote(ll)}&z=16&l=map',
     }
@@ -74,5 +77,6 @@ def build_track_page(track, requested_class, races_count):
         'can_3d': can_3d,
         'track_js': js_data,
         'map': map_links(track),
-        'map_html': mark_safe(track.map_html) if track.map_html else '',  # «Код карты» вводит админ
+        # «Код карты» из админки — только если у трассы нет координат
+        'map_html': mark_safe(track.map_html) if track.map_html and track.latitude is None else '',
     }

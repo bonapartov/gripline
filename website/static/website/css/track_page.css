@@ -200,7 +200,7 @@
 .gl-tr-about-h { margin: 0; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--gl-brand-cyan); border-bottom: 1px solid var(--gl-border-card); padding-bottom: 8px; }
 .gl-tr-about-text { color: var(--gl-fg-2); font-size: 14px; line-height: 1.6; }
 .gl-tr-map { flex: 999 1 480px; min-width: 0; position: relative; min-height: 300px; border-radius: 8px; border: 1px solid var(--gl-border-card); overflow: hidden; background: var(--gl-surface-inset); }
-.gl-tr-map iframe { position: absolute; inset: 0; width: 100% !important; height: 100% !important; border: 0; }
+.gl-tr-map iframe, .gl-tr-map-canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; border: 0; }
 .gl-tr-map-bar { position: absolute; left: 14px; right: 14px; bottom: 14px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; pointer-events: none; }
 .gl-tr-map-bar > * { pointer-events: auto; }
 .gl-tr-coord { padding: 6px 10px; border-radius: 6px; background: rgba(0, 0, 0, 0.6); font-family: var(--gl-font-mono); font-size: 12px; color: var(--gl-fg-2); }

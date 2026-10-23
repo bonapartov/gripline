@@ -178,7 +178,7 @@
             </div>
             {% if map_html or map %}
             <div class="gl-tr-map">
-                {% if map_html %}{{ map_html }}{% else %}<iframe src="{{ map.iframe_src }}" title="Карта: {{ track.name }}" loading="lazy" allowfullscreen></iframe>{% endif %}
+                {% if map %}<div class="gl-tr-map-canvas" id="glTrMap" data-api="{{ map.api_url }}" data-lat="{{ map.lat|stringformat:'f' }}" data-lon="{{ map.lon|stringformat:'f' }}" data-name="{{ track.name }}" role="img" aria-label="Карта: {{ track.name }}"></div>{% else %}{{ map_html }}{% endif %}
                 {% if map %}
                 <div class="gl-tr-map-bar">
                     <span class="gl-tr-coord">{{ map.coords }}</span>
