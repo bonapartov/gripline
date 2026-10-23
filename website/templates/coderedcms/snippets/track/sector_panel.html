@@ -10,12 +10,16 @@
 {% else %}
 <div class="gl-tr-panel-view" data-sector-view="-1">
     <span class="gl-tr-label">Секторы · {{ c.name }} · лучшие значения</span>
+    <div class="gl-tr-split">
+    <div class="gl-tr-split-col">
     <div class="gl-tr-tiles">
         <div class="gl-tr-tile"><div class="gl-tr-tile-k">Идеальный круг</div><div class="gl-tr-tile-v">{{ c.ideal_ms|laptime }}</div></div>
         <div class="gl-tr-tile"><div class="gl-tr-tile-k">Рекорд круга</div><div class="gl-tr-tile-v gl-tr-yellow">{{ c.record.ms|laptime }}</div></div>
     </div>
     {% include "coderedcms/snippets/track/holder.html" with h=c.record label="Рекордсмен" %}
     {% if c.gap_ms %}<p class="gl-tr-p">Сумма лучших секторов на <b>{{ c.gap_ms|seconds3 }} с</b> быстрее рекорда — столько ещё есть на этой трассе.</p>{% endif %}
+    </div>
+    <div class="gl-tr-split-col">
     <div>
         <div class="gl-tr-label gl-tr-mb8">Доля сектора в круге</div>
         <div class="gl-tr-share">{% for s in c.sectors %}<div class="gl-tr-s{{ s.index }}" style="width:{{ s.share }}%"></div>{% endfor %}</div>
@@ -24,6 +28,8 @@
         {% for s in c.sectors %}
         <button type="button" class="gl-tr-srow" data-sector="{{ s.index }}"><span class="gl-tr-sw gl-tr-s{{ s.index }}"></span><span class="gl-tr-srow-n">{{ s.name }}</span><span class="gl-tr-srow-t">{{ s.ms|sectortime }}</span><span class="gl-tr-srow-sh">{{ s.share }}% круга</span></button>
         {% endfor %}
+    </div>
+    </div>
     </div>
 </div>
 {% for s in c.sectors %}
