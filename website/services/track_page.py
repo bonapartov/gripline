@@ -1,4 +1,5 @@
 """Контекст страницы трассы /tracks/<slug>/ (без списков этапов — их собирает track_detail_view)."""
+import re
 from urllib.parse import quote
 
 from django.conf import settings
@@ -25,11 +26,23 @@ def map_links(track):
     }
 
 
+# Порог средней скорости сектора в 3D (выше — время секторов не сходится со схемой, метка не едет).
+# Быстрые классы — KZ/KZ2 (в т.ч. Masters) и DD2 (в т.ч. Masters) — 130 км/ч, остальные 120 (владелец 24.10.2026).
+MAX_SECTOR_KMH = 120
+MAX_SECTOR_KMH_FAST = 130
+FAST_CLASS_RE = re.compile(r'KZ|DD2', re.IGNORECASE)
+
+
+def max_sector_kmh(class_name):
+    return MAX_SECTOR_KMH_FAST if FAST_CLASS_RE.search(class_name or '') else MAX_SECTOR_KMH
+
+
 def _js_class(c):
     """Минимум для JS: переключатель классов, адрес ?class=, 3D-метка."""
     return {
         'id': c['id'],
         'name': c['name'],
+        'max_sector_kmh': max_sector_kmh(c['name']),
         'record_ms': c['record']['ms'] if c['record'] else None,
         'sectors_ms': [s['ms'] for s in c['sectors']] if c['has_sectors'] else None,
     }

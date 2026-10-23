@@ -17,7 +17,7 @@
     { name: 'S3', color: '#28a745', on: '#ffffff', hex: 0x28a745 }
   ];
 
-  var MAX_SECTOR_KMH = 120;
+  var MAX_SECTOR_KMH = 120;  // по умолчанию; у класса может быть свой порог (c.max_sector_kmh, track_page.py)
 
   function fmt(t) {
     var m = Math.floor(t / 60), r = (t - m * 60).toFixed(3);
@@ -375,7 +375,7 @@
         // не сходится со схемой (ошибка в протоколе или граница сектора не там) — метку не пускаем
         var shares = [b1 / N, (b2 - b1) / N, (N - b2) / N];
         var plausible = !!(c && c.sectors_ms && c.record_ms) && c.sectors_ms.every(function (ms, k) {
-          return LENGTH_M * shares[k] / (ms / 1000) * 3.6 <= MAX_SECTOR_KMH;
+          return LENGTH_M * shares[k] / (ms / 1000) * 3.6 <= (c.max_sector_kmh || MAX_SECTOR_KMH);
         });
         q$('.gl-tr-v3d-nosec span').textContent = c && c.sectors_ms && !plausible
           ? 'Время секторов не сходится со схемой трассы — метка не едет.'

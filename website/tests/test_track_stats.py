@@ -259,3 +259,10 @@ def test_sector_far_from_class_median_is_dropped():
     rows.append(row(9, 1, D1, final=(53420, 17959, 20751, 10000)))
     c = st.class_data(rows, [2025])
     assert c['has_sectors'] and c['sectors'][2]['ms'] == 14700
+
+
+@pytest.mark.parametrize('name, kmh', [('KZ2', 130), ('KZ2 Masters', 130), ('KZ', 130), ('RM DD2', 130),
+                                       ('RM DD2 Masters', 130), ('RM Senior', 120), ('Мини', 120), ('OK', 120)])
+def test_max_sector_speed_by_class(name, kmh):
+    from website.services.track_page import max_sector_kmh
+    assert max_sector_kmh(name) == kmh
