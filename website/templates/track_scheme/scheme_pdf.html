@@ -1,0 +1,45 @@
+{% load website_tags %}<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Схема трассы — {{ track.name }}</title>
+<style>
+@font-face { font-family: 'Inter Tight'; font-weight: 400; src: url('{{ fonts.InterTight_Regular }}') format('woff2'); }
+@font-face { font-family: 'Inter Tight'; font-weight: 700; src: url('{{ fonts.InterTight_Bold }}') format('woff2'); }
+@font-face { font-family: 'Inter Tight'; font-weight: 800; src: url('{{ fonts.InterTight_ExtraBold }}') format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-weight: 400; src: url('{{ fonts.JetBrainsMono_Regular }}') format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-weight: 700; src: url('{{ fonts.JetBrainsMono_Bold }}') format('woff2'); }
+{{ scheme_css|safe }}
+</style>
+</head>
+<body>
+<div class="ts-page">
+    <div class="ts-head"><b>GRIPLINE</b><span>Схема трассы</span></div>
+    <div class="ts-title">{{ track.name }}</div>
+    {% if address %}<div class="ts-addr">{{ address }}</div>{% endif %}
+
+    <div class="ts-figs">
+        <div><i>Длина</i><b>{% if track.length_m %}{{ track.length_m|meters }} м{% else %}—{% endif %}</b></div>
+        <div><i>Повороты</i><b>{{ turns_count|default:"—" }}</b></div>
+        <div><i>Направление</i><b class="ts-word">{{ track.get_app_direction_display|default:"—" }}</b></div>
+        <div><i>Секторы</i><b>3</b></div>
+    </div>
+
+    <div class="ts-scheme">{{ scheme_svg }}</div>
+
+    <div class="ts-legend">
+        {% for tr in turn_ranges %}
+        <div><em class="ts-s{{ forloop.counter0 }}"></em><span><b>Сектор {{ forloop.counter }}</b>{% if tr %}<br>{{ tr }}{% endif %}</span></div>
+        {% endfor %}
+    </div>
+
+    <div class="ts-foot">
+        <div><b class="ts-brand">GRIPLINE</b><br>Рейтинг картингистов России</div>
+        <div class="ts-mid"><b>{{ page_url_short }}</b><br>Рекорды, результаты и расписание трассы
+            {% if track.scheme_updated_at %}<div class="ts-date">Схема актуальна на {{ track.scheme_updated_at|date:"d.m.Y" }}</div>{% endif %}
+        </div>
+        <img src="{{ qr_code_uri }}" alt="QR-код страницы трассы">
+    </div>
+</div>
+</body>
+</html>

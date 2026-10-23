@@ -1,0 +1,36 @@
+/* Редактор схемы трассы в админке Wagtail. Цвета секторов и поля — те же токены, что на сайте. */
+.tse { padding: 0 var(--w-gutter, 20px) 40px; }
+.tse-help { max-width: 900px; }
+.tse-links { margin: 0 0 12px; }
+.tse-tabs { display: flex; gap: 6px; margin: 12px 0; }
+.tse-tab { border: 1px solid var(--w-color-border-field-default, #ccc); background: transparent; border-radius: 6px; padding: 6px 14px; font-weight: 700; cursor: pointer; }
+.tse-tab.is-on { background: var(--gl-brand-yellow); border-color: var(--gl-brand-yellow); color: var(--gl-fg-on-yellow); }
+.tse-layout { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.tse-main { flex: 999 1 640px; min-width: 0; }
+.tse-side { flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.tse-box { border: 1px solid var(--w-color-border-furniture, #ddd); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.tse-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.tse-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.tse-small, .tse-hint { font-size: 12px; opacity: 0.8; margin: 0; }
+.tse-hint { margin: 6px 0; min-height: 1.4em; }
+.tse-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.tse-tool { border: 1px solid var(--w-color-border-field-default, #ccc); background: transparent; border-radius: 20px; padding: 5px 12px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.tse-tool.is-on { background: var(--gl-brand-cyan); border-color: var(--gl-brand-cyan); color: var(--gl-fg-on-yellow); }
+.tse-canvas-wrap { background: var(--gl-surface-inset); border: 1px solid var(--gl-border-card); border-radius: 10px; overflow: hidden; }
+.tse-canvas { display: block; width: 100%; height: auto; touch-action: none; user-select: none; outline: none; }
+.tse-canvas .tse-pt { fill: var(--gl-fg-1); stroke: var(--gl-surface-inset); stroke-width: 1.5; cursor: grab; }
+.tse-canvas .tse-pt.is-first { fill: var(--gl-brand-yellow); }
+.tse-canvas .tse-pt.is-sel { stroke: var(--gl-brand-cyan); stroke-width: 3; }
+.tse-canvas .tse-pt.is-sharp { fill: var(--gl-signal-danger); }
+.tse-canvas .tse-hit { stroke: transparent; stroke-width: 18; fill: none; cursor: copy; }
+.tse-canvas .tse-turn circle { fill: var(--gl-surface-body); stroke: var(--gl-fg-2); stroke-width: 1.5; cursor: grab; }
+.tse-canvas .tse-turn.is-sel circle { stroke: var(--gl-brand-cyan); stroke-width: 3; }
+.tse-canvas .tse-turn text { fill: var(--gl-fg-1); font: 700 11px var(--gl-font-mono); text-anchor: middle; pointer-events: none; }
+.tse-canvas .tse-mark { cursor: grab; }
+.tse-canvas .tse-label { cursor: grab; }
+.tse-scale { font-size: 13px; }
+.tse-warnings { margin: 0; padding-left: 18px; font-size: 13px; }
+.tse-warnings li.is-bad { color: var(--gl-signal-danger); }
+.tse-warnings li.is-ok { color: var(--gl-signal-green); }
+.tse-status { margin-left: 10px; font-size: 13px; }
+.tse-status.is-error { color: var(--gl-signal-danger); }

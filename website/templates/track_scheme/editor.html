@@ -1,0 +1,114 @@
+{% extends "wagtailadmin/base.html" %}
+{% load static %}
+{% block titletag %}Редактор схемы — {{ track.name }}{% endblock %}
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'website/css/tokens.css' %}">
+<link rel="stylesheet" href="{% static 'website/css/track_page.css' %}">
+<link rel="stylesheet" href="{% static 'website/css/track_scheme_editor.css' %}">
+{% endblock %}
+{% block content %}
+{% include "wagtailadmin/shared/header.html" with title="Редактор схемы" subtitle=track.name icon="site" %}
+<div class="tse" id="tse"
+     data-preview-url="{% url 'track_scheme_preview' track.pk %}"
+     data-save-url="{% url 'track_scheme_save' track.pk %}"
+     data-clear-url="{% url 'track_scheme_clear' track.pk %}"
+     data-reference-url="{% url 'track_scheme_reference' track.pk %}"
+     data-three="{% static 'website/vendor/three/r128/three.min.js' %}"
+     data-orbit="{% static 'website/vendor/three/r128/OrbitControls.js' %}"
+     data-module="{% static 'website/js/track_3d.js' %}">
+
+    <p class="tse-help">
+        Ставьте точки осевой линии <b>по направлению движения</b> — линия замкнётся сама. Затем отметьте на линии старт/финиш
+        и границы секторов, расставьте номера поворотов. Можно загрузить SVG со схемой трассы — из него возьмётся линия.
+        «Сохранить» публикует схему на сайте сразу.
+    </p>
+    <p class="tse-links"><a href="{% url 'website_track_modeladmin_edit' track.pk %}">← Карточка трассы</a> · <a href="{{ track.get_absolute_url }}" target="_blank" rel="noopener">Страница на сайте</a></p>
+
+    <div class="tse-tabs" role="tablist">
+        <button type="button" class="tse-tab is-on" data-tab="edit">Редактор</button>
+        <button type="button" class="tse-tab" data-tab="scheme">Схема</button>
+        <button type="button" class="tse-tab" data-tab="3d" id="tseTab3d">3D</button>
+    </div>
+
+    <div class="tse-layout">
+        <div class="tse-main">
+            <div class="tse-pane" data-pane="edit">
+                <div class="tse-tools" role="group" aria-label="Инструмент">
+                    <button type="button" class="tse-tool is-on" data-tool="points">Точки линии</button>
+                    <button type="button" class="tse-tool" data-tool="start">Старт/финиш</button>
+                    <button type="button" class="tse-tool" data-tool="s1s2">Граница S1|S2</button>
+                    <button type="button" class="tse-tool" data-tool="s2s3">Граница S2|S3</button>
+                    <button type="button" class="tse-tool" data-tool="turns">Повороты</button>
+                    <button type="button" class="tse-tool" data-tool="labels">Плашки S1–S3</button>
+                    <button type="button" class="tse-tool" data-tool="reference">Подложка</button>
+                </div>
+                <p class="tse-hint" id="tseHint"></p>
+                <div class="tse-canvas-wrap">
+                    <svg id="tseCanvas" class="tse-canvas" viewBox="0 0 640 400" tabindex="0" aria-label="Поле редактора схемы"></svg>
+                </div>
+            </div>
+            <div class="tse-pane" data-pane="scheme" hidden>
+                <div class="gl-tr-plate" id="tsePreview"><p class="tse-hint">Загрузка…</p></div>
+            </div>
+            <div class="tse-pane" data-pane="3d" hidden>
+                <div id="tse3d"></div>
+                <p class="tse-hint">Предпросмотр: время круга условное (по длине секторов), на сайте метка едет рекордный круг класса.</p>
+            </div>
+        </div>
+
+        <aside class="tse-side">
+            <div class="tse-box">
+                <div class="tse-row">
+                    <button type="button" class="button button-small" id="tseUndo">Отменить</button>
+                    <button type="button" class="button button-small button-secondary" id="tseDelete">Удалить выбранное</button>
+                </div>
+                <div class="tse-row">
+                    <button type="button" class="button button-small button-secondary" id="tseReverse">Развернуть направление</button>
+                    <button type="button" class="button button-small button-secondary" id="tseRenumber">Перенумеровать повороты</button>
+                </div>
+                <label class="tse-field">Плавность <input type="range" id="tseTension" min="0" max="1" step="0.05" value="1"></label>
+                <label class="tse-field" id="tseTurnNumWrap" hidden>Номер выбранного поворота <input type="number" id="tseTurnNum" min="1" max="99"></label>
+                <div class="tse-scale" id="tseScale"></div>
+            </div>
+
+            <div class="tse-box">
+                <b>Загрузить схему из SVG</b>
+                <input type="file" id="tseSvgFile" accept=".svg,image/svg+xml">
+                <label class="tse-field" id="tseSvgPickWrap" hidden>Линия трассы <select id="tseSvgPick"></select></label>
+                <label class="tse-field">Опорных точек <input type="number" id="tseSvgCount" min="8" max="200" value="48"></label>
+                <p class="tse-small">Из файла берётся только линия (самый длинный контур, можно выбрать другой). Файл на сайт не загружается.</p>
+            </div>
+
+            <div class="tse-box">
+                <b>Подложка для обводки</b>
+                <input type="file" id="tseRefFile" accept="image/jpeg,image/png,image/webp">
+                <div id="tseRefControls" hidden>
+                    <label class="tse-field">Прозрачность <input type="range" id="tseRefOpacity" min="0.05" max="1" step="0.05"></label>
+                    <label class="tse-field">Масштаб <input type="range" id="tseRefScale" min="-3" max="3" step="0.01"></label>
+                    <label class="tse-field">Поворот <input type="range" id="tseRefRotate" min="-180" max="180" step="0.5"></label>
+                    <button type="button" class="button button-small button-secondary no" id="tseRefDelete">Удалить подложку</button>
+                </div>
+                <p class="tse-small">Скриншот спутника или официальная схема. Видна только здесь, на сайт не выводится. Сдвиг — инструмент «Подложка».</p>
+            </div>
+
+            <div class="tse-box">
+                <b>Проверка</b>
+                <ul class="tse-warnings" id="tseWarnings"></ul>
+            </div>
+
+            <div class="tse-box">
+                <button type="button" class="button" id="tseSave">Сохранить</button>
+                <span class="tse-status" id="tseStatus">{% if track.scheme_updated_at %}Сохранено {{ track.scheme_updated_at|date:"d.m.Y H:i" }}{% endif %}</span>
+                <p><button type="button" class="button button-small button-secondary no" id="tseClear">Удалить схему с сайта</button></p>
+            </div>
+        </aside>
+    </div>
+</div>
+{{ editor_data|json_script:"tse-data" }}
+{% endblock %}
+{% block extra_js %}
+{{ block.super }}
+<script src="{% static 'website/js/track_scheme_geom.js' %}"></script>
+<script src="{% static 'website/js/track_scheme_editor.js' %}"></script>
+{% endblock %}

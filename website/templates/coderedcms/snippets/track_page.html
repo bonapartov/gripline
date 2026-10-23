@@ -1,332 +1,209 @@
 {% extends "coderedcms/pages/web_page.html" %}
-{% load wagtailimages_tags website_tags %}
+{% load wagtailimages_tags website_tags static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'website/css/track_page.css' %}">
+{% endblock %}
 
 {% block content %}
-<style>
-    /* Единый стандарт ширины */
-    .force-width-1500 {
-        max-width: 1500px !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }
-    /* Стили таблицы из общей стилистики */
-    .table-hover tbody tr:hover {
-        background-color: rgba(13, 202, 240, 0.1) !important;
-        transition: 0.3s;
-    }
-    .badge { width: 45px; font-weight: 800; }
-    .track-photo {
-        object-fit: cover;
-        border-radius: 10px;
-        width: 100%;
-        max-height: 300px;
-    }
-    .event-list {
-        max-height: 500px;
-        overflow-y: auto;
-        padding-right: 10px;
-    }
-    .event-list::-webkit-scrollbar {
-        width: 5px;
-    }
-    .event-list::-webkit-scrollbar-track {
-        background: #2a2a35;
-    }
-    .event-list::-webkit-scrollbar-thumb {
-        background: #ffc107;
-        border-radius: 5px;
-    }
-    .event-item {
-        background-color: #1a1a25;
-        border: 1px solid #2a2a35;
-        border-radius: 8px;
-        padding: 1rem;
-        margin-bottom: 1rem;
-        transition: all 0.2s;
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 1rem;
-    }
-    .event-item:hover {
-        border-color: #ffc107;
-        background-color: #2a2a35;
-    }
-    .event-content {
-        flex: 1;
-        min-width: 0; /* предотвращает переполнение */
-    }
-    .event-date {
-        color: #0dcaf0;
-        font-size: 0.95rem;
-        font-weight: bold;
-        margin-bottom: 0.25rem;
-    }
-    .event-title {
-        color: #fff;
-        font-size: 1.2rem;
-        font-weight: bold;
-        margin: 0.25rem 0;
-        line-height: 1.3;
-    }
-    .event-championship {
-        color: #ffc107;
-        font-size: 1rem;
-    }
-    .event-championship a {
-        color: #ffc107;
-        text-decoration: none;
-    }
-    .event-championship a:hover {
-        text-decoration: underline;
-    }
-    .event-actions {
-        flex-shrink: 0;
-        padding-top: 0.25rem;
-    }
-    .btn-sm-custom {
-        padding: 0.25rem 0.75rem;
-        font-size: 0.85rem;
-        line-height: 1.4;
-        border-radius: 4px;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        white-space: nowrap;
-    }
-    .empty-state {
-        background-color: #1a1a25;
-        border: 1px dashed #2a2a35;
-        border-radius: 8px;
-        padding: 2rem;
-        text-align: center;
-        color: #6c757d;
-    }
-    /* Бейджи классов */
-    .class-badge {
-        background-color: #2a2a35;
-        color: #fff;
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        font-size: 0.8rem;
-        margin-right: 0.25rem;
-        margin-bottom: 0.25rem;
-        display: inline-block;
-        transition: all 0.2s;
-    }
-</style>
+<div class="gl-track text-white">
 
-<div class="force-width-1500 my-5 text-white">
-    <!-- Таблица с тремя колонками -->
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 2rem;">
-        <tr>
-            <!-- Колонка 1: Фото -->
-            <td style="width: 40%; vertical-align: top; padding-right: 15px;">
-                {% if track.photo %}
-                    {% image track.photo fill-600x400 as track_photo %}
-                    <img src="{{ track_photo.url }}" class="img-fluid track-photo shadow-lg border border-secondary" alt="{{ track.name }}" style="width: 100%; height: 300px; object-fit: cover;">
-                {% else %}
-                    <div class="bg-dark rounded d-flex align-items-center justify-content-center border border-secondary" style="width: 100%; height: 300px;">
-                        <span class="text-muted">Нет фото</span>
+    {# 1. Шапка #}
+    <div class="gl-tr-hero">
+        <div class="gl-tr-photo">
+            {% if track.photo %}
+                {% image track.photo fill-1040x640 as track_photo %}
+                <img src="{{ track_photo.url }}" alt="{{ track.name }}" width="{{ track_photo.width }}" height="{{ track_photo.height }}">
+            {% else %}
+                <div class="gl-tr-photo-empty">
+                    <i class="fas fa-flag-checkered fa-3x" aria-hidden="true"></i>
+                    <span>Нет фото</span>
+                </div>
+            {% endif %}
+        </div>
+        <div class="gl-tr-hero-body">
+            <h1 class="gl-tr-h1">{{ track.name }}</h1>
+            <p class="gl-tr-addr">
+                <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+                {% if track.city or track.address %}{{ track.city|default:"" }}{% if track.city and track.address %}, {% endif %}{{ track.address|default:"" }}{% else %}Город не указан{% endif %}
+            </p>
+            {% if track.social_links.all or map or map_html %}
+            <div class="gl-tr-links">
+                {% for social in track.social_links.all %}
+                    <a href="{{ social.link_url }}" target="_blank" rel="noopener" class="gl-tr-ghost">{{ social.network_name }}</a>
+                {% endfor %}
+                {% if map or map_html %}<a href="#about" class="gl-tr-ghost gl-tr-ghost--cyan">Как добраться</a>{% endif %}
+            </div>
+            {% endif %}
+
+            {% if track.length_m or turns_count or track.app_direction or races_count or absolute_record %}
+            <div class="gl-tr-figs">
+                {% if track.length_m %}<div class="gl-tr-fig"><div class="gl-tr-label">Длина</div><div class="gl-tr-fig-v">{{ track.length_m|meters }}<small> м</small></div></div>{% endif %}
+                {% if turns_count %}<div class="gl-tr-fig"><div class="gl-tr-label">Повороты</div><div class="gl-tr-fig-v">{{ turns_count }}</div></div>{% endif %}
+                {% if track.app_direction %}
+                <div class="gl-tr-fig"><div class="gl-tr-label">Направление</div>
+                    <div class="gl-tr-dir">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"{% if track.app_direction == 'cw' %} class="gl-tr-dir-cw"{% endif %}><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>
+                        {{ track.get_app_direction_display }}
                     </div>
+                </div>
                 {% endif %}
-            </td>
+                {% if races_count %}<div class="gl-tr-fig"><div class="gl-tr-label">Гонок на сайте</div><div class="gl-tr-fig-v">{{ races_count }}</div></div>{% endif %}
+                {% if absolute_record %}<div class="gl-tr-fig"><div class="gl-tr-label">Абсолютный рекорд</div><div class="gl-tr-fig-v gl-tr-yellow">{{ absolute_record.ms|laptime }}</div><div class="gl-tr-fig-sub">{{ absolute_record.class_name }}</div></div>{% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
 
-            <!-- Колонка 2: Название и описание -->
-            <td style="width: 60%; vertical-align: top; padding: 0 15px;">
-                <h1 class="display-4 fw-bold mb-1 text-uppercase">{{ track.name }}</h1>
-                <p class="text-info fs-5 mb-3">
-                    <i class="fas fa-map-marker-alt me-2"></i>
-                    {% if track.city %}{{ track.city }}{% endif %}
-                    {% if track.city and track.address %},{% endif %}
-                    {% if track.address %} {{ track.address }}{% endif %}
-                    {% if not track.city and not track.address %}Город не указан{% endif %}
-                </p>
+    {# 2. Переключатель классов #}
+    {% if classes %}
+    <div class="gl-tr-classrow" role="group" aria-label="Класс">
+        <span class="gl-tr-label">Класс</span>
+        <span class="gl-tr-chips">
+            {% for c in classes %}
+            <a href="?class={{ c.id }}" class="gl-tr-chip" data-class-id="{{ c.id }}" aria-pressed="{% if c.id == selected_class.id %}true{% else %}false{% endif %}" rel="nofollow">{{ c.name }} <small>· {{ c.starts }}</small></a>
+            {% endfor %}
+        </span>
+        <span class="gl-tr-hintr">Число — стартов класса на трассе</span>
+    </div>
+    {% endif %}
 
-                <div class="card bg-dark border-secondary p-3">
-                    <h5 class="text-primary border-bottom border-secondary pb-2 mb-3 text-uppercase">О трассе</h5>
-                    <div class="text-light">
-                        {{ track.description|safe_html|default:"Информация о трассе скоро будет дополнена." }}
+    {# 3. Схема + панель секторов #}
+    {% if track.has_scheme or classes %}
+    <section class="gl-tr-section" aria-labelledby="sch-h">
+        <div class="gl-tr-scheme">
+            {% if track.has_scheme %}
+            <div class="gl-tr-card gl-tr-stage-card">
+                <div class="gl-tr-stage-top">
+                    <div class="gl-tr-filters" role="group" aria-label="Секторы" id="glTrFilters">
+                        <button type="button" class="gl-tr-filt" data-sector="-1" aria-pressed="true"{% if not selected_class.has_sectors %} disabled{% endif %}>Все секторы</button>
+                        <button type="button" class="gl-tr-filt gl-tr-filt--0" data-sector="0" aria-pressed="false"{% if not selected_class.has_sectors %} disabled{% endif %}>S1</button>
+                        <button type="button" class="gl-tr-filt gl-tr-filt--1" data-sector="1" aria-pressed="false"{% if not selected_class.has_sectors %} disabled{% endif %}>S2</button>
+                        <button type="button" class="gl-tr-filt gl-tr-filt--2" data-sector="2" aria-pressed="false"{% if not selected_class.has_sectors %} disabled{% endif %}>S3</button>
+                    </div>
+                    <div class="gl-tr-stage-title">
+                        <h2 id="sch-h" class="gl-tr-h2">Схема трассы</h2>
+                        <div class="gl-tr-seg" role="group" aria-label="Вид схемы" id="glTrModes">
+                            <button type="button" data-mode="top" aria-pressed="true">Схема</button>
+                            {% if can_3d %}<button type="button" data-mode="3d" aria-pressed="false" id="glTrBtn3d" hidden>3D</button>{% endif %}
+                        </div>
                     </div>
                 </div>
-
-                <!-- Соцсети под описанием -->
-                <div class="mt-4">
-                    {% for social in track.social_links.all %}
-                        <a href="{{ social.link_url }}" target="_blank" class="btn btn-outline-light btn-sm me-2 mb-2">
-                            <i class="fas fa-link me-1"></i> {{ social.network_name }}
-                        </a>
-                    {% endfor %}
+                <div class="gl-tr-stage">
+                    <div class="gl-tr-plate" id="glTrPlate">{{ scheme_svg }}</div>
+                    <div id="glTrHost3d" hidden></div>
                 </div>
-            </td>
-        </tr>
-    </table>
+                <p class="gl-tr-stage-note" id="glTrStageNote">Нажмите на сектор на схеме или на фильтр выше.</p>
+            </div>
+            {% else %}
+            <h2 id="sch-h" class="visually-hidden">Секторы</h2>
+            {% endif %}
 
-    <!-- Рекорды трассы -->
-    <div class="mb-4">
-        <h3 class="border-bottom border-primary pb-2 mb-4 text-uppercase fw-bold">
-            <i class="fas fa-stopwatch me-2 text-info"></i>Рекорды трассы
-        </h3>
+            {% if classes %}
+            <aside class="gl-tr-card gl-tr-panel" aria-live="polite">
+                <div id="glTrPanel">{% include "coderedcms/snippets/track/sector_panel.html" with c=selected_class %}</div>
+                {% if track.has_scheme %}
+                <a href="{% url 'track_scheme_pdf' track.slug %}" class="gl-tr-dl" download>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>
+                    Скачать схему (PDF A4)
+                </a>
+                {% endif %}
+            </aside>
+            {% endif %}
+        </div>
+    </section>
+    {% endif %}
 
-        {% if track_records %}
-            <div class="table-responsive">
-                <table class="table table-dark table-hover border-secondary">
-                    <thead>
-                        <tr>
-                            <th>Класс</th>
-                            <th>Пилот</th>
-                            <th>Круг</th>
-                            <th>Дата</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for record in track_records %}
-                        <tr>
-                            <td><span class="class-badge">{{ record.race_class.name }}</span></td>
-                            <td>
-                                <a href="{{ record.driver.get_absolute_url }}" class="text-white text-decoration-none fw-bold">
-                                    {{ record.driver.full_name }}
-                                </a>
-                            </td>
-                            <td class="text-warning fw-bold">
-                                <a href="{{ record.event_url }}" class="text-warning text-decoration-none fw-bold" title="Результаты этапа">{{ record.lap_ms|laptime }}</a>
-                                {% if record.session == 'qual' %}
-                                <span class="badge bg-primary ms-1" style="font-size:10px; border-radius:4px;" title="Квалификация">К</span>
-                                {% elif record.session == 'pre_final' %}
-                                <span class="badge bg-warning text-dark ms-1" style="font-size:10px; border-radius:4px;" title="Предфинал">Пф</span>
-                                {% elif record.session == 'final' %}
-                                <span class="badge bg-success ms-1" style="font-size:10px; border-radius:4px;" title="Финал">Ф</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-muted">{% if record.date %}{{ record.date|date:"d.m.Y" }}{% else %}—{% endif %}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    {# 5. Предстоящие #}
+    <section class="gl-tr-section" aria-labelledby="up-h">
+        <h2 id="up-h" class="gl-tr-h2 gl-tr-sec-h">Предстоящие</h2>
+        {% if upcoming_events %}
+            <div class="gl-tr-events">
+            {% for event in upcoming_events %}
+                {% include "coderedcms/snippets/track/event_card.html" with upcoming=True %}
+            {% endfor %}
             </div>
         {% else %}
-            <div class="empty-state">
-                <i class="fas fa-stopwatch fa-3x mb-3"></i>
-                <p class="mb-0">На этой трассе ещё нет результатов с временем круга</p>
-            </div>
+            <div class="gl-tr-empty">Нет предстоящих мероприятий на этой трассе</div>
         {% endif %}
-    </div>
+    </section>
 
-    <div class="row">
+    {% if classes %}
+    {# 6. Рекорды трассы #}
+    <section class="gl-tr-section" aria-labelledby="rec-h">
+        <h2 id="rec-h" class="gl-tr-h2 gl-tr-sec-h">Рекорды трассы</h2>
+        <div class="gl-tr-card">
+            <table class="gl-tr-records">
+                <thead><tr><th>Класс</th><th>Пилот</th><th class="gl-tr-num">Круг</th></tr></thead>
+                <tbody>
+                {% for c in classes %}{% if c.record %}
+                <tr data-class-id="{{ c.id }}"{% if c.id == selected_class.id %} class="is-selected"{% endif %}>
+                    <td class="gl-tr-records-class">{{ c.name }}</td>
+                    <td>{% include "coderedcms/snippets/track/holder.html" with h=c.record label="" %}</td>
+                    <td class="gl-tr-num gl-tr-mono gl-tr-records-lap">{{ c.record.ms|laptime }}</td>
+                </tr>
+                {% endif %}{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
 
-<!-- Прошедшие соревнования (левая колонка) -->
-<div class="col-lg-6 mb-4">
-    <h3 class="border-bottom border-primary pb-2 mb-4 text-uppercase fw-bold">
-        <i class="fas fa-history me-2 text-info"></i>Прошедшие
-    </h3>
+    {# 7. Статистика #}
+    <section class="gl-tr-section" aria-labelledby="st-h">
+        <h2 id="st-h" class="gl-tr-h2 gl-tr-sec-h">Статистика трассы</h2>
+        <div class="gl-tr-stats" id="glTrStats">{% include "coderedcms/snippets/track/stats.html" with c=selected_class %}</div>
+    </section>
+    {% endif %}
 
-    {% if past_events %}
-        <div class="event-list">
+    {# 8. Прошедшие #}
+    <section class="gl-tr-section" aria-labelledby="past-h">
+        <h2 id="past-h" class="gl-tr-h2 gl-tr-sec-h">Прошедшие</h2>
+        {% if past_events %}
+            <div class="gl-tr-past">
             {% for event in past_events %}
-                <div class="event-item">
-                    <!-- Левая часть с текстом -->
-                    <div class="event-content">
-                        <div class="event-date">
-                            <i class="fas fa-calendar-check me-2"></i>
-                            {{ event.start|date:"d.m.Y" }}
-                            {% if event.end and event.end != event.start %}
-                                — {{ event.end|date:"d.m.Y" }}
-                            {% endif %}
-                        </div>
-
-                        <div class="event-title">{{ event.title }}</div>
-
-                        {% if event.championship %}
-                            <div class="event-championship">
-                                <i class="fas fa-trophy me-2"></i>
-                                <a href="{{ event.championship.url }}">{{ event.championship.title }}</a>
-                            </div>
-                        {% endif %}
-
-                        {% if event.classes %}
-                            <div class="mt-2">
-                                {% for class_name in event.classes %}
-                                    <span class="class-badge">{{ class_name }}</span>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-
-                    <!-- Правая часть с кнопкой -->
-                    {% if event.championship %}
-                        <div class="event-actions">
-                            <a href="{{ event.championship.url }}" class="btn btn-sm-custom btn-outline-info">Результаты</a>
-                        </div>
-                    {% endif %}
-                </div>
+                {% include "coderedcms/snippets/track/event_card.html" with upcoming=False %}
             {% endfor %}
-        </div>
-    {% else %}
-        <div class="empty-state">
-            <i class="fas fa-history fa-3x mb-3"></i>
-            <p class="mb-0">На этой трассе ещё не проводились соревнования</p>
-        </div>
-    {% endif %}
-</div>
+            </div>
+        {% else %}
+            <div class="gl-tr-empty">На этой трассе ещё не проводились соревнования</div>
+        {% endif %}
+    </section>
 
-        <!-- Предстоящие соревнования (правая колонка) -->
-<div class="col-lg-6 mb-4">
-    <h3 class="border-bottom border-primary pb-2 mb-4 text-uppercase fw-bold">
-        <i class="fas fa-calendar-alt me-2 text-info"></i>Предстоящие
-    </h3>
-
-    {% if upcoming_events %}
-        <div class="event-list">
-            {% for event in upcoming_events %}
-                <div class="event-item">
-                    <!-- Левая часть с текстом -->
-                    <div class="event-content">
-                        <div class="event-date">
-                            <i class="fas fa-calendar-day me-2"></i>
-                            {{ event.start|date:"d.m.Y" }}
-                            {% if event.end and event.end != event.start %}
-                                — {{ event.end|date:"d.m.Y" }}
-                            {% endif %}
-                        </div>
-
-                        <div class="event-title">{{ event.title }}</div>
-
-                        {% if event.championship %}
-                            <div class="event-championship">
-                                <i class="fas fa-trophy me-2"></i>
-                                <a href="{{ event.championship.url }}">{{ event.championship.title }}</a>
-                            </div>
-                        {% endif %}
-
-                        {% if event.classes %}
-                            <div class="mt-2">
-                                {% for class_name in event.classes %}
-                                    <span class="class-badge">{{ class_name }}</span>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-
-                    <!-- Правая часть с кнопкой -->
-                    {% if event.championship %}
-                        <div class="event-actions">
-                            <a href="{{ event.championship.url }}" class="btn btn-sm-custom btn-outline-warning">Подробнее</a>
-                        </div>
-                    {% endif %}
+    {# 9. О трассе + карта #}
+    <section class="gl-tr-section" id="about" aria-labelledby="ab-h">
+        <div class="gl-tr-about">
+            <div class="gl-tr-card gl-tr-about-info">
+                <h2 id="ab-h" class="gl-tr-about-h">О трассе</h2>
+                <div class="gl-tr-about-text">{{ track.description|safe_html|default:"Информация о трассе скоро будет дополнена." }}</div>
+            </div>
+            {% if map_html or map %}
+            <div class="gl-tr-map">
+                {% if map_html %}{{ map_html }}{% else %}<iframe src="{{ map.iframe_src }}" title="Карта: {{ track.name }}" loading="lazy" allowfullscreen></iframe>{% endif %}
+                {% if map %}
+                <div class="gl-tr-map-bar">
+                    <span class="gl-tr-coord">{{ map.coords }}</span>
+                    <span class="gl-tr-map-btns">
+                        <a href="{{ map.route_url }}" class="gl-tr-btn-yellow" target="_blank" rel="noopener">Проложить маршрут</a>
+                        <a href="{{ map.maps_url }}" class="gl-tr-ghost gl-tr-ghost--dark" target="_blank" rel="noopener">Яндекс Карты</a>
+                    </span>
                 </div>
-            {% endfor %}
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
-    {% else %}
-        <div class="empty-state">
-            <i class="fas fa-calendar-times fa-3x mb-3"></i>
-            <p class="mb-0">Нет предстоящих мероприятий на этой трассе</p>
-        </div>
-    {% endif %}
+    </section>
 </div>
-    </div>
-</div>
+
+{% for c in classes %}
+<template id="glTrPanelTpl{{ c.id }}">{% include "coderedcms/snippets/track/sector_panel.html" %}</template>
+<template id="glTrStatsTpl{{ c.id }}">{% include "coderedcms/snippets/track/stats.html" %}</template>
+{% endfor %}
+{{ track_js|json_script:"track-data" }}
+{% endblock %}
+
+{% block custom_scripts %}
+{{ block.super }}{# плашка cookie + Метрика после согласия + виджет «Обратная связь» из base.html #}
+<script src="{% static 'website/js/track_page.js' %}" defer></script>
 {% endblock %}
 
 {% block struct_seo %}

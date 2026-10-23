@@ -50,8 +50,13 @@ class TrackAdmin(ModelAdmin):
     model = Track
     menu_label = 'Трассы'
     menu_icon = 'site'
-    list_display = ('name', 'city')
+    list_display = ('name', 'city', 'scheme_link')
     search_fields = ('name', 'city')
+
+    def scheme_link(self, obj):
+        label = 'Схема ✓' if obj.has_scheme else 'Нарисовать схему'
+        return format_html('<a href="{}">{}</a>', reverse('track_scheme_editor', args=[obj.pk]), label)
+    scheme_link.short_description = 'Схема трассы'
 
 class ChassisAdmin(ModelAdmin):
     model = Chassis
@@ -643,6 +648,18 @@ def register_setupkart_admin_urls():
              name='setupkart_chassis_image_edit'),
         path('setupkart/chassis-images/<int:pk>/delete/', setupkart_chassis_images.image_delete,
              name='setupkart_chassis_image_delete'),
+    ]
+
+
+@hooks.register('register_admin_urls')
+def register_track_scheme_urls():
+    from . import track_scheme_views as tsv
+    return [
+        path('track-scheme/<int:pk>/', tsv.editor, name='track_scheme_editor'),
+        path('track-scheme/<int:pk>/preview/', tsv.editor_preview, name='track_scheme_preview'),
+        path('track-scheme/<int:pk>/save/', tsv.editor_save, name='track_scheme_save'),
+        path('track-scheme/<int:pk>/clear/', tsv.editor_clear, name='track_scheme_clear'),
+        path('track-scheme/<int:pk>/reference/', tsv.editor_reference, name='track_scheme_reference'),
     ]
 
 

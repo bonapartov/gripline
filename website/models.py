@@ -16,7 +16,7 @@ from django.db import models
 from modelcluster.models import ClusterableModel
 from wagtail.api import APIField
 from wagtail.snippets.models import register_snippet
-from wagtail.admin.panels import FieldPanel, FieldRowPanel, HelpPanel, InlinePanel, MultiFieldPanel, ObjectList, TabbedInterface
+from wagtail.admin.panels import FieldPanel, FieldRowPanel, HelpPanel, InlinePanel, MultiFieldPanel, ObjectList, Panel, TabbedInterface
 from wagtail.admin.forms.pages import WagtailAdminPageForm
 from wagtail.models import DraftStateMixin, RevisionMixin, PreviewableMixin, Orderable
 from django.urls import reverse
@@ -1142,6 +1142,23 @@ class TrackSocialLink(Orderable):
         FieldPanel('link_url'),
     ]
 
+def _private_storage():
+    from website.feedback.storage import private_storage
+    return private_storage()
+
+
+class TrackSchemePanel(Panel):
+    """Кнопка «Редактор схемы» на форме трассы (у новой, ещё не сохранённой трассы — подсказка)."""
+
+    class BoundPanel(Panel.BoundPanel):
+        template_name = "website/admin/track_scheme_panel.html"
+
+        def get_context_data(self, parent_context=None):
+            context = super().get_context_data(parent_context)
+            context['track'] = self.instance
+            return context
+
+
 class Track(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, models.Model):
     name = models.CharField("Название трассы", max_length=255)
     slug = models.SlugField("Slug", max_length=255, unique=True, blank=True, null=True)
@@ -1193,14 +1210,30 @@ class Track(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, 
         help_text="Запись попадёт в мобильное приложение GripLine SetupKart после публикации справочников "
                   "(меню «Приложение» → «Публикация»). Без галочки — только на сайте.",
     )
+    # Имя поля историческое (сначала было только для приложения) — теперь это направление трассы
+    # и для сайта (шапка, PDF, проверка схемы в редакторе), и для приложения.
     app_direction = models.CharField(
         "Направление движения", max_length=3, blank=True, choices=[('cw', 'По часовой'), ('ccw', 'Против часовой')],
-        help_text="Для приложения: подставляется в сессию на этой трассе (анализ шин учитывает, какие колёса "
-                  "внешние). Пусто — пилот выбирает сам.")
+        help_text="Показывается на странице трассы и в PDF-схеме, по нему редактор схемы проверяет, в какую "
+                  "сторону нарисована линия. В приложении подставляется в сессию на этой трассе. Пусто — не показывается.")
+
+    length_m = models.DecimalField(
+        "Длина, м", max_digits=7, decimal_places=2, blank=True, null=True,
+        help_text="Например 1603.45. Нужна для 3D-схемы (масштаб) — без длины 3D не показывается.")
+    turns_count = models.PositiveSmallIntegerField(
+        "Число поворотов", blank=True, null=True,
+        help_text="Пусто — берётся число поворотов со схемы трассы.")
+    # Схема — пишет только редактор схемы (админка → Трассы → «Редактор схемы»), руками не правится.
+    scheme_data = models.JSONField("Схема трассы (данные)", blank=True, null=True, editable=False)
+    scheme_svg = models.TextField("Схема трассы (SVG)", blank=True, editable=False)
+    scheme_reference = models.FileField(
+        "Подложка для обводки схемы", blank=True, editable=False,
+        storage=_private_storage, upload_to='track_scheme_reference/',
+        help_text="Только для редактора схемы, на сайт не выводится.")
+    scheme_updated_at = models.DateTimeField("Схема сохранена", blank=True, null=True, editable=False)
 
     panels = [
         FieldPanel('show_in_app'),
-        FieldPanel('app_direction'),
         FieldPanel('name'),
         FieldPanel('slug'),
         FieldPanel('city'),
@@ -1211,6 +1244,12 @@ class Track(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, 
         FieldPanel('map_html'),
         FieldPanel('photo'),
         FieldPanel('description'),
+        MultiFieldPanel([
+            FieldPanel('length_m'),
+            FieldPanel('turns_count'),
+            FieldPanel('app_direction'),
+            TrackSchemePanel(),
+        ], heading="Характеристики и схема трассы"),
         InlinePanel('social_links', label="Социальные сети"),
     ]
 
@@ -1224,6 +1263,18 @@ class Track(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, 
 
     def get_absolute_url(self):
         return f"/tracks/{self.slug}/"
+
+    @property
+    def has_scheme(self):
+        return bool(self.scheme_svg and self.scheme_data)
+
+    @property
+    def effective_turns_count(self):
+        """Поле «Число поворотов», а если пусто — число маркеров поворотов на схеме."""
+        if self.turns_count:
+            return self.turns_count
+        turns = (self.scheme_data or {}).get('turns') or []
+        return len(turns) or None
 
     class Meta:
         verbose_name = "Трасса"

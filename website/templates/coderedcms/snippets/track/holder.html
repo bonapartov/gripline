@@ -1,0 +1,3 @@
+{% load website_tags %}{# Единый формат держателя рекорда/сектора: ФИО ссылкой, под ним «сессия, дд.мм.гггг» ссылкой на результаты заезда #}
+{% if label %}<div class="gl-tr-holder"><div class="gl-tr-holder-row"><span class="gl-tr-label gl-tr-label--muted">{{ label }}</span><a href="{{ h.driver_url }}" class="gl-tr-holder-name">{{ h.driver_name }}</a></div>{% else %}<div class="gl-tr-holder"><a href="{{ h.driver_url }}" class="gl-tr-holder-name">{{ h.driver_name }}</a>{% endif %}
+<a href="{{ h.event_url }}" class="gl-tr-sess" title="Результаты заезда">{{ h.session_label }}{% if h.date %}, {{ h.date|date:"d.m.Y" }}{% endif %}</a></div>

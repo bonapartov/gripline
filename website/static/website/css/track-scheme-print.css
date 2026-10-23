@@ -1,0 +1,37 @@
+/* PDF «Схема трассы» (A4, светлый лист — экономия краски, читается в ч/б).
+   Печатная палитра, как у медиа-китов (mediakit-print.css) — не связана с --gl-* тёмной темы. */
+:root {
+  --ts-ink: #1a1a25;
+  --ts-ink-2: #444444;
+  --ts-ink-3: #555555;
+  --ts-line: #c8c8c8;
+  --ts-yellow: #ffc107;
+  --ts-s0: #e0a800;
+  --ts-s1: #0a8fb0;
+  --ts-s2: #1e7e34;
+}
+@page { size: A4; margin: 12mm; }
+html, body { margin: 0; color: var(--ts-ink); font-family: 'Inter Tight', Arial, sans-serif; font-size: 10pt; }
+.ts-page { display: flex; flex-direction: column; height: 271mm; }
+.ts-head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid var(--ts-yellow); padding-bottom: 2.5mm; }
+.ts-head b { font-weight: 800; letter-spacing: 3px; font-size: 19pt; }
+.ts-head span { font-weight: 800; letter-spacing: 2px; color: var(--ts-ink-3); text-transform: uppercase; font-size: 9pt; }
+.ts-title { margin-top: 6mm; font-weight: 800; text-transform: uppercase; font-size: 26pt; line-height: 1.05; }
+.ts-addr { color: var(--ts-ink-2); margin-top: 1.5mm; font-size: 10.5pt; }
+.ts-figs { display: flex; margin-top: 6mm; border: 1px solid var(--ts-ink); border-radius: 2mm; }
+.ts-figs div { flex: 1; padding: 3mm 4mm; border-right: 1px solid var(--ts-line); }
+.ts-figs div:last-child { border-right: 0; }
+.ts-figs i { display: block; font-style: normal; font-size: 7.5pt; font-weight: 700; letter-spacing: 1px; color: var(--ts-ink-3); text-transform: uppercase; }
+.ts-figs b { font-family: 'JetBrains Mono', monospace; font-size: 15pt; }
+.ts-figs b.ts-word { font-family: 'Inter Tight', Arial, sans-serif; font-size: 12pt; }
+.ts-scheme { flex: 1; display: flex; align-items: center; justify-content: center; margin: 5mm 0; }
+.ts-scheme svg { width: 100%; height: auto; max-height: 150mm; }
+.ts-legend { display: flex; gap: 4mm; }
+.ts-legend div { flex: 1; border: 1px solid var(--ts-line); border-radius: 1.5mm; padding: 2.5mm 3mm; display: flex; gap: 3mm; align-items: center; }
+.ts-legend em { width: 12mm; height: 3mm; border-radius: 1mm; display: inline-block; flex: none; }
+.ts-s0 { background: var(--ts-s0); } .ts-s1 { background: var(--ts-s1); } .ts-s2 { background: var(--ts-s2); }
+.ts-foot { display: flex; justify-content: space-between; align-items: center; gap: 6mm; border-top: 1px solid var(--ts-ink); padding-top: 3.5mm; margin-top: 6mm; font-size: 9pt; }
+.ts-foot .ts-mid { text-align: center; }
+.ts-foot img { width: 24mm; height: 24mm; }
+.ts-date { color: var(--ts-ink-3); font-size: 8pt; margin-top: 1mm; }
+.ts-brand { letter-spacing: 2px; }

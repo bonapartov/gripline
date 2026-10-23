@@ -486,7 +486,8 @@ CSP_REPORT_ONLY_DIRECTIVES = {
         'https://log.api-maps.yandex.ru',               # логирование Яндекс.Карт (не только img)
         'https://id.vk.ru',                             # VK ID One Tap
     ],
-    'frame-src': ["'self'", 'https://mc.yandex.ru', 'https://id.vk.ru', 'https://login.vk.ru'],
+    'frame-src': ["'self'", 'https://mc.yandex.ru', 'https://id.vk.ru', 'https://login.vk.ru',
+                  'https://yandex.ru'],          # карта на странице трассы (yandex.ru/map-widget)
     'object-src': ["'none'"],
     'base-uri': ["'self'"],
     'frame-ancestors': ["'self'"],

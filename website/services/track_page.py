@@ -1,0 +1,78 @@
+"""Контекст страницы трассы /tracks/<slug>/ (без списков этапов — их собирает track_detail_view)."""
+from urllib.parse import quote
+
+from django.templatetags.static import static
+from django.utils.safestring import mark_safe
+
+from website.services import track_scheme, track_stats
+
+
+def map_links(track):
+    """Карта и ссылки «Проложить маршрут» / «Яндекс Карты» по координатам трассы."""
+    if track.latitude is None or track.longitude is None:
+        return None
+    lat, lon = track.latitude, track.longitude
+    ll = f'{lon},{lat}'
+    return {
+        'coords': f'{lat:.4f}, {lon:.4f}',
+        # Пока «Код карты» из админки в приоритете (временное решение владельца, 23.10.2026)
+        'iframe_src': f'https://yandex.ru/map-widget/v1/?ll={quote(ll)}&z=15&pt={quote(ll)},pm2ywm',
+        'route_url': f'https://yandex.ru/maps/?rtext=~{lat},{lon}&rtt=auto',
+        'maps_url': f'https://yandex.ru/maps/?pt={quote(ll)}&z=16&l=map',
+    }
+
+
+def _js_class(c):
+    """Минимум для JS: переключатель классов, адрес ?class=, 3D-метка."""
+    return {
+        'id': c['id'],
+        'name': c['name'],
+        'record_ms': c['record']['ms'] if c['record'] else None,
+        'sectors_ms': [s['ms'] for s in c['sectors']] if c['has_sectors'] else None,
+    }
+
+
+def build_track_page(track, requested_class, races_count):
+    rows = track_stats.load_rows(track)
+    classes = track_stats.build_track_classes(rows)
+
+    selected = None
+    if requested_class and str(requested_class).isdigit():
+        selected = next((c for c in classes if c['id'] == int(requested_class)), None)
+    selected = selected or track_stats.default_class(classes)
+
+    scheme = track.scheme_data if track.has_scheme else None
+    turn_ranges = track_scheme.sector_turn_ranges(scheme) if scheme else ['', '', '']
+    # 3D: нужна и схема, и длина (масштаб), и WebGL в браузере (проверяет JS)
+    can_3d = bool(scheme and track.length_m)
+    for c in classes:
+        for sec in c['sectors']:
+            sec['turns'] = turn_ranges[sec['index']]
+
+    js_data = {
+        'classes': [_js_class(c) for c in classes],
+        'selected': selected['id'] if selected else None,
+        'scheme': track_scheme.public_scheme(scheme) if can_3d else None,
+        'length_m': float(track.length_m) if track.length_m else None,
+        'turn_ranges': turn_ranges,
+        'static': {
+            'three': static('website/vendor/three/r128/three.min.js'),
+            'orbit': static('website/vendor/three/r128/OrbitControls.js'),
+            'geom': static('website/js/track_scheme_geom.js'),
+            'module': static('website/js/track_3d.js'),
+        },
+    }
+
+    return {
+        'classes': classes,
+        'selected_class': selected,
+        'absolute_record': track_stats.absolute_record(classes),
+        'races_count': races_count,
+        'turns_count': track.effective_turns_count,
+        'scheme_svg': mark_safe(track.scheme_svg) if scheme else '',  # строится на сервере из чисел
+        'turn_ranges': turn_ranges,
+        'can_3d': can_3d,
+        'track_js': js_data,
+        'map': map_links(track),
+        'map_html': mark_safe(track.map_html) if track.map_html else '',  # «Код карты» вводит админ
+    }

@@ -695,7 +695,7 @@ def track_detail_view(request, slug):
     track = get_object_or_404(Track, slug=slug)
     current_site = Site.find_for_request(request)
 
-    from .models import EventPage, EventOccurrence
+    from .models import ChampionshipPage, EventPage, EventOccurrence
 
     now = timezone.now()
 
@@ -705,6 +705,7 @@ def track_detail_view(request, slug):
     # Группируем по мероприятию: ключ = (title, дата начала)
     # Одно мероприятие может иметь несколько EventPage (по одному на каждый класс)
     grouped = {}
+    champ_titles = {}
 
     for event in all_events:
         occurrence = event.occurrences.first()
@@ -721,12 +722,17 @@ def track_detail_view(request, slug):
 
         if group_key not in grouped:
             championship = event.get_parent().specific
+            # Родитель — обычно StagePage («6 этап»); подпись карточки — сам чемпионат
+            if championship.id not in champ_titles:
+                found = ChampionshipPage.objects.ancestor_of(championship, inclusive=True).first()
+                champ_titles[championship.id] = found.title if found else championship.title
             grouped[group_key] = {
                 'title': event.title,
                 'url': event.url,
                 'start': start_dt,
                 'end': end_dt,
                 'championship': championship,
+                'championship_title': champ_titles[championship.id],
                 'classes': [],
                 'is_past': end_dt < now if end_dt else start_dt < now,
             }
@@ -747,31 +753,9 @@ def track_detail_view(request, slug):
         key=lambda x: x['start']
     )
 
-    # Рекорды трассы: лучший круг в каждом классе за всю историю трассы
-    track_results = RaceResult.objects.filter(
-        group__page__track=track,
-        group__page__live=True,
-    ).select_related('driver', 'group__race_class', 'group__page')
+    from website.services.track_page import build_track_page
 
-    records_by_class = {}
-    for result in track_results:
-        lap_ms = result.best_lap_all_ms
-        if lap_ms is None:
-            continue
-        race_class = result.group.race_class
-        current = records_by_class.get(race_class.id)
-        if current is None or lap_ms < current['lap_ms']:
-            occurrence = result.group.page.occurrences.first()
-            records_by_class[race_class.id] = {
-                'race_class': race_class,
-                'lap_ms': lap_ms,
-                'driver': result.driver,
-                'date': occurrence.start if occurrence else None,
-                'session': result.best_lap_session,
-                'event_url': result.group.page.url,
-            }
-
-    track_records = sorted(records_by_class.values(), key=lambda r: (r['race_class'].sort_order, r['race_class'].name))
+    page_ctx = build_track_page(track, request.GET.get('class'), races_count=len(past_events))
 
     from website.schema import track_place_dict, render_json_ld, _absolute_url
 
@@ -790,7 +774,7 @@ def track_detail_view(request, slug):
         "seo": track_seo(
             track, current_site,
             events_count=len(past_events) + len(upcoming_events),
-            record_classes=len(track_records),
+            record_classes=sum(1 for c in page_ctx['classes'] if c['record']),
             next_event=upcoming_events[0] if upcoming_events else None,
         ),
         "track": track,
@@ -798,10 +782,10 @@ def track_detail_view(request, slug):
         "page": track,
         "past_events": past_events,
         "upcoming_events": upcoming_events,
-        "track_records": track_records,
         "site": current_site,
         "schema_json_ld": track_schema_json_ld,
         "breadcrumb_items": track_breadcrumb_items,
+        **page_ctx,
     })
 def chassis_detail_view(request, slug):
     chassis = get_object_or_404(Chassis, slug=slug)

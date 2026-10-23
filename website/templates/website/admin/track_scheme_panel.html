@@ -1,0 +1,13 @@
+{% if track.pk %}
+<p>
+    <a class="button button-small" href="{% url 'track_scheme_editor' track.pk %}">Редактор схемы</a>
+    {% if track.scheme_updated_at %}
+        <span class="help">Схема сохранена {{ track.scheme_updated_at|date:"d.m.Y H:i" }}.</span>
+    {% else %}
+        <span class="help">Схема ещё не нарисована.</span>
+    {% endif %}
+</p>
+<p class="help">Схема сохраняется из редактора сразу на сайт. Несохранённые изменения этой формы сначала сохраните.</p>
+{% else %}
+<p class="help">Редактор схемы появится после первого сохранения трассы.</p>
+{% endif %}

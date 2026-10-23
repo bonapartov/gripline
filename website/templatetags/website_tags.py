@@ -193,6 +193,34 @@ def laptime(ms):
 
 
 @register.filter
+def sectortime(ms):
+    """22071 → '22.071'; сектор длиннее минуты — как круг ('1:02.347')."""
+    try:
+        ms = int(ms)
+    except (TypeError, ValueError):
+        return '—'
+    return laptime(ms) if ms >= 60000 else f"{ms / 1000:.3f}"
+
+
+@register.filter
+def seconds3(ms):
+    """Разница в мс → секунды с тремя знаками: 165 → '0.165'."""
+    try:
+        return f"{int(ms) / 1000:.3f}"
+    except (TypeError, ValueError):
+        return ''
+
+
+@register.filter
+def meters(value):
+    """1248.4 → '1 248' (неразрывный пробел между разрядами)."""
+    try:
+        return f"{round(float(value)):,}".replace(',', '\u00a0')
+    except (TypeError, ValueError):
+        return ''
+
+
+@register.filter
 def ru_word(value, arg):
     """Только слово в нужной форме, без числа: {{ n|ru_word:"старт,старта,стартов" }}"""
     try:

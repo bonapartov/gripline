@@ -154,7 +154,8 @@ def track_seo(track, site, *, events_count=0, record_classes=0, next_event=None)
         title += f", {track.city}"
     title += f" | {BRAND}"
 
-    lead = f"Картинг-трасса «{track.name}»"
+    # «Картодром «Аргамак»», «Картодром "Мотодром Арена"» — в кавычки только название без своих кавычек
+    lead = f"Картинг-трасса {track.name}" if any(q in track.name for q in '«»"„“') else f"Картинг-трасса «{track.name}»"
     place = ", ".join(x for x in (track.city, track.address) if x)
     if place:
         lead += f": {place}"

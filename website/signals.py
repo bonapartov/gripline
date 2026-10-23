@@ -102,3 +102,24 @@ def _connect_footer_cache_signals():
 
 
 _connect_footer_cache_signals()
+
+
+def _purge_track_page(sender, instance, **kwargs):
+    """Страница трассы и её PDF-схема закэшированы wagtailcache по адресу — после правки трассы
+    (поля в админке или схема из редактора) сбросить все варианты (?class=…, scheme.pdf)."""
+    if not instance.slug:
+        return
+    import re
+    from wagtailcache.cache import clear_cache
+    try:
+        clear_cache([r'^https?://[^/]+' + re.escape(instance.get_absolute_url()) + r'.*$'])
+    except Exception:
+        logger.warning("Не удалось сбросить кэш страницы трассы %s", instance.slug, exc_info=True)
+
+
+def _connect_track_cache_signal():
+    from .models import Track
+    post_save.connect(_purge_track_page, sender=Track, dispatch_uid='purge_track_page')
+
+
+_connect_track_cache_signal()

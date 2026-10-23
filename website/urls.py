@@ -5,6 +5,7 @@ from wagtail.api.v2.router import WagtailAPIRouter
 from . import views
 from .legal_views import data_request_view
 from .feedback.public_views import feedback_redirect
+from .track_scheme_views import track_scheme_pdf_view
 from .api import pulse_data  # Импортируем функцию напрямую
 from .views import (
     DriverViewSet, TeamViewSet, TrackViewSet, ChassisViewSet,
@@ -43,6 +44,7 @@ urlpatterns = [
     path("drivers/", include(driver_viewset.get_urlpatterns())),
     path("teams/", include((team_viewset.get_urlpatterns(), 'website'), namespace='team_snippet')),
     path("teams/<slug:slug>/", views.team_detail_view, name='team_detail'),
+    path("tracks/<slug:slug>/scheme.pdf", track_scheme_pdf_view, name='track_scheme_pdf'),
     path("tracks/", include((track_viewset.get_urlpatterns(), 'website'), namespace='tracks')),
     path("tracks/<slug:slug>/", views.track_detail_view, name='track_detail'),
     path("chassis/", include((chassis_viewset.get_urlpatterns(), 'website'), namespace='chassis')),

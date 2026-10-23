@@ -1,0 +1,41 @@
+{% load website_tags %}
+<div class="gl-tr-card gl-tr-stat">
+    <div class="gl-tr-label">Гонки по годам · {{ c.name }}</div>
+    <div class="gl-tr-bars">
+        {% for y in c.years %}
+        <div class="gl-tr-bar">
+            <span class="gl-tr-bar-tip" style="bottom:{{ y.height|add:72 }}px">Участников</span>
+            <span class="gl-tr-bar-n">{{ y.drivers }}</span>
+            <button type="button" class="gl-tr-bar-col" style="height:{{ y.height }}px" aria-label="{{ y.year }}: участников {{ y.drivers }}"></button>
+            <span class="gl-tr-bar-y">{{ y.year }}</span>
+            <span class="gl-tr-bar-r">{% if not y.races %}нет гонок{% else %}{{ y.races }} {{ y.races|ru_word:"гонка,гонки,гонок" }}{% endif %}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+<div class="gl-tr-card gl-tr-stat">
+    <div class="gl-tr-label">Лидеры трассы · {{ c.name }}</div>
+    <table class="gl-tr-mini">
+        <thead><tr><th>Пилот</th><th class="gl-tr-num">Старты</th><th class="gl-tr-num">Победы</th><th class="gl-tr-num">Подиумы</th></tr></thead>
+        <tbody>
+        {% for l in c.leaders %}
+        <tr><td><a href="{{ l.driver_url }}">{{ l.driver_name }}</a></td><td class="gl-tr-num gl-tr-mono">{{ l.starts }}</td><td class="gl-tr-num gl-tr-mono gl-tr-yellow gl-tr-bold">{{ l.wins }}</td><td class="gl-tr-num gl-tr-mono">{{ l.podiums }}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+<div class="gl-tr-card gl-tr-stat">
+    <div class="gl-tr-label">История рекорда · {{ c.name }}</div>
+    <div>
+        {% for h in c.history %}
+        <div class="gl-tr-hist">
+            <span class="gl-tr-hist-y">{{ h.year }}</span>
+            <span class="gl-tr-hist-t">{{ h.ms|laptime }}</span>
+            {% include "coderedcms/snippets/track/holder.html" with h=h label="" %}
+            <span class="gl-tr-hist-d{% if h.delta_ms is None or h.delta_ms <= 0 %} gl-tr-hist-d--flat{% endif %}">{{ h.delta_text }}</span>
+        </div>
+        {% empty %}
+        <p class="gl-tr-p">Нет данных о времени круга.</p>
+        {% endfor %}
+    </div>
+</div>

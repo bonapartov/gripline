@@ -1,0 +1,44 @@
+{% load website_tags %}
+{% if not c.record %}
+<span class="gl-tr-label">Секторы · {{ c.name }}</span>
+<p class="gl-tr-p">Для этого класса на трассе нет данных о времени круга.</p>
+{% elif not c.has_sectors %}
+<span class="gl-tr-label">Секторы · {{ c.name }}</span>
+<div class="gl-tr-tile"><div class="gl-tr-tile-k">Рекорд круга</div><div class="gl-tr-tile-v gl-tr-yellow">{{ c.record.ms|laptime }}</div></div>
+{% include "coderedcms/snippets/track/holder.html" with h=c.record label="Рекордсмен" %}
+<p class="gl-tr-p">Нет данных по секторам: для этого класса организатор не публиковал анализ секторов.{% if track.has_scheme %} Схема показывает только границы секторов.{% endif %}</p>
+{% else %}
+<div class="gl-tr-panel-view" data-sector-view="-1">
+    <span class="gl-tr-label">Секторы · {{ c.name }} · лучшие значения</span>
+    <div class="gl-tr-tiles">
+        <div class="gl-tr-tile"><div class="gl-tr-tile-k">Идеальный круг</div><div class="gl-tr-tile-v">{{ c.ideal_ms|laptime }}</div></div>
+        <div class="gl-tr-tile"><div class="gl-tr-tile-k">Рекорд круга</div><div class="gl-tr-tile-v gl-tr-yellow">{{ c.record.ms|laptime }}</div></div>
+    </div>
+    {% include "coderedcms/snippets/track/holder.html" with h=c.record label="Рекордсмен" %}
+    {% if c.gap_ms %}<p class="gl-tr-p">Сумма лучших секторов на <b>{{ c.gap_ms|seconds3 }} с</b> быстрее рекорда — столько ещё есть на этой трассе.</p>{% endif %}
+    <div>
+        <div class="gl-tr-label gl-tr-mb8">Доля сектора в круге</div>
+        <div class="gl-tr-share">{% for s in c.sectors %}<div class="gl-tr-s{{ s.index }}" style="width:{{ s.share }}%"></div>{% endfor %}</div>
+    </div>
+    <div class="gl-tr-srows">
+        {% for s in c.sectors %}
+        <button type="button" class="gl-tr-srow" data-sector="{{ s.index }}"><span class="gl-tr-sw gl-tr-s{{ s.index }}"></span><span class="gl-tr-srow-n">{{ s.name }}</span><span class="gl-tr-srow-t">{{ s.ms|sectortime }}</span><span class="gl-tr-srow-sh">{{ s.share }}% круга</span></button>
+        {% endfor %}
+    </div>
+</div>
+{% for s in c.sectors %}
+<div class="gl-tr-panel-view" data-sector-view="{{ s.index }}" hidden>
+    <div class="gl-tr-sec-head"><span class="gl-tr-pill gl-tr-s{{ s.index }}">{{ s.name }}</span>{% if s.turns %}<span class="gl-tr-muted">{{ s.turns }}</span>{% endif %}</div>
+    <div class="gl-tr-tile gl-tr-tile--big">
+        <div class="gl-tr-tile-k">Лучшее время сектора · {{ c.name }}</div>
+        <div class="gl-tr-tile-v">{{ s.ms|sectortime }}</div>
+        {% include "coderedcms/snippets/track/holder.html" with h=s label="" %}
+    </div>
+    <div class="gl-tr-tiles">
+        <div class="gl-tr-tile"><div class="gl-tr-tile-k">Доля круга</div><div class="gl-tr-tile-v">{{ s.share }}%</div></div>
+        <div class="gl-tr-tile"><div class="gl-tr-tile-k">Медиана поля</div><div class="gl-tr-tile-v">{% if s.median_ms %}{{ s.median_ms|sectortime }}{% else %}—{% endif %}</div></div>
+    </div>
+    <button type="button" class="gl-tr-back" data-sector="-1">✕ Все секторы</button>
+</div>
+{% endfor %}
+{% endif %}

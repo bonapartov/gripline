@@ -144,3 +144,15 @@ def render_team_mediakit_pdf(context, profile_url_absolute):
         'qr_code_uri': _qr_code_data_uri(profile_url_absolute),
     }
     return _render_pdf('mediakit/team_mediakit.html', template_context)
+
+
+def render_track_scheme_pdf(context, page_url_absolute):
+    """Схема трассы на светлом листе A4 (website/track_scheme_views.py)."""
+    template_context = {
+        **context,
+        'page_url_absolute': page_url_absolute,
+        'page_url_short': page_url_absolute.split('://', 1)[-1],
+        'qr_code_uri': _qr_code_data_uri(page_url_absolute),
+        'scheme_css': _static_text('website/css/track-scheme-print.css'),
+    }
+    return _render_pdf('track_scheme/scheme_pdf.html', template_context)
