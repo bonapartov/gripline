@@ -621,3 +621,95 @@ def public_scheme(data):
     out['viewBox'] = data.get('viewBox') or [0, 0, VIEW_W, LEGACY_VIEW_H]
     out['track_width_m'] = data.get('track_width_m') or DEFAULT_TRACK_WIDTH_M
     return out
+
+
+# ── Границы секторов по времени (та же модель скорости, что у 3D-метки) ──
+
+def _curvature(data, length_m, n):
+    """Сглаженная кривизна по n точкам круга от старта (как в track_3d.js)."""
+    poly = polyline(data)
+    mm = float(length_m) / poly.length
+    ds = float(length_m) / n
+    start = data['start']
+    pts = [poly.point_at(start + i / n) for i in range(n)]
+    pts = [((x * mm), (y * mm)) for x, y in pts]
+    for _ in range(3):
+        pts = [(sum(pts[(i + k) % n][0] for k in range(-3, 4)) / 7, sum(pts[(i + k) % n][1] for k in range(-3, 4)) / 7)
+               for i in range(n)]
+    tang = []
+    for i in range(n):
+        a, b = pts[(i - 1) % n], pts[(i + 1) % n]
+        tx, tz = b[0] - a[0], b[1] - a[1]
+        ln = math.hypot(tx, tz) or 1.0
+        tang.append((tx / ln, tz / ln))
+    curv = []
+    for i in range(n):
+        u, v = tang[(i - 2) % n], tang[(i + 2) % n]
+        curv.append(math.acos(max(-1.0, min(1.0, u[0] * v[0] + u[1] * v[1]))) / (4 * ds))
+    return [sum(curv[(i + k) % n] for k in range(-6, 7)) / 13 for i in range(n)], ds
+
+
+def _speeds(curv_s, ds, vmax, grip):
+    n = len(curv_s)
+    vb = [min(vmax, math.sqrt(grip / max(c, 1e-4))) for c in curv_s]
+    for _ in range(2):
+        for i in range(n):
+            pv = vb[(i - 1) % n]
+            vb[i] = min(vb[i], math.sqrt(pv * pv + 2 * 3.5 * ds))
+    for _ in range(2):
+        for i in range(n - 1, -1, -1):
+            nv = vb[(i + 1) % n]
+            vb[i] = min(vb[i], math.sqrt(nv * nv + 2 * 8 * ds))
+    return vb
+
+
+def speed_profile(data, length_m, n=800, top_kmh=110, lap_sec=None):
+    """Накопленное расчётное время по n точкам круга от старта — модель track_3d.js: на прямой не выше top_kmh,
+    в повороте √(сцепление/кривизна), разгон 3.5 м/с², торможение 8 м/с²; сцепление подбирается под lap_sec."""
+    curv_s, ds = _curvature(data, length_m, n)
+    vmax = top_kmh / 3.6
+
+    def lap(grip):
+        return sum(ds / v for v in _speeds(curv_s, ds, vmax, grip))
+
+    grip = 18.0
+    if lap_sec:
+        lo, hi = 3.0, 80.0
+        if lap(hi) > lap_sec:
+            grip = hi
+        else:
+            for _ in range(30):
+                mid = (lo + hi) / 2
+                if lap(mid) > lap_sec:
+                    lo = mid
+                else:
+                    hi = mid
+            grip = (lo + hi) / 2
+    cum = [0.0]
+    for v in _speeds(curv_s, ds, vmax, grip):
+        cum.append(cum[-1] + ds / v)
+    return cum
+
+
+def bounds_by_sector_times(data, length_m, shares, top_kmh=110, lap_sec=None):
+    """Доли s1s2, s2s3, при которых расчётное время секторов делится как shares (доли S1, S2, S3 во времени круга)."""
+    cum = speed_profile(data, length_m, top_kmh=top_kmh, lap_sec=lap_sec)
+    n = len(cum) - 1
+    total = cum[-1]
+
+    def frac_at(t):
+        lo, hi = 0, n
+        while hi - lo > 1:
+            mid = (lo + hi) // 2
+            if cum[mid] <= t:
+                lo = mid
+            else:
+                hi = mid
+        f = (t - cum[lo]) / ((cum[lo + 1] - cum[lo]) or 1)
+        return (lo + f) / n
+
+    s = sum(shares)
+    b1 = frac_at(total * shares[0] / s)
+    b2 = frac_at(total * (shares[0] + shares[1]) / s)
+    start = data['start']
+    return round((start + b1) % 1.0, 5), round((start + b2) % 1.0, 5)

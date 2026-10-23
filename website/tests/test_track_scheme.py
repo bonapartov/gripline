@@ -184,3 +184,17 @@ def test_js_geometry_matches_python(interpolation):
     assert out['project'] == pytest.approx(expected['project'], abs=1e-9)
     for a, b in zip(out['points'], expected['points']):
         assert a == pytest.approx(list(b), abs=1e-6)
+
+
+def test_bounds_by_sector_times_match_requested_shares():
+    """Границы по времени: расчётное время секторов (модель 3D-метки) делится как реальное."""
+    data = ts.clean_scheme_data(plastunka())
+    shares = [0.337, 0.388, 0.275]
+    s1s2, s2s3 = ts.bounds_by_sector_times(data, 1206, shares, top_kmh=95, lap_sec=53.4)
+    cum = ts.speed_profile(data, 1206, top_kmh=95, lap_sec=53.4)
+    n, total = len(cum) - 1, cum[-1]
+    assert total == pytest.approx(53.4, rel=0.01)  # сцепление подобрано под рекорд
+    i1 = round(((s1s2 - data['start']) % 1) * n)
+    i2 = round(((s2s3 - data['start']) % 1) * n)
+    got = [cum[i1] / total, (cum[i2] - cum[i1]) / total, (total - cum[i2]) / total]
+    assert got == pytest.approx(shares, abs=0.01)

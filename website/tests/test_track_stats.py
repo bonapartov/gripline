@@ -266,3 +266,11 @@ def test_sector_far_from_class_median_is_dropped():
 def test_max_sector_speed_by_class(name, kmh):
     from website.services.track_page import max_sector_kmh
     assert max_sector_kmh(name) == kmh
+
+
+@pytest.mark.parametrize('name, kmh', [('RM Micro', 80), ('Микро', 80), ('RM Mini', 95), ('Супер-мини ГР-3', 100),
+                                       ('RM Junior', 110), ('RM Senior', 115), ('RM DD2 Masters', 120),
+                                       ('KZ2', 135), ('ОК J', 115), ('ОК', 125), ('X30 Senior', 115), ('Неизвестный', 110)])
+def test_top_speed_by_class(name, kmh):
+    from website.services.track_page import top_speed_kmh
+    assert top_speed_kmh(name) == kmh

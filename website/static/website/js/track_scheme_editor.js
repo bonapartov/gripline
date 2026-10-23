@@ -478,6 +478,22 @@
     if (!poly() || !state.turns.length) return;
     pushUndo(); renumberTurns(); sel = null; render();
   });
+  /* Границы S1|S2 и S2|S3 по реальным временам секторов трассы: сервер считает ту же модель скорости, что у 3D */
+  $('tseAutoBounds').addEventListener('click', function () {
+    if (!poly() || state.start == null) { status('Сначала отметьте старт/финиш', true); return; }
+    var body = payload();
+    if (body.s1s2 == null || body.s2s3 == null) { body.s1s2 = G.mod1(state.start + 1 / 3); body.s2s3 = G.mod1(state.start + 2 / 3); }
+    status('Считаю границы по времени секторов…');
+    post(root.dataset.autoBoundsUrl, body).then(function (res) {
+      if (!res[0]) { status(res[1].error || 'Не удалось посчитать', true); return; }
+      pushUndo();
+      state.s1s2 = res[1].s1s2; state.s2s3 = res[1].s2s3;
+      confirmProv('s1s2'); confirmProv('s2s3');
+      state.sector_labels = []; autoLabels = null;
+      status('Границы поставлены по времени секторов: S1 ' + res[1].shares[0] + ' %, S2 ' + res[1].shares[1] + ' %, S3 ' + res[1].shares[2] + ' % круга (' + res[1].classes.join(', ') + '). Проверьте и сохраните.');
+      render();
+    }, function () { status('Нет связи с сервером', true); });
+  });
   $('tseTurnNum').addEventListener('change', function (e) {
     if (!(sel && sel.type === 'turn')) return;
     var v = e.target.value.trim();

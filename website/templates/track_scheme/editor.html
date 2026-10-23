@@ -13,6 +13,7 @@
      data-preview-url="{% url 'track_scheme_preview' track.pk %}"
      data-save-url="{% url 'track_scheme_save' track.pk %}"
      data-clear-url="{% url 'track_scheme_clear' track.pk %}"
+     data-auto-bounds-url="{% url 'track_scheme_auto_bounds' track.pk %}"
      data-reference-url="{% url 'track_scheme_reference' track.pk %}"
      data-three="{% static 'website/vendor/three/r128/three.min.js' %}"
      data-orbit="{% static 'website/vendor/three/r128/OrbitControls.js' %}"
@@ -67,6 +68,9 @@
                 <div class="tse-row">
                     <button type="button" class="button button-small button-secondary" id="tseReverse">Развернуть направление</button>
                     <button type="button" class="button button-small button-secondary" id="tseRenumber">Пронумеровать по порядку</button>
+                </div>
+                <div class="tse-row">
+                    <button type="button" class="button button-small button-secondary" id="tseAutoBounds" title="Расставить S1|S2 и S2|S3 так, чтобы расчётное время секторов делилось как реальное (по результатам трассы)">Границы секторов по времени</button>
                 </div>
                 <label class="tse-field">Плавность <input type="range" id="tseTension" min="0" max="1" step="0.05" value="1"></label>
                 <label class="tse-field" id="tseTurnNumWrap" hidden>Номер выбранного поворота (до 4 символов, например «7А») <input type="text" id="tseTurnNum" maxlength="4"></label>

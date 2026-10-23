@@ -662,6 +662,7 @@ def register_track_scheme_urls():
         path('track-scheme/<int:pk>/preview/', tsv.editor_preview, name='track_scheme_preview'),
         path('track-scheme/<int:pk>/save/', tsv.editor_save, name='track_scheme_save'),
         path('track-scheme/<int:pk>/clear/', tsv.editor_clear, name='track_scheme_clear'),
+        path('track-scheme/<int:pk>/auto-bounds/', tsv.editor_auto_bounds, name='track_scheme_auto_bounds'),
         path('track-scheme/<int:pk>/reference/', tsv.editor_reference, name='track_scheme_reference'),
     ]
 

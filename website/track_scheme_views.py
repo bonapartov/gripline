@@ -211,3 +211,37 @@ def editor_reference(request, pk):
     track.scheme_reference.save(f'{track.pk}-{timezone.now():%Y%m%d%H%M%S}.{kind.extension}', upload, save=False)
     track.save(update_fields=['scheme_reference'])
     return JsonResponse({'ok': True})
+
+
+def sector_time_shares(track):
+    """Доли S1/S2/S3 во времени круга по всем классам трассы с секторами (средние, с весом по стартам)."""
+    from website.services import track_stats
+    classes = [c for c in track_stats.build_track_classes(track_stats.load_rows(track)) if c['has_sectors']]
+    if not classes:
+        return None, [], None
+    weight = sum(c['starts'] for c in classes)
+    shares = [sum(c['sectors'][k]['ms'] / c['ideal_ms'] * c['starts'] for c in classes) / weight for k in range(3)]
+    return shares, [c['name'] for c in classes], max(classes, key=lambda c: c['starts'])
+
+
+@require_POST
+def editor_auto_bounds(request, pk):
+    """Границы S1|S2 и S2|S3 по реальным временам секторов (модель скорости — как у 3D-метки)."""
+    denied = _check(request)
+    if denied:
+        return denied
+    track = get_object_or_404(Track, pk=pk)
+    if not track.length_m:
+        return JsonResponse({'error': 'Укажите длину трассы в карточке — без неё скорость не посчитать'}, status=400)
+    try:
+        data = track_scheme.clean_scheme_data(_json_body(request), length_m=track.length_m)
+    except track_scheme.SchemeError as e:
+        return JsonResponse({'error': str(e)}, status=400)
+    shares, names, main = sector_time_shares(track)
+    if not shares:
+        return JsonResponse({'error': 'На этой трассе нет результатов с временами секторов'}, status=400)
+    from website.services.track_page import top_speed_kmh
+    # модель скорости — как у 3D-метки самого массового класса (его максимальная скорость и рекорд)
+    s1s2, s2s3 = track_scheme.bounds_by_sector_times(
+        data, track.length_m, shares, top_kmh=top_speed_kmh(main['name']), lap_sec=main['record']['ms'] / 1000)
+    return JsonResponse({'s1s2': s1s2, 's2s3': s2s3, 'shares': [round(x * 100, 1) for x in shares], 'classes': names})

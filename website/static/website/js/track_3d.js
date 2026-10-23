@@ -61,9 +61,24 @@
     var curvS = curv.map(function (_, i) { var s = 0; for (var k = -6; k <= 6; k++) s += curv[(i + k + N) % N]; return s / 13; });
     var cMax = Math.max.apply(null, curvS);
     // скорость: в повороте v = min(32, √(18 / кривизна)) м/с, разгон 3.5 м/с², торможение 8 м/с²
-    var vB = curvS.map(function (c) { return Math.min(32, Math.sqrt(18 / Math.max(c, 1e-4))); });
-    for (pass = 0; pass < 2; pass++) for (i = 0; i < N; i++) { var pv = vB[(i - 1 + N) % N]; vB[i] = Math.min(vB[i], Math.sqrt(pv * pv + 2 * 3.5 * DS)); }
-    for (pass = 0; pass < 2; pass++) for (i = N - 1; i >= 0; i--) { var nv = vB[(i + 1) % N]; vB[i] = Math.min(vB[i], Math.sqrt(nv * nv + 2 * 8 * DS)); }
+    /* скорость по точкам: на прямой не выше vmax (м/с), в повороте √(сцепление/кривизна), разгон 3.5, торможение 8 м/с² */
+    function speeds(vmax, grip) {
+      var v = curvS.map(function (c) { return Math.min(vmax, Math.sqrt(grip / Math.max(c, 1e-4))); }), pass, i;
+      for (pass = 0; pass < 2; pass++) for (i = 0; i < N; i++) { var pv = v[(i - 1 + N) % N]; v[i] = Math.min(v[i], Math.sqrt(pv * pv + 2 * 3.5 * DS)); }
+      for (pass = 0; pass < 2; pass++) for (i = N - 1; i >= 0; i--) { var nv = v[(i + 1) % N]; v[i] = Math.min(v[i], Math.sqrt(nv * nv + 2 * 8 * DS)); }
+      return v;
+    }
+    function lapTime(v) { var t = 0; for (var i = 0; i < N; i++) t += DS / v[i]; return t; }
+    /* максимальная скорость — по классу (top_kmh с сервера, track_page.top_speed_kmh), сцепление в поворотах
+       подбираем так, чтобы расчётный круг совпал с рекордом: тогда масштаб по секторам почти не меняет
+       скорость и метка не разгоняется выше реальной (Лемар, Micro: было 120 км/ч, стало ~80) */
+    function speedsForLap(lapSec, topKmh) {
+      var vmax = (topKmh || 110) / 3.6, lo = 3, hi = 80;
+      if (lapTime(speeds(vmax, hi)) > lapSec) return speeds(vmax, hi);
+      for (var it = 0; it < 30; it++) { var mid = (lo + hi) / 2; if (lapTime(speeds(vmax, mid)) > lapSec) lo = mid; else hi = mid; }
+      return speeds(vmax, (lo + hi) / 2);
+    }
+    var vB = speeds(32, 18);
     // накопленное время по точкам при заданных временах секторов (сглаженный множитель — без скачка на границах)
     function profile(st) {
       var base = vB.map(function (x) { return DS / x; }), sb = [0, 0, 0], i;
@@ -268,7 +283,8 @@
       if (b.dataset.r) { rate = +b.dataset.r; box.querySelectorAll('[data-r]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); }
       if (b.dataset.c) setCam(b.dataset.c);
     });
-    q$('[data-g]').addEventListener('change', function (e) { ghost.visible = e.target.checked && !!recCum; dirty = true; });
+    var ghostOk = true;
+    q$('[data-g]').addEventListener('change', function (e) { ghost.visible = e.target.checked && !!recCum && ghostOk; dirty = true; });
 
     function setCam(m) {
       cam = m;
@@ -384,9 +400,13 @@
           var sec = c.sectors_ms.map(function (x) { return x / 1000; }), rcd = c.record_ms / 1000;
           var ideal = sec[0] + sec[1] + sec[2];
           // время секторов рекордного круга = лучшие секторы × (рекорд / идеальный круг)
+          vB = speedsForLap(rcd, c.top_kmh);
           recCum = profile(sec.map(function (x) { return x * rcd / ideal; }));
           ghCum = profile(sec);
-          rec.visible = true; ghost.visible = q$('[data-g]').checked;
+          // идеальный круг не быстрее рекорда (рекорд — с круга без секторов) — призрак отставал бы, его не показываем
+          ghostOk = ideal < rcd;
+          rec.visible = true; ghost.visible = ghostOk && q$('[data-g]').checked;
+          q$('.gl-tr-toggle').style.display = ghostOk ? '' : 'none';
           q$('.gl-tr-v3d-nosec').hidden = true; q$('.gl-tr-under').style.visibility = '';
         } else {
           recCum = null; ghCum = null; rec.visible = false; ghost.visible = false;

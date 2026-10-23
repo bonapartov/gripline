@@ -37,12 +37,38 @@ def max_sector_kmh(class_name):
     return MAX_SECTOR_KMH_FAST if FAST_CLASS_RE.search(class_name or '') else MAX_SECTOR_KMH
 
 
+# Максимальная скорость карта класса на прямой для 3D-метки (км/ч). Сцепление в поворотах 3D подбирает
+# само так, чтобы расчётный круг совпал с рекордом. Без этого у Micro на Лемаре метка разгонялась до 120 км/ч.
+# Первое совпадение по названию класса (без учёта регистра), иначе DEFAULT_TOP_KMH.
+TOP_SPEED_KMH = (
+    (r'micro|микро', 80),
+    (r'супер.?мини|super.?mini', 100),
+    (r'mini|мини|бамбини|bambini', 95),
+    (r'\bkz', 135),
+    (r'dd2', 120),
+    (r'ok.?j|ок.?j|ок.?юн', 115),
+    (r'junior|юниор|юноши', 110),
+    (r'senior|сеньор|взрослые', 115),
+    (r'\bok\b|\bок\b', 125),
+)
+DEFAULT_TOP_KMH = 110
+
+
+def top_speed_kmh(class_name):
+    name = class_name or ''
+    for pattern, kmh in TOP_SPEED_KMH:
+        if re.search(pattern, name, re.IGNORECASE):
+            return kmh
+    return DEFAULT_TOP_KMH
+
+
 def _js_class(c):
     """Минимум для JS: переключатель классов, адрес ?class=, 3D-метка."""
     return {
         'id': c['id'],
         'name': c['name'],
         'max_sector_kmh': max_sector_kmh(c['name']),
+        'top_kmh': top_speed_kmh(c['name']),
         'record_ms': c['record']['ms'] if c['record'] else None,
         'sectors_ms': [s['ms'] for s in c['sectors']] if c['has_sectors'] else None,
     }
