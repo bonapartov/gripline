@@ -269,6 +269,7 @@
     $('tseProv').innerHTML = prov.map(function (k) { return '<li><span>' + esc(PROV_LABELS[k] || k) + '</span><button type="button" class="button button-small button-secondary" data-confirm="' + k + '">Подтверждаю</button></li>'; }).join('');
     $('tsePublishDraftWrap').hidden = !prov.length;
     $('tsePublishDraft').checked = !!state.publish_draft;
+    $('tseSourceOsm').checked = !!(state.source && state.source.type === 'osm');
     $('tseHint').textContent = HINTS[tool];
   }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -487,6 +488,12 @@
     if (b) { pushUndo(); confirmProv(b.dataset.confirm); render(); }
   });
   $('tsePublishDraft').addEventListener('change', function (e) { state.publish_draft = e.target.checked; dirty = true; });
+  $('tseSourceOsm').addEventListener('change', function (e) {
+    pushUndo();
+    if (e.target.checked) state.source = Object.assign({}, state.source, { type: 'osm' });
+    else state.source = { type: 'manual' };
+    render();
+  });
 
   // ── Импорт / экспорт JSON (Д1) ─────────────────────────────────────
   function showImport(errors, okText) {

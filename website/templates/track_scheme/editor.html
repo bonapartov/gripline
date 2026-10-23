@@ -122,6 +122,7 @@
             </div>
 
             <div class="tse-box">
+                <label class="tse-check"><input type="checkbox" id="tseSourceOsm"> Линия из OpenStreetMap (мелкая подпись «© участники OpenStreetMap»)</label>
                 <label class="tse-check" id="tsePublishDraftWrap" hidden><input type="checkbox" id="tsePublishDraft"> Опубликовать черновик</label>
                 <div><button type="button" class="button" id="tseSave">Сохранить</button>
                 <span class="tse-status" id="tseStatus">{% if track.scheme_updated_at %}Сохранено {{ track.scheme_updated_at|date:"d.m.Y H:i" }}{% if track.scheme_is_draft %} (черновик){% endif %}{% endif %}</span></div>

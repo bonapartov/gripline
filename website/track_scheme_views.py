@@ -31,7 +31,7 @@ REFERENCE_MAX_BYTES = 15 * 1024 * 1024
 REFERENCE_TYPES = {'image/jpeg', 'image/png', 'image/webp'}
 PDF_CACHE_SECONDS = 60 * 60 * 24 * 30
 # Менять при правке макета листа (шаблон/CSS) — иначе из кэша отдаётся старый PDF
-PDF_LAYOUT_VERSION = 2
+PDF_LAYOUT_VERSION = 3
 
 
 def _address(track):
@@ -67,6 +67,7 @@ def track_scheme_pdf_view(request, slug):
             'scheme_svg': mark_safe(track_scheme.render_svg(
                 track.scheme_data, palette='print', aria_label='Схема трассы для печати', length_m=track.length_m)),
             'turn_ranges': track_scheme.sector_turn_ranges(track.scheme_data),
+            'scheme_osm': track_scheme.is_osm(track.scheme_data),
         }
         try:
             pdf_bytes = render_track_scheme_pdf(context, root + track.get_absolute_url())

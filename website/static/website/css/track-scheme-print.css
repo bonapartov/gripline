@@ -40,3 +40,4 @@ html, body { margin: 0; color: var(--ts-ink); font-family: 'Inter Tight', Arial,
 .ts-foot img { width: 24mm; height: 24mm; }
 .ts-date { color: var(--ts-ink-3); font-size: 8pt; margin-top: 1mm; }
 .ts-brand { letter-spacing: 2px; }
+.ts-osm { color: var(--ts-ink-3); font-size: 6pt; margin-top: 0.5mm; opacity: 0.8; }

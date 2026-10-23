@@ -39,6 +39,7 @@
         <div><b class="ts-brand ts-logo">{% if logo_on_light_uri %}<img src="{{ logo_on_light_uri }}" alt="">{% endif %}GRIPLINE</b>Рейтинг картингистов России</div>
         <div class="ts-mid"><b>{{ page_url_short }}</b><br>Рекорды, результаты и расписание трассы
             {% if track.scheme_updated_at %}<div class="ts-date">Схема актуальна на {{ track.scheme_updated_at|date:"d.m.Y" }}</div>{% endif %}
+            {% if scheme_osm %}<div class="ts-osm">Данные схемы: © участники OpenStreetMap</div>{% endif %}
         </div>
         <img src="{{ qr_code_uri }}" alt="QR-код страницы трассы">
     </div>
