@@ -55,7 +55,10 @@
 .gl-tr-dir-cw { transform: scaleX(-1); }
 
 /* Классы */
-.gl-tr-classrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: -14px; padding: 12px 14px; background: var(--gl-surface-card); border: 1px solid var(--gl-border-card); border-radius: 8px; }
+/* Прилипает при прокрутке сразу под фиксированным навбаром (~61px), как хедер-полоса на странице пилота
+   (driver_page.css .glv2-headerbar); z-index ниже навбара (1030), чтобы не перекрывать его меню. */
+.gl-tr-classrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: -14px; padding: 12px 14px; background: var(--gl-surface-card); border: 1px solid var(--gl-border-card); border-radius: 8px; position: sticky; top: 61px; z-index: 100; box-shadow: 0 6px 12px -6px rgba(0, 0, 0, 0.6); }
+.gl-tr-section { scroll-margin-top: 140px; }
 .gl-tr-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-left: 6px; }
 .gl-track .gl-tr-chip { padding: 7px 14px; border-radius: 20px; border: 1px solid var(--gl-border-divider); background: transparent; color: var(--gl-fg-4); font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.2s, color 0.2s; }
 .gl-tr-chip small { font-weight: 500; opacity: 0.75; }
@@ -212,7 +215,12 @@
   .gl-track { gap: 28px; padding-top: 1rem; }
   .gl-tr-figs { padding: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   .gl-tr-fig-v { font-size: 22px; }
-  .gl-tr-hintr { margin-left: 0; flex-basis: 100%; }
+  /* На телефоне прилипшая полоса не должна занимать пол-экрана: классы в одну строку с прокруткой вбок внутри полосы */
+  .gl-tr-classrow { flex-wrap: nowrap; padding: 10px 12px; }
+  .gl-tr-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-left: 0; min-width: 0; }
+  .gl-tr-chips::-webkit-scrollbar { display: none; }
+  .gl-track .gl-tr-chip { flex: none; }
+  .gl-tr-hintr { display: none; }
   .gl-tr-event { padding: 14px; }
   .gl-tr-records th, .gl-tr-records td { padding: 10px 8px; }
   .gl-tr-records th { font-size: 11px; }
