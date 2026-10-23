@@ -14,9 +14,11 @@
 </head>
 <body>
 <div class="ts-page">
-    <div class="ts-head"><b>GRIPLINE</b><span>Схема трассы</span></div>
-    <div class="ts-title">{{ track.name }}</div>
-    {% if address %}<div class="ts-addr">{{ address }}</div>{% endif %}
+    <div class="ts-head"><b class="ts-logo">{% if logo_on_light_uri %}<img src="{{ logo_on_light_uri }}" alt="">{% endif %}GRIPLINE</b><span>Схема трассы</span></div>
+    <div class="ts-titlerow">
+        <div class="ts-title">{{ track.name }}</div>
+        {% if address %}<div class="ts-addr">{{ address }}</div>{% endif %}
+    </div>
 
     <div class="ts-figs">
         <div><i>Длина</i><b>{% if track.length_m %}{{ track.length_m|meters }} м{% else %}—{% endif %}</b></div>
@@ -34,9 +36,9 @@
     </div>
 
     <div class="ts-foot">
-        <div><b class="ts-brand">GRIPLINE</b><br>Рейтинг картингистов России</div>
+        <div><b class="ts-brand ts-logo">{% if logo_on_light_uri %}<img src="{{ logo_on_light_uri }}" alt="">{% endif %}GRIPLINE</b>Рейтинг картингистов России</div>
         <div class="ts-mid"><b>{{ page_url_short }}</b><br>Рекорды, результаты и расписание трассы
-            {% if track.scheme_updated_at %}<div class="ts-date">Схема актуальна на {{ track.scheme_updated_at|date:"d.m.Y" }}{% if scheme_osm %} · Схема: © участники OpenStreetMap, openstreetmap.org/copyright{% endif %}</div>{% elif scheme_osm %}<div class="ts-date">Схема: © участники OpenStreetMap, openstreetmap.org/copyright</div>{% endif %}
+            {% if track.scheme_updated_at %}<div class="ts-date">Схема актуальна на {{ track.scheme_updated_at|date:"d.m.Y" }}</div>{% endif %}
         </div>
         <img src="{{ qr_code_uri }}" alt="QR-код страницы трассы">
     </div>

@@ -16,8 +16,13 @@ html, body { margin: 0; color: var(--ts-ink); font-family: 'Inter Tight', Arial,
 .ts-head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid var(--ts-yellow); padding-bottom: 2.5mm; }
 .ts-head b { font-weight: 800; letter-spacing: 3px; font-size: 19pt; }
 .ts-head span { font-weight: 800; letter-spacing: 2px; color: var(--ts-ink-3); text-transform: uppercase; font-size: 9pt; }
-.ts-title { margin-top: 6mm; font-weight: 800; text-transform: uppercase; font-size: 26pt; line-height: 1.05; }
-.ts-addr { color: var(--ts-ink-2); margin-top: 1.5mm; font-size: 10.5pt; }
+/* Название слева, адрес справа напротив него; длинный адрес переносится на вторую строку */
+.ts-titlerow { display: flex; justify-content: space-between; align-items: flex-end; gap: 6mm; margin-top: 6mm; }
+.ts-title { font-weight: 800; text-transform: uppercase; font-size: 26pt; line-height: 1.05; }
+.ts-addr { flex: 0 1 70mm; color: var(--ts-ink-2); font-size: 10.5pt; line-height: 1.35; text-align: right; }
+.ts-logo { display: flex; align-items: center; gap: 2mm; }
+.ts-head .ts-logo img { width: 7mm; height: 7mm; }
+.ts-foot .ts-logo img { width: 5mm; height: 5mm; }
 .ts-figs { display: flex; margin-top: 6mm; border: 1px solid var(--ts-ink); border-radius: 2mm; }
 .ts-figs div { flex: 1; padding: 3mm 4mm; border-right: 1px solid var(--ts-line); }
 .ts-figs div:last-child { border-right: 0; }

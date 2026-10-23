@@ -86,7 +86,6 @@
 .gl-tr-plate path.sec { cursor: pointer; transition: opacity 0.3s, stroke-width 0.3s; }
 .gl-tr-plate.is-locked path.sec { cursor: default; }
 .gl-tr-stage-note { margin: 0; font-size: 12px; color: var(--gl-fg-muted); }
-.gl-track a.gl-tr-osm { color: var(--gl-fg-4); text-decoration: underline; }
 
 /* Панель секторов */
 .gl-tr-panel { flex: 1 1 320px; min-width: 0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
