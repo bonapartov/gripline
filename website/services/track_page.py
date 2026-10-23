@@ -73,6 +73,8 @@ def build_track_page(track, requested_class, races_count):
         'races_count': races_count,
         'turns_count': track.effective_turns_count,
         'scheme_svg': mark_safe(track.scheme_svg) if scheme else '',  # строится на сервере из чисел
+        # лицензия OpenStreetMap (ODbL): подпись под схемой обязательна (доп. №1, Д7)
+        'scheme_osm': bool(scheme) and track_scheme.is_osm(scheme),
         'turn_ranges': turn_ranges,
         'can_3d': can_3d,
         'track_js': js_data,

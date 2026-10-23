@@ -34,3 +34,7 @@
 .tse-warnings li.is-ok { color: var(--gl-signal-green); }
 .tse-status { margin-left: 10px; font-size: 13px; }
 .tse-status.is-error { color: var(--gl-signal-danger); }
+.tse-prov { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.tse-prov li { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.tse-check { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.tse-canvas .tse-close { fill: none; stroke: var(--gl-signal-danger); stroke-width: 2; pointer-events: none; }

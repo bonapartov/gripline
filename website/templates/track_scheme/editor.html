@@ -16,12 +16,13 @@
      data-reference-url="{% url 'track_scheme_reference' track.pk %}"
      data-three="{% static 'website/vendor/three/r128/three.min.js' %}"
      data-orbit="{% static 'website/vendor/three/r128/OrbitControls.js' %}"
-     data-module="{% static 'website/js/track_3d.js' %}">
+     data-module="{% static 'website/js/track_3d.js' %}"
+     data-slug="{{ track.slug }}">
 
     <p class="tse-help">
         Ставьте точки осевой линии <b>по направлению движения</b> — линия замкнётся сама. Затем отметьте на линии старт/финиш
-        и границы секторов, расставьте номера поворотов. Можно загрузить SVG со схемой трассы — из него возьмётся линия.
-        «Сохранить» публикует схему на сайте сразу.
+        и границы секторов, расставьте номера поворотов. Линию можно взять из OpenStreetMap, SVG или JSON-файла схемы.
+        «Сохранить» публикует схему на сайте сразу (черновик — только с галочкой «Опубликовать черновик»).
     </p>
     <p class="tse-links"><a href="{% url 'website_track_modeladmin_edit' track.pk %}">← Карточка трассы</a> · <a href="{{ track.get_absolute_url }}" target="_blank" rel="noopener">Страница на сайте</a></p>
 
@@ -65,19 +66,36 @@
                 </div>
                 <div class="tse-row">
                     <button type="button" class="button button-small button-secondary" id="tseReverse">Развернуть направление</button>
-                    <button type="button" class="button button-small button-secondary" id="tseRenumber">Перенумеровать повороты</button>
+                    <button type="button" class="button button-small button-secondary" id="tseRenumber">Пронумеровать по порядку</button>
                 </div>
                 <label class="tse-field">Плавность <input type="range" id="tseTension" min="0" max="1" step="0.05" value="1"></label>
-                <label class="tse-field" id="tseTurnNumWrap" hidden>Номер выбранного поворота <input type="number" id="tseTurnNum" min="1" max="99"></label>
+                <label class="tse-field" id="tseTurnNumWrap" hidden>Номер выбранного поворота (до 4 символов, например «7А») <input type="text" id="tseTurnNum" maxlength="4"></label>
+                <label class="tse-field">Ширина полотна, м <input type="number" id="tseTrackWidth" min="2" max="40" step="0.5"></label>
                 <div class="tse-scale" id="tseScale"></div>
             </div>
 
             <div class="tse-box">
-                <b>Загрузить схему из SVG</b>
-                <input type="file" id="tseSvgFile" accept=".svg,image/svg+xml">
+                <b>Поле и поворот схемы</b>
+                <div class="tse-row">
+                    <button type="button" class="button button-small button-secondary" id="tseRotL">⟲ 90°</button>
+                    <button type="button" class="button button-small button-secondary" id="tseRotR">⟳ 90°</button>
+                    <button type="button" class="button button-small button-secondary" id="tseFit">Подогнать поле под трассу</button>
+                </div>
+                <label class="tse-field">Точный поворот, ±45° <input type="range" id="tseRotFine" min="-45" max="45" step="0.5" value="0"></label>
+                <p class="tse-small">Ширина поля 640, высота — по форме трассы (240–480). Вытянутую трассу поверните горизонтально.</p>
+            </div>
+
+            <div class="tse-box">
+                <b>Импорт и экспорт</b>
+                <label class="tse-field">Импорт схемы (JSON) <input type="file" id="tseJsonFile" accept=".json,application/json"></label>
+                <button type="button" class="button button-small button-secondary" id="tseExport">Экспорт схемы (JSON)</button>
+                <label class="tse-field">Из OpenStreetMap (.osm или GeoJSON) <input type="file" id="tseOsmFile" accept=".osm,.xml,.geojson,.json"></label>
+                <label class="tse-field" id="tseOsmPickWrap" hidden>Линия трассы <select id="tseOsmPick"></select></label>
+                <label class="tse-field">Из SVG <input type="file" id="tseSvgFile" accept=".svg,image/svg+xml"></label>
                 <label class="tse-field" id="tseSvgPickWrap" hidden>Линия трассы <select id="tseSvgPick"></select></label>
-                <label class="tse-field">Опорных точек <input type="number" id="tseSvgCount" min="8" max="200" value="48"></label>
-                <p class="tse-small">Из файла берётся только линия (самый длинный контур, можно выбрать другой). Файл на сайт не загружается.</p>
+                <label class="tse-field">Опорных точек при импорте SVG <input type="number" id="tseSvgCount" min="8" max="400" placeholder="авто"></label>
+                <ul class="tse-warnings" id="tseImportErrors"></ul>
+                <p class="tse-small">Файлы на сайт не загружаются — берутся только координаты. SVG со схемой Gripline открывается целиком (секторы, старт, повороты).</p>
             </div>
 
             <div class="tse-box">
@@ -92,14 +110,21 @@
                 <p class="tse-small">Скриншот спутника или официальная схема. Видна только здесь, на сайт не выводится. Сдвиг — инструмент «Подложка».</p>
             </div>
 
+            <div class="tse-box" id="tseProvBox" hidden>
+                <b>Нужно подтвердить</b>
+                <ul class="tse-prov" id="tseProv"></ul>
+                <p class="tse-small">Пока список не пуст, схема — черновик и на сайте не показывается (если не отмечено «Опубликовать черновик»).</p>
+            </div>
+
             <div class="tse-box">
                 <b>Проверка</b>
                 <ul class="tse-warnings" id="tseWarnings"></ul>
             </div>
 
             <div class="tse-box">
-                <button type="button" class="button" id="tseSave">Сохранить</button>
-                <span class="tse-status" id="tseStatus">{% if track.scheme_updated_at %}Сохранено {{ track.scheme_updated_at|date:"d.m.Y H:i" }}{% endif %}</span>
+                <label class="tse-check" id="tsePublishDraftWrap" hidden><input type="checkbox" id="tsePublishDraft"> Опубликовать черновик</label>
+                <div><button type="button" class="button" id="tseSave">Сохранить</button>
+                <span class="tse-status" id="tseStatus">{% if track.scheme_updated_at %}Сохранено {{ track.scheme_updated_at|date:"d.m.Y H:i" }}{% if track.scheme_is_draft %} (черновик){% endif %}{% endif %}</span></div>
                 <p><button type="button" class="button button-small button-secondary no" id="tseClear">Удалить схему с сайта</button></p>
             </div>
         </aside>

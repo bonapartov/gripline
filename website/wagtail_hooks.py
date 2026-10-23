@@ -54,7 +54,10 @@ class TrackAdmin(ModelAdmin):
     search_fields = ('name', 'city')
 
     def scheme_link(self, obj):
-        label = 'Схема ✓' if obj.has_scheme else 'Нарисовать схему'
+        if obj.scheme_is_draft:
+            label = 'Схема — черновик'
+        else:
+            label = 'Схема ✓' if obj.has_scheme else 'Нарисовать схему'
         return format_html('<a href="{}">{}</a>', reverse('track_scheme_editor', args=[obj.pk]), label)
     scheme_link.short_description = 'Схема трассы'
 

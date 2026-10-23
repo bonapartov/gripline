@@ -488,6 +488,7 @@ CSP_REPORT_ONLY_DIRECTIVES = {
         'https://www.google.com',                        # часть стека GTM/Google Ads consent
         'https://log.api-maps.yandex.ru',               # логирование Яндекс.Карт (не только img)
         'https://id.vk.ru',                             # VK ID One Tap
+        'https://api.openstreetmap.org',                # редактор схемы трассы: линия /way/<id>/full
     ],
     'frame-src': ["'self'", 'https://mc.yandex.ru', 'https://id.vk.ru', 'https://login.vk.ru'],
     'object-src': ["'none'"],

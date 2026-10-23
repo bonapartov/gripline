@@ -1,6 +1,7 @@
 {% if track.pk %}
 <p>
     <a class="button button-small" href="{% url 'track_scheme_editor' track.pk %}">Редактор схемы</a>
+    {% if track.scheme_is_draft %}<b>Схема — черновик</b>{% if not track.has_scheme %} (на сайте не показывается){% endif %}.{% endif %}
     {% if track.scheme_updated_at %}
         <span class="help">Схема сохранена {{ track.scheme_updated_at|date:"d.m.Y H:i" }}.</span>
     {% else %}

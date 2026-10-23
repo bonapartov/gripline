@@ -16,7 +16,6 @@
     { name: 'S2', color: '#0dcaf0', on: '#1a1a25', hex: 0x0dcaf0 },
     { name: 'S3', color: '#28a745', on: '#ffffff', hex: 0x28a745 }
   ];
-  var VIEW_W = 640, VIEW_H = 400;
 
   function fmt(t) {
     var m = Math.floor(t / 60), r = (t - m * 60).toFixed(3);
@@ -26,7 +25,9 @@
 
   function build(opts) {
     var G = window.GlTrackGeom, scheme = opts.scheme, low = !!opts.low, onRebuild = opts.onRebuild || function () {};
-    var LENGTH_M = opts.lengthM, N = 800, DS = LENGTH_M / N, HALF = 4.6;
+    var vb = scheme.viewBox || [0, 0, 640, 400], VIEW_W = vb[2], VIEW_H = vb[3];
+    // ширина полотна — из схемы (track_width_m), по умолчанию 9 м
+    var LENGTH_M = opts.lengthM, N = 800, DS = LENGTH_M / N, HALF = (scheme.track_width_m || 9) / 2;
     var poly = G.fromScheme(scheme), LT = poly.length, Mm = LENGTH_M / LT;
     var mod1 = G.mod1, start = scheme.start;
 
@@ -89,7 +90,7 @@
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, low ? 1.25 : 2));
     renderer.outputEncoding = THREE.sRGBEncoding;
     var scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a1a25);
+    scene.background = new THREE.Color(0x1a1a25);  // фон — clearColor, его выходная кодировка не трогает
     var camera = new THREE.PerspectiveCamera(42, 1.6, 1, 4000);
     var controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true; controls.dampingFactor = 0.08; controls.maxPolarAngle = Math.PI * 0.47;
@@ -108,9 +109,11 @@
       var g = new THREE.ShapeGeometry(sh, 6); g.rotateX(Math.PI / 2); return g;
     }
     var bw = 1.6 * Mm, rad = 8 * Mm;
-    var plateEdge = new THREE.Mesh(rrect(pa[0] - bw, pa[1] - bw, pb[0] + bw, pb[1] + bw, rad + bw), new THREE.MeshBasicMaterial({ color: 0x2a2a35, side: THREE.DoubleSide }));
+    // renderer.outputEncoding = sRGB осветляет цвета материалов — переводим в линейные, чтобы подложка была как в 2D
+    var srgb = function (hex) { return new THREE.Color(hex).convertSRGBToLinear(); };
+    var plateEdge = new THREE.Mesh(rrect(pa[0] - bw, pa[1] - bw, pb[0] + bw, pb[1] + bw, rad + bw), new THREE.MeshBasicMaterial({ color: srgb(0x2a2a35), side: THREE.DoubleSide }));
     plateEdge.position.y = -0.08; scene.add(plateEdge);
-    var plate = new THREE.Mesh(rrect(pa[0], pa[1], pb[0], pb[1], rad), new THREE.MeshBasicMaterial({ color: 0x0d0d15, side: THREE.DoubleSide }));
+    var plate = new THREE.Mesh(rrect(pa[0], pa[1], pb[0], pb[1], rad), new THREE.MeshBasicMaterial({ color: srgb(0x0d0d15), side: THREE.DoubleSide }));
     plate.position.y = -0.05; scene.add(plate);
 
     function strip(a, b, y, colorAt, mask) {
@@ -218,6 +221,7 @@
         '<div class="gl-tr-gapline">Отставание от идеального круга: <b class="gl-tr-gv">+0.000 с</b></div></div>';
     var q$ = function (s) { return box.querySelector(s); };
     var view = q$('.gl-tr-v3d');
+    view.style.aspectRatio = VIEW_W + ' / ' + VIEW_H;  // пропорции поля схемы, не ниже 260 px (CSS)
     view.insertBefore(renderer.domElement, view.firstChild);
 
     var dirty = true, onScreen = true, lastDraw = 0, lostTimer = null, io = null, ro = null;
@@ -271,8 +275,19 @@
       rec.userData.glow.visible = ghost.userData.glow.visible = m !== 'chase';
       var tanH = Math.tan(camera.fov * Math.PI / 360), fit = Math.max(plateH / 2 / tanH, plateW / 2 / (tanH * camera.aspect));
       var mid = new THREE.Vector3((pa[0] + pb[0]) / 2, 0, (pa[1] + pb[1]) / 2);
-      if (m === 'orbit') { var dir = new THREE.Vector3(-0.25, 0.75, 0.62).normalize(); camera.position.copy(mid).addScaledVector(dir, fit * 1.12); controls.target.copy(mid); }
-      if (m === 'top') { camera.position.set(mid.x, fit * 1.04, mid.z + 0.01); controls.target.copy(mid); }
+      var dir = m === 'orbit' ? new THREE.Vector3(-0.25, 0.75, 0.62).normalize() : new THREE.Vector3(0, 1, 0.00001).normalize();
+      if (m !== 'chase') {
+        // отъезжаем, пока все углы подложки не попадут в кадр (в перспективе ближний край больше)
+        var corners = [[pa[0], pa[1]], [pb[0], pa[1]], [pa[0], pb[1]], [pb[0], pb[1]]].map(function (c) { return new THREE.Vector3(c[0], 0, c[1]); });
+        var dist = fit * 0.9, v = new THREE.Vector3();
+        for (var it = 0; it < 60; it++) {
+          camera.position.copy(mid).addScaledVector(dir, dist); camera.lookAt(mid); camera.updateMatrixWorld();
+          var inside = corners.every(function (c) { v.copy(c).project(camera); return Math.abs(v.x) <= 0.96 && Math.abs(v.y) <= 0.94; });
+          if (inside) break;
+          dist *= 1.05;
+        }
+        controls.target.copy(mid);
+      }
       controls.update(); dirty = true;
     }
     function resize() {

@@ -63,7 +63,8 @@ def track_scheme_pdf_view(request, slug):
             'address': _address(track),
             'turns_count': track.effective_turns_count,
             'scheme_svg': mark_safe(track_scheme.render_svg(
-                track.scheme_data, palette='print', aria_label='Схема трассы для печати')),
+                track.scheme_data, palette='print', aria_label='Схема трассы для печати', length_m=track.length_m)),
+            'scheme_osm': track_scheme.is_osm(track.scheme_data),
             'turn_ranges': track_scheme.sector_turn_ranges(track.scheme_data),
         }
         try:
@@ -116,12 +117,14 @@ def editor_preview(request, pk):
         return denied
     track = get_object_or_404(Track, pk=pk)
     try:
-        data = track_scheme.clean_scheme_data(_json_body(request))
+        data = track_scheme.clean_scheme_data(_json_body(request), length_m=track.length_m)
     except track_scheme.SchemeError as e:
         return JsonResponse({'error': str(e)}, status=400)
     return JsonResponse({
-        'svg': track_scheme.render_svg(data, aria_label=track_scheme.aria_label(track, data)),
+        'svg': track_scheme.render_svg(data, aria_label=track_scheme.aria_label(track, data), length_m=track.length_m),
         'turn_ranges': track_scheme.sector_turn_ranges(data),
+        'labels': track_scheme.label_positions(data, length_m=track.length_m),
+        'widths': track_scheme.stroke_widths(data, length_m=track.length_m),
         'public': track_scheme.public_scheme(data),
     })
 
@@ -133,16 +136,22 @@ def editor_save(request, pk):
         return denied
     track = get_object_or_404(Track, pk=pk)
     try:
-        data = track_scheme.clean_scheme_data(_json_body(request))
+        data = track_scheme.clean_scheme_data(_json_body(request), length_m=track.length_m)
     except track_scheme.SchemeError as e:
         return JsonResponse({'error': str(e)}, status=400)
     track.scheme_data = data
-    track.scheme_svg = track_scheme.render_svg(data, aria_label=track_scheme.aria_label(track, data))
+    track.scheme_svg = track_scheme.render_svg(data, aria_label=track_scheme.aria_label(track, data),
+                                               length_m=track.length_m)
     track.scheme_updated_at = timezone.now()
     # post_save сбрасывает кэш страницы трассы (website/signals.py)
     track.save(update_fields=['scheme_data', 'scheme_svg', 'scheme_updated_at'])
     log(instance=track, action='wagtail.edit', user=request.user, data={'scheme': True})
-    return JsonResponse({'ok': True, 'saved_at': timezone.localtime(track.scheme_updated_at).strftime('%d.%m.%Y %H:%M')})
+    return JsonResponse({
+        'ok': True,
+        'saved_at': timezone.localtime(track.scheme_updated_at).strftime('%d.%m.%Y %H:%M'),
+        'published': track.has_scheme,
+        'draft': track.scheme_is_draft,
+    })
 
 
 @require_POST

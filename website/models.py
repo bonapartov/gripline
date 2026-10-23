@@ -1259,6 +1259,17 @@ class Track(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, 
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(unidecode(self.name))
+        if self.scheme_data:
+            # толщина полотна на схеме зависит от длины трассы и направления (подпись) — пересобрать SVG
+            from website.services import track_scheme
+            try:
+                self.scheme_svg = track_scheme.render_svg(
+                    self.scheme_data, aria_label=track_scheme.aria_label(self, self.scheme_data), length_m=self.length_m)
+            except (KeyError, TypeError, ValueError, ZeroDivisionError):
+                pass  # битые данные схемы не должны мешать сохранить трассу
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None and 'scheme_svg' not in update_fields:
+                kwargs['update_fields'] = list(update_fields) + ['scheme_svg']
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
@@ -1266,7 +1277,14 @@ class Track(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, 
 
     @property
     def has_scheme(self):
-        return bool(self.scheme_svg and self.scheme_data)
+        """Схема на сайте: сохранена и не черновик (или черновик с галочкой «Опубликовать черновик»)."""
+        from website.services.track_scheme import is_publishable
+        return bool(self.scheme_svg and self.scheme_data) and is_publishable(self.scheme_data)
+
+    @property
+    def scheme_is_draft(self):
+        from website.services.track_scheme import is_draft
+        return bool(self.scheme_data) and is_draft(self.scheme_data)
 
     @property
     def effective_turns_count(self):

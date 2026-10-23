@@ -83,9 +83,9 @@ def test_turn_ranges_by_sector():
     data = scheme(turns=[{'n': 1, 'x': 500, 'y': 115}, {'n': 2, 'x': 320, 'y': 70},
                          {'n': 3, 'x': 100, 'y': 190}, {'n': 4, 'x': 320, 'y': 330}])
     by_turn = ts.turn_sectors(data)
-    assert set(by_turn) == {1, 2, 3, 4}
+    assert set(by_turn) == {'1', '2', '3', '4'}
     # повороты идут по ходу трассы — номер сектора не убывает
-    assert [by_turn[n] for n in (1, 2, 3, 4)] == sorted(by_turn[n] for n in (1, 2, 3, 4))
+    assert [by_turn[n] for n in '1234'] == sorted(by_turn[n] for n in '1234')
     ranges = ts.sector_turn_ranges(data)
     assert len(ranges) == 3 and any(r.startswith('Повороты') or r.startswith('Поворот ') for r in ranges)
     assert ts.sector_turn_ranges(scheme(turns=[])) == ['', '', '']
@@ -101,14 +101,71 @@ def test_public_scheme_hides_editor_only_fields():
                   sector_labels=[{'s': 0, 'x': 10, 'y': 10}])
     pub = ts.public_scheme(data)
     assert 'reference' not in pub and 'sector_labels' not in pub
-    assert set(pub) == {'points', 'tension', 'start', 's1s2', 's2s3', 'turns'}
+    assert set(pub) == {'points', 'tension', 'start', 's1s2', 's2s3', 'turns', 'interpolation', 'viewBox', 'track_width_m'}
+
+
+FIXTURE = Path(__file__).resolve().parent / 'fixtures' / 'plastunka_scheme_data.json'
+
+
+def plastunka():
+    return json.loads(FIXTURE.read_text(encoding='utf-8'))
+
+
+def test_plastunka_sample_imports_with_xy_marks():
+    """Образец из дополнения №1: viewBox 640×302, отметки координатами, номера строками, черновик."""
+    data = ts.clean_scheme_data(plastunka())
+    assert data['viewBox'] == [0, 0, 640, 302] and data['interpolation'] == 'centripetal-catmull-rom'
+    assert all(k in data for k in ('start', 's1s2', 's2s3', 'start_xy', 's1s2_xy', 's2s3_xy'))
+    assert data['turns'][9]['n'] == '10'
+    assert data['provisional'] == ['start', 's1s2', 's2s3', 'track_width_m']
+    assert ts.is_draft(data) and not ts.is_publishable(data)
+    assert ts.is_publishable({**data, 'publish_draft': True})
+    assert ts.is_osm(data) and data['direction'] == 'ccw'
+    # толщина полотна = 9 м в масштабе схемы, линия сектора — 45 %
+    track_w, sector_w = ts.stroke_widths(data)
+    assert track_w == pytest.approx(9 / 0.6871, rel=0.01) and sector_w == pytest.approx(track_w * 0.45, rel=0.01)
+    assert 1180 < data['measured_length_m'] < 1240
+    assert ts.sector_turn_ranges(data) == ['Повороты 1–4', 'Повороты 5–8', 'Повороты 9–10']
+
+
+def test_mark_xy_off_the_line_is_rejected():
+    raw = plastunka()
+    raw['start_xy'] = [raw['start_xy'][0], raw['start_xy'][1] + 20]
+    with pytest.raises(ts.SchemeError, match='не лежит на линии'):
+        ts.clean_scheme_data(raw)
+
+
+@pytest.mark.parametrize('vb', [[0, 0, 640, 200], [0, 0, 640, 500], [0, 0, 800, 300]])
+def test_view_box_limits(vb):
+    with pytest.raises(ts.SchemeError):
+        ts.clean_scheme_data({**plastunka(), 'viewBox': vb})
+
+
+@pytest.mark.parametrize('n', ['', '12345', None])
+def test_turn_number_is_short_string(n):
+    raw = plastunka()
+    raw['turns'][0]['n'] = n
+    with pytest.raises(ts.SchemeError, match='Номер поворота'):
+        ts.clean_scheme_data(raw)
+
+
+def test_auto_labels_sit_by_own_sector_and_clear_of_turns():
+    raw = plastunka()
+    raw.pop('sector_labels')
+    data = ts.clean_scheme_data(raw)
+    poly = ts.polyline(data)
+    for lab in ts.label_positions(data):
+        frac, _ = poly.nearest(lab['x'], lab['y'])
+        assert ts.sector_of(data, frac) == lab['s']
+        assert all(math.hypot(lab['x'] - t['x'], lab['y'] - t['y']) > 20 for t in data['turns'])
 
 
 @pytest.mark.skipif(not shutil.which('node'), reason='нет Node.js')
-def test_js_geometry_matches_python():
+@pytest.mark.parametrize('interpolation', ['catmull-rom', 'centripetal-catmull-rom'])
+def test_js_geometry_matches_python(interpolation):
     """track_scheme_geom.js (редактор, 3D) и track_scheme.py (SVG сайта) дают одну и ту же линию."""
-    data = scheme(tension=0.7)
-    poly = ts.Polyline(ts.sample_polyline(data['points'], data['tension']))
+    data = scheme(tension=0.7, interpolation=interpolation)
+    poly = ts.polyline(data)
     fracs = [0, 0.13, 0.5, 0.77, 0.999]
     expected = {
         'length': poly.length,

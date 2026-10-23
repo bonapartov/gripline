@@ -94,6 +94,7 @@
                     <div id="glTrHost3d" hidden></div>
                 </div>
                 <p class="gl-tr-stage-note" id="glTrStageNote">Нажмите на сектор на схеме или на фильтр выше.</p>
+                {% if scheme_osm %}<p class="gl-tr-stage-note">Схема: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" class="gl-tr-osm">© участники OpenStreetMap</a></p>{% endif %}
             </div>
             {% else %}
             <h2 id="sch-h" class="visually-hidden">Секторы</h2>

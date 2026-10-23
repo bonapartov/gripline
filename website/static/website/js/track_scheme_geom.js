@@ -5,14 +5,26 @@
   'use strict';
   var SAMPLES_PER_SEGMENT = 20;
 
-  function bezierSegments(points, tension) {
-    var n = points.length, k = (tension == null ? 1 : tension) / 6, segs = [];
+  /* interpolation: 'centripetal-catmull-rom' (alpha = 0.5, без петель на неравномерных точках OSM)
+     или 'catmull-rom'; tension — «Плавность»: 0 — ломаная, 1 — сплайн как есть */
+  function bezierSegments(points, tension, interpolation) {
+    var n = points.length, tn = tension == null ? 1 : tension, segs = [];
     for (var i = 0; i < n; i++) {
-      var p0 = points[(i - 1 + n) % n], p1 = points[i], p2 = points[(i + 1) % n], p3 = points[(i + 2) % n];
+      var p0 = points[(i - 1 + n) % n], p1 = points[i], p2 = points[(i + 1) % n], p3 = points[(i + 2) % n], c1, c2;
+      if (interpolation === 'centripetal-catmull-rom') {
+        var e1 = Math.max(Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), 1e-9), e2 = Math.max(Math.hypot(p2[0] - p1[0], p2[1] - p1[1]), 1e-9),
+          e3 = Math.max(Math.hypot(p3[0] - p2[0], p3[1] - p2[1]), 1e-9), d1 = Math.sqrt(e1), d2 = Math.sqrt(e2), d3 = Math.sqrt(e3);
+        var a = 3 * d1 * (d1 + d2), b = 3 * d3 * (d3 + d2);
+        c1 = [0, 1].map(function (k) { return (e1 * p2[k] - e2 * p0[k] + (2 * e1 + 3 * d1 * d2 + e2) * p1[k]) / a; });
+        c2 = [0, 1].map(function (k) { return (e3 * p1[k] - e2 * p3[k] + (2 * e3 + 3 * d3 * d2 + e2) * p2[k]) / b; });
+      } else {
+        c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+        c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+      }
       segs.push([
         [p1[0], p1[1]],
-        [p1[0] + (p2[0] - p0[0]) * k, p1[1] + (p2[1] - p0[1]) * k],
-        [p2[0] - (p3[0] - p1[0]) * k, p2[1] - (p3[1] - p1[1]) * k],
+        [p1[0] + (c1[0] - p1[0]) * tn, p1[1] + (c1[1] - p1[1]) * tn],
+        [p2[0] + (c2[0] - p2[0]) * tn, p2[1] + (c2[1] - p2[1]) * tn],
         [p2[0], p2[1]]
       ]);
     }
@@ -24,18 +36,18 @@
     return [a * s[0][0] + b * s[1][0] + c * s[2][0] + d * s[3][0], a * s[0][1] + b * s[1][1] + c * s[2][1] + d * s[3][1]];
   }
 
-  function samplePolyline(points, tension) {
+  function samplePolyline(points, tension, interpolation) {
     var out = [];
-    bezierSegments(points, tension).forEach(function (s) {
+    bezierSegments(points, tension, interpolation).forEach(function (s) {
       for (var j = 0; j < SAMPLES_PER_SEGMENT; j++) out.push(bezierPoint(s, j / SAMPLES_PER_SEGMENT));
     });
     return out;
   }
 
   /* SVG d для редактора: кривые Безье, замкнутые */
-  function pathD(points, tension) {
+  function pathD(points, tension, interpolation) {
     if (points.length < 2) return '';
-    var segs = bezierSegments(points, tension), r = function (v) { return Math.round(v * 10) / 10; };
+    var segs = bezierSegments(points, tension, interpolation), r = function (v) { return Math.round(v * 10) / 10; };
     var d = 'M' + r(segs[0][0][0]) + ',' + r(segs[0][0][1]);
     segs.forEach(function (s) { d += ' C' + r(s[1][0]) + ',' + r(s[1][1]) + ' ' + r(s[2][0]) + ',' + r(s[2][1]) + ' ' + r(s[3][0]) + ',' + r(s[3][1]); });
     return d + ' Z';
@@ -110,7 +122,7 @@
   }
 
   function fromScheme(scheme) {
-    return new Polyline(samplePolyline(scheme.points, scheme.tension));
+    return new Polyline(samplePolyline(scheme.points, scheme.tension, scheme.interpolation || 'catmull-rom'));
   }
 
   var api = {
