@@ -227,7 +227,7 @@
       '</div>' +
       '<div class="gl-tr-under"><div class="gl-tr-ctrl"><button type="button" class="gl-tr-ib gl-tr-ib--y" data-a="play">Пауза</button><button type="button" class="gl-tr-ib" data-a="restart">Сначала</button>' +
         '<div class="gl-tr-seg" role="group" aria-label="Скорость воспроизведения"><button type="button" data-r="0.5" aria-pressed="false">0.5×</button><button type="button" data-r="1" aria-pressed="true">1×</button><button type="button" data-r="2" aria-pressed="false">2×</button><button type="button" data-r="4" aria-pressed="false">4×</button></div></div>' +
-        '<label class="gl-tr-toggle"><input type="checkbox" checked data-g="1"> Призрак идеального круга</label>' +
+        '<label class="gl-tr-toggle"><input type="checkbox" data-g="1"> Призрак идеального круга</label>' +
         '<div class="gl-tr-gapline">Отставание от идеального круга: <b class="gl-tr-gv">+0.000 с</b></div></div>';
     var q$ = function (s) { return box.querySelector(s); };
     var view = q$('.gl-tr-v3d');
