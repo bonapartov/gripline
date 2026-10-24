@@ -115,6 +115,28 @@ document.addEventListener('DOMContentLoaded', function () {
             };
         }
         radarModes = { class: readMode('class', 'Рейтинг'), career: readMode('career', 'Финишей') };
+        // Одинаковый масштаб в обоих режимах. Chart.js подгоняет радиус радара под ширину подписей осей,
+        // а подписи у режимов разной длины («Рейтинг»/«Финишей», «12 · 40%»/«3 · 100%») — при переключении
+        // радар прыгал. Добиваем каждую строку подписи пробелами по обе стороны до ширины самой длинной из
+        // двух режимов: подписи одной ширины → тот же радиус и центр.
+        (function equalizeLabels() {
+            var meas = document.createElement('canvas').getContext('2d');
+            meas.font = '11px ' + ((Chart.defaults.font && Chart.defaults.font.family) || 'sans-serif');
+            var w = function (t) { return meas.measureText(t).width; }, sp = w(' ') || 3;
+            var lines = function (m, i) { return [m.labels[i], m.raw[i] + ' · ' + m.values[i] + '%']; };
+            var keys = Object.keys(radarModes);
+            keys.forEach(function (k) { radarModes[k].lines = radarModes[k].labels.map(function (_, i) { return lines(radarModes[k], i); }); });
+            radarModes[keys[0]].labels.forEach(function (_, i) {
+                [0, 1].forEach(function (l) {
+                    var target = Math.max.apply(null, keys.map(function (k) { return w(radarModes[k].lines[i][l]); }));
+                    keys.forEach(function (k) {
+                        var t = radarModes[k].lines[i][l], left = true;
+                        for (var n = 0; n < 60 && w(t) + sp / 2 < target; n++) { t = left ? ' ' + t : t + ' '; left = !left; }
+                        radarModes[k].lines[i][l] = t;
+                    });
+                });
+            });
+        })();
         radarCurrent = radarModes[canvas.getAttribute('data-default-scope') === 'career' ? 'career' : 'class'];
 
         radarChart = new Chart(canvas.getContext('2d'), {
@@ -148,7 +170,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         pointLabels: {
                             color: '#b0bec5',
                             font: { size: 11 },
-                            callback: function (label, index) { return [label, radarCurrent.raw[index] + ' · ' + radarCurrent.values[index] + '%']; },
+                            callback: function (label, index) { return radarCurrent.lines[index]; },
                         },
                         ticks: { display: false, stepSize: 25 },
                     }
