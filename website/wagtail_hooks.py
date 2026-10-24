@@ -1,6 +1,6 @@
 from wagtail_modeladmin.options import (ModelAdmin, ModelAdminGroup, modeladmin_register)
 from wagtail_modeladmin.helpers import PermissionHelper
-from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, MaxSettings, VkSettings, WeatherSettings, MailSettings, VpnSettings, SocialTag, ArticlePage, ChassisTypePreset, BalanceThreshold, BalanceDiagnosticRule, DataRequest
+from .models import Driver, Team, Track, Chassis, TyreBrand, TyreType, Tyre, Engine, TeamStaff, TeamStaffMembership, AnalyticsSettings, EventIndexPage, StagePage, TelegramSettings, MaxSettings, VkSettings, WeatherSettings, TrackPageSettings, MailSettings, VpnSettings, SocialTag, ArticlePage, ChassisTypePreset, BalanceThreshold, BalanceDiagnosticRule, DataRequest
 from wagtail import hooks
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -147,10 +147,22 @@ class TyresGroup(ModelAdminGroup):
     menu_icon = 'fa-tyre'
     items = (TyreBrandAdmin, TyreTypeAdmin, TyreAdmin)
 
+class TrackPageSettingsAdmin(ModelAdmin):
+    model = TrackPageSettings
+    menu_label = 'Настройки страницы'
+    menu_icon = 'cog'
+    list_display = ('__str__', 'kart_scale')
+
+    def index_view(self, request):
+        # одна запись на весь сайт — сразу открываем её
+        from django.shortcuts import redirect
+        return redirect(self.url_helper.get_action_url('edit', TrackPageSettings.get().pk))
+
+
 class TracksGroup(ModelAdminGroup):
     menu_label = 'Трассы'
     menu_icon = 'site'
-    items = (TrackAdmin,)
+    items = (TrackAdmin, TrackPageSettingsAdmin)
 
 class AnalyticsSettingsAdmin(ModelAdmin):
     model = AnalyticsSettings

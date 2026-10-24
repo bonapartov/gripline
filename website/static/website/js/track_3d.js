@@ -3,6 +3,7 @@
    (Track.scheme_data, геометрия — track_scheme_geom.js), масштаб — по длине трассы.
 
    Метка проезжает рекордный круг класса, призрак — идеальный (сумма лучших секторов).
+   Метка — модель карта с пилотом из track_3d_kart.js (грузится раньше), opts.kartScale — её размер.
    Скорость внутри сектора расчётная (кривизна → разгон/торможение), затем масштабируется
    так, чтобы время каждого сектора совпало с реальным.
 
@@ -203,20 +204,12 @@
       var long = gt[2].length > 3, sp = label(gt[2], SEC[gt[1]].color, SEC[gt[1]].on, long ? 120 : 56, 30);
       sp.position.set(p[0], 11, p[1]); sp.scale.set(long ? 32 : 15, 8, 1); scene.add(sp);
     });
-    function kart(color, op) {
-      var g = new THREE.Group(), mat = new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: 0.55, transparent: op < 1, opacity: op });
-      var body = new THREE.Mesh(new THREE.BoxGeometry(4.8, 1.2, 3), mat); body.position.y = 1; g.add(body);
-      var nose = new THREE.Mesh(new THREE.ConeGeometry(1.4, 2.4, 4), mat); nose.rotation.z = -Math.PI / 2; nose.position.set(3.4, 1, 0); g.add(nose);
-      var gc = document.createElement('canvas'); gc.width = gc.height = 64;
-      var gx = gc.getContext('2d'), grd = gx.createRadialGradient(32, 32, 2, 32, 32, 30);
-      grd.addColorStop(0, '#' + new THREE.Color(color).getHexString()); grd.addColorStop(1, 'rgba(0,0,0,0)');
-      gx.fillStyle = grd; gx.fillRect(0, 0, 64, 64);
-      var gtex = new THREE.CanvasTexture(gc); textures.push(gtex);
-      var glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: gtex, transparent: true, opacity: 0.9 * op, depthWrite: false }));
-      glow.scale.set(22, 22, 1); glow.position.y = 7; g.add(glow); g.userData.glow = glow;
+    // метка — модель карта с пилотом (track_3d_kart.js); размер относительно настоящего — из админки
+    function kart(color, ghost) {
+      var g = window.GlKart3D.build(color, { ghost: ghost, driver: true, scale: opts.kartScale || 3 });
       scene.add(g); return g;
     }
-    var rec = kart(0xffc107, 1), ghost = kart(0x0dcaf0, 0.5);
+    var rec = kart(0xffc107, false), ghost = kart(0x0dcaf0, true);
     var TR = 160, trp = new Float32Array(TR * 3), trg = new THREE.BufferGeometry();
     trg.setAttribute('position', new THREE.BufferAttribute(trp, 3));
     scene.add(new THREE.Line(trg, new THREE.LineBasicMaterial({ color: 0xffd400, transparent: true, opacity: 0.7 })));
@@ -327,7 +320,13 @@
     setCam('orbit');
 
     var cp = new THREE.Vector3(), cl = new THREE.Vector3(), last = performance.now(), lastGap = 0;
-    function place(g, s) { g.position.set(s.x, 0.1, s.z); g.rotation.y = -Math.atan2(s.tz, s.tx); }
+    function place(g, s) {
+      var u = g.userData;
+      // колёса крутятся на пройденное расстояние; скачок (новый круг, «Сначала») не крутит
+      if (u.px !== undefined) { var d = Math.hypot(s.x - u.px, s.z - u.pz); if (d > 0 && d < 60) window.GlKart3D.roll(g, d); }
+      u.px = s.x; u.pz = s.z;
+      g.position.set(s.x, 0.1, s.z); g.rotation.y = -Math.atan2(s.tz, s.tx);
+    }
     function frame(now) {
       if (!running) return;
       requestAnimationFrame(frame);

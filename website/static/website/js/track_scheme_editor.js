@@ -952,10 +952,10 @@
       if (!INIT.length_m) { host.innerHTML = '<p class="tse-hint">Укажите длину трассы в карточке — без неё 3D не строится.</p>'; return; }
       post(root.dataset.previewUrl, payload()).then(function (res) {
         if (!res[0]) { host.innerHTML = '<p class="tse-hint">' + esc(res[1].error || 'Ошибка') + '</p>'; return; }
-        if (!loading3d) loading3d = addScript(root.dataset.three).then(function () { return addScript(root.dataset.orbit); }).then(function () { return addScript(root.dataset.module); });
+        if (!loading3d) loading3d = addScript(root.dataset.three).then(function () { return addScript(root.dataset.orbit); }).then(function () { return addScript(root.dataset.kart); }).then(function () { return addScript(root.dataset.module); });
         loading3d.then(function () {
           if (inst3d) inst3d.destroy();
-          inst3d = window.GlTrack3D.build({ scheme: res[1].public, lengthM: INIT.length_m, onRebuild: function () { showTab('3d'); } });
+          inst3d = window.GlTrack3D.build({ scheme: res[1].public, lengthM: INIT.length_m, kartScale: +root.dataset.kartScale || 3, onRebuild: function () { showTab('3d'); } });
           inst3d.mount(host);
           // условный круг: секторы по их длине при средней скорости 15 м/с
           var sc = res[1].public, l1 = G.mod1(sc.s1s2 - sc.start), l2 = G.mod1(sc.s2s3 - sc.s1s2), l3 = 1 - l1 - l2;

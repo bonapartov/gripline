@@ -130,7 +130,7 @@
   }
   function build(low) {
     return window.GlTrack3D.build({
-      scheme: DATA.scheme, lengthM: DATA.length_m, low: low, onRebuild: rebuild
+      scheme: DATA.scheme, lengthM: DATA.length_m, kartScale: DATA.kart_scale, low: low, onRebuild: rebuild
     });
   }
   function mountCurrent() {
@@ -155,6 +155,7 @@
       loading = addScript(st.three)
         .then(function () { return addScript(st.orbit); })
         .then(function () { return window.GlTrackGeom ? null : addScript(st.geom); })
+        .then(function () { return addScript(st.kart); })
         .then(function () { return addScript(st.module); })
         .then(function () { window.GlTrack3DInstance = build(false); });
     }

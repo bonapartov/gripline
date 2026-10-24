@@ -9,6 +9,12 @@ from django.utils.safestring import mark_safe
 from website.services import track_scheme, track_stats
 
 
+def _kart_scale():
+    """Размер метки-карта в 3D относительно настоящего — общая настройка в админке (Трассы → Настройки страницы)."""
+    from website.models import TrackPageSettings
+    return float(TrackPageSettings.get().kart_scale)
+
+
 def map_links(track):
     """Карта и ссылки «Проложить маршрут» / «Яндекс Карты» по координатам трассы."""
     if track.latitude is None or track.longitude is None:
@@ -97,10 +103,12 @@ def build_track_page(track, requested_class, races_count):
         'scheme': track_scheme.public_scheme(scheme) if can_3d else None,
         'length_m': float(track.length_m) if track.length_m else None,
         'turn_ranges': turn_ranges,
+        'kart_scale': _kart_scale(),
         'static': {
             'three': static('website/vendor/three/r128/three.min.js'),
             'orbit': static('website/vendor/three/r128/OrbitControls.js'),
             'geom': static('website/js/track_scheme_geom.js'),
+            'kart': static('website/js/track_3d_kart.js'),
             'module': static('website/js/track_3d.js'),
         },
     }

@@ -93,8 +93,10 @@ def editor(request, pk):
     if denied:
         return denied
     track = get_object_or_404(Track, pk=pk)
+    from .models import TrackPageSettings
     return render(request, 'track_scheme/editor.html', {
         'track': track,
+        'kart_scale': repr(float(TrackPageSettings.get().kart_scale)),  # без локализации: «3.0», не «3,0»
         'editor_data': {
             'scheme': track.scheme_data,
             'length_m': float(track.length_m) if track.length_m else None,

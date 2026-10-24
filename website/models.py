@@ -2567,6 +2567,33 @@ class WeatherSettings(models.Model):
         return obj
 
 
+class TrackPageSettings(models.Model):
+    """Singleton: общие настройки страницы трассы для всех трасс (TrackPageSettings.get()).
+    Сохранение сбрасывает кэш страниц /tracks/ (signals.py)."""
+
+    kart_scale = models.FloatField(
+        default=3,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        verbose_name="Размер карта в 3D",
+        help_text=(
+            "Во сколько раз метка-карт в 3D больше настоящего (1,85 м). 1 — настоящий размер, "
+            "3 — около 5,6 м. В виде «Обзор» трасса около километра, и карт настоящего размера там не разглядеть."
+        ),
+    )
+
+    class Meta:
+        verbose_name = "Настройки страницы трассы"
+        verbose_name_plural = "Настройки страницы трассы"
+
+    def __str__(self):
+        return "Настройки страницы трассы"
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
 class MailSettings(models.Model):
     """
     Singleton-модель настроек исходящей почты приложения.

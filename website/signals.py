@@ -117,9 +117,19 @@ def _purge_track_page(sender, instance, **kwargs):
         logger.warning("Не удалось сбросить кэш страницы трассы %s", instance.slug, exc_info=True)
 
 
+def _purge_all_track_pages(sender, **kwargs):
+    """Общие настройки страницы трассы (размер карта в 3D) — сбросить кэш всех /tracks/…."""
+    from wagtailcache.cache import clear_cache
+    try:
+        clear_cache([r'^https?://[^/]+/tracks/.*$'])
+    except Exception:
+        logger.warning("Не удалось сбросить кэш страниц трасс", exc_info=True)
+
+
 def _connect_track_cache_signal():
-    from .models import Track
+    from .models import Track, TrackPageSettings
     post_save.connect(_purge_track_page, sender=Track, dispatch_uid='purge_track_page')
+    post_save.connect(_purge_all_track_pages, sender=TrackPageSettings, dispatch_uid='purge_all_track_pages')
 
 
 _connect_track_cache_signal()

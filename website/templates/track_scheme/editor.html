@@ -17,6 +17,8 @@
      data-reference-url="{% url 'track_scheme_reference' track.pk %}"
      data-three="{% static 'website/vendor/three/r128/three.min.js' %}"
      data-orbit="{% static 'website/vendor/three/r128/OrbitControls.js' %}"
+     data-kart="{% static 'website/js/track_3d_kart.js' %}"
+     data-kart-scale="{{ kart_scale }}"
      data-module="{% static 'website/js/track_3d.js' %}"
      data-slug="{{ track.slug }}">
 
