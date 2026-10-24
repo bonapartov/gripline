@@ -109,6 +109,16 @@ def test_default_class_is_most_started_and_absolute_record():
     assert st.absolute_record(classes) == {'ms': 61000, 'class_name': 'Класс 2'}
 
 
+def test_years_show_class_and_whole_track_drivers():
+    # класс 1: 2 пилота в 2025, 3 в 2026; класс 2: пилот 3 (уже есть в классе 1 в 2026) и новый пилот 4 в 2026
+    rows = ROWS + [row(3, 5, D2, cls=2, qual=(61000, 1, 1, 1)), row(4, 5, D2, cls=2, qual=(61500, 1, 1, 1))]
+    c1, c2 = st.build_track_classes(rows)
+    assert [(y['year'], y['drivers'], y['total']) for y in c1['years']] == [(2025, 2, 2), (2026, 3, 4)]
+    assert [(y['year'], y['drivers'], y['total']) for y in c2['years']] == [(2025, 0, 2), (2026, 2, 4)]
+    # высота — от максимума по всей трассе: 4 пилота = 110 px
+    assert [(y['height'], y['total_height']) for y in c2['years']] == [(0, 55), (55, 110)]
+
+
 # ── БД, вьюхи, редактор ─────────────────────────────────────────────────
 
 @pytest.fixture(autouse=True)

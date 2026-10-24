@@ -181,12 +181,20 @@
 .gl-tr-stat { padding: 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .gl-tr-bars { display: flex; align-items: flex-end; gap: 12px; height: 200px; padding-top: 36px; }
 .gl-tr-bar { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%; position: relative; }
-.gl-tr-bar-col { width: 100%; max-width: 44px; border: 0; padding: 0; border-radius: 4px 4px 0 0; background: var(--gl-brand-yellow); cursor: pointer; transition: background 0.2s; }
+.gl-tr-bars-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 16px; }
+.gl-tr-bars-legend { display: flex; gap: 12px; font-size: 11px; color: var(--gl-fg-4); }
+.gl-tr-key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.gl-tr-key--cls { background: var(--gl-brand-yellow); }
+.gl-tr-key--all { background: var(--gl-border-divider); }
+/* задний столбец — вся трасса (приглушённый), внутри у основания — класс (жёлтый) */
+.gl-tr-bar-col { position: relative; width: 100%; max-width: 44px; border: 0; padding: 0; border-radius: 4px 4px 0 0; background: var(--gl-border-divider); cursor: pointer; overflow: hidden; }
+.gl-tr-bar-cls { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 4px 4px 0 0; background: var(--gl-brand-yellow); transition: background 0.2s; }
 .gl-tr-bar-tip { position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; padding: 3px 8px; border-radius: 4px; background: var(--gl-surface-inset); border: 1px solid var(--gl-brand-yellow); font-size: 11px; font-weight: 700; color: var(--gl-brand-yellow); text-transform: uppercase; letter-spacing: 1px; visibility: hidden; }
 .gl-tr-bar:hover .gl-tr-bar-tip, .gl-tr-bar:focus-within .gl-tr-bar-tip { visibility: visible; }
-.gl-tr-bar:hover .gl-tr-bar-col, .gl-tr-bar-col:focus-visible { background: var(--gl-brand-yellow-bright); }
-.gl-tr-bar:hover .gl-tr-bar-n, .gl-tr-bar:focus-within .gl-tr-bar-n { color: var(--gl-brand-yellow); }
-.gl-tr-bar-n { font-family: var(--gl-font-mono); font-size: 12px; font-weight: 700; color: var(--gl-fg-2); }
+.gl-tr-bar:hover .gl-tr-bar-cls, .gl-tr-bar-col:focus-visible .gl-tr-bar-cls { background: var(--gl-brand-yellow-bright); }
+.gl-tr-bar:hover .gl-tr-bar-n b, .gl-tr-bar:focus-within .gl-tr-bar-n b { color: var(--gl-brand-yellow); }
+.gl-tr-bar-n { font-family: var(--gl-font-mono); font-size: 12px; color: var(--gl-fg-4); white-space: nowrap; }
+.gl-tr-bar-n b { font-weight: 700; color: var(--gl-fg-2); }
 .gl-tr-bar-y { font-size: 12px; color: var(--gl-fg-4); }
 .gl-tr-bar-r { font-size: 11px; color: var(--gl-brand-cyan); font-weight: 700; white-space: nowrap; }
 .gl-tr-mini { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -235,5 +243,5 @@
   .gl-tr-hist-t { width: 72px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .gl-tr-plate path.sec, .gl-tr-chip, .gl-tr-bar-col { transition: none; }
+  .gl-tr-plate path.sec, .gl-tr-chip, .gl-tr-bar-cls { transition: none; }
 }

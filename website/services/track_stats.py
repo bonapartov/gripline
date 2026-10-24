@@ -169,14 +169,26 @@ def leaders(rows, limit=LEADERS_LIMIT):
     return ranked[:limit]
 
 
-def races_by_year(rows, years):
-    """[{year, races, drivers}] по всем годам трассы (years), включая годы без этого класса."""
-    races, drivers = defaultdict(set), defaultdict(set)
+def drivers_by_year(rows):
+    """{год: число разных пилотов} — пилот, ехавший в двух классах, считается один раз."""
+    drivers = defaultdict(set)
+    for row in rows:
+        if row['date']:
+            drivers[row['date'].year].add(row['driver_id'])
+    return {y: len(d) for y, d in drivers.items()}
+
+
+def races_by_year(rows, years, track_drivers=None):
+    """[{year, races, drivers, total}] по всем годам трассы (years), включая годы без этого класса.
+    total — все пилоты трассы за год, со всех классов (track_drivers из drivers_by_year)."""
+    races = defaultdict(set)
     for row in rows:
         if row['date']:
             races[row['date'].year].add(row['event_id'])
-            drivers[row['date'].year].add(row['driver_id'])
-    return [{'year': y, 'races': len(races[y]), 'drivers': len(drivers[y])} for y in years]
+    drivers = drivers_by_year(rows)
+    track_drivers = track_drivers or drivers
+    return [{'year': y, 'races': len(races[y]), 'drivers': drivers.get(y, 0), 'total': track_drivers.get(y, 0)}
+            for y in years]
 
 
 def record_history(rows):
@@ -217,7 +229,7 @@ def drop_outlier_sectors(rows):
     return out
 
 
-def class_data(rows, years):
+def class_data(rows, years, track_drivers=None):
     rows = drop_outlier_sectors(rows)
     rec = best_lap(rows)
     sectors = best_sectors(rows)
@@ -234,7 +246,7 @@ def class_data(rows, years):
         'sectors': [],
         'ideal_ms': None,
         'gap_ms': None,
-        'years': races_by_year(rows, years),
+        'years': races_by_year(rows, years, track_drivers),
         'leaders': leaders(rows),
         'history': record_history(rows),
     }
@@ -249,9 +261,11 @@ def class_data(rows, years):
              'turns': ''}
             for k, s in enumerate(sectors)
         ]
-    max_drivers = max((y['drivers'] for y in data['years']), default=0) or 1
+    # «Гонки по годам»: задний столбец — вся трасса, передний — класс; высота от максимума по трассе
+    max_total = max((y['total'] for y in data['years']), default=0) or 1
     for y in data['years']:
-        y['height'] = max(2, round(y['drivers'] / max_drivers * 110)) if y['drivers'] else 2
+        y['height'] = max(2, round(y['drivers'] / max_total * 110)) if y['drivers'] else 0
+        y['total_height'] = max(2, round(y['total'] / max_total * 110))
     return data
 
 
@@ -261,7 +275,8 @@ def build_track_classes(rows):
     by_class = defaultdict(list)
     for row in rows:
         by_class[row['class_id']].append(row)
-    classes = [class_data(class_rows, years) for class_rows in by_class.values()]
+    track_drivers = drivers_by_year(rows)
+    classes = [class_data(class_rows, years, track_drivers) for class_rows in by_class.values()]
     classes.sort(key=lambda c: c['order'])
     return classes
 
