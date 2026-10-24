@@ -2048,12 +2048,22 @@ class RaceResult(Orderable):
 
     @property
     def ideal_lap_all_ms(self):
+        """Сумма лучших секторов по всем сессиям — только если она быстрее лучшего круга.
+
+        Не быстрее — значит, секторов не хватает: в протоколе секторы только лучшего круга
+        (сумма = круг, 6 этап Rotax 2026) или у сессии с лучшим кругом секторов нет вовсе
+        (идеальный получался медленнее лучшего). Такой «идеальный» не показываем.
+        """
         s1 = [t for t in [self.best_s1_ms, self.qual_s1_ms, self.pre_final_s1_ms] if t]
         s2 = [t for t in [self.best_s2_ms, self.qual_s2_ms, self.pre_final_s2_ms] if t]
         s3 = [t for t in [self.best_s3_ms, self.qual_s3_ms, self.pre_final_s3_ms] if t]
-        if s1 and s2 and s3:
-            return min(s1) + min(s2) + min(s3)
-        return None
+        if not (s1 and s2 and s3):
+            return None
+        ideal = min(s1) + min(s2) + min(s3)
+        best = self.best_lap_all_ms
+        if best and ideal >= best:
+            return None
+        return ideal
 
     @property
     def ideal_lap_session(self):
@@ -2061,7 +2071,7 @@ class RaceResult(Orderable):
         s1 = [t for t in [self.best_s1_ms, self.qual_s1_ms, self.pre_final_s1_ms] if t]
         s2 = [t for t in [self.best_s2_ms, self.qual_s2_ms, self.pre_final_s2_ms] if t]
         s3 = [t for t in [self.best_s3_ms, self.qual_s3_ms, self.pre_final_s3_ms] if t]
-        if not (s1 and s2 and s3):
+        if not (s1 and s2 and s3) or self.ideal_lap_all_ms is None:
             return None
         min_s1, min_s2, min_s3 = min(s1), min(s2), min(s3)
         sessions = {
