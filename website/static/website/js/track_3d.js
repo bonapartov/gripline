@@ -280,6 +280,10 @@
     q$('[data-g]').addEventListener('change', function (e) { ghost.visible = e.target.checked && !!recCum && ghostOk; dirty = true; });
 
     function setCam(m) {
+      if (m === 'chase' && cam !== 'chase') {
+        // въезд в «За меткой» — плавный перелёт из текущего положения камеры за 0,8 с
+        chaseFrom.copy(camera.position); chaseFromT.copy(controls.target); chaseK = 0; chaseYaw = null;
+      }
       cam = m;
       box.querySelectorAll('[data-c]').forEach(function (x) { x.setAttribute('aria-pressed', String(x.dataset.c === m)); });
       controls.enabled = m !== 'chase';
@@ -320,6 +324,8 @@
     setCam('orbit');
 
     var cp = new THREE.Vector3(), cl = new THREE.Vector3(), last = performance.now(), lastGap = 0;
+    var chaseFrom = new THREE.Vector3(), chaseFromT = new THREE.Vector3(), chaseK = 1, chaseYaw = null, chaseX = 0, chaseZ = 0;
+    var KS = opts.kartScale || 3;
     function place(g, s) {
       var u = g.userData;
       // колёса крутятся на пройденное расстояние; скачок (новый круг, «Сначала») не крутит
@@ -331,7 +337,8 @@
       if (!running) return;
       requestAnimationFrame(frame);
       if (!onScreen || document.hidden) { last = now; return; }
-      if (isTouch && now - lastDraw < 32) return;
+      // ~30 к/с на сенсорных; порог чуть меньше 33 мс, иначе при дрожании таймера кадр пропускается и выходит 50 мс — рывок
+      if (isTouch && now - lastDraw < 28) return;
       lastDraw = now;
       var dt = Math.min(0.05, (now - last) / 1000); last = now;
       if (recCum) {
@@ -360,8 +367,21 @@
           q$('.gl-tr-gv').textContent = '+' + Math.max(0, t - gt).toFixed(3) + ' с';
         }
         if (cam === 'chase') {
-          cp.set(s.x - s.tx * 34, 16, s.z - s.tz * 34); cl.set(s.x + s.tx * 30, 0, s.z + s.tz * 30);
-          camera.position.lerp(cp, 0.08); controls.target.lerp(cl, 0.12); camera.lookAt(controls.target);
+          /* Камера жёстко привязана к метке, сглаживается только направление взгляда (с учётом dt).
+             Раньше позиция догоняла метку долей пути за кадр (lerp 0.08) — скорость камеры зависела от частоты
+             кадров, и при неровных кадрах метка дёргалась на экране. Скачок (новый круг) — без сглаживания. */
+          var yaw = Math.atan2(s.tz, s.tx);
+          if (chaseYaw === null || Math.hypot(s.x - chaseX, s.z - chaseZ) > 60) chaseYaw = yaw;
+          else chaseYaw += Math.atan2(Math.sin(yaw - chaseYaw), Math.cos(yaw - chaseYaw)) * (1 - Math.exp(-dt * 5));
+          chaseX = s.x; chaseZ = s.z;
+          var hx = Math.cos(chaseYaw), hz = Math.sin(chaseYaw), back = 12 + 7 * KS, high = 6 + 3.3 * KS;
+          cp.set(s.x - hx * back, high, s.z - hz * back); cl.set(s.x + hx * 30, 0, s.z + hz * 30);
+          if (chaseK < 1) {
+            chaseK = Math.min(1, chaseK + dt / 0.8);
+            var e = chaseK * chaseK * (3 - 2 * chaseK);
+            cp.lerpVectors(chaseFrom, cp, e); cl.lerpVectors(chaseFromT, cl, e);
+          }
+          camera.position.copy(cp); controls.target.copy(cl); camera.lookAt(cl);
         }
       }
       var moved = (cam !== 'chase' || !recCum) ? controls.update() : true;
