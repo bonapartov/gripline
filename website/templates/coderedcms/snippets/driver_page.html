@@ -168,7 +168,7 @@
                     <button type="button" class="glv2-scope-btn{% if default_scope == 'career' %} active{% endif %}" data-scope-btn="career" {% if not career_percentiles %}disabled title="Недостаточно данных за карьеру"{% endif %}>Карьера</button>
                     <button type="button" class="glv2-scope-btn{% if default_scope == 'class' %} active{% endif %}" data-scope-btn="class" {% if not class_percentiles %}disabled title="Недостаточно данных по текущему классу"{% endif %}>Класс</button>
                 </div>
-                <div class="row g-2 h-100">
+                <div class="row g-2 h-100 glv2-tiles-row">
                     <div class="col-6 col-xxl-4"><div class="glv2-card glv2-tile h-100">
                         <div data-scope="career">
                             <div class="glv2-tile-label">Стартов <span class="glv2-tile-scope">· карьера</span></div>
@@ -424,8 +424,8 @@
                     {% else %}<div class="text-muted" style="font-size:1.4rem;">—</div><div class="text-muted small">Мало данных</div>
                     {% endif %}
                 </div>
-                <div class="col-6 col-md-6">
-                    <div class="d-flex gap-4">
+                <div class="col-12 col-md-6">
+                    <div class="glv2-rating-counts">
                         <div><span class="glv2-mono fw-bold">{{ cr.wins }}</span> <span class="text-muted small">побед · {{ cr.win_pct }}% от стартов</span></div>
                         <div><span class="glv2-mono fw-bold">{{ cr.podiums }}</span> <span class="text-muted small">подиумов · {{ cr.podium_pct }}% от стартов</span></div>
                         <div><span class="glv2-mono fw-bold">{{ cr.starts }}</span> <span class="text-muted small">стартов</span></div>
