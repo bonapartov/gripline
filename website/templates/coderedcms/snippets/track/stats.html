@@ -7,10 +7,12 @@
     <div class="gl-tr-bars">
         {% for y in c.years %}
         <div class="gl-tr-bar">
+            {% if y.races %}
             <span class="gl-tr-bar-tip" style="bottom:{{ y.total_height|add:72 }}px">Пилотов: класс / трасса</span>
             <span class="gl-tr-bar-n"><b>{{ y.drivers }}</b>/{{ y.total }}</span>
             {# задний столбец — все пилоты трассы за год, передний (жёлтый) — пилоты класса #}
             <button type="button" class="gl-tr-bar-col" style="height:{{ y.total_height }}px" aria-label="{{ y.year }}: пилотов в классе {{ y.drivers }}, на трассе всего {{ y.total }}"><span class="gl-tr-bar-cls" style="height:{{ y.height }}px"></span></button>
+            {% endif %}{# класс в этот год не ехал — столбца нет, остаются год и «нет гонок» #}
             <span class="gl-tr-bar-y">{{ y.year }}</span>
             <span class="gl-tr-bar-r">{% if not y.races %}нет гонок{% else %}{{ y.races }} {{ y.races|ru_word:"гонка,гонки,гонок" }}{% endif %}</span>
         </div>
