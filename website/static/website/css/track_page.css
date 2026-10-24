@@ -87,7 +87,10 @@
 .gl-tr-plate.is-locked path.sec { cursor: default; }
 .gl-tr-stage-note { margin: 0; font-size: 12px; color: var(--gl-fg-muted); }
 /* подпись источника (ODbL) — для формальности, мелко и неярко */
-.gl-tr-osm { margin: -8px 0 0; font-size: 10px; color: var(--gl-fg-muted); opacity: 0.7; text-align: right; }
+/* подсказка под схемой и подпись OpenStreetMap — одной строкой; на узком экране подпись переносится вниз */
+.gl-tr-stage-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 16px; }
+.gl-tr-stage-foot .gl-tr-stage-note { flex: 1 1 260px; min-width: 0; }
+.gl-tr-osm { margin: 0 0 0 auto; font-size: 10px; color: var(--gl-fg-muted); opacity: 0.7; text-align: right; white-space: nowrap; }
 .gl-track .gl-tr-osm a { color: inherit; }
 
 /* Панель секторов */

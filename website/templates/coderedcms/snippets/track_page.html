@@ -93,8 +93,10 @@
                     <div class="gl-tr-plate" id="glTrPlate">{{ scheme_svg }}</div>
                     <div id="glTrHost3d" hidden></div>
                 </div>
-                <p class="gl-tr-stage-note" id="glTrStageNote">Нажмите на сектор на схеме или на фильтр выше.</p>
-                {% if scheme_osm %}<p class="gl-tr-osm">Данные схемы: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© участники OpenStreetMap</a></p>{% endif %}
+                <div class="gl-tr-stage-foot">
+                    <p class="gl-tr-stage-note" id="glTrStageNote">Нажмите на сектор на схеме или на фильтр выше.</p>
+                    {% if scheme_osm %}<p class="gl-tr-osm">Данные схемы: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© участники OpenStreetMap</a></p>{% endif %}
+                </div>
             </div>
             {% else %}
             <h2 id="sch-h" class="visually-hidden">Секторы</h2>
