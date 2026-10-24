@@ -141,7 +141,6 @@
 .gl-tr-hud { position: absolute; left: 10px; bottom: 10px; pointer-events: none; }
 .gl-tr-hud-box { background: rgba(13, 13, 21, 0.85); border: 1px solid var(--gl-border-card); border-radius: 8px; padding: 8px 12px; display: flex; gap: 14px; align-items: center; }
 .gl-tr-hud-time { font-family: var(--gl-font-mono); font-size: 22px; font-weight: 700; color: var(--gl-fg-1); font-variant-numeric: tabular-nums; }
-.gl-tr-hud-sp { font-family: var(--gl-font-mono); font-size: 13px; color: var(--gl-fg-4); font-variant-numeric: tabular-nums; }
 .gl-tr-hud .gl-tr-pill { font-size: 13px; padding: 2px 10px; }
 .gl-tr-under { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .gl-tr-ctrl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }

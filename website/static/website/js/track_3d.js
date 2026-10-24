@@ -99,7 +99,7 @@
       var lo = 0, hi = N;
       while (hi - lo > 1) { var m = (lo + hi) >> 1; if (cum[m] <= t) lo = m; else hi = m; }
       var f = (t - cum[lo]) / (cum[lo + 1] - cum[lo]), a = P[lo], b = P[(lo + 1) % N], ta = T[lo], tb = T[(lo + 1) % N];
-      return { x: a[0] + (b[0] - a[0]) * f, z: a[1] + (b[1] - a[1]) * f, tx: ta[0] + (tb[0] - ta[0]) * f, tz: ta[1] + (tb[1] - ta[1]) * f, i: lo, kmh: DS / (cum[lo + 1] - cum[lo]) * 3.6 };
+      return { x: a[0] + (b[0] - a[0]) * f, z: a[1] + (b[1] - a[1]) * f, tx: ta[0] + (tb[0] - ta[0]) * f, tz: ta[1] + (tb[1] - ta[1]) * f, i: lo };
     }
 
     var isTouch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
@@ -230,7 +230,7 @@
         '<div class="gl-tr-v3d-msg gl-tr-v3d-nosec" hidden><span>Нет данных по секторам для этого класса — метка не едет.</span></div>' +
         '<div class="gl-tr-touchhint" hidden>Вращайте двумя пальцами</div>' +
         '<div class="gl-tr-v3d-msg gl-tr-v3d-msg--lost" hidden><span><span class="gl-tr-lost-t">3D-схема перезапускается…</span><button type="button" class="gl-tr-ib gl-tr-ib--y gl-tr-lost-b" hidden>Перезапустить 3D</button></span></div>' +
-        '<div class="gl-tr-hud"><div class="gl-tr-hud-box"><span class="gl-tr-hud-time">0:00.000</span><span class="gl-tr-pill">S1</span><span class="gl-tr-hud-sp">— км/ч</span></div></div>' +
+        '<div class="gl-tr-hud"><div class="gl-tr-hud-box"><span class="gl-tr-hud-time">0:00.000</span><span class="gl-tr-pill">S1</span></div></div>' +
       '</div>' +
       '<div class="gl-tr-under"><div class="gl-tr-ctrl"><button type="button" class="gl-tr-ib gl-tr-ib--y" data-a="play">Пауза</button><button type="button" class="gl-tr-ib" data-a="restart">Сначала</button>' +
         '<div class="gl-tr-seg" role="group" aria-label="Скорость воспроизведения"><button type="button" data-r="0.5" aria-pressed="false">0.5×</button><button type="button" data-r="1" aria-pressed="true">1×</button><button type="button" data-r="2" aria-pressed="false">2×</button><button type="button" data-r="4" aria-pressed="false">4×</button></div></div>' +
@@ -351,7 +351,6 @@
         var cs = t >= total ? 2 : secOf(s.i), pill = q$('.gl-tr-pill');
         q$('.gl-tr-hud-time').textContent = fmt(t);
         pill.textContent = SEC[cs].name; pill.style.background = SEC[cs].color; pill.style.color = SEC[cs].on;
-        q$('.gl-tr-hud-sp').textContent = (hold > 0 ? '—' : Math.round(s.kmh)) + ' км/ч';
         var gl = q$('.gl-tr-gapline');
         gl.style.visibility = ghost.visible ? 'visible' : 'hidden';
         if (ghost.visible && (now - lastGap > 100 || t >= total || t === 0)) {
@@ -421,7 +420,6 @@
           q$('.gl-tr-hud-time').textContent = c && c.record_ms ? fmt(c.record_ms / 1000) : '—';
           var pill = q$('.gl-tr-pill');
           pill.textContent = 'рекорд'; pill.style.background = '#2a2a35'; pill.style.color = '#eceff1';
-          q$('.gl-tr-hud-sp').textContent = '';
         }
       }
     };
