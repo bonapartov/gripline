@@ -246,7 +246,8 @@ def class_data(rows, years, track_drivers=None):
         'sectors': [],
         'ideal_ms': None,
         'gap_ms': None,
-        'years': races_by_year(rows, years, track_drivers),
+        # только годы, где у класса есть результаты: «нет гонок» вводило бы в заблуждение — гонки могли быть, а протоколов нет
+        'years': [y for y in races_by_year(rows, years, track_drivers) if y['races']],
         'leaders': leaders(rows),
         'history': record_history(rows),
     }

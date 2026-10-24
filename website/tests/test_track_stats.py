@@ -91,7 +91,8 @@ def test_position_zero_is_start_but_not_podium():
 
 def test_years_and_record_history():
     c = st.class_data(ROWS, [2024, 2025, 2026])
-    assert [(y['year'], y['races'], y['drivers']) for y in c['years']] == [(2024, 0, 0), (2025, 1, 2), (2026, 1, 3)]
+    # 2024 — год трассы без результатов класса: в блок не попадает
+    assert [(y['year'], y['races'], y['drivers']) for y in c['years']] == [(2025, 1, 2), (2026, 1, 3)]
     hist = c['history']
     assert [(h['year'], h['ms'], h['delta_text']) for h in hist] == [(2026, 63500, '−0.400'), (2025, 63900, '—')]
 
@@ -114,9 +115,10 @@ def test_years_show_class_and_whole_track_drivers():
     rows = ROWS + [row(3, 5, D2, cls=2, qual=(61000, 1, 1, 1)), row(4, 5, D2, cls=2, qual=(61500, 1, 1, 1))]
     c1, c2 = st.build_track_classes(rows)
     assert [(y['year'], y['drivers'], y['total']) for y in c1['years']] == [(2025, 2, 2), (2026, 3, 4)]
-    assert [(y['year'], y['drivers'], y['total']) for y in c2['years']] == [(2025, 0, 2), (2026, 2, 4)]
+    # 2025 у класса 2 нет результатов — года нет вовсе (ни столбца, ни «нет гонок»)
+    assert [(y['year'], y['drivers'], y['total']) for y in c2['years']] == [(2026, 2, 4)]
     # высота — от максимума по всей трассе: 4 пилота = 110 px
-    assert [(y['height'], y['total_height']) for y in c2['years']] == [(0, 55), (55, 110)]
+    assert [(y['height'], y['total_height']) for y in c2['years']] == [(55, 110)]
 
 
 # ── БД, вьюхи, редактор ─────────────────────────────────────────────────
