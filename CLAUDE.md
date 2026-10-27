@@ -107,6 +107,7 @@ systemctl restart gripline
 **Путь:** `/www/wwwroot/gripline.ru`  
 **Сервис Django:** `gripline` (gunicorn, 3 воркера, порт 8000)  
 **Сервис FastAPI:** `gripline-api` (uvicorn, 2 воркера, порт 8001) — **задеплоен и работает**  
+**Сервис API приложения SetupKart:** `gripline-setupkart` (gunicorn, 1 воркер × 4 потока, порт 8002) — nginx отдаёт ему `/api/setupkart/`, чтобы приложение не занимало воркеры сайта. Юнит — `deploy/systemd/gripline-setupkart.service`, location — `deploy/nginx/setupkart.conf`; `deploy.sh` перезапускает оба. Второй воркер не помещается в память (воркер ~220 МБ, сервер 1,8 ГБ)  
 **Python venv Django:** `/www/wwwroot/gripline.ru/venv`  
 **Python venv FastAPI:** `/www/wwwroot/gripline.ru/fastapi/venv`  
 **nginx конфиг:** `/etc/nginx/sites-available/gripline`  
