@@ -184,6 +184,46 @@ def test_account_payload_driver_and_team_pilots(client):
     assert acc['teams'] == [{'id': team.pk, 'name': 'Гонщики'}]
 
 
+def test_account_payload_driver_ratings(client, monkeypatch):
+    """Рейтинг по классам — из той же функции, что страница пилота; вне таблицы — без места, с причиной."""
+    import datetime
+    from website import views
+    user = make_user()
+    driver = Driver.objects.create(first_name='Иван', last_name='Петров')
+    profile = user.profile
+    profile.driver = driver
+    profile.verified = True
+    profile.save()
+    token = login_token(client, user)
+    auth = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+    assert client.get(ME, **auth).json()['account']['driver']['ratings'] == []  # рейтинга ещё нет
+    cache.clear()
+
+    calls = []
+
+    def fake(d):
+        calls.append(d.pk)
+        return [
+            {'class_id': 7, 'class_name': 'RM Junior', 'normalized_score': 81.4, 'rank': 3, 'total': 24,
+             'inactive': False, 'out_reason': None, 'starts': 9, 'wins': 2, 'podiums': 5,
+             'last_race_date': datetime.datetime(2026, 9, 14, 18, 0, tzinfo=datetime.timezone.utc)},
+            {'class_id': 3, 'class_name': 'RM Mini', 'normalized_score': 55.0, 'rank': 12, 'total': 30,
+             'inactive': True, 'out_reason': 'inactive', 'starts': 6, 'wins': 0, 'podiums': 1,
+             'last_race_date': None},
+        ]
+
+    monkeypatch.setattr(views, '_get_driver_class_ratings', fake)
+    ratings = client.get(ME, **auth).json()['account']['driver']['ratings']
+    assert ratings[0] == {
+        'class_id': 7, 'class_name': 'RM Junior', 'score': 81.4, 'rank': 3, 'total': 24, 'out_reason': '',
+        'starts': 9, 'wins': 2, 'podiums': 5, 'last_race_date': '2026-09-14',
+        'url': 'https://gripline.ru/top/drivers/?class=7',
+    }
+    assert ratings[1]['rank'] is None and ratings[1]['out_reason'] == 'вне рейтинга: давно не выступал'
+    client.get(ME, **auth)
+    assert calls == [driver.pk]  # второй запрос — из кэша
+
+
 def test_unapproved_driver_not_exposed(client):
     user = make_user()
     driver = Driver.objects.create(first_name='Иван', last_name='Петров')

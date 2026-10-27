@@ -178,6 +178,40 @@ def token_of(request):
     return token
 
 
+RATINGS_CACHE_SEC = 600
+OUT_REASON_TEXT = {'few_starts': 'вне рейтинга: мало стартов', 'inactive': 'вне рейтинга: давно не выступал'}
+
+
+def driver_ratings(driver, base):
+    """Рейтинг пилота по классам для экрана «Аккаунт» приложения — та же функция, что на странице
+    пилота (место, баллы, порядок карточек: текущий класс первым). Расчёт тяжёлый (все пилоты класса),
+    поэтому кэш на 10 минут: рейтинг меняется только после пересчёта."""
+    key = f'setupkart:ratings:{driver.pk}'
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+    from website.views import _get_driver_class_ratings
+    rows = []
+    for cr in _get_driver_class_ratings(driver):
+        last = cr.get('last_race_date')
+        rows.append({
+            'class_id': cr['class_id'],
+            'class_name': cr['class_name'],
+            'score': cr['normalized_score'],
+            'rank': None if cr['inactive'] else cr['rank'],
+            'total': cr['total'],
+            'out_reason': OUT_REASON_TEXT.get(cr['out_reason'] or '', '') if cr['inactive'] else '',
+            'starts': cr['starts'],
+            'wins': cr['wins'],
+            'podiums': cr['podiums'],
+            'last_race_date': last.date().isoformat() if hasattr(last, 'date') else (
+                last.isoformat() if last else None),
+            'url': f"{base}{reverse('top_drivers')}?class={cr['class_id']}",
+        })
+    cache.set(key, rows, RATINGS_CACHE_SEC)
+    return rows
+
+
 def account_payload(user):
     """Аккаунт для приложения: имя, привязанный пилот, пилоты команд, которыми он управляет."""
     from accounts.models import DriverClaim
@@ -199,7 +233,8 @@ def account_payload(user):
     return {
         'email': user.email,
         'name': user.get_full_name() or user.email,
-        'driver': ({'id': driver.pk, 'name': driver.full_name, 'url': base + driver.get_absolute_url()}
+        'driver': ({'id': driver.pk, 'name': driver.full_name, 'url': base + driver.get_absolute_url(),
+                    'ratings': driver_ratings(driver, base)}
                    if driver else None),
         'claim_pending': driver is None and DriverClaim.objects.filter(user=user, status='pending').exists(),
         'teams': [{'id': m.team_id, 'name': m.team.name} for m in teams],
