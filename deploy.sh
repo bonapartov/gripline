@@ -23,4 +23,7 @@ ssh "$SERVER" "cd $REMOTE_DIR && source venv/bin/activate && python manage.py mi
 echo "→ Перезапускаем Django..."
 ssh "$SERVER" "systemctl restart gripline"
 
+echo "→ Перезапускаем API приложения SetupKart..."
+ssh "$SERVER" "systemctl restart gripline-setupkart"
+
 echo "✓ Деплой завершён"
