@@ -512,27 +512,32 @@ class ChampionshipPage(TransliteratedSlugMixin, CoderedWebPage):
         Возвращает список годов, в которые проводились этапы чемпионата
         Учитывает годовые кубки (например, этапы в декабре и январе)
         """
-        # Получаем все StagePage (этапы) этого чемпионата
-        stages = self.get_children().live().specific()
-        years = set()
-    
-        for stage in stages:
-            # Получаем дату начала этапа из StagePage
-            if stage.start_date:
-                years.add(stage.start_date.year)
-            
-            # Также проверяем дочерние EventPage на случай, если даты отличаются
-            for event in stage.get_children().live().specific():
-                if hasattr(event, 'occurrences'):
-                    for occurrence in event.occurrences.all():
-                        if hasattr(occurrence, 'start') and occurrence.start:
-                            years.add(occurrence.start.year)
-                        elif hasattr(occurrence, 'start_time') and occurrence.start_time:
-                            years.add(occurrence.start_time.year)
-                        elif hasattr(occurrence, 'date') and occurrence.date:
-                            years.add(occurrence.date.year)
-    
-        return sorted(list(years))
+        # /api/v2/pulse/ зовёт метод десятки раз на один чемпионат — считаем
+        # один раз на объект. Раньше обход дерева шёл запросами на каждый
+        # этап и событие: ~65% времени ответа Пульса.
+        if getattr(self, '_years_cache', None) is None:
+            self._years_cache = self._compute_years()
+        return list(self._years_cache)
+
+    def _compute_years(self):
+        children = list(self.get_children().live().values_list('id', 'path'))
+        years = {
+            d.year for d in StagePage.objects.filter(id__in=[c[0] for c in children])
+            .exclude(start_date__isnull=True).values_list('start_date', flat=True)
+        }
+        # Даты дочерних EventPage этапов — на случай, если отличаются от даты этапа
+        live_child_paths = {c[1] for c in children}
+        event_ids = [
+            pid for pid, path in Page.objects.live()
+            .filter(path__startswith=self.path, depth=self.depth + 2)
+            .values_list('id', 'path')
+            if path[:-Page.steplen] in live_child_paths
+        ]
+        years.update(
+            s.year for s in EventOccurrence.objects.filter(event_id__in=event_ids)
+            .exclude(start__isnull=True).values_list('start', flat=True)
+        )
+        return sorted(years)
 
     def get_champions_by_class(self, year=None):
         """
@@ -3308,29 +3313,24 @@ class PulseIndexPage(TransliteratedSlugMixin, CoderedWebPage):
         # Текущий год
         current_year = timezone.now().year
     
+        # Этапы, у которых есть опубликованное событие с результатами — одним
+        # запросом (путь родителя события = путь этапа), без обхода дерева.
+        stage_paths_with_results = {
+            path[:-Page.steplen] for path in
+            RaceResult.objects.filter(group__page__live=True)
+            .values_list('group__page__path', flat=True).distinct()
+        }
+
         # Фильтруем годы: только текущий и прошедшие
         filtered_years = []
         for year in all_years:
             if year <= current_year:
                 if year == current_year:
                     filtered_years.append(year)
-                else:
-                    # Проверяем, есть ли результаты за этот год
-                    # Находим все StagePage с этим годом
-                    stages_in_year = StagePage.objects.filter(
-                        start_date__year=year,
-                        live=True
-                    )
-                    has_results = False
-                    for stage in stages_in_year:
-                        for event in stage.get_children().live().specific():
-                            if RaceResult.objects.filter(group__page=event).exists():
-                                has_results = True
-                                break
-                        if has_results:
-                            break
-                    if has_results:
-                        filtered_years.append(year)
+                elif StagePage.objects.filter(
+                    start_date__year=year, live=True, path__in=stage_paths_with_results,
+                ).exists():
+                    filtered_years.append(year)
     
         # Сортируем от большего к меньшему
         filtered_years = sorted(filtered_years, reverse=True)

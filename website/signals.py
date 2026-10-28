@@ -133,3 +133,25 @@ def _connect_track_cache_signal():
 
 
 _connect_track_cache_signal()
+
+
+# ── Кэш Пульса (/api/v2/pulse/) ──────────────────────────────────────────────
+# Организатор скрывает/публикует этап флагом Stage.is_published в ЛК — Wagtail-
+# страница при этом не публикуется, общий кэш не сбрасывается, а Пульс по этому
+# флагу прячет этапы. Публикацию страниц в админке покрывает CodeRed (чистит весь кэш).
+def _clear_pulse_cache(**kwargs):
+    from .api import clear_pulse_cache
+    try:
+        clear_pulse_cache()
+    except Exception:
+        logger.warning("Не удалось сбросить кэш Пульса", exc_info=True)
+
+
+def _connect_pulse_cache_signal():
+    from django.db.models.signals import post_delete
+    from organizers.models import Stage as OrgStage
+    post_save.connect(_clear_pulse_cache, sender=OrgStage, dispatch_uid='pulse_cache_orgstage_save')
+    post_delete.connect(_clear_pulse_cache, sender=OrgStage, dispatch_uid='pulse_cache_orgstage_del')
+
+
+_connect_pulse_cache_signal()

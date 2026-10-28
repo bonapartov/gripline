@@ -24,4 +24,8 @@ class Command(BaseCommand):
         self.stdout.write('=== Рекорды трасс (update_track_records) ===')
         call_command('update_track_records')
 
+        self.stdout.write('=== Пульс (кэш /api/v2/pulse/) ===')
+        from website.api import rebuild_pulse_cache
+        self.stdout.write(f'Собрано ответов: {rebuild_pulse_cache()}')
+
         self.stdout.write(self.style.SUCCESS('=== Обновление аналитики завершено ==='))

@@ -1,7 +1,11 @@
 # website/api.py
 from collections import defaultdict
 
-from django.http import JsonResponse
+from django.conf import settings
+from django.core.cache import cache
+from django.db.models import F, Window
+from django.db.models.functions import RowNumber
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
 
@@ -12,27 +16,75 @@ from .models import (
 from organizers.models import Stage as OrgStage
 
 
+PULSE_CACHE_KEY = 'pulse:v1:{}'
+
+
 def _get_type_info(champ):
     """Возвращает (type_code, type_name) первого типа соревнования чемпионата."""
-    comp_types = list(
-        champ.championship_competition_types.all()
-        .select_related('competition_type')
-        .values_list('competition_type__code', 'competition_type__name')
+    if getattr(champ, '_pulse_type_info', None) is None:
+        comp_types = list(
+            champ.championship_competition_types.all()
+            .select_related('competition_type')
+            .values_list('competition_type__code', 'competition_type__name')
+        )
+        champ._pulse_type_info = comp_types[0] if comp_types else ('other', 'Серия')
+    return champ._pulse_type_info
+
+
+def _stages_with_events(champ):
+    """
+    [(StagePage, [live EventPage, …]), …] в порядке дерева — один раз на чемпионат.
+    Раньше дочерние страницы каждого этапа запрашивались отдельно, и дважды
+    (этапы + границы дат).
+    """
+    if getattr(champ, '_pulse_stages', None) is None:
+        stages = [
+            s for s in champ.get_children().live().filter(live=True).specific()
+            if isinstance(s, StagePage)
+        ]
+        events_by_parent = defaultdict(list)
+        for e in (EventPage.objects.live()
+                  .filter(path__startswith=champ.path, depth=champ.depth + 2)
+                  .order_by('path')):
+            events_by_parent[e.path[:-EventPage.steplen]].append(e)
+        champ._pulse_stages = [(s, events_by_parent.get(s.path, [])) for s in stages]
+    return champ._pulse_stages
+
+
+def _top3_by_group(event_ids):
+    """
+    {event_id: [(group, [RaceResult топ-3]), …]} — два запроса на все события
+    вместо запроса на каждый класс каждого этапа.
+    """
+    groups = list(
+        RaceClassResultGroup.objects.filter(page_id__in=event_ids)
+        .select_related('race_class').order_by('sort_order', 'id')
     )
-    return comp_types[0] if comp_types else ('other', 'Серия')
+    top = defaultdict(list)
+    for r in (
+        RaceResult.objects
+        .filter(group__in=groups, position__isnull=False, position__gt=0)
+        .annotate(rn=Window(RowNumber(), partition_by=[F('group_id')],
+                            order_by=[F('position').asc(), F('id').asc()]))
+        .filter(rn__lte=3)
+        .select_related('driver', 'chassis_new')
+        .order_by('group_id', 'position', 'id')
+    ):
+        top[r.group_id].append(r)
+    by_event = defaultdict(list)
+    for g in groups:
+        by_event[g.page_id].append((g, top[g.id]))
+    return by_event
 
 
 def _get_champ_date_bounds(champ, draft_ids):
     """Реальные даты первого и последнего этапа по всему чемпионату (без year_filter)."""
     dates = []
-    for stage in champ.get_children().live().filter(live=True).specific():
-        if not isinstance(stage, StagePage):
-            continue
+    for stage, live_events in _stages_with_events(champ):
         if stage.id in draft_ids:
             continue
         if not stage.start_date:
             continue
-        live_events = [e for e in stage.get_children().live().specific() if isinstance(e, EventPage)]
         if not live_events:
             continue
         dates.append((stage.start_date, stage.end_date))
@@ -55,16 +107,14 @@ def _collect_stages(champ, year_filter, draft_ids, track_ids_used, track_stage_c
     stages = []
     event_ids = []
 
-    for stage in champ.get_children().live().filter(live=True).specific():
-        if not isinstance(stage, StagePage):
-            continue
-        if stage.id in draft_ids:
-            continue
-        if not stage.start_date:
-            continue
-        if year_filter and stage.start_date.year != year_filter:
-            continue
+    selected = [
+        (stage, live_events) for stage, live_events in _stages_with_events(champ)
+        if stage.id not in draft_ids and stage.start_date
+        and not (year_filter and stage.start_date.year != year_filter)
+    ]
+    top3 = _top3_by_group([e.id for _, live_events in selected for e in live_events])
 
+    for stage, live_events in selected:
         # Трасса
         track_info = None
         if stage.track:
@@ -87,10 +137,6 @@ def _collect_stages(champ, year_filter, draft_ids, track_ids_used, track_stage_c
                 pass
 
         # Только этапы с live EventPage-детьми
-        live_events = [
-            e for e in stage.get_children().live().specific()
-            if isinstance(e, EventPage)
-        ]
         if not live_events:
             continue
 
@@ -101,15 +147,7 @@ def _collect_stages(champ, year_filter, draft_ids, track_ids_used, track_stage_c
             if first_event_url is None:
                 first_event_url = event.url
             event_ids.append(event.id)
-            for group in RaceClassResultGroup.objects.filter(
-                page=event
-            ).select_related('race_class'):
-                top3 = list(
-                    RaceResult.objects
-                    .filter(group=group, position__isnull=False, position__gt=0)
-                    .select_related('driver', 'chassis_new')
-                    .order_by('position')[:3]
-                )
+            for group, group_top3 in top3[event.id]:
                 places = [
                     {
                         'position': r.position,
@@ -118,7 +156,7 @@ def _collect_stages(champ, year_filter, draft_ids, track_ids_used, track_stage_c
                         'race_number': r.race_number or '',
                         'chassis': r.chassis_new.name if r.chassis_new else '',
                     }
-                    for r in top3
+                    for r in group_top3
                 ]
                 if places:
                     winners.append({
@@ -150,12 +188,49 @@ def _collect_stages(champ, year_filter, draft_ids, track_ids_used, track_stage_c
     return stages, event_ids
 
 
+def _pulse_cache_enabled():
+    # Как wagtailcache: в dev.py кэш выключен, правки видны сразу
+    return getattr(settings, 'WAGTAIL_CACHE', True)
+
+
+def clear_pulse_cache():
+    """Сбросить кэш Пульса. Публикация страниц в админке и clear_wagtail_cache
+    чистят его и так (общий кэш default) — это для остальных случаев."""
+    years = {None} | set(range(2000, 2101))
+    cache.delete_many([PULSE_CACHE_KEY.format(y or 'all') for y in years])
+
+
+def rebuild_pulse_cache():
+    """Пересобрать кэш Пульса за все годы — из update_all_analytics."""
+    clear_pulse_cache()
+    if not _pulse_cache_enabled():
+        return 0
+    payload = _build_pulse_payload(None)
+    cache.set(PULSE_CACHE_KEY.format('all'), JsonResponse(payload).content)
+    for y in payload['filters']['years']:
+        cache.set(PULSE_CACHE_KEY.format(y), JsonResponse(_build_pulse_payload(y)).content)
+    return 1 + len(payload['filters']['years'])
+
+
 @require_GET
 @csrf_exempt
 def pulse_data(request):
-    from datetime import date as _date
     year_param = request.GET.get('year')
     year = int(year_param) if year_param else None
+    # Результаты меняются только при вводе данных — отдаём готовый JSON.
+    # Чужие годы не кэшируем, чтобы перебором ?year= не плодить файлы.
+    if not _pulse_cache_enabled() or not (year is None or 2000 <= year <= 2100):
+        return JsonResponse(_build_pulse_payload(year))
+    key = PULSE_CACHE_KEY.format(year or 'all')
+    content = cache.get(key)
+    if content is None:
+        content = JsonResponse(_build_pulse_payload(year)).content
+        cache.set(key, content)
+    return HttpResponse(content, content_type='application/json')
+
+
+def _build_pulse_payload(year):
+    from datetime import date as _date
     calendar_year = _date.today().year
 
     all_champs = ChampionshipPage.objects.live().public().specific()
@@ -364,7 +439,7 @@ def pulse_data(request):
                         .values_list('competition_type__name', flat=True)
     ))
 
-    return JsonResponse({
+    return {
         'championships': championships_data,
         'stages': all_stages,
         'stage_groups': stage_groups,
@@ -377,4 +452,4 @@ def pulse_data(request):
             # источник, что и RaceClass.sort_order по всему остальному сайту.
             'class_order': dict(RaceClass.objects.values_list('name', 'sort_order')),
         },
-    })
+    }
