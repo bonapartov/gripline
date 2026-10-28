@@ -152,11 +152,14 @@ class TestPrivacyRedirectAndBalanceSection:
             call_command('create_legal_pages', operator='Иван', tg='@t', publish=True)
         assert Redirect.objects.count() == 1
 
-    def test_policy_contains_balance_section(self):
+    def test_policy_points_balance_to_app_policy(self):
+        # Развесовка убрана с сайта 17.10.2026 — в политике вместо раздела о ней
+        # отсылка к политике приложения GripLine SetupKart (п. 11.5)
         call_command('create_legal_pages', operator='Иван', tg='@t', publish=True)
         html = str(WebPage.objects.get(slug='privacy').body[0].value)
-        assert '11. Сервис расчёта развесовки карта' in html
-        assert 'Дата рождения не запрашивается' in html or 'дата рождения не запрашивается' in html.lower()
+        assert '11. Сервис расчёта развесовки карта' not in html
+        assert '11.5. Раздел расчёта развесовки карта (/balance/) с Сайта удалён' in html
+        assert 'href="/legal/setupkart-privacy/"' in html
 
 
 @pytest.mark.django_db

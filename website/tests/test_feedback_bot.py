@@ -1,6 +1,8 @@
 """Обработчики Telegram-бота на фейковой сессии (без сети)."""
 import asyncio
 import datetime
+import time
+from types import SimpleNamespace
 
 import pytest
 from aiogram import Bot
@@ -528,8 +530,11 @@ def test_confirmation_expires(env, monkeypatch):
     feed(env, press(900, f'fb:{fb.pk}:reply', chat_id=ADMIN_CHAT))
     feed(env, msg(900, 'поздно', chat_id=ADMIN_CHAT, chat_type='supergroup'))
     data = token_of(confirmation_of(env), 'yes')
-    real = telegram_bot.time.monotonic
-    monkeypatch.setattr(telegram_bot.time, 'monotonic', lambda: real() + telegram_bot.PENDING_REPLY_TTL + 1)
+    real = time.monotonic
+    # Подменяем `time` только в модуле бота: глобальный time.monotonic сдвигал бы
+    # close_at соединений Django, и в следующих тестах «свежим» считалось бы
+    # соединение, закрытое сервером (падал test_feedback_db).
+    monkeypatch.setattr(telegram_bot, 'time', SimpleNamespace(monotonic=lambda: real() + telegram_bot.PENDING_REPLY_TTL + 1))
     env.session.calls.clear()
     feed(env, press(900, data, chat_id=ADMIN_CHAT))
     assert not env.session.texts_to(111)
