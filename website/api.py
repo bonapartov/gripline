@@ -249,12 +249,14 @@ def _build_pulse_payload(year):
 
     current_champ_ids = {c.id for c in current_champs}
 
-    # Один предыдущий завершённый чемпионат (не из текущего набора)
+    # Один предыдущий завершённый чемпионат (не из текущего набора), закончившийся
+    # раньше выбранного года — иначе в прошлые годы попадали будущие сезоны
     prev_champ = None
     for c in sorted(all_champs,
                     key=lambda x: max(x.get_years()) if x.get_years() else 0,
                     reverse=True):
-        if c.is_completed and c.id not in current_champ_ids:
+        if (c.is_completed and c.id not in current_champ_ids
+                and c.get_years() and (not year or max(c.get_years()) < year)):
             prev_champ = c
             break
 
@@ -268,13 +270,10 @@ def _build_pulse_payload(year):
     for champ in current_champs:
         type_code, type_name = _get_type_info(champ)
 
-        champ_year = year or (champ.get_years()[-1] if champ.get_years() else None)
-        if champ.is_completed and champ_year and champ_year == champ.get_years()[-1]:
-            champions_by_class = champ.get_champions_by_class()
-            title_prefix = 'Чемпионы'
-        else:
-            champions_by_class = champ.get_champions_by_class(year=champ_year)
-            title_prefix = 'Лидеры'
+        # Сезон через Новый год (зимний кубок: ноябрь–январь) показывается целиком
+        # в каждом своём году — и таблица, и этапы, не только этапы этого года
+        champions_by_class = champ.get_champions_by_class()
+        title_prefix = 'Чемпионы' if champ.is_completed else 'Лидеры'
 
         champions_display = []
         for class_id, class_data in champions_by_class.items():
@@ -319,7 +318,7 @@ def _build_pulse_payload(year):
         })
 
         stages, event_ids = _collect_stages(
-            champ, year, _draft_stage_ids, track_ids_used, track_stage_count
+            champ, None, _draft_stage_ids, track_ids_used, track_stage_count
         )
         all_stages.extend(stages)
         champ_event_ids[champ.id] = event_ids
