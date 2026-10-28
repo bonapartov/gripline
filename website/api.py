@@ -249,17 +249,6 @@ def _build_pulse_payload(year):
 
     current_champ_ids = {c.id for c in current_champs}
 
-    # Один предыдущий завершённый чемпионат (не из текущего набора), закончившийся
-    # раньше выбранного года — иначе в прошлые годы попадали будущие сезоны
-    prev_champ = None
-    for c in sorted(all_champs,
-                    key=lambda x: max(x.get_years()) if x.get_years() else 0,
-                    reverse=True):
-        if (c.is_completed and c.id not in current_champ_ids
-                and c.get_years() and (not year or max(c.get_years()) < year)):
-            prev_champ = c
-            break
-
     # ── Строим данные лидеров и этапы для текущих чемпионатов ─────────────
     championships_data = []
     all_stages = []
@@ -323,20 +312,11 @@ def _build_pulse_payload(year):
         all_stages.extend(stages)
         champ_event_ids[champ.id] = event_ids
 
-    # ── Этапы предыдущего завершённого чемпионата (все годы) ──────────────
-    if prev_champ:
-        stages, event_ids = _collect_stages(
-            prev_champ, year_filter=None,
-            draft_ids=_draft_stage_ids,
-            track_ids_used=track_ids_used,
-            track_stage_count=track_stage_count,
-        )
-        all_stages.extend(stages)
-        champ_event_ids[prev_champ.id] = event_ids
-
     # ── Группировка и сортировка ───────────────────────────────────────────
     # Внутри каждого чемпионата — новейшие первые.
-    # Порядок групп: текущие (по убыванию max даты), затем предыдущий.
+    # Порядок групп: по убыванию даты последнего этапа. Чемпионаты других лет
+    # (раньше — «предыдущий завершённый») не показываются: сезон через Новый
+    # год и так виден целиком в каждом своём году.
     stages_by_champ = defaultdict(list)
     for s in all_stages:
         stages_by_champ[s['championship_id']].append(s)
@@ -344,19 +324,11 @@ def _build_pulse_payload(year):
     for cid in stages_by_champ:
         stages_by_champ[cid].sort(key=lambda s: s['_sort'], reverse=True)
 
-    current_cids = [cid for cid in stages_by_champ if cid in current_champ_ids]
-    prev_cids = [cid for cid in stages_by_champ if cid not in current_champ_ids]
-
-    current_cids.sort(
+    ordered_champ_ids = sorted(
+        stages_by_champ,
         key=lambda cid: max(s['_sort'] for s in stages_by_champ[cid]),
         reverse=True,
     )
-    prev_cids.sort(
-        key=lambda cid: max(s['_sort'] for s in stages_by_champ[cid]),
-        reverse=True,
-    )
-
-    ordered_champ_ids = current_cids + prev_cids
 
     # Плоский список для клиентских фильтров
     all_stages = []
