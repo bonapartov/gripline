@@ -256,6 +256,8 @@ python manage.py update_all_analytics --entity all --model all
 
 Запускается **вручную** после каждого ввода новых результатов соревнований. Вторая команда — турнирные таблицы чемпионатов (`ChampionshipPage.standings_cache`), используется Career highlights на странице пилота и `/api/v2/pulse/`. Третья — рекорды трасс (`Track.records_cache`), используется блоком «Рекорды трасс» на странице пилота. Обе — см. `docs/claude/driver-page.md`.
 
+Кнопка и `update_all_analytics` в конце пересобирают кэш `/api/v2/pulse/` (Пульс, `website/api.py::rebuild_pulse_cache`): готовый JSON по году лежит в общем кэше `default`, его же чистят публикация страниц в админке и `clear_wagtail_cache`, а переключение публикации этапа в ЛК организатора — сигнал. Отдельные `update_*` кэш Пульса не трогают.
+
 ---
 
 ## Основные URL
