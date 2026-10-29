@@ -25,6 +25,7 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
+from django.db.models import F
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -212,6 +213,31 @@ def driver_ratings(driver, base):
     return rows
 
 
+def driver_last_race(driver):
+    """Матчасть с последнего этапа пилота по протоколу (29.10.2026): приложение заводит по ней карт —
+    класс, шасси, двигатель и шины. Номера класса и двигателя — те же, что в справочнике приложения."""
+    from django.db.models import OuterRef, Subquery
+    from website.models import EventOccurrence, RaceResult
+    r = (RaceResult.objects.filter(driver=driver, group__page__live=True)
+         .select_related('group__page', 'group__race_class', 'group__engine', 'group__tyre__brand', 'chassis_new')
+         .annotate(event_date=Subquery(EventOccurrence.objects.filter(event_id=OuterRef('group__page_id'))
+                                       .order_by('-end').values('end')[:1]))
+         .order_by(F('event_date').desc(nulls_last=True), '-group__page__first_published_at').first())
+    if r is None:
+        return None
+    g = r.group
+    return {
+        'class_id': g.race_class_id,
+        'class_name': g.race_class.name,
+        'chassis': r.chassis_new.name if r.chassis_new else '',
+        'engine_id': g.engine_id,
+        'engine': g.engine.name if g.engine else '',
+        'tyre_brand': g.tyre.brand.name if g.tyre else '',
+        'event': g.page.title,
+        'date': r.event_date.date().isoformat() if r.event_date else None,
+    }
+
+
 def account_payload(user):
     """Аккаунт для приложения: имя, привязанный пилот, пилоты команд, которыми он управляет."""
     from accounts.models import DriverClaim
@@ -234,7 +260,7 @@ def account_payload(user):
         'email': user.email,
         'name': user.get_full_name() or user.email,
         'driver': ({'id': driver.pk, 'name': driver.full_name, 'url': base + driver.get_absolute_url(),
-                    'ratings': driver_ratings(driver, base)}
+                    'ratings': driver_ratings(driver, base), 'last_race': driver_last_race(driver)}
                    if driver else None),
         'claim_pending': driver is None and DriverClaim.objects.filter(user=user, status='pending').exists(),
         'teams': [{'id': m.team_id, 'name': m.team.name} for m in teams],

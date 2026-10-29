@@ -224,6 +224,50 @@ def test_account_payload_driver_ratings(client, monkeypatch):
     assert calls == [driver.pk]  # второй запрос — из кэша
 
 
+def test_account_payload_driver_last_race(client):
+    """Матчасть последнего этапа по протоколу — для карта в приложении; черновики этапов не в счёт."""
+    from datetime import timedelta
+    from django.utils import timezone
+    from wagtail.models import Page
+    from website.models import (Chassis, Engine, EventOccurrence, EventPage, RaceClass, RaceClassResultGroup,
+                                RaceResult, Tyre, TyreBrand, TyreType)
+    user = make_user()
+    driver = Driver.objects.create(first_name='Иван', last_name='Петров')
+    profile = user.profile
+    profile.driver = driver
+    profile.verified = True
+    profile.save()
+    token = login_token(client, user)
+    auth = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+    assert client.get(ME, **auth).json()['account']['driver']['last_race'] is None
+
+    root = Page.objects.get(depth=1)
+    now = timezone.now()
+
+    def stage(slug, days_ago, rc, live=True, **group):
+        page = root.add_child(instance=EventPage(title=slug, slug=slug, live=live))
+        EventOccurrence.objects.create(event=page, start=now - timedelta(days=days_ago),
+                                       end=now - timedelta(days=days_ago))
+        g = RaceClassResultGroup.objects.create(page=page, race_class=rc, **group)
+        return g
+
+    mini, junior = RaceClass.objects.create(name='RM Mini'), RaceClass.objects.create(name='RM Junior')
+    engine = Engine.objects.create(name='Rotax FR 125 Junior')
+    tyre = Tyre.objects.create(brand=TyreBrand.objects.create(name='Vega'),
+                               type=TyreType.objects.create(name='slick'))
+    tk = Chassis.objects.create(name='Tony Kart')
+    RaceResult.objects.create(group=stage('old', 60, mini), driver=driver, position=2)
+    RaceResult.objects.create(group=stage('last', 10, junior, engine=engine, tyre=tyre), driver=driver,
+                              position=1, chassis_new=tk)
+    RaceResult.objects.create(group=stage('draft', 1, mini, live=False), driver=driver, position=1)
+    last = client.get(ME, **auth).json()['account']['driver']['last_race']
+    assert last == {
+        'class_id': junior.pk, 'class_name': 'RM Junior', 'chassis': 'Tony Kart', 'engine_id': engine.pk,
+        'engine': 'Rotax FR 125 Junior', 'tyre_brand': 'Vega', 'event': 'last',
+        'date': (now - timedelta(days=10)).date().isoformat(),
+    }
+
+
 def test_unapproved_driver_not_exposed(client):
     user = make_user()
     driver = Driver.objects.create(first_name='Иван', last_name='Петров')
