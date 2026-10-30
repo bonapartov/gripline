@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Tuple
 
 from analytics.ensemble.model import EnsembleRanking
 from analytics.core.data_loader import DataLoader
+from analytics.core.results import ranked_rows
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +73,7 @@ def calculate_ensemble_by_class(
         if optimize:
             # Создаем данные для оптимизации
             # Для этого используем парные сравнения из data_loader
-            df_class = data_loader.df_races[data_loader.df_races['class_id'] == class_id].copy()
+            df_class = ranked_rows(data_loader.df_races[data_loader.df_races['class_id'] == class_id])
 
             if len(df_class) >= 10:
                 # Создаем парные сравнения

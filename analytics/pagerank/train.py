@@ -9,6 +9,7 @@ from typing import Dict, List, Optional
 
 from analytics.pagerank.model import ModifiedPageRank
 from analytics.core.data_loader import DataLoader
+from analytics.core.results import ranked_rows
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ def calculate_pagerank_by_class(
         logger.info(f"Расчет PageRank для класса {race_class.name} (ID: {class_id})")
 
         # Фильтруем данные по классу
-        df_class = df_races[df_races['class_id'] == class_id].copy()
+        df_class = ranked_rows(df_races[df_races['class_id'] == class_id])
 
         if len(df_class) < 5:
             logger.info(f"  Недостаточно данных для класса {class_id}, пропускаем")

@@ -12,6 +12,7 @@ from typing import Dict, Optional, Tuple
 
 from analytics.context.weather_model import ContextAwareBradleyTerry
 from analytics.core.data_loader import DataLoader
+from analytics.core.results import ranked_rows
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,7 @@ def train_context_model_by_class(
         class_id = race_class.id
         logger.info(f"Контекстная модель для класса {race_class.name} (ID: {class_id})")
 
-        df_class = df_races[df_races['class_id'] == class_id].copy()
+        df_class = ranked_rows(df_races[df_races['class_id'] == class_id])
 
         if len(df_class) < min_races:
             logger.info(f"  Недостаточно данных для класса {class_id}")

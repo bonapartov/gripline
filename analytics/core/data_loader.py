@@ -9,6 +9,7 @@ import numpy as np
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
 import logging
+from .results import ranked_rows
 
 logger = logging.getLogger(__name__)
 
@@ -32,13 +33,14 @@ class DataLoader:
         Вызывается один раз при инициализации.
         """
         from website.models import (
-            RaceResult, Chassis, Driver, Track, Tyre,
+            Chassis, Driver, Track, Tyre,
         )
 
         logger.info("Начинаем загрузку данных из БД...")
 
         # Загружаем все результаты с предзагрузкой связанных объектов
-        results = RaceResult.objects.select_related(
+        from website.services.race_results import published_results, result_datetime
+        results = published_results().select_related(
             'driver',
             'chassis_new',
             'team',
@@ -50,7 +52,7 @@ class DataLoader:
             'group__tyre__brand',
             'group__tyre__type',
             'group__engine'
-        ).all().order_by('group__page__first_published_at')
+        ).prefetch_related('group__page__occurrences').order_by('group__page__first_published_at')
 
         # Преобразуем в pandas DataFrame
         data = []
@@ -59,11 +61,9 @@ class DataLoader:
                 continue
 
             # Получаем дату окончания этапа
-            occurrences = r.group.page.occurrences.all()
-            if occurrences:
-                race_date = occurrences.first().end or r.group.page.first_published_at
-            else:
-                race_date = r.group.page.first_published_at
+            race_date = result_datetime(r.group.page)
+            if race_date is None:
+                continue
 
             # Формируем строку данных
             row = {
@@ -100,11 +100,15 @@ class DataLoader:
 
                 # Результат
                 'position': r.position,
+                'final_status': r.final_status,
                 'points': r.points,
             }
             data.append(row)
 
-        self.df_races = pd.DataFrame(data)
+        self.df_races = pd.DataFrame(data) if data else pd.DataFrame(columns=[
+            'group_id', 'race_id', 'date', 'class_id', 'driver_id', 'chassis_id',
+            'position', 'final_status', 'points',
+        ])
         logger.info(f"Загружено {len(self.df_races)} записей о гонках")
 
         # Загружаем справочники
@@ -136,7 +140,7 @@ class DataLoader:
         today = date_type.today()
         comparisons = []
 
-        df = self.df_races.dropna(subset=[f'{entity_type}_id'])
+        df = ranked_rows(self.df_races).dropna(subset=[f'{entity_type}_id'])
 
         # Группируем по group_id (один заезд)
         for group_id, group in df.groupby('group_id'):
@@ -228,7 +232,7 @@ class DataLoader:
         today = date_type.today()
         comparisons = []
 
-        df = self.df_races.dropna(subset=[f'{entity_type}_id'])
+        df = ranked_rows(self.df_races).dropna(subset=[f'{entity_type}_id'])
 
         # Группируем по group_id (один заезд)
         for group_id, group in df.groupby('group_id'):

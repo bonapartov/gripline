@@ -39,13 +39,15 @@ def records_by_track(tracks):
                 wanted[rec['result_id']] = (t.pk, class_id, rec)
     if not wanted:
         return {}
-    results = {r.pk: r for r in RaceResult.objects.filter(pk__in=wanted).select_related(
+    results = {r.pk: r for r in RaceResult.objects.filter(pk__in=wanted, group__page__live=True).select_related(
         'driver', 'chassis_new', 'group__race_class', 'group__engine', 'group__tyre', 'group__page')}
     out = {}
     for result_id, (track_id, class_id, rec) in wanted.items():
         r = results.get(result_id)
         if r is None or r.driver.slug and r.driver.slug.startswith(DEMO_DRIVER_SLUG_PREFIX):
             continue  # удалён после пересчёта (ждём update_track_records) или демо-пилот
+        if r.best_lap_all_ms != rec['lap_ms']:
+            continue  # исправленный/DQ результат: старый снимок не выдаём до пересчёта
         g = r.group
         item = {
             'class_id': g.race_class_id,

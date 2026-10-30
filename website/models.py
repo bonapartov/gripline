@@ -2036,20 +2036,13 @@ class RaceResult(Orderable):
 
     @property
     def best_lap_all_ms(self):
-        times = [t for t in [self.best_lap_ms, self.qual_best_lap_ms, self.pre_final_best_lap_ms] if t]
-        return min(times) if times else None
+        from .services.race_results import best_session_lap
+        return best_session_lap(self)[0]
 
     @property
     def best_lap_session(self):
-        candidates = [
-            (self.qual_best_lap_ms, 'qual'),
-            (self.pre_final_best_lap_ms, 'pre_final'),
-            (self.best_lap_ms, 'final'),
-        ]
-        valid = [(ms, s) for ms, s in candidates if ms]
-        if not valid:
-            return None
-        return min(valid, key=lambda x: x[0])[1]
+        from .services.race_results import best_session_lap
+        return best_session_lap(self)[1]
 
     @property
     def ideal_lap_all_ms(self):
@@ -2059,9 +2052,9 @@ class RaceResult(Orderable):
         (сумма = круг, 6 этап Rotax 2026) или у сессии с лучшим кругом секторов нет вовсе
         (идеальный получался медленнее лучшего). Такой «идеальный» не показываем.
         """
-        s1 = [t for t in [self.best_s1_ms, self.qual_s1_ms, self.pre_final_s1_ms] if t]
-        s2 = [t for t in [self.best_s2_ms, self.qual_s2_ms, self.pre_final_s2_ms] if t]
-        s3 = [t for t in [self.best_s3_ms, self.qual_s3_ms, self.pre_final_s3_ms] if t]
+        from .services.race_results import session_sectors
+        sectors = list(session_sectors(self).values())
+        s1, s2, s3 = ([s[k] for s in sectors if s[k] and s[k] > 0] for k in range(3))
         if not (s1 and s2 and s3):
             return None
         ideal = min(s1) + min(s2) + min(s3)
@@ -2073,17 +2066,12 @@ class RaceResult(Orderable):
     @property
     def ideal_lap_session(self):
         """Сессия, если все три сектора идеального круга взяты из неё же; иначе None (сектора вразнобой)."""
-        s1 = [t for t in [self.best_s1_ms, self.qual_s1_ms, self.pre_final_s1_ms] if t]
-        s2 = [t for t in [self.best_s2_ms, self.qual_s2_ms, self.pre_final_s2_ms] if t]
-        s3 = [t for t in [self.best_s3_ms, self.qual_s3_ms, self.pre_final_s3_ms] if t]
+        from .services.race_results import session_sectors
+        sessions = session_sectors(self)
+        s1, s2, s3 = ([s[k] for s in sessions.values() if s[k] and s[k] > 0] for k in range(3))
         if not (s1 and s2 and s3) or self.ideal_lap_all_ms is None:
             return None
         min_s1, min_s2, min_s3 = min(s1), min(s2), min(s3)
-        sessions = {
-            'qual': (self.qual_s1_ms, self.qual_s2_ms, self.qual_s3_ms),
-            'pre_final': (self.pre_final_s1_ms, self.pre_final_s2_ms, self.pre_final_s3_ms),
-            'final': (self.best_s1_ms, self.best_s2_ms, self.best_s3_ms),
-        }
         for session, (a, b, c) in sessions.items():
             if a == min_s1 and b == min_s2 and c == min_s3:
                 return session
@@ -2238,9 +2226,9 @@ class AnalyticsSettings(models.Model):
 
     # --- Пороги данных ---
     min_races_per_class = models.IntegerField(
-        default=5,
-        verbose_name="Мин. гонок для расчёта класса",
-        help_text="Класс с меньшим количеством гонок пропускается при расчёте BT.",
+        default=3,
+        verbose_name="Мин. заездов для расчёта класса",
+        help_text="Число отдельных групп результатов класса с допущенными результатами, не число пилотов. По умолчанию 3; дополнительно проверяется минимум сравнений.",
     )
     min_comparisons = models.IntegerField(
         default=10,

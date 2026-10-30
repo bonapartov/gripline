@@ -1,5 +1,7 @@
 import csv
 import io
+from decimal import Decimal, InvalidOperation
+import math
 from django import forms
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -12,35 +14,35 @@ SESSION_CONFIGS = {
     'combined': {
         'label': 'Комбинированный (все сессии)',
         'hint': 'session_type, last_name, first_name, city, team_name, race_number, chassis, '
-                'position, points, start_position, best_lap, s1, s2, s3, penalty',
+                'position, status (DQ/DNS/DNF), points, start_position, best_lap, s1, s2, s3, penalty',
         'has_timing': None,
         'has_start_position': None,
         'has_team_chassis': None,
     },
     'qual': {
         'label': 'Квалификация',
-        'hint': 'first_name, last_name, position, best_lap, s1, s2, s3, penalty',
+        'hint': 'first_name, last_name, position, status (DQ/DNS/DNF), best_lap, s1, s2, s3, penalty',
         'has_timing': True,
         'has_start_position': False,
         'has_team_chassis': False,
     },
     'pre_final': {
         'label': 'Предфинал',
-        'hint': 'first_name, last_name, start_position, position, best_lap, s1, s2, s3, penalty',
+        'hint': 'first_name, last_name, start_position, position, status (DQ/DNS/DNF), best_lap, s1, s2, s3, penalty',
         'has_timing': True,
         'has_start_position': True,
         'has_team_chassis': False,
     },
     'final': {
         'label': 'Финал (хронометраж)',
-        'hint': 'first_name, last_name, start_position, position, best_lap, s1, s2, s3, penalty',
+        'hint': 'first_name, last_name, start_position, position, status (DQ/DNS/DNF), best_lap, s1, s2, s3, penalty',
         'has_timing': True,
         'has_start_position': True,
         'has_team_chassis': False,
     },
     'protocol': {
         'label': 'Протокол судейской комиссии',
-        'hint': 'first_name, last_name, city, team_name, race_number, chassis, position, points',
+        'hint': 'first_name, last_name, city, team_name, race_number, chassis, position, status (DQ/DNS/DNF), points',
         'has_timing': False,
         'has_start_position': False,
         'has_team_chassis': True,
@@ -63,8 +65,67 @@ GROUP_ORDER = ['qual', 'pre_final', 'final', 'protocol']
 # Все скрытые поля передаваемые через форму предпросмотра
 HIDDEN_FIELDS = [
     'session_type', 'first_name', 'last_name', 'city', 'team_name', 'race_number', 'chassis',
-    'position', 'points', 'start_position', 'best_lap', 's1', 's2', 's3', 'penalty',
+    'position', 'status', 'status_supplied', 'points', 'start_position', 'best_lap', 's1', 's2', 's3', 'penalty',
 ]
+
+STATUS_FIELDS = {'qual': 'qual_status', 'pre_final': 'pre_final_status',
+                 'final': 'final_status', 'protocol': 'final_status'}
+RESULT_STATUSES = {'DQ', 'DNS', 'DNF'}
+
+
+def normalise_result_row(row, session_type):
+    """Validate before any writes; keep status separate from numeric placement.
+
+    Missing status column preserves a manual status. An explicit empty column
+    clears it. The marker survives the preview form, which always has status.
+    """
+    if session_type not in STATUS_FIELDS:
+        raise ValueError(f'Неизвестный тип сессии: {session_type}')
+    result = dict(row)
+    field = STATUS_FIELDS[session_type]
+    supplied = (row.get('status_supplied') == '1' if 'status_supplied' in row
+                else 'status' in row or field in row)
+    values = set()
+    for key in ('status', field):
+        value = str(row.get(key) or '').strip().upper()
+        if value and value not in RESULT_STATUSES:
+            raise ValueError(f'Неизвестный статус {value}: допустимы DQ, DNS, DNF или пустое поле')
+        if value:
+            values.add(value)
+    position = str(row.get('position') or '').strip()
+    if position.upper() in RESULT_STATUSES:
+        values.add(position.upper())
+        supplied = True
+        position = ''
+    if len(values) > 1:
+        raise ValueError('Статус в колонке места противоречит колонке статуса')
+    result['status'] = next(iter(values), '')
+    result['status_supplied'] = '1' if supplied else '0'
+    result['position'] = position
+    for key in ('position', 'start_position'):
+        value = str(result.get(key) or '').strip()
+        if value:
+            try:
+                number = Decimal(value)
+                if not number.is_finite() or number != number.to_integral_value() or not 0 <= number <= 2147483647:
+                    raise ValueError
+            except (InvalidOperation, ValueError):
+                raise ValueError(f'Поле {key}: требуется целое неотрицательное место, получено «{value}»') from None
+    for key in ('best_lap', 's1', 's2', 's3'):
+        value = result.get(key)
+        if value not in (None, ''):
+            ms = seconds_to_ms(value)
+            if ms is None or ms < 0:
+                raise ValueError(f'Поле {key}: неверное время «{value}»')
+    for key in ('points', 'penalty'):
+        value = str(result.get(key) or '').strip().replace(',', '.')
+        if value:
+            try:
+                if not Decimal(value).is_finite() or not math.isfinite(float(value)):
+                    raise ValueError
+            except (InvalidOperation, ValueError):
+                raise ValueError(f'Поле {key}: неверное число «{value}»') from None
+    return result
 
 
 def group_rows_by_session_type(items, session_type):
@@ -96,7 +157,7 @@ def seconds_to_ms(value_str):
             minutes, seconds = s.split(':', 1)
             return int(round((int(minutes) * 60 + float(seconds)) * 1000))
         return int(round(float(s) * 1000))
-    except (ValueError, AttributeError, IndexError):
+    except (ValueError, OverflowError, AttributeError, IndexError):
         return None
 
 
@@ -419,21 +480,25 @@ def import_preview(request):
         messages.error(request, 'Сессия истекла')
         return redirect('wagtailadmin_home')
 
-    skipped_unknown_type = 0
+    import_errors = []
     preview_rows = []
-    for row in rows:
+    for line, row in enumerate(rows, start=2):
         if not row.get('first_name') or not row.get('last_name'):
             continue
 
         if is_combined:
             row_type = row.get('session_type', '').strip()
             if row_type not in GROUP_ORDER:
-                skipped_unknown_type += 1
+                import_errors.append(f'Строка {line}: неизвестный тип сессии «{row_type}»')
                 continue
         else:
             row_type = session_type
 
         row_cfg = SESSION_CONFIGS[row_type]
+        try:
+            row = normalise_result_row(row, row_type)
+        except ValueError as error:
+            import_errors.append(f'Строка {line}: {error}')
 
         raw_first = row.get('first_name', '').strip()
         raw_last = row.get('last_name', '').strip()
@@ -478,6 +543,8 @@ def import_preview(request):
             'chassis_id': chassis_obj.id if chassis_obj else None,
             'race_number': row.get('race_number', ''),
             'position': row.get('position', ''),
+            'status': row.get('status', row.get(STATUS_FIELDS[row_type], '')),
+            'status_supplied': row.get('status_supplied', '0'),
             'points': row.get('points', ''),
             'start_position': row.get('start_position', ''),
             'best_lap': row.get('best_lap', ''),
@@ -489,16 +556,12 @@ def import_preview(request):
             'selected_driver_id': selected_id,
         })
 
-    if skipped_unknown_type:
-        messages.warning(
-            request,
-            f'Пропущено строк с неизвестным/пустым session_type: {skipped_unknown_type}. '
-            f'Допустимые значения: {", ".join(GROUP_ORDER)}.'
-        )
-
     if request.method == 'POST':
         form = PreviewForm(request.POST, rows_data=preview_rows)
-        if form.is_valid():
+        valid = form.is_valid()
+        if import_errors:
+            form.add_error(None, 'Исправьте ошибки CSV перед импортом.')
+        if valid and not import_errors:
             selections = []
             group_id = request.session.get('import_group_id')
 
@@ -511,6 +574,18 @@ def import_preview(request):
                 row_data['chassis_id'] = form.cleaned_data.get(f'chassis_{idx}', '')
                 selections.append(row_data)
 
+            try:
+                selections = [normalise_result_row(r, r['session_type']) for r in selections]
+            except ValueError as error:
+                form.add_error(None, str(error))
+                selections = None
+            if selections is None:
+                return render(request, 'admin/import_preview.html', {
+                    'form': form, 'rows': preview_rows, 'session_type': session_type,
+                    'session_label': cfg['label'], 'cfg': cfg, 'is_combined': is_combined,
+                    'groups': group_rows_by_session_type(preview_rows, session_type),
+                    'import_errors': list(form.non_field_errors()),
+                })
             request.session['import_selections'] = selections
             request.session['import_session_type'] = session_type
             return redirect('event_import_confirm')
@@ -527,12 +602,19 @@ def import_preview(request):
         'cfg': cfg,
         'is_combined': is_combined,
         'groups': group_rows_by_session_type(preview_rows, session_type),
+        'import_errors': import_errors,
     })
 
 
 def _build_defaults(row, session_type, team, chassis_obj):
     """Строит словарь defaults для update_or_create в зависимости от типа сессии."""
     s = session_type
+    row = normalise_result_row(row, s)
+
+    def with_status(defaults):
+        if row['status_supplied'] == '1':
+            defaults[STATUS_FIELDS[s]] = row['status']
+        return defaults
 
     def pos(field):
         val = row.get(field, '')
@@ -553,13 +635,13 @@ def _build_defaults(row, session_type, team, chassis_obj):
             return None
 
     if s == 'qual':
-        return {
+        return with_status({
             'qual_position': pos('position'),
             'qual_best_lap_ms': seconds_to_ms(row.get('best_lap')),
             'qual_s1_ms': seconds_to_ms(row.get('s1')),
             'qual_s2_ms': seconds_to_ms(row.get('s2')),
             'qual_s3_ms': seconds_to_ms(row.get('s3')),
-        }
+        })
     elif s == 'pre_final':
         defaults = {
             'pre_final_position': pos('position'),
@@ -572,7 +654,7 @@ def _build_defaults(row, session_type, team, chassis_obj):
         p = penalty()
         if p is not None:
             defaults['penalty'] = p
-        return defaults
+        return with_status(defaults)
     elif s == 'final':
         defaults = {
             'start_position': pos('start_position'),
@@ -585,7 +667,7 @@ def _build_defaults(row, session_type, team, chassis_obj):
         p = penalty()
         if p is not None:
             defaults['penalty'] = p
-        return defaults
+        return with_status(defaults)
     else:  # protocol
         defaults = {
             'position': pos('position') or 0,
@@ -601,7 +683,7 @@ def _build_defaults(row, session_type, team, chassis_obj):
                 defaults['points'] = 0
         else:
             defaults['points'] = 0
-        return defaults
+        return with_status(defaults)
 
 
 def import_confirm(request):
@@ -632,6 +714,14 @@ def import_confirm(request):
     updated_count = 0
     error_count = 0
     errors = []
+
+    # Validate the entire selected batch before creating a pilot or result.
+    try:
+        selections = [normalise_result_row(r, r.get('session_type') or session_type)
+                      for r in selections]
+    except ValueError as error:
+        messages.error(request, str(error))
+        return redirect('event_import_preview')
 
     for row in selections:
         try:
@@ -695,7 +785,7 @@ def import_confirm(request):
                     defaults=defaults,
                 )
             else:
-                # qual/pre_final/final: не перетирать position если запись уже есть
+                # qual/pre_final preserve final position; final updates it.
                 result, created = RaceResult.objects.get_or_create(
                     group_id=group_id,
                     driver=driver,

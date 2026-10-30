@@ -79,6 +79,10 @@
     <h2 style="margin-top:8px;">Предпросмотр импорта ({{ rows|length }} строк)</h2>
     <p>Проверьте соответствие пилотов. Зелёным подсвечены найденные, жёлтым — требующие выбора.</p>
 
+    {% if import_errors %}
+    <ul class="errorlist">{% for error in import_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+    {% endif %}
+    {{ form.non_field_errors }}
     <form method="post" id="import-form">
         {% csrf_token %}
         <input type="hidden" name="session_type" value="{{ session_type }}">
@@ -149,11 +153,11 @@
                             </div>
                         </td>
                         <td>{{ row.race_number|default:"—" }}</td>
-                        <td>{{ row.position }}</td>
+                        <td>{{ row.position }}{% if row.status %} {{ row.status }}{% endif %}</td>
                         <td>{{ row.points }}</td>
                     {% else %}
                         {% if group.cfg.has_start_position %}<td class="timing-cell">{{ row.start_position|default:"—" }}</td>{% endif %}
-                        <td class="timing-cell">{{ row.position|default:"—" }}</td>
+                        <td class="timing-cell">{{ row.position|default:"—" }}{% if row.status %} {{ row.status }}{% endif %}</td>
                         {% if group.cfg.has_timing %}
                             <td class="timing-cell">{{ row.best_lap|default:"—" }}</td>
                             <td class="timing-cell">{{ row.s1|default:"—" }}</td>
@@ -185,6 +189,8 @@
                             <input type="hidden" name="race_number_{{ idx }}" value="{{ row.race_number }}">
                             <input type="hidden" name="chassis_{{ idx }}" value="{{ row.chassis }}">
                             <input type="hidden" name="position_{{ idx }}" value="{{ row.position }}">
+                            <input type="hidden" name="status_{{ idx }}" value="{{ row.status }}">
+                            <input type="hidden" name="status_supplied_{{ idx }}" value="{{ row.status_supplied }}">
                             <input type="hidden" name="points_{{ idx }}" value="{{ row.points }}">
                             <input type="hidden" name="start_position_{{ idx }}" value="{{ row.start_position }}">
                             <input type="hidden" name="best_lap_{{ idx }}" value="{{ row.best_lap }}">
@@ -205,7 +211,7 @@
         {% endfor %}
 
         <div style="margin-top:20px;">
-            <button type="submit" class="button" style="padding:10px 20px;">Продолжить</button>
+            <button type="submit" class="button" style="padding:10px 20px;" {% if import_errors %}disabled{% endif %}>Продолжить</button>
             <a href="javascript:history.back()" style="margin-left:20px;">← Назад</a>
         </div>
     </form>

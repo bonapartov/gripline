@@ -16,6 +16,7 @@ import numpy as np
 sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 
 from analytics.core.data_loader import DataLoader
+from analytics.core.results import ranked_rows
 from analytics.bradley_terry.model import BradleyTerryLasso
 from analytics.pagerank.model import ModifiedPageRank
 from analytics.ensemble.model import EnsembleRanking
@@ -121,6 +122,8 @@ class Command(BaseCommand):
             df_races = loader.load_all_data()
 
             if df_races.empty:
+                if entity in ('driver', 'all') and model in ('bt', 'all'):
+                    self._update_driver_bt_ratings(loader, settings)
                 self.stdout.write(self.style.WARNING("Нет данных для расчета рейтингов"))
                 return
 
@@ -184,23 +187,23 @@ class Command(BaseCommand):
         """Обновляет рейтинги пилотов по модели Брэдли-Терри."""
         self.stdout.write("  Брэдли-Терри:")
 
-        from website.models import RaceResult
-
         classes = RaceClass.objects.all()
         bt_ratings = {}
         spans = {}  # {driver_id: {class_id: (первый старт, последний старт, стартов)}}
         level_ratings = {}  # {class_id: {driver_id: уровень по реально проведённым гонкам}}
+        entries_by_driver = {}
 
         for race_class in classes:
             self.stdout.write(f"    Класс {race_class.name}...")
 
-            df_class = loader.df_races[loader.df_races['class_id'] == race_class.id].copy()
+            all_class_rows = loader.df_races[loader.df_races['class_id'] == race_class.id].copy()
+            df_class = ranked_rows(all_class_rows)
 
-            if len(df_class) < settings.min_races_per_class:
+            if df_class['group_id'].nunique() < settings.min_races_per_class:
                 self.stdout.write(f"      Недостаточно данных")
                 continue
 
-            df_comparisons = self._create_class_comparisons(df_class, 'driver', settings)
+            df_comparisons = self._create_class_comparisons(all_class_rows, 'driver', settings)
 
             if len(df_comparisons) < settings.min_comparisons:
                 self.stdout.write(f"      Недостаточно сравнений")
@@ -230,25 +233,25 @@ class Command(BaseCommand):
                     driver_last_dates[did] = str(last)
                     spans.setdefault(did, {})[race_class.id] = (first, last, len(dgroup))
 
-            with transaction.atomic():
-                for driver_id, score in ratings.items():
-                    driver_starts = len(df_class[df_class['driver_id'] == driver_id])
-                    driver = Driver.objects.get(id=driver_id)
-
-                    if not driver.rating_by_class:
-                        driver.rating_by_class = {}
-
-                    driver.rating_by_class[str(race_class.id)] = {
-                        'score': float(score),
-                        'starts': driver_starts,
-                        'updated': timezone.now().isoformat(),
-                        'last_race_date': driver_last_dates.get(driver_id),
-                    }
-                    driver.save()
+            for driver_id, score in ratings.items():
+                driver_starts = len(df_class[df_class['driver_id'] == driver_id])
+                entries_by_driver.setdefault(int(driver_id), {})[str(race_class.id)] = {
+                    'score': float(score),
+                    'starts': driver_starts,
+                    'updated': timezone.now().isoformat(),
+                    'last_race_date': driver_last_dates.get(driver_id),
+                }
 
             self.stdout.write(f"      Обновлено {len(ratings)} пилотов")
 
-        self._store_transfer_priors(level_ratings, bt_ratings, spans)
+        # Replace the complete BT snapshot only after all classes computed.
+        # Removed/now-ineligible results must not retain an old class score.
+        with transaction.atomic():
+            for driver in Driver.objects.only('id', 'rating_by_class'):
+                entries = entries_by_driver.get(driver.pk, {})
+                if driver.rating_by_class != entries:
+                    Driver.objects.filter(pk=driver.pk).update(rating_by_class=entries)
+            self._store_transfer_priors(level_ratings, bt_ratings, spans)
         return bt_ratings
 
     # Сколько стартов в прошлом классе нужно, чтобы его место учитывалось при переходе
@@ -549,8 +552,9 @@ class Command(BaseCommand):
         # Для шасси исключаем строки без chassis_id (результаты без указания шасси)
         df_class = df_class.dropna(subset=[f'{entity_type}_id'])
 
-        # Все пилоты/шасси, когда-либо выступавшие в этом классе
-        all_entity_ids = set(df_class[f'{entity_type}_id'].unique())
+        eligible = ranked_rows(df_class)
+        # Only eligible starts establish the class pool and first-start date.
+        all_entity_ids = set(eligible[f'{entity_type}_id'].unique())
 
         def _as_date(value):
             if value is None or pd.isna(value):
@@ -560,12 +564,15 @@ class Command(BaseCommand):
         # Первый старт в классе — до него отсутствие не штрафуется
         first_start = {}
         if 'date' in df_class.columns:
-            for eid, dates in df_class.groupby(f'{entity_type}_id')['date']:
+            for eid, dates in eligible.groupby(f'{entity_type}_id')['date']:
                 known = [d for d in (_as_date(v) for v in dates) if d is not None]
                 if known:
                     first_start[eid] = min(known)
 
         for group_id, group in df_class.groupby('group_id'):
+            # DNS/DQ/incomplete rows identify entrants exempt from absence losses.
+            entrants = set(group[f'{entity_type}_id'].unique())
+            group = ranked_rows(group)
             if len(group) < 2:
                 continue
 
@@ -611,8 +618,7 @@ class Command(BaseCommand):
 
             # Виртуальные поражения для отсутствовавших пилотов:
             # каждый участник заезда обгоняет каждого отсутствующего
-            participants = set(group[f'{entity_type}_id'].values)
-            absent_ids = all_entity_ids - participants
+            absent_ids = all_entity_ids - entrants
             if race_date is not None:
                 absent_ids = {a for a in absent_ids
                               if first_start.get(a) is None or first_start[a] < race_date}

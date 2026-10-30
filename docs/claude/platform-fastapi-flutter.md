@@ -116,7 +116,7 @@ created_at = DateTimeField(auto_now_add=True)
 
 **Импорт данных с хронометража (`website/import_utils.py`):**
 
-Инструмент импорта CSV поддерживает 4 типа сессий:
+Инструмент импорта CSV поддерживает 6 режимов (актуальные правила статусов — [result-data-rules.md](result-data-rules.md)):
 
 | Тип | Описание | Поля |
 |-----|---------|------|
@@ -124,6 +124,10 @@ created_at = DateTimeField(auto_now_add=True)
 | `pre_final` | Предфинал | start_position, position, best_lap, s1, s2, s3 |
 | `final` | Финал (хронометраж) | start_position, position, best_lap, s1, s2, s3 |
 | `protocol` | Протокол судейской комиссии | city, team, race_number, chassis, position, points |
+| `combined` | Несколько сессий в одном файле | session_type + поля соответствующей сессии |
+| `lap_chart` | Позиции по кругам | session_type, lap, position, race_number |
+
+С 30.10.2026 статусы DQ/DNS/DNF передаются отдельной колонкой `status`/полем текущей сессии либо вместо места; они сохраняются через предпросмотр. Неизвестные значения блокируют импорт. Отсутствующая колонка статуса сохраняет ручную отметку, явная пустая снимает её. Очки из protocol не пересчитываются по статусу.
 
 Формат времени в CSV: `M:SS.mmm` (например `0:55.420`) или `SS.mmm` (например `55.420`) — оба варианта поддерживаются функцией `seconds_to_ms()`.
 

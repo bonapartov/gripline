@@ -10,14 +10,8 @@ load_rows() читает БД, остальное — чистые функци�
 import datetime
 import statistics
 from collections import defaultdict
+from .race_results import SESSIONS, published_results, result_datetime, valid_sessions
 
-SESSIONS = (
-    # ключ, подпись, поле круга, поля секторов, поле статуса
-    ('qual', 'квалификация', 'qual_best_lap_ms', ('qual_s1_ms', 'qual_s2_ms', 'qual_s3_ms'), 'qual_status'),
-    ('pre_final', 'предфинал', 'pre_final_best_lap_ms',
-     ('pre_final_s1_ms', 'pre_final_s2_ms', 'pre_final_s3_ms'), 'pre_final_status'),
-    ('final', 'финал', 'best_lap_ms', ('best_s1_ms', 'best_s2_ms', 'best_s3_ms'), 'final_status'),
-)
 SESSION_LABELS = {key: label for key, label, *_ in SESSIONS}
 LEADERS_LIMIT = 5
 
@@ -45,10 +39,8 @@ def plausible_sectors(lap, sec):
 
 def load_rows(track):
     """Строки результатов этой трассы (только опубликованные этапы) в виде простых dict."""
-    from website.models import RaceResult
-
-    results = (RaceResult.objects
-               .filter(group__page__track=track, group__page__live=True)
+    results = (published_results()
+               .filter(group__page__track=track)
                .select_related('driver', 'group__race_class', 'group__page')
                .prefetch_related('group__page__occurrences'))
     page_dates = {}
@@ -56,14 +48,14 @@ def load_rows(track):
     for r in results:
         page = r.group.page
         if page.id not in page_dates:
-            occ = sorted(page.occurrences.all(), key=lambda o: o.start)
-            page_dates[page.id] = occ[0].start.date() if occ and occ[0].start else None
+            end = result_datetime(page)
+            page_dates[page.id] = end.date() if end else None
+        if page_dates[page.id] is None:
+            continue
         sessions = {}
-        for key, _label, lap_f, sec_f, status_f in SESSIONS:
-            # Дисквалификация в сессии — её круг и секторы в рекорды не идут
-            if getattr(r, status_f) == 'DQ':
-                continue
-            lap = getattr(r, lap_f) or None
+        for key, _label, lap_f, sec_f, status_f in valid_sessions(r):
+            value = getattr(r, lap_f)
+            lap = value if value is not None and value > 0 else None
             sessions[key] = {
                 'lap': lap,
                 'sec': plausible_sectors(lap, [getattr(r, f) or None for f in sec_f]),

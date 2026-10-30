@@ -1725,7 +1725,8 @@ def _compute_all_track_records():
     """
     from collections import defaultdict
 
-    all_results = RaceResult.objects.select_related(
+    from .services.race_results import published_results, result_datetime
+    all_results = published_results().select_related(
         'driver', 'group__race_class', 'group__page'
     ).prefetch_related('group__page__occurrences')
 
@@ -1738,12 +1739,7 @@ def _compute_all_track_records():
         track = getattr(event, 'track', None)
         if not track:
             continue
-        occurrence = event.occurrences.order_by('-end').first()
-        event_date = (
-            (occurrence.end if occurrence and occurrence.end else None)
-            or event.last_published_at
-            or event.first_published_at
-        )
+        event_date = result_datetime(event)
         if not event_date:
             continue
         by_key[(track.id, r.group.race_class_id)].append({

@@ -60,11 +60,11 @@
                     <td>{{ sel.team_name|default:"—" }}</td>
                     <td>{{ sel.chassis|default:"—" }}</td>
                     <td>{{ sel.race_number|default:"—" }}</td>
-                    <td>{{ sel.position|default:"—" }}</td>
+                    <td>{{ sel.position|default:"—" }}{% if sel.status %} {{ sel.status }}{% endif %}</td>
                     <td>{{ sel.points|default:"—" }}</td>
                 {% else %}
                     {% if group.cfg.has_start_position %}<td class="timing-cell">{{ sel.start_position|default:"—" }}</td>{% endif %}
-                    <td class="timing-cell">{{ sel.position|default:"—" }}</td>
+                    <td class="timing-cell">{{ sel.position|default:"—" }}{% if sel.status %} {{ sel.status }}{% endif %}</td>
                     {% if group.cfg.has_timing %}
                         <td class="timing-cell">{{ sel.best_lap|default:"—" }}</td>
                         <td class="timing-cell">{{ sel.s1|default:"—" }}</td>
