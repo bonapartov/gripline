@@ -1,5 +1,6 @@
 """Заявка команды на этап: несколько пилотов, разные классы (applications/team_wizard.py)."""
 from datetime import timedelta
+from website.tests.team_access_fixtures import confirmed_membership
 
 from django.contrib.auth.models import User
 from django.core import mail
@@ -46,12 +47,12 @@ class TeamWizardFixture(TestCase):
         self.d3 = self._driver('Вера', 'Кузнецова', 'd3')
         other = Team.objects.create(name='Бета', slug='beta')
         self.foreign = Driver.objects.create(first_name='Чужой', last_name='Пилот', slug='foreign', live=True)
-        TeamMembership.objects.create(driver=self.foreign, team=other, is_active=True)
+        confirmed_membership(driver=self.foreign, team=other, is_active=True)
         self.client.force_login(self.manager)
 
     def _driver(self, first, last, slug, race_class=None):
         d = Driver.objects.create(first_name=first, last_name=last, slug=slug, live=True)
-        TeamMembership.objects.create(driver=d, team=self.team, is_active=True, race_class=race_class)
+        confirmed_membership(driver=d, team=self.team, is_active=True, race_class=race_class)
         return d
 
     def entry(self):

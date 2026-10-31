@@ -215,7 +215,9 @@ class Command(BaseCommand):
                     assigned_class = race_classes[j % len(race_classes)] if race_classes else None
                     TeamMembership.objects.get_or_create(
                         driver=driver, team=team,
-                        defaults={'is_active': True, 'race_class': assigned_class},
+                        # Demo setup is not pilot consent and cannot grant private-data access.
+                        defaults={'is_active': True, 'race_class': assigned_class,
+                                  'confirmation_state': 'unconfirmed'},
                     )
 
             # Сотрудники команды

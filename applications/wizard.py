@@ -431,7 +431,7 @@ def _notify_participant_submitted(application):
 def finalize_submission(application, user):
     """Черновик → «Подана»: строки документов, платёж, заявки на профиль пилота и на новую
     команду. Вызывать внутри transaction.atomic; уведомления — после, отдельно."""
-    vault.create_document_rows(application, application.pilot.is_minor)
+    vault.create_document_rows(application, application.pilot.is_minor, actor=user)
     ApplicationPayment.objects.update_or_create(
         application=application,
         defaults={'amount': application.get_total_amount(), 'method': 'manual'})

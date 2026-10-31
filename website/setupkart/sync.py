@@ -32,15 +32,12 @@ PULL_LIMIT = 500
 
 def allowed_driver_ids(user):
     """Пилоты, которых пользователь может указать в своих сессиях."""
-    from teams.models import TeamManager
-    from website.models import TeamMembership
+    from teams.access import managed_driver_ids
     ids = set()
     profile = getattr(user, 'profile', None)
     if profile is not None and profile.verified and profile.driver_id:
         ids.add(profile.driver_id)
-    teams = TeamManager.objects.filter(user=user, is_active=True).values_list('team_id', flat=True)
-    ids.update(TeamMembership.objects.filter(team_id__in=list(teams), is_active=True)
-               .values_list('driver_id', flat=True))
+    ids.update(managed_driver_ids(user))
     return ids
 
 

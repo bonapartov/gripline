@@ -1,4 +1,5 @@
 """Синхронизация сессий приложения и сессии в ЛК (17.10.2026, этап 2)."""
+from website.tests.team_access_fixtures import confirmed_membership
 import json
 import secrets
 
@@ -99,7 +100,7 @@ def test_driver_only_own_or_team_roster(client):
     user = make_user('a@example.com', driver=me)
     team = Team.objects.create(name='Гонщики')
     TeamManager.objects.create(user=user, team=team)
-    TeamMembership.objects.create(driver=mate, team=team)
+    confirmed_membership(driver=mate, team=team)
     auth = token_for(user)
     push(client, auth, sessions=[session_row('s1', driver_id=me.pk), session_row('s2', driver_id=mate.pk),
                                  session_row('s3', driver_id=stranger.pk)])
@@ -136,7 +137,7 @@ def _team_setup():
     manager = make_user('manager@example.com')
     team = Team.objects.create(name='Гонщики')
     TeamManager.objects.create(user=manager, team=team)
-    TeamMembership.objects.create(driver=pilot_driver, team=team)
+    confirmed_membership(driver=pilot_driver, team=team)
     return pilot, pilot_driver, manager
 
 

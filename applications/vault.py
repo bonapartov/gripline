@@ -8,10 +8,10 @@
   этого типа в ЛК (прежний заменяется; в старых заявках остаются свои копии).
 - Отклонение: организатор отклонил файл — документ ЛК помечается и сам больше не подставляется.
 
-Хранилище — у заявок, поданных самим пилотом (или родителем из аккаунта пилота), и у заявок
-команды за пилота из её состава: по решению владельца (17.10.2026) активное членство в команде —
-согласие пилота, что менеджер берёт документы из его ЛК и сохраняет туда загруженные. Пилот,
-добавленный в заявку команды не из состава, и заявки организатора ЛК не трогают.
+Хранилище командной заявки доступно только активному менеджеру её команды
+для активного подтверждённого состава (teams.access). Старые связи legacy имеют
+отдельный временный режим совместимости до аудита, а не подтверждение согласия.
+Копии в поданных заявках сохраняются после выхода; текущий ЛК больше не доступен.
 """
 import os
 
@@ -21,11 +21,11 @@ from django.utils import timezone
 from . import document_kinds, health_consent
 
 
-def vault_profile(application):
+def vault_profile(application, actor=None):
     if application.submitted_by_type == 'pilot':
         return getattr(application.submitted_by, 'profile', None)
     if application.submitted_by_type == 'team' and application.team_entry_id:
-        return team_pilot_profile(application)
+        return team_pilot_profile(application, actor=actor)
     return None
 
 
@@ -46,15 +46,15 @@ class HeldVault:
         return {'driver': self.driver, 'profile': None}
 
 
-def team_pilot_profile(application):
-    """ЛК пилота заявки команды — только у пилота из активного состава этой команды: его
+def team_pilot_profile(application, actor=None):
+    """ЛК пилота заявки команды — только при операционном доступе к её составу: его
     подтверждённый профиль, а без него — хранилище при пилоте (HeldVault)."""
     from accounts.models import UserProfile
-    from website.models import TeamMembership
+    from teams.access import can_manage_driver
     pilot = getattr(application, 'pilot', None)
     driver = pilot.driver if pilot is not None else None
-    if driver is None or not TeamMembership.objects.filter(
-            team_id=application.team_entry.team_id, driver=driver, is_active=True).exists():
+    if driver is None or not can_manage_driver(
+            actor or application.submitted_by, application.team_entry.team_id, driver.pk):
         return None
     return UserProfile.objects.filter(driver=driver, verified=True).first() or HeldVault(driver)
 
@@ -126,12 +126,12 @@ def preview(stage, profile, is_minor):
     return rows
 
 
-def create_document_rows(application, is_minor):
+def create_document_rows(application, is_minor, actor=None):
     """Строки требуемых документов заявки; подходящие из ЛК — сразу «загружены»."""
     from .models import ApplicationDocument
     if application.documents.exists():
         return
-    profile = vault_profile(application)
+    profile = vault_profile(application, actor=actor)
     rows = preview(application.stage, profile, is_minor) if profile else [
         (d, None, 'missing') for d in required_documents(application.stage, is_minor)]
     for stage_doc, match, state in rows:
@@ -144,12 +144,12 @@ def create_document_rows(application, is_minor):
         row.save()
 
 
-def save_from_application(app_doc):
+def save_from_application(app_doc, actor=None):
     """Файл постоянного типа из заявки → текущий документ этого типа в ЛК. Возвращает
     документ ЛК или None (тип «другой», у заявки нет ЛК — см. vault_profile)."""
     from accounts.models import PilotDocument
     kind = app_doc.stage_document.kind
-    profile = vault_profile(app_doc.application)
+    profile = vault_profile(app_doc.application, actor=actor)
     if profile is None or not document_kinds.is_fixed(kind) or not app_doc.file:
         return None
     previous = list(profile.documents.filter(kind=kind))

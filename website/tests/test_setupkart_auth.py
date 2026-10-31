@@ -1,4 +1,5 @@
 """Вход в приложение GripLine SetupKart аккаунтом сайта (17.10.2026)."""
+from website.tests.team_access_fixtures import confirmed_membership
 import re
 import secrets
 from urllib.parse import parse_qs, urlparse
@@ -175,8 +176,8 @@ def test_account_payload_driver_and_team_pilots(client):
     TeamManager.objects.create(user=user, team=team)
     mate = Driver.objects.create(first_name='Анна', last_name='Сидорова')
     gone = Driver.objects.create(first_name='Олег', last_name='Ушедший')
-    TeamMembership.objects.create(driver=mate, team=team)
-    TeamMembership.objects.create(driver=gone, team=team, is_active=False)
+    confirmed_membership(driver=mate, team=team)
+    confirmed_membership(driver=gone, team=team, is_active=False)
     token = login_token(client, user)
     acc = client.get(ME, HTTP_AUTHORIZATION=f'Bearer {token}').json()['account']
     assert acc['driver']['id'] == driver.pk and acc['driver']['url'].endswith(f'/drivers/{driver.slug}/')
