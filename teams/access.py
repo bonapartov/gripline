@@ -92,3 +92,20 @@ def end_membership(membership):
     TeamMembership.objects.filter(pk=membership.pk).update(is_active=False,
         left_at=timezone.localdate(), confirmation_state='unconfirmed', confirmed_at=None,
         confirmed_by=None, confirmation_source='', confirmation_reason='')
+
+
+@transaction.atomic
+def record_team_membership(driver_id, team_id):
+    """Default roster membership from a result, never private-data consent.
+
+    Preserve explicit departures and all existing confirmation metadata. Lock the
+    driver to serialize repeated imports even when no membership exists yet.
+    """
+    from website.models import Driver, TeamMembership
+    Driver.objects.select_for_update().get(pk=driver_id)
+    membership = TeamMembership.objects.filter(driver_id=driver_id, team_id=team_id).order_by(
+        '-joined_at', '-pk').first()
+    if membership is None:
+        membership = TeamMembership.objects.create(driver_id=driver_id, team_id=team_id,
+            is_active=True, confirmation_state='unconfirmed')
+    return membership

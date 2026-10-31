@@ -62,7 +62,16 @@ def update_weather_from_api(sender, instance, created, **kwargs):
         logger.info(f"Погода для группы {instance.id} успешно обновлена")
     else:
         logger.warning(f"Не удалось получить погоду для группы {instance.id}")
-# RaceResult.team is sporting history; it must never grant membership or access.
+from .models import RaceResult
+
+
+@receiver(post_save, sender=RaceResult)
+def create_team_membership(sender, instance, raw=False, **kwargs):
+    """Results populate the roster, without confirming access to private data."""
+    if not raw and instance.team_id and instance.driver_id:
+        from teams.access import record_team_membership
+        record_team_membership(instance.driver_id, instance.team_id)
+
 
 # ── Футер из админки ─────────────────────────────────────────────────────────
 # Футер сайта — сниппет CodeRed «Footers» (templates/coderedcms/snippets/footer.html).

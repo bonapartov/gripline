@@ -321,7 +321,7 @@ class VaultBoundaryTests(WizardFixture):
         self.entry.save()
         assert vault.team_pilot_profile(self.app, actor=self.manager) is None
 
-    def test_old_result_never_creates_or_reactivates_membership(self):
+    def test_result_adds_roster_without_private_access_or_reactivation(self):
         from wagtail.models import Page
         from website.models import EventPage, RaceClassResultGroup
         page = Page.get_first_root_node().add_child(instance=EventPage(title='Synthetic race', slug='race'))
@@ -333,7 +333,15 @@ class VaultBoundaryTests(WizardFixture):
         assert not self.membership.is_active
         stranger = Driver.objects.create(first_name='Another', last_name='Pilot')
         RaceResult.objects.create(group=group, driver=stranger, team=self.team, position=2)
-        assert not TeamMembership.objects.filter(driver=stranger).exists()
+        membership = TeamMembership.objects.get(driver=stranger, team=self.team)
+        assert membership.is_active and membership.confirmation_state == 'unconfirmed'
+        assert membership.confirmed_at is None and membership.confirmed_by_id is None
+        assert not can_manage_driver(self.manager, self.team.pk, stranger.pk)
+        assert stranger.pk not in allowed_driver_ids(self.manager)
+        assert not MembershipConfirmation.objects.filter(membership=membership).exists()
+        # Repeated import is idempotent; confirmation is never inferred.
+        RaceResult.objects.filter(driver=stranger).get().save()
+        assert TeamMembership.objects.filter(driver=stranger, team=self.team).count() == 1
 
 
 def test_legacy_can_be_reinvited_before_strict_rollout(client, roster, settings):

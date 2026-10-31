@@ -1,6 +1,6 @@
 """Заявка команды на этап: несколько пилотов, разные классы (applications/team_wizard.py)."""
-from datetime from website.tests.team_access_fixtures import confirmed_membership
-import timedelta
+from datetime import timedelta
+from website.tests.team_access_fixtures import confirmed_membership
 
 from django.contrib.auth.models import User
 from django.core import mail
