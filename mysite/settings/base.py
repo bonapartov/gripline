@@ -524,3 +524,7 @@ SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = ['role', 'pilot_id', 'team_id', 'team_nam
 
 SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL = True
 SOCIAL_AUTH_REDIRECT_IS_HTTPS = False  # set True in prod settings
+
+# Temporary legacy compatibility ONLY for rows present before the access migration.
+# Release strict mode only after audit and approved classification; see team-access.md.
+TEAM_ACCESS_LEGACY_ENABLED = os.getenv('TEAM_ACCESS_LEGACY_ENABLED', 'true').lower() == 'true'

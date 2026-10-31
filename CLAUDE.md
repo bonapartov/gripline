@@ -399,6 +399,7 @@ python manage.py migrate
 | `docs/claude/legal-cookies.md` | `/legal/*`, форма обращения по ПД, cookie-согласие, согласие на медсправку |
 | `docs/claude/feedback-bot.md` | Telegram-бот обратной связи, виджет на сайте, `/feedback/`, статистика |
 | `docs/claude/admin-dashboard.md` | «Пульт Gripline» на `/admin/`, утренняя сводка, cron-задачи (`JOBS`) |
+| `docs/claude/team-access.md` | Подтверждённое членство, приглашения, аудит legacy, ограничения выпуска и откат (ТЗ v0.2) |
 | `docs/claude/registration-applications.md` | Заявки пилотов и команд, подтверждение email, мастер регистрации на этап, УТС, заявка команды, документы пилота и напоминания |
 | `docs/claude/setupkart.md` | Серверная часть приложения GripLine SetupKart: справочник, публикация, API, Pro, вход и синхронизация, карбюраторы |
 | `docs/claude/track-page.md` | Страница трассы: статистика, секторы, редактор схемы, 3D, PDF |

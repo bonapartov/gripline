@@ -15,6 +15,7 @@ urlpatterns = [
     path('invite-driver/', views.invite_driver, name='invite_driver'),
     path('invitation/<int:inv_id>/accept/', views.accept_invitation, name='accept_invitation'),
     path('invitation/<int:inv_id>/decline/', views.decline_invitation, name='decline_invitation'),
+    path('membership/<int:membership_id>/leave/', views.leave_team, name='leave_team'),
     path('remove-driver/<int:driver_id>/', views.remove_driver, name='remove_driver'),
     path('approve-request/<int:request_id>/', views.approve_request, name='approve_request'),
     path('reject-request/<int:request_id>/', views.reject_request, name='reject_request'),

@@ -1,0 +1,9 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% block content %}<div class="container py-5">
+<h1>Приглашение в команду {{ invitation.team.name }}</h1>
+<p>Принимая приглашение, вы разрешаете действующим менеджерам команды использовать и обновлять ваши документы при подаче командных заявок и привязывать к вам тренировочные сессии. Команда видит ваши сессии только при включённой общей настройке и видимости конкретной сессии. После выхода доступ к личному хранилищу прекращается; копии в уже поданных заявках сохраняются.</p>
+{% if invitation.status == 'pending' %}
+<form method="post">{% csrf_token %}<button class="btn btn-success">Принять приглашение</button></form>
+<form method="post" action="{% url 'teams:decline_invitation' invitation.pk %}">{% csrf_token %}<button class="btn btn-outline-secondary">Отклонить</button></form>
+{% else %}<p>{{ invitation.get_status_display }}</p>{% endif %}
+</div>{% endblock %}

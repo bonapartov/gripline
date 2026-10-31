@@ -1127,10 +1127,35 @@ class TeamMembership(models.Model):
     left_at = models.DateField("Дата ухода", null=True, blank=True)
     is_active = models.BooleanField("Активен", default=True)
 
+    confirmation_state = models.CharField(
+        "Подтверждение доступа", max_length=16, default='unconfirmed',
+        choices=[('legacy', 'Требует проверки'), ('unconfirmed', 'Доступ не подтверждён'),
+                 ('confirmed', 'Действующий состав')], db_index=True)
+    confirmed_at = models.DateTimeField("Дата подтверждения", null=True, blank=True)
+    confirmed_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True,
+                                    blank=True, related_name='+', verbose_name="Подтвердил")
+    confirmation_source = models.CharField("Источник", max_length=24, blank=True,
+        choices=[('invitation', 'Приглашение'), ('admin_exception', 'Исключение администратора')])
+    confirmation_reason = models.TextField("Основание", blank=True)
+
     class Meta:
         verbose_name = "Участие в команде"
         verbose_name_plural = "Участия в командах"
         unique_together = ['driver', 'team', 'joined_at']  # Защита от дублей
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self.__dict__.pop('_explicit_confirmation', False):
+            old = type(self).objects.filter(pk=self.pk).first()
+            if old and (old.is_active != self.is_active or self.left_at is not None
+                        or old.driver_id != self.driver_id or old.team_id != self.team_id):
+                self.confirmation_state = 'unconfirmed'
+                self.confirmed_at = self.confirmed_by = None
+                self.confirmation_source = self.confirmation_reason = ''
+                if kwargs.get('update_fields'):
+                    kwargs['update_fields'] = set(kwargs['update_fields']) | {
+                        'confirmation_state', 'confirmed_at', 'confirmed_by',
+                        'confirmation_source', 'confirmation_reason'}
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.driver.full_name} в {self.team.name}"
