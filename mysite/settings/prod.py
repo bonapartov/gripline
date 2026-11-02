@@ -11,7 +11,11 @@ DEBUG = os.getenv('DEBUG', 'False') == 'True'
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # Add your site's domain name(s) here.
-ALLOWED_HOSTS = ['gripline.ru', 'www.gripline.ru', 'cleantogo.ru', 'www.admin.cleantogo.ru']
+# cleantogo.ru убран 02.11.2026: домен указывает на этот же сервер, но к сайту
+# отношения не имеет, и Google проиндексировал страницы под ним. Чужой Host
+# теперь отсекается catch-all 301 в nginx (deploy/nginx/catchall.conf), а
+# запрос, дошедший до Django мимо него, получает 400.
+ALLOWED_HOSTS = ['gripline.ru', 'www.gripline.ru']
 
 # Базовый URL сайта для ссылок в письмах (base.py содержит localhost-адрес для локальной разработки)
 BASE_URL = 'https://gripline.ru'
