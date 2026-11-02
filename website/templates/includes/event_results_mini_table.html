@@ -17,8 +17,8 @@
                     {% for result in class_group.list %}
                         <tr>
                             <td class="align-middle">
-                                <span class="badge {% if result.position == 1 %}bg-warning text-dark{% elif result.position == 2 %}bg-light text-dark{% elif result.position == 3 %}bg-bronze text-white{% else %}bg-secondary{% endif %}">
-                                    {{ result.position }}
+                                <span class="badge {% if result.is_classified and result.position == 1 %}bg-warning text-dark{% elif result.is_classified and result.position == 2 %}bg-light text-dark{% elif result.is_classified and result.position == 3 %}bg-bronze text-white{% else %}bg-secondary{% endif %}">
+                                    {{ result.display_position }}
                                 </span>
                             </td>
                             <td class="align-middle">

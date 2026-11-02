@@ -15,6 +15,16 @@ def published_results():
     return RaceResult.objects.filter(group__page__live=True)
 
 
+def with_classification_order(results):
+    """Place unclassified entrants after classified results without inventing a place."""
+    from django.db.models import Case, IntegerField, Value, When
+    return results.annotate(_unclassified=Case(
+        When(position__lte=0, then=Value(1)),
+        When(final_status__in=('DNS', 'DQ'), then=Value(1)),
+        default=Value(0), output_field=IntegerField(),
+    ))
+
+
 def result_datetime(page):
     """Last occurrence end in site timezone; legacy undated pages use publication.
 

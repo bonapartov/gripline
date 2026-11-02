@@ -218,6 +218,50 @@ def test_sync_forgery_keeps_record_without_driver(client, roster):
     assert AppSyncRecord.objects.get(uuid='allowed').driver_id == driver.pk
 
 
+@pytest.mark.parametrize('legacy_enabled', [False, True])
+@pytest.mark.parametrize('revoke', ['membership', 'manager'])
+def test_sync_v2_receipts_do_not_grant_pilot_access(client, roster, settings, legacy_enabled, revoke):
+    """A receipt confirms storage, never consent; v2 and access revocation coexist."""
+    settings.TEAM_ACCESS_LEGACY_ENABLED = legacy_enabled
+    driver, _, manager, _, tm, membership, _ = roster
+    auth = token_for(manager)
+
+    def upload(uuid, updated=1000):
+        response = client.post('/api/setupkart/sync/push/', json.dumps({
+            'protocol_version': 2, 'schema_version': 9,
+            'tables': {'sessions': [session_row(uuid, updated=updated, driver_id=driver.pk)]},
+        }), content_type='application/json', **auth)
+        assert response.status_code == 200
+        data = response.json()
+        assert data['protocol_version'] == 2
+        receipt = data['results'][0]
+        assert receipt['table'] == 'sessions' and receipt['id'] == uuid
+        assert receipt['updated_at'] == updated
+        return receipt['status']
+
+    assert upload('unconfirmed-v2') == 'accepted'
+    assert upload('unconfirmed-v2') == 'unchanged'
+    assert AppSyncRecord.objects.get(uuid='unconfirmed-v2').driver_id is None
+    membership.refresh_from_db()
+    assert membership.confirmation_state == 'unconfirmed'
+    assert not MembershipConfirmation.objects.exists()
+
+    accept(client, roster)
+    assert upload('confirmed-v2') == 'accepted'
+    assert AppSyncRecord.objects.get(uuid='confirmed-v2').driver_id == driver.pk
+    if revoke == 'membership':
+        end_membership(membership)
+    else:
+        tm.is_active = False
+        tm.save(update_fields=['is_active'])
+    assert upload('after-revocation-v2') == 'accepted'
+    assert AppSyncRecord.objects.get(uuid='after-revocation-v2').driver_id is None
+    assert upload('confirmed-v2', updated=2000) == 'accepted'
+    record = AppSyncRecord.objects.get(uuid='confirmed-v2')
+    assert record.driver_id is None and record.user_id == manager.pk
+    assert not can_manage_driver(manager, roster[3].pk, driver.pk)
+
+
 def test_legacy_compatibility_is_separate_explicit_risk(roster, settings):
     m = roster[5]
     m.confirmation_state = 'legacy'

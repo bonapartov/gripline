@@ -1,0 +1,51 @@
+name: Team access integration
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16.2
+        env:
+          POSTGRES_DB: gripline_synthetic
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d gripline_synthetic"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DJANGO_SETTINGS_MODULE: mysite.settings.test_team_access_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt pytest pytest-django pytest-cov
+      - name: Check models and whitespace
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+          git diff --check
+      - name: Test access, sync, result presentation and new migrations
+        run: |
+          python -m pytest teams/test_access.py teams/test_access_migrations.py applications accounts \
+            website/tests/test_registration_flows.py website/tests/test_claim_notify.py \
+            website/tests/test_setupkart_auth.py website/tests/test_setupkart_sync.py \
+            website/tests/test_setupkart_records.py website/tests/test_result_data_rules.py \
+            website/tests/test_result_presentation.py website/tests/test_seo_meta.py \
+            website/tests/test_schema.py website/tests/test_demo_pilots.py \
+            --no-cov -q

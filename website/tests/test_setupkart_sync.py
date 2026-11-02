@@ -85,6 +85,48 @@ def test_newer_wins_older_ignored_history_kept(client):
     assert AppSyncRecordVersion.objects.get(record=rec).data['name'] == 'A'
 
 
+def test_push_v2_acknowledges_every_record(client, monkeypatch):
+    from website.setupkart import sync
+    auth = token_for(make_user('ack@example.com'))
+    push(client, auth, sessions=[session_row('same'), session_row('newer', updated=2000)])
+    monkeypatch.setattr(sync, 'MAX_RECORDS', 3)
+    rows = [session_row('same'), session_row('newer', updated=900),
+            session_row('draft', draft=True), session_row('saved'), session_row('limit')]
+    response = client.post(PUSH, json.dumps({'protocol_version': 2, 'schema_version': 9,
+        'tables': {'sessions': rows}}), content_type='application/json', **auth)
+    data = response.json()
+    assert data['accepted'] == 1 and data['skipped'] == 4
+    assert [(a['id'], a['status']) for a in data['results']] == [
+        ('same', 'unchanged'), ('newer', 'server_newer'), ('draft', 'rejected'),
+        ('saved', 'accepted'), ('limit', 'rejected')]
+    assert data['results'][2]['reason'] == 'draft'
+    assert data['results'][4]['reason'] == 'record_limit'
+    assert all(a['table'] == 'sessions' and a['updated_at'] == r['updatedAt']
+               for a, r in zip(data['results'], rows))
+
+
+def test_push_v2_retry_after_lost_response_is_acknowledged(client):
+    auth = token_for(make_user('retry@example.com'))
+    body = {'protocol_version': 2, 'schema_version': 9, 'tables': {'sessions': [session_row()]}}
+    for status in ['accepted', 'unchanged']:
+        data = client.post(PUSH, json.dumps(body), content_type='application/json', **auth).json()
+        assert data['results'][0]['status'] == status
+    assert AppSyncRecord.objects.count() == 1
+    assert not AppSyncRecordVersion.objects.exists()
+
+
+def test_older_client_cannot_overwrite_newer_schema(client):
+    auth = token_for(make_user('schema@example.com'))
+    body = {'protocol_version': 2, 'schema_version': 10,
+            'tables': {'sessions': [session_row(updated=1000)]}}
+    assert client.post(PUSH, json.dumps(body), content_type='application/json', **auth).status_code == 200
+    body['schema_version'] = 9
+    body['tables']['sessions'][0]['updatedAt'] = 2000
+    data = client.post(PUSH, json.dumps(body), content_type='application/json', **auth).json()
+    assert data['results'][0]['reason'] == 'newer_schema'
+    assert AppSyncRecord.objects.get().schema_version == 10
+
+
 def test_drafts_not_synced_and_deleted_marked(client):
     user = make_user('a@example.com')
     auth = token_for(user)

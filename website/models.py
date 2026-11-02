@@ -397,9 +397,10 @@ class EventPage(TransliteratedSlugMixin, CoderedEventPage):
     def race_results(self):
         """Все RaceResult этой страницы across все классы (race_class_groups) —
         используется в мини-таблице протокола (website/includes/event_results_mini_table.html)."""
-        return RaceResult.objects.filter(group__page=self).select_related(
+        from .services.race_results import with_classification_order
+        return with_classification_order(RaceResult.objects.filter(group__page=self)).select_related(
             'driver', 'team', 'group__race_class'
-        ).order_by('group__race_class__sort_order', 'group__race_class__name', 'position')
+        ).order_by('group__race_class__sort_order', 'group__race_class__name', '_unclassified', 'position')
 
     api_fields = [
         APIField('admin_title'),
@@ -1922,7 +1923,8 @@ class RaceClassResultGroup(Orderable, ClusterableModel):
         return f"{self.page.title} - {self.race_class.name} (ID: {self.id})"
 
     def sorted_results(self):
-        return self.class_results.order_by('-points', 'position')
+        from .services.race_results import with_classification_order
+        return with_classification_order(self.class_results.all()).order_by('_unclassified', '-points', 'position')
 
     def lap_chart_race_numbers(self):
         """race_number'ы, для которых есть данные LapPosition (сессия final) —
@@ -2058,6 +2060,16 @@ class RaceResult(Orderable):
             FieldPanel('pre_final_status'),
         ], heading="Предфинал"),
     ]
+
+    @property
+    def is_classified(self):
+        return self.position > 0 and self.final_status not in ('DNS', 'DQ')
+
+    @property
+    def display_position(self):
+        if self.is_classified:
+            return str(self.position)
+        return self.final_status or '—'
 
     @property
     def best_lap_all_ms(self):

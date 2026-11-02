@@ -101,30 +101,45 @@ def push(request):
     rows = [(t, r) for t in APP_SYNC_TABLES for r in (tables.get(t) or []) if isinstance(r, dict)]
     if len(rows) > MAX_ROWS:
         return JsonResponse({'error': 'too_many'}, status=413)
-    existing_count = AppSyncRecord.objects.filter(user=user).count()
-
     drivers = allowed_driver_ids(user)
     accepted = skipped = 0
+    acknowledgements = []
+
+    def acknowledge(table, row, status, reason=None):
+        item = {'table': table, 'id': row.get('id'), 'updated_at': _ms(row.get('updatedAt')),
+                'status': status}
+        if reason:
+            item['reason'] = reason
+        acknowledgements.append(item)
+
     public_drivers = set()
     with transaction.atomic():
+        # Serialize uploads for one account, including simultaneous inserts of a new UUID.
+        from django.contrib.auth import get_user_model
+        get_user_model().objects.select_for_update().get(pk=user.pk)
+        existing_count = AppSyncRecord.objects.filter(user=user).count()
         now = timezone.now()
         for table, row in rows:
             uuid = row.get('id')
             updated = _ms(row.get('updatedAt'))
             if not isinstance(uuid, str) or not (1 <= len(uuid) <= 64) or updated is None:
                 skipped += 1
+                acknowledge(table, row, 'rejected', 'invalid_record')
                 continue
             if table == 'sessions' and row.get('isDraft'):
                 skipped += 1
+                acknowledge(table, row, 'rejected', 'draft')
                 continue
             if len(json.dumps(row, ensure_ascii=False)) > MAX_ROW_BYTES:
                 skipped += 1
+                acknowledge(table, row, 'rejected', 'row_too_large')
                 continue
             record = (AppSyncRecord.objects.select_for_update()
                       .filter(user=user, table=table, uuid=uuid).first())
             if record is None:
                 if existing_count >= MAX_RECORDS:
                     skipped += 1
+                    acknowledge(table, row, 'rejected', 'record_limit')
                     continue
                 existing_count += 1
                 record = AppSyncRecord(user=user, table=table, uuid=uuid)
@@ -132,6 +147,12 @@ def push(request):
                 # Время в приложении — с точностью до секунды: правка в ту же секунду с другим содержимым
                 # принимается, повтор того же — нет.
                 skipped += 1
+                acknowledge(table, row, 'unchanged' if record.data == row else 'server_newer')
+                continue
+            elif record.schema_version > schema:
+                # A stale installation must not erase fields it cannot understand.
+                skipped += 1
+                acknowledge(table, row, 'rejected', 'newer_schema')
                 continue
             else:
                 AppSyncRecordVersion.objects.create(record=record, data=record.data,
@@ -151,6 +172,7 @@ def push(request):
                 _session_fields(record, row, drivers, bases)
             record.save()
             accepted += 1
+            acknowledge(table, row, 'accepted')
             if record.public and record.driver_id:
                 public_drivers.add(record.driver_id)
     if public_drivers:
@@ -158,7 +180,11 @@ def push(request):
         from .public import purge_driver_page
         for driver in Driver.objects.filter(pk__in=public_drivers):
             purge_driver_page(driver)
-    return JsonResponse({'accepted': accepted, 'skipped': skipped})
+    response = {'accepted': accepted, 'skipped': skipped}
+    # Legacy clients keep the exact v1 response. New clients require per-row receipts.
+    if body.get('protocol_version') == 2:
+        response.update(protocol_version=2, results=acknowledgements)
+    return JsonResponse(response)
 
 
 @nocache_page
