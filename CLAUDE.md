@@ -115,7 +115,7 @@ systemctl restart gripline
 **Сервис API приложения SetupKart:** `gripline-setupkart` (gunicorn, 1 воркер × 4 потока, порт 8002) — nginx отдаёт ему `/api/setupkart/`, чтобы приложение не занимало воркеры сайта. Юнит — `deploy/systemd/gripline-setupkart.service`, location — `deploy/nginx/setupkart.conf`; `deploy.sh` перезапускает оба. Второй воркер не помещается в память (воркер ~220 МБ, сервер 1,8 ГБ)  
 **Python venv Django:** `/www/wwwroot/gripline.ru/venv`  
 **Python venv FastAPI:** `/www/wwwroot/gripline.ru/fastapi/venv`  
-**nginx конфиг:** `/etc/nginx/sites-available/gripline`  
+**nginx конфиг:** `/etc/nginx/sites-available/gripline`; catch-all редирект чужих хостов на основной домен — `deploy/nginx/catchall.conf` (`/etc/nginx/sites-enabled/catchall`), добавлен 02.11.2026 после индексации сайта Google под `cleantogo.ru`
 **SSH:** `root@92.63.192.42`
 
 ### Основные команды на сервере

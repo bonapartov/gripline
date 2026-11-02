@@ -22,6 +22,32 @@
 не добавлялся. Подробности:
 [result-import-20261101-rm-junior.md](result-import-20261101-rm-junior.md).
 
+## Дубль сайта под cleantogo.ru закрыт (02.11.2026)
+
+Google показывал страницы Gripline в поиске под доменом `cleantogo.ru`
+(например «Схема трассы — Пластунка» с PDF). Домен пользовательский, к сайту
+отношения не имеет, но указывает A-записью на тот же сервер: nginx отвечал
+сайтом на любой Host, а `ALLOWED_HOSTS` в prod.py явно разрешал
+`cleantogo.ru` и `www.admin.cleantogo.ru`. Сертификат на сервере только для
+gripline.ru, поэтому браузеры видели ошибку SSL, а Googlebot проиндексировал
+дубль несмотря на неё.
+
+Исправление (коммит `ad48de3`, задеплоен):
+
+- `mysite/settings/prod.py`: домены cleantogo убраны из `ALLOWED_HOSTS`,
+  осталось `['gripline.ru', 'www.gripline.ru']`; Django отвечает 400 на чужой Host.
+- nginx: добавлен catch-all `deploy/nginx/catchall.conf` (443 + 80,
+  `default_server`, 301 на `https://gripline.ru$request_uri`), установлен
+  в `/etc/nginx/sites-enabled/catchall`. Сертификат gripline.ru в 443-блоке —
+  только чтобы рукопожатие завершилось и краулер получил 301.
+- Проверки после: cleantogo.ru (HTTP и HTTPS, включая scheme.pdf) и
+  произвольный чужой хост — 301 на gripline.ru; главная, www,
+  `/api/setupkart/config/`, `/tracks/plastunka/scheme.pdf` на gripline.ru — 200;
+  Django напрямую с `Host: cleantogo.ru` — 400.
+- БД не затронута, миграций нет. Выдача Google переклеится по 301 за
+  несколько дней–недель. Если cleantogo.ru понадобится под свой сайт —
+  добавить ему собственный server-блок, он перехватит трафик раньше catch-all.
+
 ## FastAPI законсервирован (02.11.2026)
 
 По решению пользователя сервис `gripline-api` (uvicorn, порт 8001) остановлен
