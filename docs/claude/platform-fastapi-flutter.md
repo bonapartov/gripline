@@ -1,5 +1,14 @@
 # Платформа: роли, FastAPI, Flutter, хронометраж
 
+> **Статус FastAPI: законсервирован 02.11.2026.** Сервис `gripline-api` остановлен
+> и отключён (`systemctl stop/disable`, юнит сохранён), nginx-путь `/api/mobile/`
+> удалён с сервера. Потребителей не было: `flutter_app/` не выпускался, SetupKart
+> обслуживает Django-сервис `gripline-setupkart` (порт 8002). Код, venv и
+> `FASTAPI_SECRET_KEY` сохранены. Для подъёма: вернуть nginx location из
+> `fastapi/nginx_snippet.conf` и выполнить `systemctl enable --now gripline-api`
+> (раздел «Деплой FastAPI на сервер» ниже). Перед отключением создан проверенный
+> бэкап БД и копия nginx-конфига — `docs/claude/project-progress.md`.
+
 > Перенесено из `CLAUDE.md` 27.10.2026 без изменений текста. Общие правила проекта — в `CLAUDE.md`.
 
 ## Деплой FastAPI на сервер (первый раз)

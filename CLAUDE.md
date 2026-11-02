@@ -47,7 +47,7 @@ gripline/
 ├── teams/                # Команды
 ├── tg_bot/               # Telegram-бот
 ├── templates/            # Глобальные шаблоны (navbar, footer, base)
-├── fastapi/              # FastAPI сервис (мобильный API, порт 8001)
+├── fastapi/              # FastAPI сервис (мобильный API, порт 8001; законсервирован 02.11.2026)
 │   ├── main.py           # Точка входа, CORS, роутеры
 │   ├── database.py       # SQLAlchemy engine + get_db()
 │   ├── requirements.txt
@@ -111,7 +111,7 @@ systemctl restart gripline
 **Хост:** `cleantogo` (root@cleantogo)  
 **Путь:** `/www/wwwroot/gripline.ru`  
 **Сервис Django:** `gripline` (gunicorn, 3 воркера, порт 8000)  
-**Сервис FastAPI:** `gripline-api` (uvicorn, 2 воркера, порт 8001) — **задеплоен и работает**  
+**Сервис FastAPI:** `gripline-api` (uvicorn, 2 воркера, порт 8001) — **законсервирован 02.11.2026**: остановлен и отключён (`systemctl stop` + `disable`, юнит сохранён), nginx-путь `/api/mobile/` удалён с сервера. Потребителей не было — `flutter_app/` не выпускался, SetupKart ходит через `gripline-setupkart`. Код, venv и `FASTAPI_SECRET_KEY` в `.env` сохранены; инструкция подъёма — `docs/claude/platform-fastapi-flutter.md`
 **Сервис API приложения SetupKart:** `gripline-setupkart` (gunicorn, 1 воркер × 4 потока, порт 8002) — nginx отдаёт ему `/api/setupkart/`, чтобы приложение не занимало воркеры сайта. Юнит — `deploy/systemd/gripline-setupkart.service`, location — `deploy/nginx/setupkart.conf`; `deploy.sh` перезапускает оба. Второй воркер не помещается в память (воркер ~220 МБ, сервер 1,8 ГБ)  
 **Python venv Django:** `/www/wwwroot/gripline.ru/venv`  
 **Python venv FastAPI:** `/www/wwwroot/gripline.ru/fastapi/venv`  
@@ -139,11 +139,13 @@ python manage.py migrate
 # Django shell
 python manage.py shell
 
+# FastAPI законсервирован 02.11.2026 — команды ниже нужны только при подъёме из консервации
+
 # Запуск FastAPI (локально / dev)
 cd fastapi && venv/bin/uvicorn main:app --reload --port 8001
 
-# Перезапуск FastAPI
-systemctl restart gripline-api
+# Подъём FastAPI на сервере (плюс вернуть nginx location /api/mobile/ — см. docs/claude/platform-fastapi-flutter.md)
+systemctl enable --now gripline-api
 
 # Логи FastAPI
 journalctl -u gripline-api -f
@@ -152,6 +154,8 @@ journalctl -u gripline-api -f
 Первичная настройка FastAPI на новом сервере (venv, systemd, nginx) — `docs/claude/platform-fastapi-flutter.md`. В `fastapi/main.py` обязателен `root_path="/api/mobile"`, иначе Swagger за nginx грузит `/openapi.json` не по тому адресу.
 
 ### Деплой обновлений FastAPI
+
+Сервис законсервирован 02.11.2026, обновления не требуются. Если поднят из консервации:
 
 ```bash
 # После cherry-pick на сервере

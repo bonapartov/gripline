@@ -1,6 +1,6 @@
 # Текущий прогресс Gripline / SetupKart
 
-Обновлено: 01.11.2026. Запись для продолжения работы после смены сессии.
+Обновлено: 02.11.2026. Запись для продолжения работы после смены сессии.
 
 Импортированы результаты РМ Микро первого этапа
 Осеннего кубка Rotax Max 2026: пять пилотов, квалификация/предфинал/финал,
@@ -21,6 +21,31 @@
 квалификаций отделены от действительных гонок. Очки пропущены; блок протоколов
 не добавлялся. Подробности:
 [result-import-20261101-rm-junior.md](result-import-20261101-rm-junior.md).
+
+## FastAPI законсервирован (02.11.2026)
+
+По решению пользователя сервис `gripline-api` (uvicorn, порт 8001) остановлен
+и отключён, nginx-путь `/api/mobile/` удалён с сервера. Причина: действующих
+потребителей нет — `flutter_app/` никогда не собирался и не распространялся
+(подтверждено пользователем), SetupKart обслуживает Django-сервис
+`gripline-setupkart` на порту 8002. Это освободило память и убрало публичный
+Swagger UI с тестовым аккаунтом из открытого доступа.
+
+- Перед работой по указанию пользователя создан и проверен бэкап БД:
+  `/var/backups/gripline/gripline_db_before_fastapi_shutdown_20261102T201111Z.dump`
+  (11 365 530 байт; SHA256
+  `554ff5721a753940fe52f9288cfd4494050f3d2a0bd98678028d415cabe6f28a`;
+  `pg_restore --list` прошёл, 1977 записей TOC) и копия nginx-конфига
+  `/var/backups/gripline/nginx_gripline_before_fastapi_shutdown_20261102T201111Z.conf`.
+- Юнит `gripline-api.service` на сервере сохранён (inactive/disabled); код
+  `fastapi/`, venv и `FASTAPI_SECRET_KEY` в `.env` не тронуты. Восстановление не выполнялось.
+- Проверки после отключения: `gripline`, `gripline-setupkart`, nginx — active;
+  главная и `/api/setupkart/config/` — HTTP 200; `/api/mobile/health` и
+  `/api/mobile/docs` — 404 (Django сайта сам отвечает за путь); порт 8001 свободен.
+- Инструкция подъёма из консервации — `platform-fastapi-flutter.md`
+  (вернуть nginx location из `fastapi/nginx_snippet.conf`, затем
+  `systemctl enable --now gripline-api`).
+- Миграции, пересчёты и изменения рабочих данных не выполнялись.
 
 ## Последняя задача
 
