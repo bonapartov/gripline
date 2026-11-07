@@ -532,10 +532,10 @@
                             </div>
                         {% endif %}
                         <div class="driver-info">
-                            <div class="driver-name">{{ item.driver.full_name }}</div>
+                            <div class="driver-name">{{ item.driver.full_name }}</div><div class="small text-muted">{{ item.access_status }}</div>
                             <div class="driver-class">{{ item.driver.city|default:"" }}</div>
                         </div>
-                        <form method="post" action="{% url 'teams:remove_driver' item.driver.id %}">
+                        <form method="post" action="{% url 'teams:remove_driver' item.driver.id %}"><input type="hidden" name="team_id" value="{{ team.pk }}">
                             {% csrf_token %}
                             <button type="submit" class="btn-remove" onclick="return confirm('Убрать пилота из команды?')">Удалить</button>
                         </form>
@@ -611,7 +611,7 @@
                     <input type="text" id="driverSearch" class="form-control" placeholder="Введите имя или фамилию...">
                     <div id="driverSearchEmpty" class="form-text text-warning d-none">Никого не нашлось{% if is_demo_team %} — в демо-режиме доступны только демо-пилоты{% endif %}</div>
                 </div>
-                <form method="post" action="{% url 'teams:invite_driver' %}" id="add-driver-form">
+                <form method="post" action="{% url 'teams:invite_driver' %}" id="add-driver-form"><input type="hidden" name="team_id" value="{{ team.pk }}">
                     {% csrf_token %}
                     <div class="form-group mb-3">
                         <label class="form-label">Пилот</label>

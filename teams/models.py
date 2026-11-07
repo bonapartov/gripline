@@ -137,3 +137,16 @@ class TeamInvitation(models.Model):
         verbose_name = "Приглашение в команду"
         verbose_name_plural = "Приглашения в команду"
         unique_together = ['driver', 'team']
+
+
+class MembershipConfirmation(models.Model):
+    """Append-only evidence of explicit confirmation, retained across re-entry."""
+    membership = models.ForeignKey('website.TeamMembership', on_delete=models.PROTECT,
+                                   related_name='confirmation_events')
+    actor = models.ForeignKey(User, on_delete=models.PROTECT, related_name='+')
+    source = models.CharField(max_length=24)
+    driver_id_at_confirmation = models.PositiveBigIntegerField()
+    team_id_at_confirmation = models.PositiveBigIntegerField()
+    reason = models.TextField(blank=True)
+    invitation = models.ForeignKey(TeamInvitation, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)

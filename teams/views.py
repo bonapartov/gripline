@@ -1,3 +1,7 @@
+from django.db import transaction
+from django.views.decorators.http import require_POST
+from teams.access import confirm_membership, end_membership, operational_memberships
+from wagtailcache.cache import nocache_page
 from django.urls import reverse
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -125,6 +129,7 @@ def register(request):
     return render(request, 'teams/register.html', {'form': form})
 
 
+@nocache_page
 @login_required
 def select_team(request):
     """Выбор команды среди похожих по названию. Список считается по БД для request.user;
@@ -286,6 +291,7 @@ TeamStaffSocialLinkFormSet = forms.inlineformset_factory(
 )
 
 
+@nocache_page
 @login_required
 def dashboard(request):
     """Личный кабинет команды"""
@@ -426,6 +432,12 @@ def dashboard(request):
 
         from website.models import RaceClass
         pending_invitations = TeamInvitation.objects.filter(team=team, status='pending').select_related('driver', 'race_class')
+        memberships = {m.driver_id: m for m in TeamMembership.objects.filter(team=team, is_active=True)}
+        for row in driver_classes:
+            membership = memberships.get(row['driver'].pk)
+            row['access_status'] = (membership.get_confirmation_state_display() if membership
+                                    else 'Доступ не подтверждён')
+
 
         from applications.models import TeamStageEntry
         stage_entries = []
@@ -456,13 +468,14 @@ def dashboard(request):
         return redirect('/')
 
 
+@nocache_page
 @login_required
 def invite_driver(request):
     """Пригласить пилота в команду (создаёт TeamInvitation + отправляет email)"""
     if request.method != 'POST':
         return redirect('teams:dashboard')
 
-    manager = TeamManager.objects.filter(user=request.user, is_active=True).first()
+    manager = _selected_manager(request)
     if not manager:
         messages.error(request, 'Нет прав')
         return redirect('teams:dashboard')
@@ -499,11 +512,12 @@ def invite_driver(request):
     if existing:
         if existing.status == 'pending':
             messages.warning(request, f'Приглашение для {driver.full_name} уже отправлено и ожидает ответа.')
-        elif existing.status == 'accepted':
+        elif existing.status == 'accepted' and operational_memberships().filter(driver=driver, team=team, confirmation_state='confirmed').exists():
             messages.warning(request, f'{driver.full_name} уже в команде.')
         else:
             # declined — позволяем повторно пригласить
             existing.status = 'pending'
+            existing.created_at = timezone.now()
             existing.responded_at = None
             existing.invited_by = request.user
             if race_class_id:
@@ -518,7 +532,7 @@ def invite_driver(request):
         return redirect('teams:dashboard')
 
     # Проверяем уже в команде
-    if TeamMembership.objects.filter(driver=driver, team=team, is_active=True).exists():
+    if operational_memberships().filter(driver=driver, team=team, confirmation_state='confirmed').exists():
         messages.warning(request, f'{driver.full_name} уже в команде.')
         return redirect('teams:dashboard')
 
@@ -560,88 +574,90 @@ def _send_team_invitation_email(driver, team, user, invitation):
         pass
 
 
-@login_required
-def accept_invitation(request, inv_id):
-    """Пилот принимает приглашение"""
+def _selected_manager(request):
+    managers = TeamManager.objects.filter(user=request.user, is_active=True)
+    team_id = request.POST.get('team_id') or request.GET.get('team_id')
+    if team_id:
+        return managers.filter(team_id=team_id).first()
+    return managers.first() if managers.count() == 1 else None
+
+
+def _owned_invitation(request, inv_id, lock=False):
     from accounts.models import DriverClaim
-    claim = DriverClaim.objects.filter(user=request.user, status='approved').first()
-    if not claim:
-        messages.error(request, 'Нет привязанного профиля пилота.')
+    qs = TeamInvitation.objects.select_for_update() if lock else TeamInvitation.objects.all()
+    drivers = DriverClaim.objects.filter(user=request.user, status='approved',
+                                        driver__isnull=False).values('driver_id')
+    return get_object_or_404(qs, pk=inv_id, driver_id__in=drivers)
+
+
+@nocache_page
+@login_required
+@transaction.atomic
+def accept_invitation(request, inv_id):
+    invitation = _owned_invitation(request, inv_id, lock=True)
+    if request.method != 'POST':
+        return render(request, 'teams/invitation.html', {'invitation': invitation})
+    if invitation.status != 'pending':
         return redirect('accounts:profile')
-
-    invitation = get_object_or_404(TeamInvitation, pk=inv_id, driver=claim.driver, status='pending')
-
-    # Создаём членство
-    existing = TeamMembership.objects.filter(driver=invitation.driver, team=invitation.team).first()
-    if existing:
-        existing.is_active = True
-        existing.left_at = None
-        existing.race_class = invitation.race_class
-        existing.save()
-    else:
-        TeamMembership.objects.create(
-            driver=invitation.driver,
-            team=invitation.team,
-            race_class=invitation.race_class,
-            joined_at=timezone.now().date(),
-            is_active=True,
-        )
-
+    # Serialize consent for a driver, including different invitations/teams.
+    Driver.objects.select_for_update().get(pk=invitation.driver_id)
+    membership = TeamMembership.objects.filter(driver=invitation.driver,
+        team=invitation.team).order_by('-joined_at', '-pk').first()
+    if membership is None:
+        membership = TeamMembership.objects.create(driver=invitation.driver,
+            team=invitation.team, race_class=invitation.race_class)
+    membership.race_class = invitation.race_class
+    membership.save(update_fields=['race_class'])
+    confirm_membership(membership, request.user, 'invitation', invitation=invitation)
     invitation.status = 'accepted'
     invitation.responded_at = timezone.now()
-    invitation.save()
+    invitation.save(update_fields=['status', 'responded_at'])
     messages.success(request, f'Вы приняты в команду {invitation.team.name}!')
     return redirect('accounts:profile')
 
 
+@nocache_page
 @login_required
+@require_POST
+@transaction.atomic
 def decline_invitation(request, inv_id):
-    """Пилот отклоняет приглашение"""
-    from accounts.models import DriverClaim
-    claim = DriverClaim.objects.filter(user=request.user, status='approved').first()
-    if not claim:
-        return redirect('accounts:profile')
-
-    invitation = get_object_or_404(TeamInvitation, pk=inv_id, driver=claim.driver, status='pending')
-    invitation.status = 'declined'
-    invitation.responded_at = timezone.now()
-    invitation.save()
-    messages.info(request, f'Приглашение от команды {invitation.team.name} отклонено.')
+    invitation = _owned_invitation(request, inv_id, lock=True)
+    if invitation.status == 'pending':
+        invitation.status = 'declined'
+        invitation.responded_at = timezone.now()
+        invitation.save(update_fields=['status', 'responded_at'])
     return redirect('accounts:profile')
 
 
+@nocache_page
 @login_required
+@require_POST
+@transaction.atomic
 def remove_driver(request, driver_id):
-    """Удаление пилота из команды"""
-    if request.method == 'POST':
-        manager = TeamManager.objects.filter(
-            user=request.user,
-            is_active=True
-        ).first()
-
-        if not manager:
-            messages.error(request, 'Нет прав')
-            return redirect('teams:dashboard')
-
-        driver = get_object_or_404(Driver, id=driver_id)
-
-        membership = TeamMembership.objects.filter(
-            driver=driver,
-            team=manager.team,
-            is_active=True
-        ).first()
-
-        if membership:
-            membership.left_at = timezone.now().date()
-            membership.is_active = False
-            membership.save()
-            messages.success(request, f'{driver.full_name} удалён из команды')
-        else:
-            messages.warning(request, f'{driver.full_name} не найден в команде')
-
+    manager = _selected_manager(request)
+    if manager is None:
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden('Выберите управляемую команду.')
+    for membership in TeamMembership.objects.select_for_update().filter(
+            driver_id=driver_id, team=manager.team, is_active=True):
+        end_membership(membership)
     return redirect('teams:dashboard')
 
 
+@nocache_page
+@login_required
+@require_POST
+@transaction.atomic
+def leave_team(request, membership_id):
+    from accounts.models import DriverClaim
+    drivers = DriverClaim.objects.filter(user=request.user, status='approved').values('driver_id')
+    membership = get_object_or_404(TeamMembership.objects.select_for_update(),
+                                   pk=membership_id, driver_id__in=drivers)
+    end_membership(membership)
+    return redirect('accounts:profile')
+
+
+@nocache_page
 @login_required
 def approve_request(request, request_id):
     """Подтверждение заявки на вступление"""
@@ -668,6 +684,7 @@ def approve_request(request, request_id):
     return redirect('teams:dashboard')
 
 
+@nocache_page
 @login_required
 def reject_request(request, request_id):
     """Отклонение заявки на вступление"""
@@ -694,6 +711,7 @@ def reject_request(request, request_id):
     return redirect('teams:dashboard')
 
 
+@nocache_page
 @login_required
 def logout_view(request):
     """Выход из системы"""
@@ -701,6 +719,7 @@ def logout_view(request):
     return redirect('choose_role')
 
 
+@nocache_page
 @login_required
 def add_staff(request):
     """Добавление сотрудника в команду"""
@@ -783,6 +802,7 @@ def add_staff(request):
     return redirect('teams:dashboard')
 
 
+@nocache_page
 @login_required
 def remove_staff(request, staff_id):
     """Удаление сотрудника из команды"""
@@ -813,6 +833,7 @@ def remove_staff(request, staff_id):
     return redirect('teams:dashboard')
 
 
+@nocache_page
 @login_required
 def edit_staff(request, staff_id):
     """Редактирование сотрудника"""

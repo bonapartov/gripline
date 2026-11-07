@@ -126,6 +126,7 @@ def resend_verification(request):
     return render(request, 'accounts/verification_resend.html')
 
 
+@nocache_page
 @login_required
 def select_driver(request):
     """Выбор своего пилота среди однофамильцев. Список считается по БД для request.user —
@@ -224,6 +225,7 @@ def _documents_context(request):
     }
 
 
+@nocache_page
 @login_required
 def profile(request):
     """Личный кабинет пилота"""
@@ -307,6 +309,7 @@ def profile(request):
                 'formset': formset,
                 **_documents_context(request),
                 'pending_invitations': pending_invitations,
+                'team_memberships': driver.team_memberships.filter(is_active=True).select_related('team'),
                 'has_registrable_stages': has_registrable_stages,
                 'my_applications': my_applications,
             })
@@ -377,6 +380,7 @@ def process_claim_api(request):
 
 from website.models import Ad, AdResponse, AdFavorite
 
+@nocache_page
 @login_required
 def my_responses(request):
     """Мои отклики (как автор откликов)"""
@@ -384,6 +388,7 @@ def my_responses(request):
     return render(request, 'accounts/my_responses.html', {'responses': responses})
 
 
+@nocache_page
 @login_required
 def ad_responses(request, ad_id):
     """Отклики на моё объявление"""
@@ -392,6 +397,7 @@ def ad_responses(request, ad_id):
     return render(request, 'accounts/ad_responses.html', {'ad': ad, 'responses': responses})
 
 
+@nocache_page
 @login_required
 def response_action(request, response_id, action):
     """Принять/отклонить отклик"""
@@ -406,6 +412,7 @@ def response_action(request, response_id, action):
     return redirect('ad_responses', ad_id=response.ad.id)
 
 
+@nocache_page
 @login_required
 def favorite_ads(request):
     """Избранные объявления пользователя"""
@@ -413,6 +420,7 @@ def favorite_ads(request):
     return render(request, 'accounts/favorite_ads.html', {'favorites': favorites})
 
 
+@nocache_page
 @login_required
 def upload_pilot_document(request):
     """AJAX: загрузка документа в личное хранилище пилота"""
@@ -471,6 +479,7 @@ def upload_pilot_document(request):
     })
 
 
+@nocache_page
 @login_required
 def delete_pilot_document(request, doc_id):
     """AJAX: удаление документа из личного хранилища"""
@@ -484,6 +493,7 @@ def delete_pilot_document(request, doc_id):
     return JsonResponse({'success': True})
 
 
+@nocache_page
 @login_required
 def serve_pilot_document(request, doc_id):
     """
@@ -527,6 +537,7 @@ def pilot_document_ics(request, doc_id):
     return response
 
 
+@nocache_page
 @login_required
 def telegram_connect(request):
     """Кнопка «Подключить Telegram»: одноразовая ссылка на бота (accounts/telegram_link.py)."""
@@ -541,6 +552,7 @@ def telegram_connect(request):
     return redirect(url)
 
 
+@nocache_page
 @login_required
 def telegram_disconnect(request):
     from . import telegram_link
@@ -742,6 +754,7 @@ def yandex_search_teams(request):
     return JsonResponse({'results': list(teams)})
 
 
+@nocache_page
 @login_required
 def yandex_pilot_onboarding(request):
     has_claim = DriverClaim.objects.filter(user=request.user).exists()
@@ -829,6 +842,7 @@ def yandex_pilot_onboarding(request):
     })
 
 
+@nocache_page
 @login_required
 def yandex_team_onboarding(request):
     from teams.models import TeamClaim as _TC, TeamManager as _TM
@@ -923,6 +937,7 @@ def yandex_team_onboarding(request):
     return render(request, 'accounts/yandex_team_onboarding.html')
 
 
+@nocache_page
 @login_required
 def yandex_organizer_onboarding(request):
     from organizers.models import OrganizerProfile as _OP
@@ -943,6 +958,7 @@ def yandex_organizer_onboarding(request):
     return render(request, 'accounts/yandex_organizer_onboarding.html')
 
 
+@nocache_page
 @login_required
 def yandex_role_switch(request):
     """Страница выбора роли при мультироли (пилот + менеджер команды)"""

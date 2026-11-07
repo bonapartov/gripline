@@ -260,13 +260,17 @@
         <div class="col-md-8 col-lg-9">
 
             <!-- Приглашения в команду -->
-            {% if pending_invitations %}
+            {% for membership in team_memberships %}
+<div class="card p-3 mb-3"><span>{{ membership.team.name }} — {{ membership.get_confirmation_state_display }}</span>
+<form method="post" action="{% url 'teams:leave_team' membership.pk %}">{% csrf_token %}<button class="btn btn-outline-secondary">Выйти из команды</button></form></div>
+{% endfor %}
+{% if pending_invitations %}
             <div class="profile-card mb-4">
                 <h4 class="text-warning border-bottom border-secondary pb-2 mb-3">
                     <i class="fas fa-envelope me-2"></i>Приглашения в команду
                     <span class="badge bg-warning text-dark ms-2">{{ pending_invitations|length }}</span>
                 </h4>
-                {% for inv in pending_invitations %}
+                {% for inv in pending_invitations %}<p class="small text-muted">Принимая приглашение, вы разрешаете менеджерам использовать и обновлять документы для командных заявок и привязывать к вам сессии. Видимость сессий настраивается отдельно. После выхода доступ к личному хранилищу прекращается; копии в поданных заявках сохраняются.</p>
                 <div class="d-flex align-items-center justify-content-between gap-3 p-3 mb-2 rounded" style="background:#0d0d14;border:1px solid #2a2a35;">
                     <div>
                         <div class="fw-bold text-white">

@@ -1,31 +1,17 @@
-# scripts/create_memberships.py
-from website.models import Team, Driver, TeamMembership
-from django.utils import timezone
+"""Populate roster from results without granting private-data access.
 
-def run():
-    print("Создаем членства для существующих пилотов...")
+Read-only by default. Applying is an explicit maintenance action, not a rating
+recalculation or confirmation of access. Never executed on production in this task.
+"""
+def run(apply=False):
+    from website.models import RaceResult
+    from teams.access import record_team_membership
+    pairs = RaceResult.objects.filter(team__isnull=False, driver__isnull=False).order_by().values_list(
+        'driver_id', 'team_id').distinct()
+    if not apply:
+        return list(pairs)
+    for driver_id, team_id in pairs:
+        record_team_membership(driver_id, team_id)
 
-    for team in Team.objects.all():
-        # Находим всех пилотов, которые есть в результатах этой команды
-        drivers = Driver.objects.filter(raceresult__team=team).distinct()
-
-        count = 0
-        for driver in drivers:
-            # Создаем активное членство, если его нет
-            membership, created = TeamMembership.objects.get_or_create(
-                driver=driver,
-                team=team,
-                defaults={
-                    'joined_at': timezone.now().date(),
-                    'is_active': True
-                }
-            )
-            if created:
-                count += 1
-
-        print(f"Команда {team.name}: добавлено {count} пилотов")
-
-    print("Готово!")
-
-if __name__ == "__main__":
-    run()
+if __name__ == '__main__':
+    print(run())

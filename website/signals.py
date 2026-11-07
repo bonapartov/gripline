@@ -62,24 +62,16 @@ def update_weather_from_api(sender, instance, created, **kwargs):
         logger.info(f"Погода для группы {instance.id} успешно обновлена")
     else:
         logger.warning(f"Не удалось получить погоду для группы {instance.id}")
-from .models import RaceResult, TeamMembership
+from .models import RaceResult
+
 
 @receiver(post_save, sender=RaceResult)
-def create_team_membership(sender, instance, created, **kwargs):
-    """
-    Автоматически создаёт членство пилота в команде при добавлении результата
-    """
-    if instance.team and instance.driver:
-        membership, created = TeamMembership.objects.get_or_create(
-            driver=instance.driver,
-            team=instance.team,
-            defaults={
-                'is_active': True,
-                'joined_at': instance.group.page.last_published_at.date() if instance.group.page.last_published_at else timezone.now().date()
-            }
-        )
-        if created:
-            logger.info(f'Автоматически создано членство: {instance.driver.full_name} → {instance.team.name}')
+def create_team_membership(sender, instance, raw=False, **kwargs):
+    """Results populate the roster, without confirming access to private data."""
+    if not raw and instance.team_id and instance.driver_id:
+        from teams.access import record_team_membership
+        record_team_membership(instance.driver_id, instance.team_id)
+
 
 # ── Футер из админки ─────────────────────────────────────────────────────────
 # Футер сайта — сниппет CodeRed «Footers» (templates/coderedcms/snippets/footer.html).

@@ -1,4 +1,5 @@
 """Постоянные типы документов, хранилище ЛК пилота и напоминания о сроке."""
+from website.tests.team_access_fixtures import confirmed_membership
 import shutil
 import tempfile
 from datetime import date, timedelta
@@ -278,7 +279,7 @@ class ReminderTests(MediaMixin, WizardFixture):
         from teams.models import TeamManager
         from website.models import Team, TeamMembership
         team = Team.objects.create(name=f'Команда {manager_email}', slug=manager_email.split('@')[0])
-        TeamMembership.objects.create(team=team, driver=driver, is_active=active)
+        confirmed_membership(team=team, driver=driver, is_active=active)
         mgr = User.objects.create_user(manager_email, manager_email, 'pw')
         TeamManager.objects.create(user=mgr, team=team, is_active=True)
         return mgr

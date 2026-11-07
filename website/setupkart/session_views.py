@@ -35,10 +35,8 @@ def _setup(record):
 
 
 def _managed_driver_ids(user):
-    from teams.models import TeamManager
-    from website.models import TeamMembership
-    teams = list(TeamManager.objects.filter(user=user, is_active=True).values_list('team_id', flat=True))
-    return set(TeamMembership.objects.filter(team_id__in=teams, is_active=True).values_list('driver_id', flat=True))
+    from teams.access import managed_driver_ids
+    return managed_driver_ids(user)
 
 
 def _sessions():

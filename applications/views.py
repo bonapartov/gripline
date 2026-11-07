@@ -148,6 +148,7 @@ def _participation(stage, value):
     return value if value in allowed else Application.PARTICIPATION_RACE
 
 
+@nocache_page
 @login_required
 def detail(request, application_id):
     """Просмотр своей заявки + загрузка документов и квитанции"""
@@ -172,7 +173,7 @@ def detail(request, application_id):
         'is_owner': is_owner,
         'is_organizer': is_organizer,
         'can_withdraw': is_owner and can_withdraw(application),
-        'vault_on': vault.vault_profile(application) is not None,
+        'vault_on': vault.vault_profile(application, actor=request.user) is not None,
         'health_text': health_consent.text_for(application),
         'is_team_pilot': is_pilot,
         'decline_url': (team_notify.decline_url(application)
@@ -203,6 +204,7 @@ def _back(request, application):
     return redirect('applications:detail', application_id=application.id)
 
 
+@nocache_page
 @login_required
 def upload_document(request, document_id):
     """Загрузка файла документа участником (поддерживает AJAX)"""
@@ -238,7 +240,7 @@ def upload_document(request, document_id):
         doc.organizer_comment = ''
         doc.vault_document = None
         doc.save()
-        vault.save_from_application(doc)
+        vault.save_from_application(doc, actor=request.user)
         if is_ajax:
             return JsonResponse({
                 'success': True,
@@ -254,6 +256,7 @@ def upload_document(request, document_id):
     return redirect('applications:detail', application_id=doc.application.id)
 
 
+@nocache_page
 @login_required
 def upload_payment(request, application_id):
     """Загрузка квитанции об оплате участником (поддерживает AJAX)"""
@@ -295,7 +298,7 @@ def can_manage(user, application):
     этой команды (у команды бывает несколько менеджеров, пакет у них общий)."""
     if not user.is_authenticated:
         return False
-    if application.submitted_by_id == user.id:
+    if not application.team_entry_id and application.submitted_by_id == user.id:
         return True
     if application.team_entry_id:
         from teams.models import TeamManager
@@ -316,6 +319,7 @@ def _can_view_application(request, application):
             or is_platform_admin(request.user) or is_team_pilot(request.user, application))
 
 
+@nocache_page
 @login_required
 def serve_document(request, document_id):
     """
@@ -340,6 +344,7 @@ def serve_document(request, document_id):
     )
 
 
+@nocache_page
 @login_required
 def serve_receipt(request, application_id):
     """Отдаёт квитанцию об оплате только заявителю или организатору этапа
@@ -390,6 +395,7 @@ def can_withdraw(application):
             and application.stage.start_date > timezone.now())
 
 
+@nocache_page
 @login_required
 def cancel(request, application_id):
     """Отзыв заявки участником (или удаление черновика): номер сразу освобождается."""
@@ -452,6 +458,7 @@ def _check_organizer(request, application):
             and application.stage.championship.organizer == profile)
 
 
+@nocache_page
 @login_required
 def org_action(request, application_id):
     """Организатор подтверждает или отклоняет заявку"""
@@ -479,6 +486,7 @@ def org_action(request, application_id):
     return redirect('applications:detail', application_id=application.id)
 
 
+@nocache_page
 @login_required
 def org_verify_document(request, document_id):
     """Организатор проверяет или отклоняет документ"""
@@ -508,6 +516,7 @@ def org_verify_document(request, document_id):
     return redirect('applications:detail', application_id=doc.application.id)
 
 
+@nocache_page
 @login_required
 def org_verify_payment(request, application_id):
     """Организатор подтверждает или отклоняет оплату"""
@@ -538,6 +547,7 @@ def org_verify_payment(request, application_id):
     return redirect('applications:detail', application_id=application.id)
 
 
+@nocache_page
 @login_required
 def submit_application(request, application_id):
     """Пилот подтверждает заявку: draft → submitted"""

@@ -581,7 +581,7 @@ def review(request, entry_id):
     for app in drafts:
         selected = set(app.selected_options.values_list('option_id', flat=True))
         option_rows.append((app, [(o, o.is_mandatory or o.id in selected) for o in options]))
-    previews = {a.id: [(d, state) for d, _m, state in vault.preview(stage, vault.vault_profile(a), a.pilot.is_minor)]
+    previews = {a.id: [(d, state) for d, _m, state in vault.preview(stage, vault.vault_profile(a, actor=request.user), a.pilot.is_minor)]
                 for a in ready}
     payments = [(a, getattr(a, 'payment', None)) for a in sent]
     return _render(request, entry, 3, {
