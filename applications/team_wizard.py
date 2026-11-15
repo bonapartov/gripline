@@ -94,8 +94,8 @@ def _previous_team_pilot(team, driver, exclude_entry=None):
 def _default_class(stage, team, driver, classes):
     """Класс по умолчанию: из состава команды, иначе класс последней заявки пилота."""
     ids = {c.id for c in classes}
-    from website.models import TeamMembership
-    m = TeamMembership.objects.filter(team=team, driver=driver, is_active=True).first()
+    from website.services.team_access import confirmed_memberships
+    m = confirmed_memberships(team_ids=[team.id], driver_ids=[driver.id]).first()
     if m and m.race_class_id in ids:
         return m.race_class_id
     last = (Application.objects.filter(pilot__driver=driver, race_class__in=classes)
@@ -156,13 +156,13 @@ class _Row:
 
 
 def _rows(entry):
-    from website.models import TeamMembership
+    from website.services.team_access import confirmed_memberships
     apps = list(entry.applications.exclude(status='cancelled').select_related('pilot', 'race_class')
                 .order_by('created_at'))
     by_driver = {a.pilot.driver_id: a for a in apps if _related(a, 'pilot') and a.pilot.driver_id}
     classes = _stage_classes(entry.stage)
     rows, seen = [], set()
-    members = (TeamMembership.objects.filter(team=entry.team, is_active=True).select_related('driver')
+    members = (confirmed_memberships(team_ids=[entry.team_id]).select_related('driver')
                .order_by('driver__last_name', 'driver__first_name'))
     for m in members:
         if m.driver_id in seen:

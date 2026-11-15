@@ -23,8 +23,9 @@ from website.models import RaceResult
 from django.db.models import Max
 from django.contrib.auth import logout
 from website.models import TeamStaff, TeamStaffMembership, TeamStaffSocialLink
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from wagtail.images.models import Image
+from website.services.team_access import confirmed_driver_ids, has_confirmed_membership
 
 # ========== EMAIL VERIFICATION ==========
 from django.contrib.auth.tokens import default_token_generator
@@ -34,6 +35,33 @@ from django.utils.encoding import force_bytes, force_str
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _manager_team(request, team_id=None):
+    """Активная команда пользователя: явно выбранная, из сессии либо единственная.
+
+    Нельзя брать «первую» команду, если пользователь управляет несколькими:
+    действие должно относиться к той команде, из формы которой оно пришло.
+    Выбор запоминается в сессии, чтобы переходы после действий возвращали
+    менеджера в тот же кабинет.
+    """
+    qs = TeamManager.objects.filter(user=request.user, is_active=True).select_related('team')
+    try:
+        team_id = int(team_id) if team_id else None
+    except (TypeError, ValueError):
+        return None
+    if team_id:
+        manager = qs.filter(team_id=team_id).first()
+        if manager:
+            request.session['team_dashboard_id'] = manager.team_id
+        return manager
+    session_team_id = request.session.get('team_dashboard_id')
+    if session_team_id:
+        manager = qs.filter(team_id=session_team_id).first()
+        if manager:
+            return manager
+    teams = list(qs[:2])
+    return teams[0] if len(teams) == 1 else None
 
 
 def send_team_verification_email(user, request):
@@ -290,12 +318,17 @@ TeamStaffSocialLinkFormSet = forms.inlineformset_factory(
 def dashboard(request):
     """Личный кабинет команды"""
     try:
-        manager = TeamManager.objects.filter(
-            user=request.user,
-            is_active=True
-        ).select_related('team').first()
+        manager = _manager_team(
+            request, request.POST.get('team_id') or request.GET.get('team'))
 
         if not manager:
+            manager_qs = (TeamManager.objects.filter(user=request.user, is_active=True)
+                          .select_related('team').order_by('team__name'))
+            managers = list(manager_qs)
+            if len(managers) > 1:
+                return render(request, 'teams/choose_team.html', {
+                    'teams': [m.team for m in managers],
+                })
             # Проверяем есть ли pending-заявка
             from .models import TeamClaim as TC
             pending = TC.objects.filter(user=request.user, status='pending').first()
@@ -305,6 +338,10 @@ def dashboard(request):
             return redirect('/')
 
         team = manager.team
+        manager_teams = [m.team for m in TeamManager.objects
+                         .filter(user=request.user, is_active=True)
+                         .select_related('team').order_by('team__name')]
+        operational_driver_ids = confirmed_driver_ids([team.id])
 
         drivers = Driver.objects.filter(
             team_memberships__team=team,
@@ -330,6 +367,7 @@ def dashboard(request):
                     'driver': driver,
                     'class_name': item['group__race_class__name'],
                     'last_date': item['last_date'],
+                    'confirmed': driver.id in operational_driver_ids,
                 })
                 drivers_with_results.add(driver.id)
 
@@ -346,6 +384,7 @@ def dashboard(request):
                     'driver': driver,
                     'class_name': class_name,
                     'last_date': tz.now(),
+                    'confirmed': driver.id in operational_driver_ids,
                 })
 
         pending_requests = TeamJoinRequest.objects.filter(
@@ -448,6 +487,7 @@ def dashboard(request):
             'formset': formset,
             'race_classes': RaceClass.objects.all(),
             'pending_invitations': pending_invitations,
+            'manager_teams': manager_teams if len(manager_teams) > 1 else [],
         })
 
     except Exception as e:
@@ -462,7 +502,7 @@ def invite_driver(request):
     if request.method != 'POST':
         return redirect('teams:dashboard')
 
-    manager = TeamManager.objects.filter(user=request.user, is_active=True).first()
+    manager = _manager_team(request, request.POST.get('team_id'))
     if not manager:
         messages.error(request, 'Нет прав')
         return redirect('teams:dashboard')
@@ -518,7 +558,7 @@ def invite_driver(request):
         return redirect('teams:dashboard')
 
     # Проверяем уже в команде
-    if TeamMembership.objects.filter(driver=driver, team=team, is_active=True).exists():
+    if has_confirmed_membership(driver.id, team.id):
         messages.warning(request, f'{driver.full_name} уже в команде.')
         return redirect('teams:dashboard')
 
@@ -562,62 +602,78 @@ def _send_team_invitation_email(driver, team, user, invitation):
 
 @login_required
 def accept_invitation(request, inv_id):
-    """Пилот принимает приглашение"""
+    """Пилот принимает приглашение. GET показывает подтверждение, меняет только POST."""
     from accounts.models import DriverClaim
-    claim = DriverClaim.objects.filter(user=request.user, status='approved').first()
+    invitation = get_object_or_404(
+        TeamInvitation.objects.select_related('team', 'driver', 'race_class'), pk=inv_id)
+    claim = DriverClaim.objects.filter(
+        user=request.user, status='approved', driver=invitation.driver).first()
     if not claim:
         messages.error(request, 'Нет привязанного профиля пилота.')
         return redirect('accounts:profile')
+    if invitation.status != 'pending':
+        messages.info(request, 'Это приглашение уже обработано.')
+        return redirect('accounts:profile')
 
-    invitation = get_object_or_404(TeamInvitation, pk=inv_id, driver=claim.driver, status='pending')
+    if request.method != 'POST':
+        return render(request, 'teams/invitation_confirm.html', {
+            'invitation': invitation, 'action': 'accept'})
 
-    # Создаём членство
-    existing = TeamMembership.objects.filter(driver=invitation.driver, team=invitation.team).first()
-    if existing:
-        existing.is_active = True
-        existing.left_at = None
-        existing.race_class = invitation.race_class
-        existing.save()
-    else:
-        TeamMembership.objects.create(
-            driver=invitation.driver,
-            team=invitation.team,
-            race_class=invitation.race_class,
-            joined_at=timezone.now().date(),
-            is_active=True,
-        )
+    with transaction.atomic():
+        membership = (TeamMembership.objects
+                      .filter(driver=invitation.driver, team=invitation.team)
+                      .order_by('-is_active', '-joined_at')
+                      .first())
+        if membership is None:
+            membership = TeamMembership(
+                driver=invitation.driver, team=invitation.team, is_active=True)
+        membership.is_active = True
+        membership.left_at = None
+        membership.race_class = invitation.race_class
+        membership.confirmed_at = timezone.now()
+        membership.confirmed_by = request.user
+        membership.confirmation_source = 'invitation'
+        membership.confirmation_note = 'Пилот принял приглашение'
+        membership.save()
 
-    invitation.status = 'accepted'
-    invitation.responded_at = timezone.now()
-    invitation.save()
+        invitation.status = 'accepted'
+        invitation.responded_at = timezone.now()
+        invitation.save(update_fields=['status', 'responded_at'])
+
     messages.success(request, f'Вы приняты в команду {invitation.team.name}!')
     return redirect('accounts:profile')
 
 
 @login_required
 def decline_invitation(request, inv_id):
-    """Пилот отклоняет приглашение"""
+    """Пилот отклоняет приглашение. GET показывает подтверждение, меняет только POST."""
     from accounts.models import DriverClaim
-    claim = DriverClaim.objects.filter(user=request.user, status='approved').first()
+    invitation = get_object_or_404(
+        TeamInvitation.objects.select_related('team', 'driver'), pk=inv_id)
+    claim = DriverClaim.objects.filter(
+        user=request.user, status='approved', driver=invitation.driver).first()
     if not claim:
         return redirect('accounts:profile')
+    if invitation.status != 'pending':
+        messages.info(request, 'Это приглашение уже обработано.')
+        return redirect('accounts:profile')
 
-    invitation = get_object_or_404(TeamInvitation, pk=inv_id, driver=claim.driver, status='pending')
+    if request.method != 'POST':
+        return render(request, 'teams/invitation_confirm.html', {
+            'invitation': invitation, 'action': 'decline'})
+
     invitation.status = 'declined'
     invitation.responded_at = timezone.now()
-    invitation.save()
+    invitation.save(update_fields=['status', 'responded_at'])
     messages.info(request, f'Приглашение от команды {invitation.team.name} отклонено.')
     return redirect('accounts:profile')
 
 
 @login_required
 def remove_driver(request, driver_id):
-    """Удаление пилота из команды"""
+    """Удаление пилота из команды. Действие относится только к своей команде."""
     if request.method == 'POST':
-        manager = TeamManager.objects.filter(
-            user=request.user,
-            is_active=True
-        ).first()
+        manager = _manager_team(request, request.POST.get('team_id'))
 
         if not manager:
             messages.error(request, 'Нет прав')
@@ -634,7 +690,7 @@ def remove_driver(request, driver_id):
         if membership:
             membership.left_at = timezone.now().date()
             membership.is_active = False
-            membership.save()
+            membership.save(update_fields=['left_at', 'is_active'])
             messages.success(request, f'{driver.full_name} удалён из команды')
         else:
             messages.warning(request, f'{driver.full_name} не найден в команде')
@@ -658,10 +714,26 @@ def approve_request(request, request_id):
             messages.error(request, 'Нет прав')
             return redirect('teams:dashboard')
 
-        join_request.status = 'approved'
-        join_request.reviewed_by = request.user
-        join_request.reviewed_at = timezone.now()
-        join_request.save()
+        with transaction.atomic():
+            membership = (TeamMembership.objects
+                          .filter(driver=join_request.driver, team=join_request.team)
+                          .order_by('-is_active', '-joined_at')
+                          .first())
+            if membership is None:
+                membership = TeamMembership(
+                    driver=join_request.driver, team=join_request.team, is_active=True)
+            membership.is_active = True
+            membership.left_at = None
+            membership.confirmed_at = timezone.now()
+            membership.confirmed_by = request.user
+            membership.confirmation_source = 'join_request'
+            membership.confirmation_note = 'Менеджер одобрил заявку на вступление'
+            membership.save()
+
+            join_request.status = 'approved'
+            join_request.reviewed_by = request.user
+            join_request.reviewed_at = timezone.now()
+            join_request.save(update_fields=['status', 'reviewed_by', 'reviewed_at'])
 
         messages.success(request, f'{join_request.driver.full_name} принят в команду')
 
@@ -687,7 +759,7 @@ def reject_request(request, request_id):
         join_request.status = 'rejected'
         join_request.reviewed_by = request.user
         join_request.reviewed_at = timezone.now()
-        join_request.save()
+        join_request.save(update_fields=['status', 'reviewed_by', 'reviewed_at'])
 
         messages.success(request, f'Заявка {join_request.driver.full_name} отклонена')
 
@@ -705,10 +777,7 @@ def logout_view(request):
 def add_staff(request):
     """Добавление сотрудника в команду"""
     if request.method == 'POST':
-        manager = TeamManager.objects.filter(
-            user=request.user,
-            is_active=True
-        ).first()
+        manager = _manager_team(request, request.POST.get('team_id'))
 
         if not manager:
             messages.error(request, 'Нет прав')
@@ -787,10 +856,7 @@ def add_staff(request):
 def remove_staff(request, staff_id):
     """Удаление сотрудника из команды"""
     if request.method == 'POST':
-        manager = TeamManager.objects.filter(
-            user=request.user,
-            is_active=True
-        ).first()
+        manager = _manager_team(request, request.POST.get('team_id'))
 
         if not manager:
             messages.error(request, 'Нет прав')
@@ -817,10 +883,7 @@ def remove_staff(request, staff_id):
 def edit_staff(request, staff_id):
     """Редактирование сотрудника"""
     if request.method == 'POST':
-        manager = TeamManager.objects.filter(
-            user=request.user,
-            is_active=True
-        ).first()
+        manager = _manager_team(request, request.POST.get('team_id'))
 
         if not manager:
             messages.error(request, 'Нет прав')
@@ -864,7 +927,8 @@ def edit_staff(request, staff_id):
 
 def join_team(request, team_slug):
     """Заявка авторизованного пилота на вступление в команду."""
-    from website.models import Team, TeamMembership
+    from website.models import Team
+    from website.services.team_access import has_confirmed_membership
 
     team = get_object_or_404(Team, slug=team_slug)
 
@@ -886,7 +950,7 @@ def join_team(request, team_slug):
 
     comment = request.POST.get('comment', '').strip()
 
-    if TeamMembership.objects.filter(driver=driver, team=team, is_active=True).exists():
+    if has_confirmed_membership(driver.id, team.id):
         messages.warning(request, f'Вы уже являетесь членом команды {team.name}')
         return redirect('team_detail', slug=team_slug)
 

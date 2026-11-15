@@ -9,8 +9,9 @@
 - Отклонение: организатор отклонил файл — документ ЛК помечается и сам больше не подставляется.
 
 Хранилище — у заявок, поданных самим пилотом (или родителем из аккаунта пилота), и у заявок
-команды за пилота из её состава: по решению владельца (17.10.2026) активное членство в команде —
-согласие пилота, что менеджер берёт документы из его ЛК и сохраняет туда загруженные. Пилот,
+команды за пилота из её подтверждённого состава: по решению владельца (17.10.2026) членство в команде —
+согласие пилота, что менеджер берёт документы из его ЛК и сохраняет туда загруженные. С 15.11.2026
+операционное согласие требует активного подтверждённого членства. Пилот,
 добавленный в заявку команды не из состава, и заявки организатора ЛК не трогают.
 """
 import os
@@ -47,14 +48,13 @@ class HeldVault:
 
 
 def team_pilot_profile(application):
-    """ЛК пилота заявки команды — только у пилота из активного состава этой команды: его
-    подтверждённый профиль, а без него — хранилище при пилоте (HeldVault)."""
+    """ЛК пилота заявки команды — только у пилота из подтверждённого состава этой команды:
+    его подтверждённый профиль, а без него — хранилище при пилоте (HeldVault)."""
     from accounts.models import UserProfile
-    from website.models import TeamMembership
+    from website.services.team_access import has_confirmed_membership
     pilot = getattr(application, 'pilot', None)
     driver = pilot.driver if pilot is not None else None
-    if driver is None or not TeamMembership.objects.filter(
-            team_id=application.team_entry.team_id, driver=driver, is_active=True).exists():
+    if driver is None or not has_confirmed_membership(driver.id, application.team_entry.team_id):
         return None
     return UserProfile.objects.filter(driver=driver, verified=True).first() or HeldVault(driver)
 

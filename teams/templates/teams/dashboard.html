@@ -303,11 +303,22 @@
 
             <!-- Информация справа -->
             <div class="col-md-8">
+                {% if manager_teams %}
+                <div class="form-group">
+                    <label class="form-label">Команда</label>
+                    <select class="form-control" onchange="if(this.value){window.location='?team='+this.value}">
+                        {% for managed_team in manager_teams %}
+                        <option value="{{ managed_team.id }}" {% if managed_team.id == team.id %}selected{% endif %}>{{ managed_team.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
                 <div class="team-name text-start mb-3">{{ team.name }}</div>
 
                 <!-- ЕДИНАЯ ФОРМА для всего -->
                 <form method="post" enctype="multipart/form-data" id="team-main-form">
                     {% csrf_token %}
+                    <input type="hidden" name="team_id" value="{{ team.id }}">
 
                     <!-- Основные поля -->
                     <div class="row">
@@ -502,6 +513,7 @@
                         <button class="btn-edit btn-sm" onclick="editStaff({{ item.staff.id }})">✎</button>
                         <form method="post" action="{% url 'teams:remove_staff' item.staff.id %}">
                             {% csrf_token %}
+                            <input type="hidden" name="team_id" value="{{ team.id }}">
                             <button type="submit" class="btn-remove btn-sm" onclick="return confirm('Убрать сотрудника из команды?')">✕</button>
                         </form>
                     </div>
@@ -534,9 +546,13 @@
                         <div class="driver-info">
                             <div class="driver-name">{{ item.driver.full_name }}</div>
                             <div class="driver-class">{{ item.driver.city|default:"" }}</div>
+                            {% if not item.confirmed %}
+                            <div class="small text-warning">Доступ не подтверждён — документы и сессии закрыты</div>
+                            {% endif %}
                         </div>
                         <form method="post" action="{% url 'teams:remove_driver' item.driver.id %}">
                             {% csrf_token %}
+                            <input type="hidden" name="team_id" value="{{ team.id }}">
                             <button type="submit" class="btn-remove" onclick="return confirm('Убрать пилота из команды?')">Удалить</button>
                         </form>
                     </div>
@@ -613,6 +629,7 @@
                 </div>
                 <form method="post" action="{% url 'teams:invite_driver' %}" id="add-driver-form">
                     {% csrf_token %}
+                    <input type="hidden" name="team_id" value="{{ team.id }}">
                     <div class="form-group mb-3">
                         <label class="form-label">Пилот</label>
                         <select name="driver_id" id="driverSelect" class="form-control" required size="6">
@@ -669,6 +686,7 @@
                     <div class="tab-pane fade show active" id="new-staff" role="tabpanel">
                         <form method="post" action="{% url 'teams:add_staff' %}" enctype="multipart/form-data" id="new-staff-form">
                             {% csrf_token %}
+                            <input type="hidden" name="team_id" value="{{ team.id }}">
                             <input type="hidden" name="staff_id" value="new">
 
                             <div class="row">
@@ -777,6 +795,7 @@
 
                         <form method="post" action="{% url 'teams:add_staff' %}" id="existing-staff-form">
                             {% csrf_token %}
+                            <input type="hidden" name="team_id" value="{{ team.id }}">
                             <div class="form-group mb-3">
                                 <label class="form-label">Выберите сотрудника</label>
                                 <select name="staff_id" id="staffSelect" class="form-control" required size="8">
@@ -813,6 +832,7 @@
                 <form method="post" enctype="multipart/form-data" id="edit-staff-form" action="">
                     {% csrf_token %}
                     {{ formset.management_form }}
+                    <input type="hidden" name="team_id" value="{{ team.id }}">
                     <input type="hidden" name="staff_id" id="edit_staff_id" value="">
 
                     <div class="row">

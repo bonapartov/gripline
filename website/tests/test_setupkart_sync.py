@@ -5,6 +5,7 @@ import secrets
 import pytest
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.utils import timezone
 
 from teams.models import TeamManager
 from website.models import AppDeviceToken, AppSyncRecord, AppSyncRecordVersion, Driver, Team, TeamMembership, Track
@@ -141,12 +142,24 @@ def test_driver_only_own_or_team_roster(client):
     user = make_user('a@example.com', driver=me)
     team = Team.objects.create(name='Гонщики')
     TeamManager.objects.create(user=user, team=team)
-    TeamMembership.objects.create(driver=mate, team=team)
+    TeamMembership.objects.create(driver=mate, team=team,
+                                  confirmed_at=timezone.now(), confirmation_source='legacy')
     auth = token_for(user)
     push(client, auth, sessions=[session_row('s1', driver_id=me.pk), session_row('s2', driver_id=mate.pk),
                                  session_row('s3', driver_id=stranger.pk)])
     got = dict(AppSyncRecord.objects.values_list('uuid', 'driver_id'))
     assert got == {'s1': me.pk, 's2': mate.pk, 's3': None}
+
+
+def test_unconfirmed_team_member_is_not_allowed_driver(client):
+    me = Driver.objects.create(first_name='Иван', last_name='Петров')
+    mate = Driver.objects.create(first_name='Анна', last_name='Сидорова')
+    user = make_user('a@example.com', driver=me)
+    team = Team.objects.create(name='Гонщики')
+    TeamManager.objects.create(user=user, team=team)
+    TeamMembership.objects.create(driver=mate, team=team)          # активно, но не подтверждено
+    push(client, token_for(user), sessions=[session_row('s1', driver_id=mate.pk)])
+    assert AppSyncRecord.objects.get(uuid='s1').driver_id is None
 
 
 def test_users_isolated(client):
@@ -178,7 +191,8 @@ def _team_setup():
     manager = make_user('manager@example.com')
     team = Team.objects.create(name='Гонщики')
     TeamManager.objects.create(user=manager, team=team)
-    TeamMembership.objects.create(driver=pilot_driver, team=team)
+    TeamMembership.objects.create(driver=pilot_driver, team=team,
+                                  confirmed_at=timezone.now(), confirmation_source='legacy')
     return pilot, pilot_driver, manager
 
 

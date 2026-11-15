@@ -31,17 +31,14 @@ PULL_LIMIT = 500
 
 
 def allowed_driver_ids(user):
-    """Пилоты, которых пользователь может указать в своих сессиях."""
-    from teams.models import TeamManager
-    from website.models import TeamMembership
-    ids = set()
-    profile = getattr(user, 'profile', None)
-    if profile is not None and profile.verified and profile.driver_id:
-        ids.add(profile.driver_id)
-    teams = TeamManager.objects.filter(user=user, is_active=True).values_list('team_id', flat=True)
-    ids.update(TeamMembership.objects.filter(team_id__in=list(teams), is_active=True)
-               .values_list('driver_id', flat=True))
-    return ids
+    """Пилоты, которых пользователь может указать в своих сессиях.
+
+    Только собственный подтверждённый пилот и подтверждённый состав команд,
+    которыми пользователь управляет сейчас. Активное, но неподтверждённое
+    членство доступа не даёт.
+    """
+    from website.services.team_access import allowed_driver_ids as _allowed
+    return _allowed(user)
 
 
 def _ms(value):

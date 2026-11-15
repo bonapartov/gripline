@@ -1,0 +1,33 @@
+{% extends "teams/base_teams.html" %}
+
+{% block teams_title %}Выберите команду{% endblock %}
+
+{% block teams_content %}
+<style>
+    .team-choice {
+        display: block;
+        background: #15151c;
+        border: 1px solid #2a2a35;
+        border-radius: 8px;
+        color: #ffc107;
+        font-weight: bold;
+        padding: 1rem 1.25rem;
+        margin-bottom: 0.75rem;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    .team-choice:hover {
+        border-color: #ffc107;
+        color: #ffc107;
+        transform: translateY(-2px);
+    }
+</style>
+
+<p class="text-center text-muted mb-4">
+    Вы управляете несколькими командами. Откройте кабинет нужной команды.
+</p>
+
+{% for team in teams %}
+<a class="team-choice" href="{% url 'teams:dashboard' %}?team={{ team.id }}">{{ team.name }}</a>
+{% endfor %}
+{% endblock %}

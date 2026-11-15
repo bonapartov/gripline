@@ -13,6 +13,7 @@ from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 from modelcluster.models import ClusterableModel
 from wagtail.api import APIField
 from wagtail.snippets.models import register_snippet
@@ -1120,7 +1121,21 @@ class Team(DraftStateMixin, RevisionMixin, PreviewableMixin, ClusterableModel, m
         verbose_name_plural = "Команды"
 
 class TeamMembership(models.Model):
-    """Связь пилота с командой с датами"""
+    """Связь пилота с командой с датами.
+
+    Подтверждение отделено от активности: исторический/ручной состав может быть
+    активен, но не давать операционного доступа к документам и сессиям. Результат
+    пилота за команду, принятое приглашение и явное действие администратора
+    подтверждают membership (confirmed_at + источник + актор).
+    """
+    CONFIRMATION_SOURCES = [
+        ('result', 'Результат пилота за команду'),
+        ('invitation', 'Принятое приглашение'),
+        ('join_request', 'Одобренная заявка на вступление'),
+        ('admin', 'Подтверждение администратора'),
+        ('legacy', 'Сохранено при миграции'),
+    ]
+
     driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name='team_memberships')
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='memberships')
     race_class = models.ForeignKey('RaceClass', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Класс')
@@ -1128,10 +1143,32 @@ class TeamMembership(models.Model):
     left_at = models.DateField("Дата ухода", null=True, blank=True)
     is_active = models.BooleanField("Активен", default=True)
 
+    # --- подтверждённое операционное членство ---
+    confirmed_at = models.DateTimeField("Подтверждено", null=True, blank=True, db_index=True)
+    confirmed_by = models.ForeignKey(
+        'auth.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='confirmed_team_memberships', verbose_name='Кто подтвердил')
+    confirmation_source = models.CharField(
+        "Источник подтверждения", max_length=20, choices=CONFIRMATION_SOURCES, blank=True, default='')
+    confirmation_note = models.TextField("Основание подтверждения", blank=True, default='')
+
     class Meta:
         verbose_name = "Участие в команде"
         verbose_name_plural = "Участия в командах"
         unique_together = ['driver', 'team', 'joined_at']  # Защита от дублей
+
+    @property
+    def is_confirmed(self):
+        return self.confirmed_at is not None
+
+    def confirm(self, *, source, actor=None, note=''):
+        """Отметить связь подтверждённой; повторный вызов обновляет источник."""
+        self.confirmed_at = timezone.now()
+        self.confirmed_by = actor
+        self.confirmation_source = source
+        if note:
+            self.confirmation_note = note
+        return self
 
     def __str__(self):
         return f"{self.driver.full_name} в {self.team.name}"

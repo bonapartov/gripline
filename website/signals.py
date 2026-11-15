@@ -66,20 +66,43 @@ from .models import RaceResult, TeamMembership
 
 @receiver(post_save, sender=RaceResult)
 def create_team_membership(sender, instance, created, **kwargs):
+    """Результат пилота за команду подтверждает его членство в этой команде.
+
+    Решение владельца 15.11.2026: результат — достаточное основание, отдельное
+    приглашение или ручное подтверждение не требуется. Сигнал также возвращает
+    в состав ранее исключённого пилота, если он снова стартовал за команду.
     """
-    Автоматически создаёт членство пилота в команде при добавлении результата
-    """
-    if instance.team and instance.driver:
-        membership, created = TeamMembership.objects.get_or_create(
-            driver=instance.driver,
-            team=instance.team,
-            defaults={
-                'is_active': True,
-                'joined_at': instance.group.page.last_published_at.date() if instance.group.page.last_published_at else timezone.now().date()
-            }
+    if not (instance.team_id and instance.driver_id):
+        return
+
+    membership = (TeamMembership.objects
+                  .filter(driver_id=instance.driver_id, team_id=instance.team_id)
+                  .order_by('-is_active', '-joined_at')
+                  .first())
+    now = timezone.now()
+    if membership is None:
+        membership = TeamMembership(
+            driver_id=instance.driver_id,
+            team_id=instance.team_id,
+            is_active=True,
         )
-        if created:
-            logger.info(f'Автоматически создано членство: {instance.driver.full_name} → {instance.team.name}')
+
+    was_active = membership.is_active
+    had_left_at = membership.left_at is not None
+    membership.is_active = True
+    membership.left_at = None
+    needs_save = membership.pk is None or not was_active or had_left_at
+    if not was_active or membership.confirmed_at is None:
+        membership.confirmed_at = now
+        membership.confirmed_by = None
+        membership.confirmation_source = 'result'
+        membership.confirmation_note = 'Подтверждено результатом пилота за команду'
+        needs_save = True
+    if needs_save:
+        membership.save()
+    if not was_active or created:
+        logger.info('Членство подтверждено результатом: %s → %s',
+                    instance.driver.full_name, instance.team.name)
 
 # ── Футер из админки ─────────────────────────────────────────────────────────
 # Футер сайта — сниппет CodeRed «Footers» (templates/coderedcms/snippets/footer.html).

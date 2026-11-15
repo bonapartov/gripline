@@ -274,11 +274,14 @@ class ReminderTests(MediaMixin, WizardFixture):
         self.profile.refresh_from_db()
         self.assertFalse(self.profile.telegram_notifications)
 
-    def _team_with_manager(self, driver, manager_email='mgr@example.com', active=True):
+    def _team_with_manager(self, driver, manager_email='mgr@example.com', active=True, confirmed=True):
         from teams.models import TeamManager
         from website.models import Team, TeamMembership
         team = Team.objects.create(name=f'Команда {manager_email}', slug=manager_email.split('@')[0])
-        TeamMembership.objects.create(team=team, driver=driver, is_active=active)
+        TeamMembership.objects.create(
+            team=team, driver=driver, is_active=active,
+            confirmed_at=timezone.now() if confirmed else None,
+            confirmation_source='legacy' if confirmed else '')
         mgr = User.objects.create_user(manager_email, manager_email, 'pw')
         TeamManager.objects.create(user=mgr, team=team, is_active=True)
         return mgr
@@ -310,6 +313,18 @@ class ReminderTests(MediaMixin, WizardFixture):
                                      expiry_date=self.today + timedelta(days=1))
         self.assertEqual(self.run_on(self.today)[0], 1)
         self.assertEqual([m.to for m in mail.outbox], [['mgr@example.com']])
+
+    def test_unconfirmed_membership_does_not_remind_manager(self):
+        from website.models import Driver
+        driver = Driver.objects.create(first_name='Вера', last_name='Кузнецова', slug='vera')
+        self.profile.driver = driver
+        self.profile.save()
+        self._team_with_manager(driver, confirmed=False)
+        self.doc(5)
+        with mock.patch('website.feedback.notify.send_user_message', return_value=True) as send:
+            self.assertEqual(self.run_on(self.today)[0], 1)
+        self.assertEqual([m.to[0] for m in mail.outbox], ['pilot@example.com'])
+        send.assert_not_called()
 
     def test_alerts_include_expired_and_near(self):
         self.doc(-3)

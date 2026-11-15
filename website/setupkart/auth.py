@@ -242,7 +242,7 @@ def account_payload(user):
     """Аккаунт для приложения: имя, привязанный пилот, пилоты команд, которыми он управляет."""
     from accounts.models import DriverClaim
     from teams.models import TeamManager
-    from website.models import TeamMembership
+    from website.services.team_access import confirmed_memberships
     base = _base_url()
     profile = getattr(user, 'profile', None)
     driver = profile.driver if profile is not None and profile.verified and profile.driver_id else None
@@ -250,7 +250,7 @@ def account_payload(user):
                  .order_by('team__name'))
     team_ids = [m.team_id for m in teams]
     pilots, seen = [], set()
-    for m in (TeamMembership.objects.filter(team_id__in=team_ids, is_active=True)
+    for m in (confirmed_memberships(team_ids=team_ids)
               .select_related('driver', 'team').order_by('driver__last_name', 'driver__first_name')):
         if m.driver_id in seen:
             continue

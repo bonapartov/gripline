@@ -100,11 +100,11 @@ def doc_owner_name(doc):
 def team_managers(doc):
     """[(пользователь, команда)] — действующие менеджеры команд, в активном составе которых пилот."""
     from teams.models import TeamManager
-    from website.models import TeamMembership
+    from website.services.team_access import confirmed_memberships
     driver = doc_driver(doc)
     if driver is None:
         return []
-    team_ids = TeamMembership.objects.filter(driver=driver, is_active=True).values_list('team_id', flat=True)
+    team_ids = confirmed_memberships(driver_ids=[driver.id]).values_list('team_id', flat=True)
     seen, result = set(), []
     for m in (TeamManager.objects.filter(team_id__in=team_ids, is_active=True, user__is_active=True)
               .select_related('user', 'team').order_by('team__name')):

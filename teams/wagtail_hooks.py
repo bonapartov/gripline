@@ -1,6 +1,7 @@
 from wagtail_modeladmin.options import ModelAdmin, ModelAdminGroup, modeladmin_register
 from django.utils.html import format_html
 from .models import TeamClaim, TeamManager, TeamJoinRequest
+from website.models import TeamMembership
 
 
 class TeamClaimAdmin(ModelAdmin):
@@ -44,10 +45,21 @@ class TeamJoinRequestAdmin(ModelAdmin):
     list_filter = ('status',)
 
 
+class TeamMembershipAdmin(ModelAdmin):
+    model = TeamMembership
+    menu_label = 'Состав команд'
+    menu_icon = 'group'
+    list_display = ('driver', 'team', 'race_class', 'is_active', 'confirmed_at',
+                    'confirmation_source', 'confirmed_by')
+    list_filter = ('is_active', 'confirmation_source', 'team')
+    search_fields = ('driver__first_name', 'driver__last_name', 'team__name')
+    ordering = ('team__name', 'driver__last_name')
+
+
 class TeamsClaimsGroup(ModelAdminGroup):
     menu_label = 'Заявки команд'
     menu_icon = 'group'
-    items = (TeamClaimAdmin, TeamManagerAdmin, TeamJoinRequestAdmin)
+    items = (TeamClaimAdmin, TeamManagerAdmin, TeamJoinRequestAdmin, TeamMembershipAdmin)
 
 
 modeladmin_register(TeamsClaimsGroup)

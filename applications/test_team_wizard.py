@@ -46,12 +46,14 @@ class TeamWizardFixture(TestCase):
         self.d3 = self._driver('Вера', 'Кузнецова', 'd3')
         other = Team.objects.create(name='Бета', slug='beta')
         self.foreign = Driver.objects.create(first_name='Чужой', last_name='Пилот', slug='foreign', live=True)
-        TeamMembership.objects.create(driver=self.foreign, team=other, is_active=True)
+        TeamMembership.objects.create(driver=self.foreign, team=other, is_active=True,
+                                      confirmed_at=timezone.now(), confirmation_source='legacy')
         self.client.force_login(self.manager)
 
     def _driver(self, first, last, slug, race_class=None):
         d = Driver.objects.create(first_name=first, last_name=last, slug=slug, live=True)
-        TeamMembership.objects.create(driver=d, team=self.team, is_active=True, race_class=race_class)
+        TeamMembership.objects.create(driver=d, team=self.team, is_active=True, race_class=race_class,
+                                      confirmed_at=timezone.now(), confirmation_source='legacy')
         return d
 
     def entry(self):
@@ -87,6 +89,15 @@ class TeamWizardRosterTests(TeamWizardFixture):
         self.assertEqual(rows[f'd{self.d1.id}'].class_id, self.mini.id)
         self.assertEqual(rows[f'd{self.d2.id}'].class_id, self.ok.id)
         self.assertNotIn(f'd{self.foreign.id}', rows)
+
+    def test_unconfirmed_membership_is_not_in_roster(self):
+        TeamMembership.objects.filter(driver=self.d1, team=self.team).update(
+            confirmed_at=None, confirmation_source='')
+        resp = self.client.get(f'/teams/apply/entry/{self.entry().id}/')
+        self.assertEqual(resp.status_code, 200)
+        rows = {r.key: r for r in resp.context['rows']}
+        self.assertNotIn(f'd{self.d1.id}', rows)
+        self.assertIn(f'd{self.d2.id}', rows)
 
     def test_pilots_in_different_classes_get_drafts_with_same_number(self):
         entry = self.entry()
@@ -371,6 +382,18 @@ class TeamWizardStage2Tests(Stage2Fixture):
         self.fill(entry, app)
         self.client.post(f'/teams/apply/entry/{entry.id}/review/', {'action': 'submit'})
         self.assertEqual(app.documents.get(stage_document=self.license).status, 'pending')
+
+    def test_unconfirmed_membership_does_not_use_pilot_cabinet(self):
+        self.vault_license()
+        entry = self.entry()
+        self.roster(entry, [(self.d1, self.mini, None)])
+        TeamMembership.objects.filter(driver=self.d1, team=self.team).update(
+            confirmed_at=None, confirmation_source='')
+        app = entry.applications.get()
+        self.fill(entry, app)
+        self.client.post(f'/teams/apply/entry/{entry.id}/review/', {'action': 'submit'})
+        row = app.documents.get(stage_document=self.license)
+        self.assertEqual((row.status, row.vault_document), ('pending', None))
 
     def test_manager_upload_lands_in_pilot_cabinet_and_returns_to_team_page(self):
         from accounts.models import PilotDocument

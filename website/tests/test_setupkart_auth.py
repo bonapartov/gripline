@@ -6,6 +6,7 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.utils import timezone
 
 from accounts.models import DriverClaim
 from teams.models import TeamManager
@@ -175,8 +176,12 @@ def test_account_payload_driver_and_team_pilots(client):
     TeamManager.objects.create(user=user, team=team)
     mate = Driver.objects.create(first_name='Анна', last_name='Сидорова')
     gone = Driver.objects.create(first_name='Олег', last_name='Ушедший')
-    TeamMembership.objects.create(driver=mate, team=team)
-    TeamMembership.objects.create(driver=gone, team=team, is_active=False)
+    pending = Driver.objects.create(first_name='Пётр', last_name='Неподтверждённый')
+    TeamMembership.objects.create(driver=mate, team=team,
+                                  confirmed_at=timezone.now(), confirmation_source='legacy')
+    TeamMembership.objects.create(driver=gone, team=team, is_active=False,
+                                  confirmed_at=timezone.now(), confirmation_source='legacy')
+    TeamMembership.objects.create(driver=pending, team=team)       # активно, но не подтверждено
     token = login_token(client, user)
     acc = client.get(ME, HTTP_AUTHORIZATION=f'Bearer {token}').json()['account']
     assert acc['driver']['id'] == driver.pk and acc['driver']['url'].endswith(f'/drivers/{driver.slug}/')
