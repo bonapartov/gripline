@@ -176,10 +176,14 @@ def test_team_ratings_use_class_table_scores(monkeypatch):
     t_strong = Team.objects.create(name='Быстрые', slug='fast')
     t_weak = Team.objects.create(name='Медленные', slug='slow')
     teams = {d.id: t_strong.id for d in strong} | {d.id: t_weak.id for d in weak}
-    monkeypatch.setattr(views, '_compute_driver_current_teams', lambda: teams)
+    # После разбиения website/views на пакет функция живёт в website.views.stats
+    # и берёт render/Site/помощники из глобалей своего модуля.
+    stats_views = views.stats
+    monkeypatch.setattr(stats_views, '_compute_driver_current_teams', lambda: teams)
     captured = {}
-    monkeypatch.setattr(views, 'render', lambda req, tpl, ctx: captured.update(ctx))
-    monkeypatch.setattr(views.Site, 'find_for_request', staticmethod(lambda r: None))
+    monkeypatch.setattr(stats_views, 'render', lambda req, tpl, ctx: captured.update(ctx))
+    monkeypatch.setattr(stats_views.Site, 'find_for_request',
+                        staticmethod(lambda *a, **kw: None))
 
     views.team_ratings_view(RequestFactory().get('/team-ratings/'))
     rows = captured['team_rows']
