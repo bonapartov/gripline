@@ -57,6 +57,13 @@ def push(client, auth, **tables):
     return client.post(PUSH, json.dumps({'schema_version': 9, 'tables': tables}), content_type='application/json', **auth)
 
 
+def push_v3(client, auth, revisions=None, **tables):
+    body = {'protocol_version': 3, 'schema_version': 9, 'tables': tables}
+    if revisions is not None:
+        body['revisions'] = revisions
+    return client.post(PUSH, json.dumps(body), content_type='application/json', **auth)
+
+
 def test_push_and_pull_roundtrip(client):
     track = Track.objects.create(name='Ижорец')
     user = make_user('a@example.com')
@@ -103,6 +110,7 @@ def test_push_v2_acknowledges_every_record(client, monkeypatch):
     assert data['results'][4]['reason'] == 'record_limit'
     assert all(a['table'] == 'sessions' and a['updated_at'] == r['updatedAt']
                for a, r in zip(data['results'], rows))
+    assert all('revision' not in a for a in data['results'])
 
 
 def test_push_v2_retry_after_lost_response_is_acknowledged(client):
@@ -125,6 +133,144 @@ def test_older_client_cannot_overwrite_newer_schema(client):
     data = client.post(PUSH, json.dumps(body), content_type='application/json', **auth).json()
     assert data['results'][0]['reason'] == 'newer_schema'
     assert AppSyncRecord.objects.get().schema_version == 10
+
+
+def test_revision_starts_at_one_and_grows_with_pull(client):
+    auth = token_for(make_user('rev@example.com'))
+    push(client, auth, sessions=[session_row(updated=1000, name='A')])
+    item = client.get(PULL, **auth).json()['tables']['sessions'][0]
+    assert item['revision'] == 1
+
+    push(client, auth, sessions=[session_row(updated=2000, name='B')])
+    item = client.get(PULL, **auth).json()['tables']['sessions'][0]
+    assert item['revision'] == 2
+    assert AppSyncRecord.objects.get().server_revision == 2
+
+
+def test_v3_matching_base_revision_is_accepted(client):
+    auth = token_for(make_user('v3@example.com'))
+    push(client, auth, sessions=[session_row(updated=1000, name='A')])
+    data = push_v3(client, auth, revisions={'sessions|s1': 1},
+                   sessions=[session_row(updated=2000, name='B')]).json()
+    assert data['protocol_version'] == 3
+    assert data['accepted'] == 1 and data['skipped'] == 0
+    assert data['results'] == [{'table': 'sessions', 'id': 's1', 'updated_at': 2000,
+                                'status': 'accepted', 'revision': 2}]
+    record = AppSyncRecord.objects.get()
+    assert record.data['name'] == 'B' and record.server_revision == 2
+
+
+def test_v3_stale_base_revision_returns_conflict_without_overwrite(client):
+    auth = token_for(make_user('conflict@example.com'))
+    push(client, auth, sessions=[session_row(updated=1000, name='A')])
+    push_v3(client, auth, revisions={'sessions|s1': 1},
+            sessions=[session_row(updated=2000, name='B')])
+    data = push_v3(client, auth, revisions={'sessions|s1': 1},
+                   sessions=[session_row(updated=3000, name='C')]).json()
+    assert data['accepted'] == 0 and data['skipped'] == 1
+    receipt = data['results'][0]
+    assert receipt['status'] == 'conflict' and receipt['revision'] == 2
+    assert receipt['row']['name'] == 'B' and receipt['row']['updatedAt'] == 2000
+    record = AppSyncRecord.objects.get()
+    assert (record.data['name'], record.server_revision) == ('B', 2)
+    # Конфликт не создаёт ещё одну версию: сохранена только вытесненная правка A.
+    assert [v.data['name'] for v in AppSyncRecordVersion.objects.filter(record=record)] == ['A']
+
+
+def test_v3_conflict_can_be_resolved_with_current_revision(client):
+    auth = token_for(make_user('resolve@example.com'))
+    push(client, auth, sessions=[session_row(updated=1000, name='A')])
+    push_v3(client, auth, revisions={'sessions|s1': 1},
+            sessions=[session_row(updated=2000, name='B')])
+    conflict = push_v3(client, auth, revisions={'sessions|s1': 1},
+                       sessions=[session_row(updated=3000, name='C')]).json()['results'][0]
+    assert conflict['status'] == 'conflict'
+    data = push_v3(client, auth, revisions={'sessions|s1': conflict['revision']},
+                   sessions=[session_row(updated=3000, name='C')]).json()
+    assert data['results'][0]['status'] == 'accepted'
+    assert data['results'][0]['revision'] == 3
+    assert AppSyncRecord.objects.get().data['name'] == 'C'
+
+
+def test_v3_retry_with_lost_response_is_unchanged(client):
+    auth = token_for(make_user('lost@example.com'))
+    push(client, auth, sessions=[session_row(updated=1000, name='A')])
+    row = session_row(updated=2000, name='B')
+    first = push_v3(client, auth, revisions={'sessions|s1': 1}, sessions=[row]).json()
+    assert first['results'][0]['status'] == 'accepted'
+    again = push_v3(client, auth, revisions={'sessions|s1': 1}, sessions=[row]).json()
+    assert again['results'][0]['status'] == 'unchanged'
+    assert again['results'][0]['revision'] == 2
+    record = AppSyncRecord.objects.get()
+    assert record.server_revision == 2
+    assert AppSyncRecordVersion.objects.filter(record=record).count() == 1
+
+
+def test_v3_without_base_revision_keeps_timestamp_rule(client):
+    auth = token_for(make_user('migrate@example.com'))
+    push(client, auth, sessions=[session_row(updated=2000, name='server')])
+    older = push_v3(client, auth, sessions=[session_row(updated=1000, name='old')]).json()
+    assert older['results'][0]['status'] == 'server_newer'
+    assert older['results'][0]['revision'] == 1
+    newer = push_v3(client, auth, sessions=[session_row(updated=3000, name='new')]).json()
+    assert newer['results'][0]['status'] == 'accepted'
+    assert newer['results'][0]['revision'] == 2
+    assert AppSyncRecord.objects.get().data['name'] == 'new'
+
+
+def test_v3_matching_revision_does_not_roll_back_newer_timestamp(client):
+    auth = token_for(make_user('rollback@example.com'))
+    push(client, auth, sessions=[session_row(updated=2000, name='server')])
+    data = push_v3(client, auth, revisions={'sessions|s1': 1},
+                   sessions=[session_row(updated=1000, name='old')]).json()
+    assert data['results'][0]['status'] == 'server_newer'
+    assert data['results'][0]['revision'] == 1
+    assert AppSyncRecord.objects.get().data['name'] == 'server'
+
+
+def test_v3_delete_conflicts_with_newer_server_edit(client):
+    auth = token_for(make_user('delete@example.com'))
+    push(client, auth, sessions=[session_row(updated=1000, name='A')])
+    push_v3(client, auth, revisions={'sessions|s1': 1},
+            sessions=[session_row(updated=2000, name='B')])
+    data = push_v3(client, auth, revisions={'sessions|s1': 1},
+                   sessions=[session_row(updated=3000, name='A', deleted=1000)]).json()
+    assert data['results'][0]['status'] == 'conflict'
+    assert data['results'][0]['row']['name'] == 'B'
+    assert data['results'][0]['row'].get('deletedAt') is None
+    assert not AppSyncRecord.objects.get().deleted
+
+
+def test_v3_edit_conflicts_with_newer_server_delete(client):
+    auth = token_for(make_user('tombstone@example.com'))
+    push(client, auth, sessions=[session_row(updated=1000, name='A')])
+    push_v3(client, auth, revisions={'sessions|s1': 1},
+            sessions=[session_row(updated=2000, name='A', deleted=2000)])
+    data = push_v3(client, auth, revisions={'sessions|s1': 1},
+                   sessions=[session_row(updated=3000, name='B')]).json()
+    assert data['results'][0]['status'] == 'conflict'
+    assert data['results'][0]['row']['deletedAt'] == 2000
+    record = AppSyncRecord.objects.get()
+    assert record.deleted and record.data['name'] == 'A'
+    # Надгробие тоже уходит в pull с ревизией.
+    item = client.get(PULL, **auth).json()['tables']['sessions'][0]
+    assert (item['revision'], item['row']['deletedAt']) == (2, 2000)
+
+
+def test_v3_new_record_ignores_base_and_starts_at_revision_one(client):
+    auth = token_for(make_user('new@example.com'))
+    data = push_v3(client, auth, revisions={'sessions|fresh': 7},
+                   sessions=[session_row('fresh')]).json()
+    assert data['results'][0] == {'table': 'sessions', 'id': 'fresh', 'updated_at': 1000,
+                                  'status': 'accepted', 'revision': 1}
+
+
+def test_v3_revisions_must_be_an_object(client):
+    auth = token_for(make_user('badrev@example.com'))
+    body = {'protocol_version': 3, 'schema_version': 9, 'tables': {}, 'revisions': []}
+    response = client.post(PUSH, json.dumps(body), content_type='application/json', **auth)
+    assert response.status_code == 400
+    assert response.json() == {'error': 'bad_request'}
 
 
 def test_drafts_not_synced_and_deleted_marked(client):

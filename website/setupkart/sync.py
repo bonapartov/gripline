@@ -2,8 +2,15 @@
 setupkart-account-sync).
 
 Телефон присылает строки своей БД как есть (drift `toJson()`), сайт хранит их по UUID и отдаёт другим
-телефонам того же аккаунта. Правило конфликта — новее по `updatedAt` побеждает, прежняя версия сохраняется
-(`AppSyncRecordVersion`). Черновики не синхронизируются. Фото на этом этапе не передаются.
+телефонам того же аккаунта. Правило конфликта по умолчанию — новее по `updatedAt` побеждает, прежняя
+версия сохраняется (`AppSyncRecordVersion`). Черновики не синхронизируются. Фото на этом этапе не
+передаются.
+
+Протокол v3 (opt-in) добавляет серверные ревизии и оптимистическую блокировку: клиент присылает
+`revisions` вида `{"sessions|<uuid>": 4}` — ревизию, на которой основана правка. Если сервер уже ушёл
+вперёд, строка не перезаписывается, а в квитанции возвращается `conflict` с текущей серверной строкой
+и её ревизией. Клиент сохраняет обе стороны и повторяет отправку с актуальной ревизией после решения
+пользователя. v1/v2 отвечают ровно как раньше.
 
 Пилот сессии на сайте (`AppSyncRecord.driver`) — по `driver_id` из снимка сетапа, только если это сам
 пользователь (подтверждённый пилот) или пилот активного состава команды, которой он управляет. Иначе —
@@ -96,6 +103,14 @@ def push(request):
         return JsonResponse({'error': 'bad_json'}, status=400)
     tables = body.get('tables') if isinstance(body, dict) else None
     schema = body.get('schema_version') if isinstance(body, dict) else None
+    protocol = body.get('protocol_version', 1) if isinstance(body, dict) else 1
+    if not isinstance(protocol, int) or isinstance(protocol, bool):
+        protocol = 1
+    base_revisions = body.get('revisions') if isinstance(body, dict) else None
+    if base_revisions is not None and not isinstance(base_revisions, dict):
+        return JsonResponse({'error': 'bad_request'}, status=400)
+    if protocol < 3:
+        base_revisions = {}
     if not isinstance(tables, dict) or not isinstance(schema, int):
         return JsonResponse({'error': 'bad_request'}, status=400)
     rows = [(t, r) for t in APP_SYNC_TABLES for r in (tables.get(t) or []) if isinstance(r, dict)]
@@ -105,11 +120,24 @@ def push(request):
     accepted = skipped = 0
     acknowledgements = []
 
-    def acknowledge(table, row, status, reason=None):
+    def base_revision_of(table, uuid):
+        """Ревизия, на которой основана правка; только для явно выбравших v3."""
+        if protocol < 3 or not base_revisions:
+            return None
+        value = base_revisions.get(f'{table}|{uuid}')
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            return value
+        return None
+
+    def acknowledge(table, row, status, reason=None, record=None, conflict=False):
         item = {'table': table, 'id': row.get('id'), 'updated_at': _ms(row.get('updatedAt')),
                 'status': status}
         if reason:
             item['reason'] = reason
+        if protocol >= 3:
+            item['revision'] = record.server_revision if record is not None and record.pk else 0
+            if conflict and record is not None:
+                item['row'] = record.data
         acknowledgements.append(item)
 
     public_drivers = set()
@@ -136,30 +164,56 @@ def push(request):
                 continue
             record = (AppSyncRecord.objects.select_for_update()
                       .filter(user=user, table=table, uuid=uuid).first())
-            if record is None:
+            is_new = record is None
+            base_revision = base_revision_of(table, uuid)
+            if is_new:
                 if existing_count >= MAX_RECORDS:
                     skipped += 1
                     acknowledge(table, row, 'rejected', 'record_limit')
                     continue
                 existing_count += 1
-                record = AppSyncRecord(user=user, table=table, uuid=uuid)
+                record = AppSyncRecord(user=user, table=table, uuid=uuid, server_revision=1)
+            elif protocol >= 3:
+                if record.schema_version > schema:
+                    # A stale installation must not erase fields it cannot understand.
+                    skipped += 1
+                    acknowledge(table, row, 'rejected', 'newer_schema', record=record)
+                    continue
+                if record.data == row:
+                    skipped += 1
+                    acknowledge(table, row, 'unchanged', record=record)
+                    continue
+                if base_revision is not None and base_revision != record.server_revision:
+                    # Оптимистическая блокировка: не перезаписываем чужую правку. Клиент получает
+                    # текущую серверную строку и решает конфликт, сохраняя обе стороны.
+                    skipped += 1
+                    acknowledge(table, row, 'conflict', record=record, conflict=True)
+                    continue
+                if record.client_updated_at > updated:
+                    # Не откатываем более новую серверную строку. Для первой отправки v3 без
+                    # ревизии (после обновления приложения) действует прежнее правило времени.
+                    skipped += 1
+                    acknowledge(table, row, 'server_newer', record=record)
+                    continue
             elif record.client_updated_at > updated or (record.client_updated_at == updated and record.data == row):
                 # Время в приложении — с точностью до секунды: правка в ту же секунду с другим содержимым
                 # принимается, повтор того же — нет.
                 skipped += 1
-                acknowledge(table, row, 'unchanged' if record.data == row else 'server_newer')
+                acknowledge(table, row, 'unchanged' if record.data == row else 'server_newer',
+                            record=record)
                 continue
             elif record.schema_version > schema:
                 # A stale installation must not erase fields it cannot understand.
                 skipped += 1
-                acknowledge(table, row, 'rejected', 'newer_schema')
+                acknowledge(table, row, 'rejected', 'newer_schema', record=record)
                 continue
-            else:
+            if not is_new:
                 AppSyncRecordVersion.objects.create(record=record, data=record.data,
                                                     client_updated_at=record.client_updated_at)
                 old = list(record.versions.values_list('pk', flat=True)[AppSyncRecordVersion.KEEP:])
                 if old:
                     AppSyncRecordVersion.objects.filter(pk__in=old).delete()
+                record.server_revision = (record.server_revision or 0) + 1
             record.data = row
             record.schema_version = schema
             record.client_updated_at = updated
@@ -172,7 +226,7 @@ def push(request):
                 _session_fields(record, row, drivers, bases)
             record.save()
             accepted += 1
-            acknowledge(table, row, 'accepted')
+            acknowledge(table, row, 'accepted', record=record)
             if record.public and record.driver_id:
                 public_drivers.add(record.driver_id)
     if public_drivers:
@@ -181,9 +235,11 @@ def push(request):
         for driver in Driver.objects.filter(pk__in=public_drivers):
             purge_driver_page(driver)
     response = {'accepted': accepted, 'skipped': skipped}
-    # Legacy clients keep the exact v1 response. New clients require per-row receipts.
-    if body.get('protocol_version') == 2:
+    # Legacy clients keep the exact v1 response. v2/v3 clients require per-row receipts.
+    if protocol == 2:
         response.update(protocol_version=2, results=acknowledgements)
+    elif protocol >= 3:
+        response.update(protocol_version=3, results=acknowledgements)
     return JsonResponse(response)
 
 
@@ -212,7 +268,11 @@ def pull(request):
     records = records[:PULL_LIMIT]
     tables = {t: [] for t in APP_SYNC_TABLES}
     for r in records:
-        tables[r.table].append({'schema_version': r.schema_version, 'row': r.data})
+        tables[r.table].append({
+            'schema_version': r.schema_version,
+            'revision': r.server_revision,
+            'row': r.data,
+        })
     return JsonResponse({
         'tables': tables,
         'cursor': _cursor(records[-1]) if records else since,

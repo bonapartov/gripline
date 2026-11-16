@@ -5674,7 +5674,9 @@ class AppSyncRecord(models.Model):
     или сессия пользователя — строка drift `toJson()` как есть (`data`), по UUID приложения.
 
     Источник правды — телефон: запись заменяется, только если `updatedAt` присланной строки новее
-    (`client_updated_at`); прежняя версия уходит в `AppSyncRecordVersion`. У сессий — поля для ЛК: пилот сайта
+    (`client_updated_at`); прежняя версия уходит в `AppSyncRecordVersion`. Протокол v3 дополнительно
+    сверяет `server_revision`: правка, основанная на устаревшей ревизии, не перезаписывает запись,
+    а возвращает клиенту конфликт с текущей серверной строкой. У сессий — поля для ЛК: пилот сайта
     (только свой или из состава своей команды), трасса сайта, видимость команде и на странице пилота.
     """
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='app_records')
@@ -5685,6 +5687,10 @@ class AppSyncRecord(models.Model):
     client_updated_at = models.BigIntegerField("Изменено в приложении (мс)")
     deleted = models.BooleanField("Удалено", default=False)
     server_updated_at = models.DateTimeField("Получено", db_index=True)
+    server_revision = models.PositiveBigIntegerField(
+        "Серверная ревизия", default=1,
+        help_text="Увеличивается при каждом принятом изменении строки. Клиент присылает "
+                  "ревизию, на которой основана его правка: несовпадение — конфликт без перезаписи.")
 
     driver = models.ForeignKey(Driver, on_delete=models.SET_NULL, null=True, blank=True, related_name='app_sessions')
     track = models.ForeignKey('Track', on_delete=models.SET_NULL, null=True, blank=True, related_name='app_sessions')
