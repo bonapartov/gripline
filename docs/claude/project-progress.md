@@ -2,6 +2,25 @@
 
 Обновлено: 16.11.2026. Запись для продолжения работы после смены сессии.
 
+## Разбиение website.models и website.views (16.11.2026)
+
+Ветка `feature/split-website-modules`, без изменения поведения и миграций.
+
+- `website/models/`: `pages`, `people`, `equipment`, `racing`, `pages_content`,
+  `site_settings`, `balance`, `pages_extra`, `content`, `feedback`,
+  `dashboard`, `app`. `__init__` реэкспортирует все имена, поэтому старые
+  импорты `website.models` работают. Исторические пути миграций
+  `website.models._private_storage` и `website.models._feedback_attachment_*`
+  сохранены.
+- `website/views/`: `snippets`, `common`, `public`, `ratings`, `stats`,
+  `staff`. `__init__` реэкспортирует все публичные и служебные имена; URL,
+  сервисы и management-команды не менялись. `common` держит помощники
+  текущей команды и разрывает цикл `public → ratings → stats → public`.
+- Новых миграций нет, `makemigrations --check` чист. Полный набор:
+  899 passed, 1 skipped.
+- В `website/tests/test_class_ranking.py` цели патчей перенесены в
+  `website.views.stats`: функция использует глобали своего модуля.
+
 ## Синхронизация SetupKart: серверные ревизии и конфликты (16.11.2026)
 
 Ветка `feature/sync-revisions`, только серверная часть. У `AppSyncRecord`

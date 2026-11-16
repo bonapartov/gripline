@@ -22,8 +22,8 @@ gripline/
 │       ├── dev.py        # Локальная разработка
 │       └── prod.py       # Продакшн
 ├── website/              # Главное приложение
-│   ├── models.py         # Все модели: страницы, пилоты, классы, рейтинг
-│   ├── views.py          # Все вью: рейтинг, сравнения, API
+│   ├── models/           # Модели по доменам; __init__ реэкспортирует website.models
+│   ├── views/            # Вью по разделам; __init__ реэкспортирует website.views
 │   ├── urls.py           # URL-маршруты приложения
 │   ├── wagtail_hooks.py  # Регистрация моделей в Wagtail admin
 │   ├── management/commands/
@@ -173,7 +173,7 @@ PostgreSQL. Настройки через переменные окружени�
 
 ---
 
-## Ключевые модели (`website/models.py`)
+## Ключевые модели (`website/models/`)
 
 | Модель | Описание |
 |--------|---------|
@@ -379,7 +379,7 @@ python manage.py migrate
 - **Яндекс Метрика и Google Analytics** загружаются только из `cookie-consent.js` после согласия. Тег Метрики в шаблоны напрямую не вставлять.
 - **Уведомления о заявках пилота или команды** шлются из `post_save`-сигналов через `on_commit`, во views их не дублировать.
 - **ORM из процесса бота** — только через `website/feedback/db.py::run_sync`, не через голый `sync_to_async`.
-- **Импорт `website.mediakit_views` внутри `website/views.py`** — только локальный (внутри функции), иначе циклический импорт.
+- **Импорт `website.mediakit_views` внутри `website/views/`** — только локальный (внутри функции), иначе циклический импорт.
 - **Скрипты в блоке `extra_js` админки Wagtail** подключать с `defer` (блок выводится в `<head>`).
 - **Тренировки из приложения** (`AppSyncRecord`) никогда не попадают в рейтинг, рекорды и статистику, только `RaceResult`.
 - **Дублированные формулы меняются синхронно:** развесовка — `balance_calc.py` + `balance-calculator.js` + Dart в приложении (эталон `website/tests/fixtures/balance_vectors.json`); геометрия схемы трассы — `track_scheme.py` + `track_scheme_geom.js`.
