@@ -6,6 +6,7 @@ from io import StringIO
 
 import pytest
 from django.contrib.auth.models import Permission, User
+from django.core.cache import cache
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.utils import timezone
@@ -104,6 +105,55 @@ def test_disk_check_levels(monkeypatch):
     for used, level in ((50, 'ok'), (90, 'warn'), (97, 'fail')):
         monkeypatch.setattr(health.shutil, 'disk_usage', lambda p, u=used: usage(100 * 2**30, u * 2**30, (100 - u) * 2**30))
         assert health.check_disk()[1] == level
+
+
+def test_check_proxy_end_to_end_ok(db, monkeypatch, settings):
+    settings.TELEGRAM_PROXY_URL = 'socks5h://127.0.0.1:10808'
+    cfg = FeedbackBotSettings.get()
+    cfg.use_vpn = True
+    cfg.save()
+    cache.delete(health.PROXY_CACHE_KEY)
+    seen = []
+    monkeypatch.setattr(health, '_telegram_via_proxy', lambda url: seen.append(url) or (True, 0.25))
+
+    name, level, text = health.check_proxy()
+
+    assert name == 'Прокси для Telegram' and level == 'ok'
+    assert '0.25' in text and seen
+
+
+def test_check_proxy_end_to_end_fail(db, monkeypatch, settings):
+    settings.TELEGRAM_PROXY_URL = 'socks5h://127.0.0.1:10808'
+    cfg = FeedbackBotSettings.get()
+    cfg.use_vpn = True
+    cfg.save()
+    cache.delete(health.PROXY_CACHE_KEY)
+    monkeypatch.setattr(health, '_telegram_via_proxy', lambda url: (False, None))
+
+    assert health.check_proxy()[1] == 'fail'
+
+
+def test_check_proxy_caches_result(db, monkeypatch, settings):
+    settings.TELEGRAM_PROXY_URL = 'socks5h://127.0.0.1:10808'
+    cfg = FeedbackBotSettings.get()
+    cfg.use_vpn = True
+    cfg.save()
+    cache.delete(health.PROXY_CACHE_KEY)
+    calls = []
+    monkeypatch.setattr(health, '_telegram_via_proxy', lambda url: calls.append(url) or (True, 0.1))
+
+    health.check_proxy()
+    health.check_proxy()
+
+    assert len(calls) == 1
+
+
+def test_check_proxy_unknown_when_vpn_disabled(db):
+    cfg = FeedbackBotSettings.get()
+    cfg.use_vpn = False
+    cfg.save()
+
+    assert health.check_proxy()[1] == 'unknown'
 
 
 def test_collect_health_skips_network_probes_by_default_in_debug(db, settings):

@@ -6,18 +6,25 @@
 import glob
 import os
 import shutil
-import socket
+import time
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
 from django.conf import settings
+from django.core.cache import cache
 from django.utils import timezone
 
 from .jobs import human_age, job_checks
 
 LEVEL_ORDER = {'ok': 0, 'unknown': 1, 'warn': 2, 'fail': 3}
 LEVEL_ICON = {'ok': '✅', 'unknown': '⚪', 'warn': '⚠️', 'fail': '🔴'}
-PROBE_TIMEOUT = 0.7
+HTTP_PROBE_TIMEOUT = 5
+PROXY_CACHE_KEY = 'dashboard:telegram_proxy'
+PROXY_CACHE_SEC = 60
+# Заведомо неверный токен: Telegram отвечает 401 и JSON с полем ok.
+# Этого достаточно, чтобы отличить живой Bot API от мёртвого туннеля,
+# не используя реальный токен бота.
+TELEGRAM_PROBE_URL = 'https://api.telegram.org/bot0:0/getMe'
 BOT_HEARTBEAT_OK_SEC = 90
 BACKUP_WARN_DAYS = 8     # cron делает бэкап раз в неделю
 BACKUP_FAIL_DAYS = 15
@@ -70,12 +77,23 @@ def check_mail():
     return ('Исходящая почта', 'warn', 'отправка писем выключена (кил-свитч)')
 
 
-def _tcp_ok(host, port):
+def _telegram_via_proxy(proxy_url):
+    """End-to-end проба Bot API через прокси: (ok, задержка в секундах | None)."""
+    import requests
+
+    started = time.monotonic()
     try:
-        with socket.create_connection((host, port), timeout=PROBE_TIMEOUT):
-            return True
-    except OSError:
-        return False
+        response = requests.get(
+            TELEGRAM_PROBE_URL,
+            proxies={'http': proxy_url, 'https': proxy_url},
+            timeout=HTTP_PROBE_TIMEOUT,
+        )
+        payload = response.json()
+    except (requests.RequestException, ValueError):
+        return False, None
+    if not isinstance(payload, dict) or 'ok' not in payload:
+        return False, None
+    return True, time.monotonic() - started
 
 
 def check_proxy():
@@ -86,9 +104,20 @@ def check_proxy():
     parsed = urlparse(url or '')
     if not parsed.hostname or not parsed.port:
         return ('Прокси для Telegram', 'warn', 'адрес прокси не задан')
-    if _tcp_ok(parsed.hostname, parsed.port):
-        return ('Прокси для Telegram', 'ok', f'{parsed.hostname}:{parsed.port} доступен')
-    return ('Прокси для Telegram', 'fail', f'{parsed.hostname}:{parsed.port} не отвечает')
+
+    cached = cache.get(PROXY_CACHE_KEY)
+    if cached is None:
+        ok, latency = _telegram_via_proxy(url)
+        cache.set(PROXY_CACHE_KEY, (ok, latency), PROXY_CACHE_SEC)
+    else:
+        ok, latency = cached
+
+    where = f'{parsed.hostname}:{parsed.port}'
+    if not ok:
+        return ('Прокси для Telegram', 'fail', f'{where}: Bot API не отвечает через прокси')
+    if latency is None:
+        return ('Прокси для Telegram', 'ok', f'{where}: Bot API отвечает')
+    return ('Прокси для Telegram', 'ok', f'{where}: Bot API отвечает за {latency:.2f} с')
 
 
 def collect_health(now=None, probe=None):
