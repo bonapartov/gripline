@@ -109,7 +109,7 @@ def test_disk_check_levels(monkeypatch):
 def test_collect_health_skips_network_probes_by_default_in_debug(db, settings):
     settings.DEBUG = True
     names = [c['name'] for c in health.collect_health()]
-    assert 'Мобильный API (FastAPI)' not in names and 'Бэкап БД' in names
+    assert 'Прокси для Telegram' not in names and 'Бэкап БД' in names
     assert health.worst_level([{'level': 'ok'}, {'level': 'fail'}, {'level': 'warn'}]) == 'fail'
 
 

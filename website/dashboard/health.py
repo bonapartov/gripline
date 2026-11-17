@@ -1,8 +1,8 @@
 """Проверки «здоровья» системы для главной страницы админки и утренней сводки.
 
 Каждая проверка — (название, level, текст); level: ok | warn | fail | unknown.
-Сетевые пробы (FastAPI, прокси) короткие и выключены в DEBUG (локально этих
-сервисов нет, и они всегда «падали» бы)."""
+Сетевая проба прокси короткая и выключена в DEBUG (локально прокси нет,
+и она всегда «падала» бы)."""
 import glob
 import os
 import shutil
@@ -78,11 +78,6 @@ def _tcp_ok(host, port):
         return False
 
 
-def check_fastapi():
-    return ('Мобильный API (FastAPI)',) + (
-        ('ok', 'отвечает') if _tcp_ok('127.0.0.1', 8001) else ('fail', 'не отвечает на порту 8001'))
-
-
 def check_proxy():
     from website.models import FeedbackBotSettings, VpnSettings
     if not FeedbackBotSettings.get().use_vpn:
@@ -101,7 +96,7 @@ def collect_health(now=None, probe=None):
     probe = (not settings.DEBUG) if probe is None else probe
     checks = [check_bot(now), check_backup(now), check_disk(), check_mail()]
     if probe:
-        checks += [check_fastapi(), check_proxy()]
+        checks += [check_proxy()]
     checks += job_checks(now)
     return [{'name': n, 'level': lvl, 'text': text, 'icon': LEVEL_ICON[lvl]} for n, lvl, text in checks]
 
